@@ -1,0 +1,21 @@
+# Salesforce CLI
+.sfdx/
+.sf/
+.localdevserver/
+deploy-options.json
+
+# Release Relay run output
+auth.txt
+scan.json
+deploy.json
+result.json
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
