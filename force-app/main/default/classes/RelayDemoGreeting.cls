@@ -4,5 +4,6 @@
 public with sharing class RelayDemoGreeting {
     public static String greet(String name) {
         return 'Hello, ' + (String.isBlank(name) ? 'Release Relay' : name) + '!';
+
     }
 }
