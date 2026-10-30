@@ -1,0 +1,18 @@
+{
+ "request": "REL-00003",
+ "step": "scan",
+ "status": "Passed",
+ "total": 0,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {},
+ "files": [
+  "force-app/main/default/flows/sfdc_default_ReportExport_Protection_Flow.flow-meta.xml"
+ ],
+ "violations": [],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41135063555",
+ "finishedAt": "2026-10-30T22:01:51.528Z"
+}
