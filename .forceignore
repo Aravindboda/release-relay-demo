@@ -1,8 +1,8 @@
-# Files the Salesforce CLI should not push, pull or deploy
-package.xml
+# Keep noisy or org-specific metadata out of merge requests
+**/profiles/**
+**/appMenus/**
+**/settings/**
+**/*.dup
 **/jsconfig.json
 **/.eslintrc.json
 **/__tests__/**
-**/*.dup
-.sfdx/
-.sf/

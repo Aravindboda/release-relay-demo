@@ -1,108 +1,238 @@
-# Release Relay: validates pull requests into `sit` against the SIT org,
-# deploys to SIT when they merge, and writes the result as JSON to the
-# `release-relay-results` branch for Salesforce to read.
+# Release Relay: started only from Salesforce (workflow_dispatch).
+#   mode=org     retrieve the selected components from the source org, apply deletions, commit to a
+#                new branch, open a pull request into the target branch, then scan and validate it.
+#   mode=branch  open a pull request from a branch that already exists, then scan and validate it.
+#   mode=check   scan and validate an open pull request again (after a fix, or on request).
+#   mode=merge   merge the pull request approved in Salesforce, then deploy it to the target org.
+# Validation and deployment run only when Salesforce passes a target environment (the GitHub
+# environment that holds the target org's login). Each step writes its result as JSON to the
+# release-relay-results branch, where Salesforce reads it.
 name: Release Relay
+run-name: "Release Relay ${{ inputs.request_id }} (${{ inputs.mode }})"
 
 on:
-  pull_request:
-    branches: [sit]
-    types: [opened, synchronize, reopened]
-  push:
-    branches: [sit]
   workflow_dispatch:
+    inputs:
+      request_id:
+        description: Salesforce release number
+        required: true
+        type: string
+      mode:
+        description: org, branch, check or merge
+        required: true
+        type: choice
+        options: [org, branch, check, merge]
+      environment:
+        description: GitHub environment of the source org
+        required: true
+        type: string
+      target_environment:
+        description: GitHub environment of the target org (blank = Git only, no validate or deploy)
+        required: false
+        type: string
+        default: ''
+      branch:
+        description: Source branch
+        required: true
+        type: string
+      target:
+        description: Target branch
+        required: true
+        type: string
+      title:
+        description: Pull request title
+        required: true
+        type: string
+      components:
+        description: Type:Name list to retrieve, comma separated
+        required: false
+        type: string
+        default: ''
+      deletions:
+        description: Type:Name list to delete, comma separated
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write
   pull-requests: write
 
 concurrency:
-  group: release-relay-${{ github.ref }}
+  group: release-relay-${{ inputs.branch }}
   cancel-in-progress: false
 
+env:
+  RELAY_PROVIDER: github
+  REQUEST_ID: ${{ inputs.request_id }}
+  MODE: ${{ inputs.mode }}
+  ENVIRONMENT: ${{ inputs.environment }}
+  TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
+  BRANCH: ${{ inputs.branch }}
+  TARGET: ${{ inputs.target }}
+  TITLE: ${{ inputs.title }}
+
 jobs:
-  relay:
+  raise:
+    if: ${{ inputs.mode == 'org' || inputs.mode == 'branch' }}
     runs-on: ubuntu-latest
-    env:
-      MODE: ${{ github.event_name == 'pull_request' && 'validate' || 'deploy' }}
-      TEST_LEVEL: RunLocalTests
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 30
     steps:
+      # Optional: a GitHub App token, so the new pull request triggers your own PR checks.
+      - name: Create GitHub App token
+        id: app
+        if: ${{ vars.RELAY_APP_ID != '' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.RELAY_APP_ID }}
+          private-key: ${{ secrets.RELAY_APP_PRIVATE_KEY }}
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+          token: ${{ steps.app.outputs.token || github.token }}
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Install Salesforce CLI
+        if: ${{ inputs.mode == 'org' && inputs.components != '' }}
+        run: npm install --global @salesforce/cli@2
+      # Inputs reach the script only as environment variables, never inside a shell command.
+      - name: Raise pull request
+        env:
+          STEP: raise
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          COMPONENTS: ${{ inputs.components }}
+          DELETIONS: ${{ inputs.deletions }}
+          ORG_LABEL: ${{ vars.ORG_LABEL }}
+          ALLOWED_TARGETS: ${{ vars.ALLOWED_TARGETS }}
+          SOURCE_PATH: ${{ vars.SOURCE_PATH }}
+          WRITE_DESTRUCTIVE_MANIFEST: ${{ vars.WRITE_DESTRUCTIVE_MANIFEST }}
+          SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+          SF_USERNAME: ${{ secrets.SF_USERNAME }}
+          SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+          SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+          SF_JKS: ${{ secrets.SF_JKS }}
+          SF_JKS_PASSWORD: ${{ secrets.SF_JKS_PASSWORD }}
+          SF_JKS_ALIAS: ${{ vars.SF_JKS_ALIAS }}
+        run: node scripts/release-relay.js
 
+  scan:
+    needs: raise
+    if: ${{ !cancelled() && (needs.raise.result == 'success' || inputs.mode == 'check') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
       - name: Install Salesforce CLI and Code Analyzer
         run: |
-          npm install --global @salesforce/cli
+          npm install --global @salesforce/cli@2
           sf plugins install code-analyzer
-
-      - name: Log in to SIT
-        env:
-          SIT_AUTH_URL: ${{ secrets.SIT_AUTH_URL }}
-        run: |
-          echo "$SIT_AUTH_URL" > auth.txt
-          sf org login sfdx-url --sfdx-url-file auth.txt --alias SIT
-          rm -f auth.txt
-
       - name: Code scan
-        if: env.MODE == 'validate'
-        run: |
-          sf code-analyzer run --workspace force-app --output-file scan.json || true
-          [ -f scan.json ] || echo '{}' > scan.json
+        env:
+          STEP: scan
+          SOURCE_PATH: ${{ vars.SOURCE_PATH }}
+          SCAN_RULES: ${{ vars.SCAN_RULES }}
+          SCAN_BLOCK_SEVERITY: ${{ vars.SCAN_BLOCK_SEVERITY }}
+        run: node scripts/release-relay.js
 
-      - name: Validate (check-only) or deploy
-        run: |
-          if [ "$MODE" = "validate" ]; then
-            sf project deploy validate --source-dir force-app --target-org SIT \
-              --test-level "$TEST_LEVEL" --wait 60 --json > deploy.json || true
-          else
-            sf project deploy start --source-dir force-app --target-org SIT \
-              --test-level "$TEST_LEVEL" --wait 60 --json > deploy.json || true
-          fi
+  validate:
+    needs: raise
+    if: ${{ !cancelled() && inputs.target_environment != '' && (needs.raise.result == 'success' || inputs.mode == 'check') }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target_environment }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Salesforce CLI
+        run: npm install --global @salesforce/cli@2
+      - name: Validate against the target org
+        env:
+          STEP: validate
+          SOURCE_PATH: ${{ vars.SOURCE_PATH }}
+          DEPLOY_TEST_LEVEL: ${{ vars.DEPLOY_TEST_LEVEL }}
+          SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+          SF_USERNAME: ${{ secrets.SF_USERNAME }}
+          SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+          SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+          SF_JKS: ${{ secrets.SF_JKS }}
+          SF_JKS_PASSWORD: ${{ secrets.SF_JKS_PASSWORD }}
+          SF_JKS_ALIAS: ${{ vars.SF_JKS_ALIAS }}
+        run: node scripts/release-relay.js
 
-      - name: Write result
-        run: |
-          [ -f scan.json ] || echo '{}' > scan.json
-          STATUS=$(jq -r '.result.status // (if .status == 0 then "Succeeded" else "Failed" end)' deploy.json)
-          jq -n \
-            --arg mode "$MODE" \
-            --arg status "$STATUS" \
-            --arg sha "$GITHUB_SHA" \
-            --arg ref "$GITHUB_REF" \
-            --arg pr "${{ github.event.pull_request.number }}" \
-            --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
-            --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --slurpfile deploy deploy.json \
-            --slurpfile scan scan.json \
-            '{mode:$mode, status:$status, commit:$sha, ref:$ref, pullRequest:$pr,
-              runUrl:$run, finishedAt:$at, deployId:($deploy[0].result.id // null),
-              deploy:$deploy[0], scan:$scan[0]}' > result.json
-          echo "STATUS=$STATUS" >> "$GITHUB_ENV"
+  merge:
+    if: ${{ inputs.mode == 'merge' }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 15
+    outputs:
+      sha: ${{ steps.merge.outputs.sha }}
+    steps:
+      - name: Create GitHub App token
+        id: app
+        if: ${{ vars.RELAY_APP_ID != '' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.RELAY_APP_ID }}
+          private-key: ${{ secrets.RELAY_APP_PRIVATE_KEY }}
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Merge the approved pull request
+        id: merge
+        env:
+          STEP: merge
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          ALLOWED_TARGETS: ${{ vars.ALLOWED_TARGETS }}
+          MERGE_METHOD: ${{ vars.MERGE_METHOD }}
+        run: node scripts/release-relay.js
 
-      - name: Publish result to release-relay-results
-        run: |
-          NAME="${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.sha }}-$MODE.json"
-          git config user.name "release-relay"
-          git config user.email "release-relay@users.noreply.github.com"
-          cp result.json /tmp/result.json
-          if git ls-remote --exit-code --heads origin release-relay-results >/dev/null; then
-            git fetch origin release-relay-results
-            git checkout release-relay-results
-          else
-            git checkout --orphan release-relay-results
-            git rm -rf . >/dev/null
-          fi
-          mkdir -p results
-          cp /tmp/result.json "results/$NAME"
-          git add results
-          git commit -m "Release Relay $MODE: $STATUS ($NAME)"
-          git push origin release-relay-results
-
-      - name: Fail the run if the org rejected it
-        if: env.STATUS != 'Succeeded'
-        run: |
-          echo "SIT returned status: $STATUS"
-          exit 1
+  deploy:
+    needs: merge
+    if: ${{ inputs.target_environment != '' && needs.merge.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target_environment }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.merge.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Salesforce CLI
+        run: npm install --global @salesforce/cli@2
+      - name: Deploy to the target org
+        env:
+          STEP: deploy
+          MERGE_SHA: ${{ needs.merge.outputs.sha }}
+          SOURCE_PATH: ${{ vars.SOURCE_PATH }}
+          DEPLOY_TEST_LEVEL: ${{ vars.DEPLOY_TEST_LEVEL }}
+          SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+          SF_USERNAME: ${{ secrets.SF_USERNAME }}
+          SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+          SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+          SF_JKS: ${{ secrets.SF_JKS }}
+          SF_JKS_PASSWORD: ${{ secrets.SF_JKS_PASSWORD }}
+          SF_JKS_ALIAS: ${{ vars.SF_JKS_ALIAS }}
+        run: node scripts/release-relay.js
