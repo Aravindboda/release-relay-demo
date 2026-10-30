@@ -24,6 +24,9 @@ public with sharing class AccountContactService {
         if (accountId == null || String.isBlank(lastName)) {
             throw new IllegalArgumentException('An account and a last name are required.');
         }
+        if (!Schema.sObjectType.Contact.isCreateable()) {
+            throw new NoAccessException();
+        }
         Contact c = new Contact(AccountId = accountId, LastName = lastName.trim().left(80));
         insert c;
         return c;
@@ -32,6 +35,9 @@ public with sharing class AccountContactService {
     /** Counting runs across all contacts so totals are right for every user. */
     private without sharing class Data {
         public List<AggregateResult> contactCounts(Set<Id> accountIds) {
+            if (!Schema.sObjectType.Contact.isAccessible()) {
+                return new List<AggregateResult>();
+            }
             return [SELECT AccountId, COUNT(Id) total FROM Contact
                     WHERE AccountId IN :accountIds GROUP BY AccountId];
         }
