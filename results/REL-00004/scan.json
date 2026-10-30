@@ -1,14 +1,13 @@
 {
  "request": "REL-00004",
  "step": "scan",
- "status": "Failed",
- "total": 8,
- "blocking": 2,
+ "status": "Passed",
+ "total": 6,
+ "blocking": 0,
  "threshold": 2,
  "thresholdLabel": "High",
  "rules": "Recommended",
  "counts": {
-  "High": 2,
   "Low": 6
  },
  "files": [
@@ -17,26 +16,6 @@
  ],
  "violations": [
   {
-   "severity": 2,
-   "severityLabel": "High",
-   "rule": "ApexCRUDViolation",
-   "engine": "pmd",
-   "file": "force-app/main/default/classes/AccountContactService.cls",
-   "line": 28,
-   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
-   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
-  },
-  {
-   "severity": 2,
-   "severityLabel": "High",
-   "rule": "ApexCRUDViolation",
-   "engine": "pmd",
-   "file": "force-app/main/default/classes/AccountContactService.cls",
-   "line": 35,
-   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
-   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
-  },
-  {
    "severity": 4,
    "severityLabel": "Low",
    "rule": "ApexDoc",
@@ -82,7 +61,7 @@
    "rule": "ApexDoc",
    "engine": "pmd",
    "file": "force-app/main/default/classes/AccountContactService.cls",
-   "line": 34,
+   "line": 37,
    "message": "Missing ApexDoc comment",
    "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
   },
@@ -97,7 +76,7 @@
    "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
   }
  ],
- "message": "2 violation(s) at High or above.",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41144678885",
- "finishedAt": "2026-10-30T23:30:09.602Z"
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41145120150",
+ "finishedAt": "2026-10-30T23:33:55.675Z"
 }
