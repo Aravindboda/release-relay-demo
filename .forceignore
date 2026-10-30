@@ -1,0 +1,8 @@
+# Files the Salesforce CLI should not push, pull or deploy
+package.xml
+**/jsconfig.json
+**/.eslintrc.json
+**/__tests__/**
+**/*.dup
+.sfdx/
+.sf/
