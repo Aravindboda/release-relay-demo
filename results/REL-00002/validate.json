@@ -1,0 +1,42 @@
+{
+ "request": "REL-00002",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 4,
+ "deleted": [],
+ "ok": false,
+ "testLevel": "RunLocalTests",
+ "deployId": "0AfgL00000cDNllSAG",
+ "testsRun": 38,
+ "componentErrors": [],
+ "testFailures": [
+  {
+   "name": "LSOSubmitForApprovalTest",
+   "method": "testSubmitSnapshotsApproverAndMovesLineToPending",
+   "message": "System.AssertException: Assertion Failed: A submitted line should move to Pending.: Expected: Pending, Actual: Draft"
+  },
+  {
+   "name": "RlyReleaseControllerTest",
+   "method": "adminSavesConnection",
+   "message": "System.AuraHandledException: Deploy environments must be target=environment pairs for this connection's targets, for example sit=sit."
+  },
+  {
+   "name": "RlyReleaseControllerTest",
+   "method": "approvalRules",
+   "message": "System.SObjectException: SObject row was retrieved via SOQL without querying the requested field: RLY_Release__c.CreatedById"
+  },
+  {
+   "name": "RlyReleaseControllerTest",
+   "method": "orgToOrgSelectAndRaise",
+   "message": "System.AuraHandledException: Attempt to de-reference a null object"
+  },
+  {
+   "name": "RlyReleaseControllerTest",
+   "method": "syncTracksRunAndPullRequest",
+   "message": "System.AsyncException: Queueable cannot be implemented with other system interfaces."
+  }
+ ],
+ "message": "5 test failure(s)",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41131328581",
+ "finishedAt": "2026-10-30T21:30:40.953Z"
+}
