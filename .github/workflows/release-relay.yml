@@ -1,0 +1,108 @@
+# Release Relay: validates pull requests into `sit` against the SIT org,
+# deploys to SIT when they merge, and writes the result as JSON to the
+# `release-relay-results` branch for Salesforce to read.
+name: Release Relay
+
+on:
+  pull_request:
+    branches: [sit]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [sit]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-relay-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    env:
+      MODE: ${{ github.event_name == 'pull_request' && 'validate' || 'deploy' }}
+      TEST_LEVEL: RunLocalTests
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Salesforce CLI and Code Analyzer
+        run: |
+          npm install --global @salesforce/cli
+          sf plugins install code-analyzer
+
+      - name: Log in to SIT
+        env:
+          SIT_AUTH_URL: ${{ secrets.SIT_AUTH_URL }}
+        run: |
+          echo "$SIT_AUTH_URL" > auth.txt
+          sf org login sfdx-url --sfdx-url-file auth.txt --alias SIT
+          rm -f auth.txt
+
+      - name: Code scan
+        if: env.MODE == 'validate'
+        run: |
+          sf code-analyzer run --workspace force-app --output-file scan.json || true
+          [ -f scan.json ] || echo '{}' > scan.json
+
+      - name: Validate (check-only) or deploy
+        run: |
+          if [ "$MODE" = "validate" ]; then
+            sf project deploy validate --source-dir force-app --target-org SIT \
+              --test-level "$TEST_LEVEL" --wait 60 --json > deploy.json || true
+          else
+            sf project deploy start --source-dir force-app --target-org SIT \
+              --test-level "$TEST_LEVEL" --wait 60 --json > deploy.json || true
+          fi
+
+      - name: Write result
+        run: |
+          [ -f scan.json ] || echo '{}' > scan.json
+          STATUS=$(jq -r '.result.status // (if .status == 0 then "Succeeded" else "Failed" end)' deploy.json)
+          jq -n \
+            --arg mode "$MODE" \
+            --arg status "$STATUS" \
+            --arg sha "$GITHUB_SHA" \
+            --arg ref "$GITHUB_REF" \
+            --arg pr "${{ github.event.pull_request.number }}" \
+            --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --slurpfile deploy deploy.json \
+            --slurpfile scan scan.json \
+            '{mode:$mode, status:$status, commit:$sha, ref:$ref, pullRequest:$pr,
+              runUrl:$run, finishedAt:$at, deployId:($deploy[0].result.id // null),
+              deploy:$deploy[0], scan:$scan[0]}' > result.json
+          echo "STATUS=$STATUS" >> "$GITHUB_ENV"
+
+      - name: Publish result to release-relay-results
+        run: |
+          NAME="${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.sha }}-$MODE.json"
+          git config user.name "release-relay"
+          git config user.email "release-relay@users.noreply.github.com"
+          cp result.json /tmp/result.json
+          if git ls-remote --exit-code --heads origin release-relay-results >/dev/null; then
+            git fetch origin release-relay-results
+            git checkout release-relay-results
+          else
+            git checkout --orphan release-relay-results
+            git rm -rf . >/dev/null
+          fi
+          mkdir -p results
+          cp /tmp/result.json "results/$NAME"
+          git add results
+          git commit -m "Release Relay $MODE: $STATUS ($NAME)"
+          git push origin release-relay-results
+
+      - name: Fail the run if the org rejected it
+        if: env.STATUS != 'Succeeded'
+        run: |
+          echo "SIT returned status: $STATUS"
+          exit 1
