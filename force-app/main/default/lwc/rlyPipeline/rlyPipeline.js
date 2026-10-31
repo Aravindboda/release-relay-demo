@@ -21,6 +21,14 @@ const LOGIN_OPTIONS = [
     { label: 'Production or Developer Edition', value: 'Production' },
     { label: 'Sandbox', value: 'Sandbox' }
 ];
+const ENVIRONMENT_OPTIONS = [
+    { label: 'Developer sandbox', value: 'Developer' },
+    { label: 'Developer Pro sandbox', value: 'Developer_Pro' },
+    { label: 'Partial Copy sandbox', value: 'Partial_Copy' },
+    { label: 'Full Copy sandbox', value: 'Full_Copy' },
+    { label: 'Production', value: 'Production' }
+];
+const ENVIRONMENT_LABELS = ENVIRONMENT_OPTIONS.reduce((m, o) => ({ ...m, [o.value]: o.label }), {});
 const STATUS_CLS = {
     Connected: 'rr-pill rr-pill-ok',
     Failed: 'rr-pill rr-pill-bad',
@@ -34,7 +42,7 @@ const PROVIDERS = [
     { label: 'Bitbucket', value: 'Bitbucket', how: 'Custom pipeline', repo: 'workspace/repository', pipeLabel: 'Custom pipeline', pipe: 'release-relay', cred: 'RLY_Bitbucket' },
     { label: 'Azure DevOps', value: 'AzureDevOps', how: 'Azure Pipeline', repo: 'organization/project/repository', pipeLabel: 'Pipeline id', pipe: '', cred: 'RLY_AzureDevOps' }
 ];
-const ORG_FIELDS = ['Id', 'Name', 'Role__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Certificate__c', 'Git_Environment__c', 'Branch__c'];
+const ORG_FIELDS = ['Id', 'Name', 'Role__c', 'Environment__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Certificate__c', 'Git_Environment__c', 'Branch__c'];
 const GIT_STATUS_CLS = { Connected: 'rr-pill rr-pill-ok', Failed: 'rr-pill rr-pill-bad', 'Not checked': 'rr-pill rr-pill-none' };
 const APPROVE_FIELDS = ['Approve_In_Salesforce__c', 'Approve_In_Slack__c'];
 
@@ -44,7 +52,7 @@ function errorText(e) {
 
 function blankForm() {
     return {
-        Id: null, Name: '', Role__c: 'Developer', My_Domain__c: '', Login_Type__c: 'Production',
+        Id: null, Name: '', Role__c: 'Developer', Environment__c: 'Developer', My_Domain__c: '', Login_Type__c: 'Production',
         Username__c: '', Consumer_Key__c: '', Certificate__c: 'release_relay', Git_Environment__c: '', Branch__c: '',
         Approve_In_Salesforce__c: true, Approve_In_Slack__c: false, Require_Git_Review__c: false, Slack_Channel__c: '', Slack_Post__c: false
     };
@@ -68,6 +76,7 @@ export default class RlyPipeline extends LightningElement {
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
     get appName() { return APP_NAME; }
     loginOptions = LOGIN_OPTIONS;
+    environmentOptions = ENVIRONMENT_OPTIONS;
     orgs = [];
     keyHints = {};
     hubDomain = '';
@@ -244,6 +253,9 @@ export default class RlyPipeline extends LightningElement {
     /** branch · env · source tracking or Metadata API · API version (or "this org" for the hub). */
     summary(o) {
         const parts = [];
+        if (o.Environment__c && ENVIRONMENT_LABELS[o.Environment__c]) {
+            parts.push({ key: 'v', label: ENVIRONMENT_LABELS[o.Environment__c] });
+        }
         if (o.Branch__c) {
             parts.push({ key: 'b', label: 'branch ', value: o.Branch__c });
         }
@@ -935,6 +947,10 @@ export default class RlyPipeline extends LightningElement {
         if (field === 'My_Domain__c' && /\.sandbox\.my\.salesforce\.com/i.test(value || '')) {
             next.Login_Type__c = 'Sandbox';
         }
+        // The hub is the production org.
+        if (field === 'Role__c' && value === 'Hub') {
+            next.Environment__c = 'Production';
+        }
         this.form = next;
         this.formError = undefined;
     }
@@ -952,7 +968,7 @@ export default class RlyPipeline extends LightningElement {
 
     handleSave() {
         // A blank consumer key isn't sent, so an edit keeps the saved one.
-        const keys = ['Id', 'Name', 'Role__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Consumer_Key__c',
+        const keys = ['Id', 'Name', 'Role__c', 'Environment__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Consumer_Key__c',
             'Certificate__c', 'Git_Environment__c', 'Branch__c', 'Approve_In_Salesforce__c', 'Approve_In_Slack__c',
             'Require_Git_Review__c', 'Slack_Channel__c', 'Slack_Post__c'];
         const payload = {};

@@ -110,9 +110,11 @@
                             field-level-help="API name of the certificate in this hub that signs the login." required></lightning-input>
                         <lightning-input label="Git environment" data-field="Git_Environment__c" value={form.Git_Environment__c} onchange={handleField}
                             placeholder="environment-name" field-level-help="The environment in your Git provider that holds this org's login for the pipeline."></lightning-input>
-                        <lightning-combobox label="Login type" data-field="Login_Type__c" value={form.Login_Type__c} options={loginOptions} onchange={handleField}></lightning-combobox>
                         <lightning-input label="Branch" data-field="Branch__c" value={form.Branch__c} onchange={handleField}
                             placeholder="branch-name" field-level-help="This org's Git branch: the stage's branch, or the developer org's own branch."></lightning-input>
+                        <lightning-combobox label="Login type" data-field="Login_Type__c" value={form.Login_Type__c} options={loginOptions} onchange={handleField}></lightning-combobox>
+                        <lightning-combobox label="Salesforce environment" data-field="Environment__c" value={form.Environment__c} options={environmentOptions} onchange={handleField}
+                            field-level-help="The org's edition or sandbox type. New Release groups the orgs by it."></lightning-combobox>
                     </div>
                     <template lwc:if={formError}><div class="rr-msg rr-msg-bad rr-pad" role="alert">{formError}</div></template>
                     <div class="rr-card-foot">

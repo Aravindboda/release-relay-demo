@@ -50,13 +50,26 @@ function words(type) {
     return type.replace(/([a-z])([A-Z])/g, '$1 $2');
 }
 
+// Orgs listed at once on step 2; search narrows the rest.
+const ORG_LIMIT = 50;
+// Salesforce's standard environments, smallest sandbox first.
+const ENVIRONMENTS = [
+    { value: 'Developer', label: 'Developer sandbox', hint: 'Metadata only · refresh every day' },
+    { value: 'Developer_Pro', label: 'Developer Pro sandbox', hint: 'Metadata, more storage · refresh every day' },
+    { value: 'Partial_Copy', label: 'Partial Copy sandbox', hint: 'Metadata and sample data · refresh every 5 days' },
+    { value: 'Full_Copy', label: 'Full Copy sandbox', hint: 'Copy of production · refresh every 29 days' },
+    { value: 'Production', label: 'Production', hint: 'The live org' }
+];
+
 export default class RlyReleaseBuilder extends LightningElement {
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
     get appName() { return APP_NAME; }
     windows = WINDOWS;
     showOptions = SHOW;
 
-    step = 'source';
+    step = 'origin';
+    envChoice;
+    orgSearch = '';
     loading = false;
     start;
     error;
@@ -93,9 +106,9 @@ export default class RlyReleaseBuilder extends LightningElement {
         getStart()
             .then((s) => {
                 this.start = s;
-                const ready = (s.developers || []).filter((d) => d.Status__c === 'Connected');
-                if (ready.length === 1) {
-                    this.orgId = ready[0].Id;
+                const usable = this.envGroups.filter((g) => g.pickable > 0);
+                if (usable.length === 1) {
+                    this.envChoice = usable[0].value;
                 }
             })
             .catch((e) => {
@@ -108,16 +121,18 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     // ---------- steps ----------
 
+    get isOrigin() { return this.step === 'origin'; }
     get isSource() { return this.step === 'source'; }
+    get originKicker() { return APP_NAME + ' hub · New release · step 1 of 5'; }
     /** The select step fits the screen: its lists scroll inside the card and the bar stays at the bottom. */
     get pageCls() { return 'rr-page slds-is-relative' + (this.isSelect ? ' rr-page-fit' : ''); }
-    get sourceKicker() { return APP_NAME + ' hub · New release · step 1 of 4'; }
+    get sourceKicker() { return APP_NAME + ' hub · New release · step 2 of 5'; }
     get isSelect() { return this.step === 'select'; }
     get isReview() { return this.step === 'review'; }
 
     get pathSteps() {
-        const order = ['source', 'select', 'review', 'raise'];
-        const labels = { source: 'Source', select: 'Select', review: 'Review', raise: 'Raise' };
+        const order = ['origin', 'source', 'select', 'review', 'raise'];
+        const labels = { origin: 'Where', source: 'Org', select: 'Select', review: 'Review', raise: 'Raise' };
         const at = order.indexOf(this.step);
         return order.map((v, i) => ({
             key: v,
@@ -161,7 +176,7 @@ export default class RlyReleaseBuilder extends LightningElement {
     /** Stage orgs a hotfix can be raised from (only for users with the Release Relay Hotfix permission). */
     get stageSources() {
         return ((this.start && this.start.canHotfix && this.start.stageSources) || []).map((s) => ({
-            Id: s.id, Name: s.name, Branch__c: s.branch, Status__c: s.status, Source_Tracking__c: s.sourceTracking,
+            Id: s.id, Name: s.name, Branch__c: s.branch, environment: s.environment, Status__c: s.status, Source_Tracking__c: s.sourceTracking,
             isStage: true, targetName: s.targetName, targetBranch: s.targetBranch
         }));
     }
@@ -173,6 +188,7 @@ export default class RlyReleaseBuilder extends LightningElement {
             const on = s.Id === this.orgId;
             return {
                 id: s.Id,
+                environment: s.environment,
                 name: s.Name,
                 branch: s.Branch__c,
                 next: '→ ' + s.targetName + ', skips no checks',
@@ -191,6 +207,7 @@ export default class RlyReleaseBuilder extends LightningElement {
             const on = d.Id === this.orgId;
             return {
                 id: d.Id,
+                environment: d.Environment__c,
                 name: d.Name,
                 branch: d.Branch__c,
                 note: ready
@@ -203,6 +220,94 @@ export default class RlyReleaseBuilder extends LightningElement {
                 disabled: ready ? null : true
             };
         });
+    }
+
+    /** New Release groups the orgs by Salesforce environment, in Salesforce's own order. */
+    get envGroups() {
+        const cards = [
+            ...this.orgCards.map((c) => ({ ...c, selectable: true, statusCls: 'rr-pill rr-pill-wait' })),
+            ...this.stageCards.map((c) => ({ ...c, note: c.next, selectable: true, hotfix: true, statusCls: 'rr-pill rr-pill-none' }))
+        ];
+        const picked = new Set(cards.map((c) => c.id));
+        ((this.start && this.start.routeStops) || []).filter((o) => !picked.has(o.Id)).forEach((o) => {
+            cards.push({
+                id: o.Id, name: o.Name, branch: o.Branch__c, environment: o.Environment__c, selectable: false, cls: 'rr-src rr-src-stop',
+                note: o.Role__c === 'Hub' ? 'Hub · releases end here' : 'Stage' + (o.Stage_Order__c ? ' ' + o.Stage_Order__c : '') + ' · releases arrive here'
+            });
+        });
+        const groups = ENVIRONMENTS.map((e) => ({ ...e, cards: cards.filter((c) => c.environment === e.value) }));
+        const unset = cards.filter((c) => !ENVIRONMENTS.some((e) => e.value === c.environment));
+        if (unset.length) {
+            groups.push({ value: 'none', label: 'Environment not set', hint: 'An admin sets it on the Pipeline tab (Edit org).', cards: unset });
+        }
+        return groups.map((g) => ({ ...g, key: 'env-' + g.value, empty: g.cards.length === 0,
+            pickable: g.cards.filter((c) => c.selectable).length }));
+    }
+
+    /** Step 1: one tile per environment, with how many orgs changes can come from. */
+    get envTiles() {
+        return this.envGroups.map((g) => {
+            const on = g.value === this.envChoice;
+            const stops = g.cards.filter((c) => !c.selectable).map((c) => c.name);
+            let count = g.pickable === 1 ? '1 org' : g.pickable + ' orgs';
+            if (g.pickable === 0) {
+                count = stops.length ? stops.join(', ') + ': releases arrive here' : 'None registered';
+            }
+            return { ...g, count, on: on ? 'true' : 'false', disabled: g.pickable === 0 ? true : null,
+                cls: 'rr-tile' + (on ? ' rr-tile-on' : '') + (g.pickable === 0 ? ' rr-tile-off' : '') };
+        });
+    }
+    get cantPickEnv() { return !this.envChoice || this.hasProblems; }
+    handleEnv(event) {
+        const next = event.currentTarget.dataset.value;
+        if (next !== this.envChoice) {
+            this.envChoice = next;
+            this.orgId = undefined;
+        }
+    }
+    goSource() {
+        const g = this.envGroups.find((x) => x.value === this.envChoice);
+        const ready = g ? g.cards.filter((c) => c.selectable && !c.disabled) : [];
+        if (!this.orgId && ready.length === 1) {
+            this.orgId = ready[0].id;
+        }
+        this.orgSearch = '';
+        this.step = 'source';
+    }
+    backToOrigin() {
+        this.step = 'origin';
+    }
+
+    /** Step 2: the chosen environment's orgs, searchable by name or branch. */
+    get envLabel() {
+        const g = this.envGroups.find((x) => x.value === this.envChoice);
+        return g ? g.label : '';
+    }
+    get sourceTitle() { return 'Which ' + this.envLabel + ' org?'; }
+    get envOrgs() {
+        const g = this.envGroups.find((x) => x.value === this.envChoice);
+        return g ? g.cards.filter((c) => c.selectable) : [];
+    }
+    get matchingOrgs() {
+        const q = this.orgSearch.trim().toLowerCase();
+        return this.envOrgs.filter((c) => !q || (c.name || '').toLowerCase().includes(q) || (c.branch || '').toLowerCase().includes(q));
+    }
+    get orgRows() {
+        return this.matchingOrgs.slice(0, ORG_LIMIT).map((c) => ({ ...c,
+            rowCls: 'rr-org' + (c.id === this.orgId ? ' rr-org-on' : '') + (c.disabled ? ' rr-org-off' : '') }));
+    }
+    get showOrgSearch() { return this.envOrgs.length > 6; }
+    get noOrgMatch() { return this.matchingOrgs.length === 0; }
+    get orgCountText() {
+        const all = this.envOrgs.length;
+        const hits = this.matchingOrgs.length;
+        if (hits > ORG_LIMIT) {
+            return 'Showing ' + ORG_LIMIT + ' of ' + hits + ' matches. Type more of the name to narrow it.';
+        }
+        return hits === all ? all + (all === 1 ? ' org' : ' orgs') : hits + ' of ' + all + ' orgs';
+    }
+    handleOrgSearch(event) {
+        this.orgSearch = event.target.value || '';
     }
 
     get noDevelopers() { return this.start && (this.start.developers || []).length === 0; }

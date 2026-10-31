@@ -16,7 +16,8 @@ private class RlyOrgControllerTest {
         return new Map<String, Object>{
             'Name' => name, 'Role__c' => 'Developer', 'My_Domain__c' => 'https://demo-dev-ed.develop.my.salesforce.com/',
             'Login_Type__c' => loginType, 'Username__c' => 'relay@demo.dev', 'Consumer_Key__c' => RlyTestData.CONSUMER_KEY,
-            'Certificate__c' => 'release_relay', 'Git_Environment__c' => 'dev1', 'Branch__c' => 'dev1'
+            'Certificate__c' => 'release_relay', 'Git_Environment__c' => 'dev1', 'Branch__c' => 'dev1',
+            'Environment__c' => 'Developer_Pro'
         };
     }
 
@@ -29,8 +30,9 @@ private class RlyOrgControllerTest {
         System.runAs(RlyTestData.admin()) {
             RlyOrgSession.testToken = RlyTestData.TOKEN;
             Id orgId = register('DEV1', 'Production');
-            RLY_Org__c saved = [SELECT Status__c, My_Domain__c, Source_Tracking__c FROM RLY_Org__c WHERE Id = :orgId];
+            RLY_Org__c saved = [SELECT Status__c, My_Domain__c, Source_Tracking__c, Environment__c FROM RLY_Org__c WHERE Id = :orgId];
             System.assertEquals('Not checked', saved.Status__c, 'New orgs wait for their first check');
+            System.assertEquals('Developer_Pro', saved.Environment__c, 'The Salesforce environment is saved');
             System.assertEquals('https://demo-dev-ed.develop.my.salesforce.com', saved.My_Domain__c, 'Trailing slash removed');
 
             RlyOrgCheckMock mock = new RlyOrgCheckMock();
