@@ -1,0 +1,16 @@
+{
+ "request": "REL-90026",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rly-build12",
+ "target": "prod",
+ "sha": "d9d8a4cd258db252b743decdb5562157a4727f41",
+ "pr": 40,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/40",
+ "commits": [],
+ "conflicts": [],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41252068816",
+ "finishedAt": "2026-10-31T23:20:25.081Z"
+}
