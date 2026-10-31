@@ -1,0 +1,2050 @@
+{
+ "request": "REL-90001",
+ "step": "scan",
+ "status": "Failed",
+ "total": 292,
+ "blocking": 30,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "High": 30,
+  "Moderate": 92,
+  "Low": 167,
+  "Info": 3
+ },
+ "files": [
+  "force-app/main/default/classes/RlyAzureRepos.cls",
+  "force-app/main/default/classes/RlyBitbucket.cls",
+  "force-app/main/default/classes/RlyChangeFinder.cls",
+  "force-app/main/default/classes/RlyGit.cls",
+  "force-app/main/default/classes/RlyGitHub.cls",
+  "force-app/main/default/classes/RlyGitLab.cls",
+  "force-app/main/default/classes/RlyMetadata.cls",
+  "force-app/main/default/classes/RlyNewReleaseController.cls",
+  "force-app/main/default/classes/RlyNewReleaseControllerTest.cls",
+  "force-app/main/default/classes/RlyOrgController.cls",
+  "force-app/main/default/classes/RlyOrgControllerTest.cls",
+  "force-app/main/default/classes/RlyOrgSession.cls",
+  "force-app/main/default/classes/RlyReleaseFlow.cls",
+  "force-app/main/default/classes/RlyReleaseFlowTest.cls",
+  "force-app/main/default/classes/RlyReleasesController.cls",
+  "force-app/main/default/classes/RlyRouteController.cls",
+  "force-app/main/default/classes/RlyRouteControllerTest.cls",
+  "force-app/main/default/lwc/rlyHubApprovals/rlyHubApprovals.html",
+  "force-app/main/default/lwc/rlyHubApprovals/rlyHubApprovals.js",
+  "force-app/main/default/lwc/rlyHubRelease/rlyHubRelease.html",
+  "force-app/main/default/lwc/rlyHubRelease/rlyHubRelease.js",
+  "force-app/main/default/lwc/rlyHubReleaseDetail/rlyHubReleaseDetail.html",
+  "force-app/main/default/lwc/rlyHubReleaseDetail/rlyHubReleaseDetail.js",
+  "force-app/main/default/lwc/rlyHubReleases/rlyHubReleases.html",
+  "force-app/main/default/lwc/rlyHubReleases/rlyHubReleases.js",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js"
+ ],
+ "violations": [
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "no-unused-vars",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyHubRelease/rlyHubRelease.js",
+   "line": 13,
+   "message": "'APEX_TYPES' is assigned a value but never used.",
+   "url": "https://eslint.org/docs/latest/rules/no-unused-vars"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "no-unused-vars",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyHubReleaseDetail/rlyHubReleaseDetail.js",
+   "line": 24,
+   "message": "'e' is defined but never used.",
+   "url": "https://eslint.org/docs/latest/rules/no-unused-vars"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "no-unused-vars",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyHubReleases/rlyHubReleases.js",
+   "line": 71,
+   "message": "'e' is defined but never used.",
+   "url": "https://eslint.org/docs/latest/rules/no-unused-vars"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 156,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 161,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 167,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 225,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 231,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 241,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 244,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 244,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexSuggestUsingNamedCred",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgSession.cls",
+   "line": 117,
+   "message": "Suggest named credentials for authentication",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexsuggestusingnamedcred"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 438,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 444,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 449,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 455,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 467,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 471,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 475,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 479,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleasesController.cls",
+   "line": 136,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleasesController.cls",
+   "line": 142,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleasesController.cls",
+   "line": 146,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleasesController.cls",
+   "line": 151,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleasesController.cls",
+   "line": 161,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyRouteController.cls",
+   "line": 273,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyRouteController.cls",
+   "line": 280,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyRouteController.cls",
+   "line": 284,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyRouteController.cls",
+   "line": 284,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexCRUDViolation",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyRouteController.cls",
+   "line": 287,
+   "message": "Validate CRUD permission before SOQL/DML operation or enforce user mode",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexcrudviolation"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyHubReleaseDetail/rlyHubReleaseDetail.js",
+   "line": 87,
+   "message": "Inline rule disablement not allowed: @lwc/lwc/no-async-operation",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyHubReleases/rlyHubReleases.js",
+   "line": 67,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "ExcessiveParameterList",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyChangeFinder.cls",
+   "line": 96,
+   "message": "Avoid long parameter lists (4 parameters - threshold is 4).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#excessiveparameterlist"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 8,
+   "message": "The class 'RlyGit' has a total cognitive complexity of 61 (highest 13), current threshold is 50",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 8,
+   "message": "The class 'RlyGit' has a total cyclomatic complexity of 59 (highest 9).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 12,
+   "message": "Field declaration for 'GITHUB' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 13,
+   "message": "Field declaration for 'GITLAB' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 14,
+   "message": "Field declaration for 'BITBUCKET' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 15,
+   "message": "Field declaration for 'AZURE' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 16,
+   "message": "Field declaration for 'PROVIDERS' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 18,
+   "message": "Field declaration for 'TIMEOUT_MS' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 20,
+   "message": "Field declaration for 'conn' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 21,
+   "message": "Field declaration for 'base' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "EmptyStatementBlock",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 49,
+   "message": "Avoid empty block statements.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_errorprone.html#emptystatementblock"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "EmptyStatementBlock",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 60,
+   "message": "Avoid empty block statements.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_errorprone.html#emptystatementblock"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "ExcessiveParameterList",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 80,
+   "message": "Avoid long parameter lists (4 parameters - threshold is 4).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#excessiveparameterlist"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "ExcessiveParameterList",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 103,
+   "message": "Avoid long parameter lists (4 parameters - threshold is 4).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#excessiveparameterlist"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "ExcessiveParameterList",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGitHub.cls",
+   "line": 57,
+   "message": "Avoid long parameter lists (4 parameters - threshold is 4).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#excessiveparameterlist"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 6,
+   "message": "The class 'RlyMetadata' has a total cognitive complexity of 75 (highest 18), current threshold is 50",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 6,
+   "message": "The class 'RlyMetadata' has a total cyclomatic complexity of 63 (highest 15).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 10,
+   "message": "Field declaration for 'MET' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 11,
+   "message": "Field declaration for 'ENV' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 12,
+   "message": "Field declaration for 'QUERIES_PER_CALL' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 15,
+   "message": "Field declaration for 'SKIP' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 21,
+   "message": "Field declaration for 'FOLDER_TYPE' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 49,
+   "message": "The method 'describe(RLY_Org__c)' has a cognitive complexity of 18, current threshold is 15",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 49,
+   "message": "The method 'describe(RLY_Org__c)' has a cyclomatic complexity of 13.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 83,
+   "message": "The method 'listFiles(RLY_Org__c, List<Query>)' has a cognitive complexity of 17, current threshold is 15",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 167,
+   "message": "The method 'checkRetrieve(RLY_Org__c, String)' has a cognitive complexity of 16, current threshold is 15",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 167,
+   "message": "The method 'checkRetrieve(RLY_Org__c, String)' has a cyclomatic complexity of 15.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 11,
+   "message": "The class 'RlyNewReleaseController' has a total cyclomatic complexity of 50 (highest 16).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 25,
+   "message": "The method 'getStart()' has a cognitive complexity of 17, current threshold is 15",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 25,
+   "message": "The method 'getStart()' has a cyclomatic complexity of 16.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseControllerTest.cls",
+   "line": 7,
+   "message": "The class 'RlyNewReleaseControllerTest' has a total cognitive complexity of 55 (highest 5), current threshold is 50",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "ExcessiveParameterList",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseControllerTest.cls",
+   "line": 20,
+   "message": "Avoid long parameter lists (5 parameters - threshold is 4).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#excessiveparameterlist"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "ExcessiveParameterList",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseControllerTest.cls",
+   "line": 101,
+   "message": "Avoid long parameter lists (4 parameters - threshold is 4).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#excessiveparameterlist"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 8,
+   "message": "The class 'RlyOrgController' has a total cognitive complexity of 55 (highest 16), current threshold is 50",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 8,
+   "message": "The class 'RlyOrgController' has a total cyclomatic complexity of 64 (highest 19).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 41,
+   "message": "The method 'saveOrg(String)' has a cyclomatic complexity of 14.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 106,
+   "message": "The method 'check(RLY_Org__c)' has a cyclomatic complexity of 11.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 186,
+   "message": "The method 'validate(RLY_Org__c)' has a cognitive complexity of 16, current threshold is 15",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 186,
+   "message": "The method 'validate(RLY_Org__c)' has a cyclomatic complexity of 19.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "AvoidHardcodingId",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgControllerTest.cls",
+   "line": 11,
+   "message": "Hardcoding Ids is bound to break when changing environments.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_errorprone.html#avoidhardcodingid"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "OperationWithLimitsInLoop",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgControllerTest.cls",
+   "line": 46,
+   "message": "Avoid operations in loops that may hit governor limits",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_performance.html#operationwithlimitsinloop"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "OperationWithLimitsInLoop",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgControllerTest.cls",
+   "line": 47,
+   "message": "Avoid operations in loops that may hit governor limits",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_performance.html#operationwithlimitsinloop"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "AvoidHardcodingId",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgControllerTest.cls",
+   "line": 83,
+   "message": "Hardcoding Ids is bound to break when changing environments.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_errorprone.html#avoidhardcodingid"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "AvoidHardcodingId",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgControllerTest.cls",
+   "line": 102,
+   "message": "Hardcoding Ids is bound to break when changing environments.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_errorprone.html#avoidhardcodingid"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "AvoidHardcodingId",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgControllerTest.cls",
+   "line": 120,
+   "message": "Hardcoding Ids is bound to break when changing environments.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_errorprone.html#avoidhardcodingid"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "AvoidHardcodingId",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgControllerTest.cls",
+   "line": 251,
+   "message": "Hardcoding Ids is bound to break when changing environments.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_errorprone.html#avoidhardcodingid"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgSession.cls",
+   "line": 13,
+   "message": "The class 'RlyOrgSession' has a total cyclomatic complexity of 51 (highest 20).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgSession.cls",
+   "line": 17,
+   "message": "Field declaration for 'API_VERSION' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgSession.cls",
+   "line": 18,
+   "message": "Field declaration for 'TIMEOUT_MS' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgSession.cls",
+   "line": 21,
+   "message": "Field declaration for 'TOKENS' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgSession.cls",
+   "line": 24,
+   "message": "Field declaration for 'testToken' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgSession.cls",
+   "line": 25,
+   "message": "Field declaration for 'testSignInError' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgSession.cls",
+   "line": 85,
+   "message": "The method 'explain(String, RLY_Org__c)' has a cognitive complexity of 16, current threshold is 15",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgSession.cls",
+   "line": 85,
+   "message": "The method 'explain(String, RLY_Org__c)' has a cyclomatic complexity of 20.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "ExcessiveParameterList",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgSession.cls",
+   "line": 112,
+   "message": "Avoid long parameter lists (5 parameters - threshold is 4).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#excessiveparameterlist"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "AvoidBooleanMethodParameters",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgSession.cls",
+   "line": 144,
+   "message": "Avoid Boolean method parameters",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#avoidbooleanmethodparameters"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 12,
+   "message": "The class 'RlyReleaseFlow' has a total cognitive complexity of 133 (highest 36), current threshold is 50",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 12,
+   "message": "The class 'RlyReleaseFlow' has a total cyclomatic complexity of 143 (highest 42).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 16,
+   "message": "Field declaration for 'RESULTS_BRANCH' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 17,
+   "message": "Field declaration for 'OPEN_STATUSES' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 18,
+   "message": "Field declaration for 'FINISHED' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 19,
+   "message": "Field declaration for 'APEX_TYPES' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "NcssCount",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 39,
+   "message": "The method 'raise(RaiseRequest)' has a NCSS line count of 47 (limit: 40).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#ncsscount"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 39,
+   "message": "The method 'raise(RaiseRequest)' has a cognitive complexity of 36, current threshold is 15",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 39,
+   "message": "The method 'raise(RaiseRequest)' has a cyclomatic complexity of 42.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 173,
+   "message": "The method 'readChecks(RLY_Release__c, RlyGit)' has a cognitive complexity of 19, current threshold is 15",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 173,
+   "message": "The method 'readChecks(RLY_Release__c, RlyGit)' has a cyclomatic complexity of 16.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 238,
+   "message": "The method 'readDeploy(RLY_Release__c, RlyGit)' has a cyclomatic complexity of 11.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "ExcessiveParameterList",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlow.cls",
+   "line": 386,
+   "message": "Avoid long parameter lists (4 parameters - threshold is 4).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#excessiveparameterlist"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlowTest.cls",
+   "line": 8,
+   "message": "The class 'RlyReleaseFlowTest' has a total cognitive complexity of 55 (highest 5), current threshold is 50",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlowTest.cls",
+   "line": 8,
+   "message": "The class 'RlyReleaseFlowTest' has a total cyclomatic complexity of 44 (highest 5).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlowTest.cls",
+   "line": 22,
+   "message": "The method 'respond(HttpRequest)' has a cognitive complexity of 35, current threshold is 15",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlowTest.cls",
+   "line": 22,
+   "message": "The method 'respond(HttpRequest)' has a cyclomatic complexity of 28.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "FieldDeclarationsShouldBeAtStart",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlowTest.cls",
+   "line": 76,
+   "message": "Field declaration for 'runMode' should be before method declarations in its class",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#fielddeclarationsshouldbeatstart"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "OperationWithLimitsInLoop",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlowTest.cls",
+   "line": 111,
+   "message": "Avoid operations in loops that may hit governor limits",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_performance.html#operationwithlimitsinloop"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "OperationWithLimitsInLoop",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlowTest.cls",
+   "line": 112,
+   "message": "Avoid operations in loops that may hit governor limits",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_performance.html#operationwithlimitsinloop"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "ExcessiveParameterList",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlowTest.cls",
+   "line": 121,
+   "message": "Avoid long parameter lists (4 parameters - threshold is 4).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#excessiveparameterlist"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "AvoidHardcodingId",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlowTest.cls",
+   "line": 145,
+   "message": "Hardcoding Ids is bound to break when changing environments.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_errorprone.html#avoidhardcodingid"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "AvoidHardcodingId",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleaseFlowTest.cls",
+   "line": 199,
+   "message": "Hardcoding Ids is bound to break when changing environments.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_errorprone.html#avoidhardcodingid"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "AvoidBooleanMethodParameters",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyReleasesController.cls",
+   "line": 59,
+   "message": "Avoid Boolean method parameters",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#avoidbooleanmethodparameters"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyRouteController.cls",
+   "line": 12,
+   "message": "The class 'RlyRouteController' has a total cognitive complexity of 94 (highest 15), current threshold is 50",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyRouteController.cls",
+   "line": 12,
+   "message": "The class 'RlyRouteController' has a total cyclomatic complexity of 74 (highest 16).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CognitiveComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyRouteController.cls",
+   "line": 141,
+   "message": "The method 'validate(RLY_Git_Connection__c)' has a cognitive complexity of 15, current threshold is 15",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cognitivecomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyRouteController.cls",
+   "line": 141,
+   "message": "The method 'validate(RLY_Git_Connection__c)' has a cyclomatic complexity of 16.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyRouteController.cls",
+   "line": 173,
+   "message": "The method 'checkGit()' has a cyclomatic complexity of 11.",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "ExcessiveParameterList",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyRouteControllerTest.cls",
+   "line": 14,
+   "message": "Avoid long parameter lists (4 parameters - threshold is 4).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#excessiveparameterlist"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "OperationWithLimitsInLoop",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyRouteControllerTest.cls",
+   "line": 41,
+   "message": "Avoid operations in loops that may hit governor limits",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_performance.html#operationwithlimitsinloop"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "OperationWithLimitsInLoop",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyRouteControllerTest.cls",
+   "line": 42,
+   "message": "Avoid operations in loops that may hit governor limits",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_performance.html#operationwithlimitsinloop"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "ExcessiveParameterList",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyRouteControllerTest.cls",
+   "line": 52,
+   "message": "Avoid long parameter lists (4 parameters - threshold is 4).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_design.html#excessiveparameterlist"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyChangeFinder.cls",
+   "line": 16,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyChangeFinder.cls",
+   "line": 27,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyChangeFinder.cls",
+   "line": 27,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyChangeFinder.cls",
+   "line": 49,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyChangeFinder.cls",
+   "line": 49,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyChangeFinder.cls",
+   "line": 58,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyChangeFinder.cls",
+   "line": 58,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyChangeFinder.cls",
+   "line": 109,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyChangeFinder.cls",
+   "line": 109,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyChangeFinder.cls",
+   "line": 123,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyChangeFinder.cls",
+   "line": 123,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 10,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 23,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 47,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 48,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 52,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 53,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 54,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 56,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 58,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 64,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 69,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 70,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 73,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 80,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 82,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 82,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 84,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 86,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 86,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 88,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 88,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 91,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 158,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 163,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyGit.cls",
+   "line": 163,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 8,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 25,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 30,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 39,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 42,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 49,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 49,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 83,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 83,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 116,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 125,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 125,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 142,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 142,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 167,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 167,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 223,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 223,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyMetadata.cls",
+   "line": 265,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 15,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 25,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 62,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 71,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 83,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 92,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 101,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 114,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 114,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 124,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 124,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 155,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 160,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseController.cls",
+   "line": 166,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseControllerTest.cls",
+   "line": 20,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseControllerTest.cls",
+   "line": 28,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyNewReleaseControllerTest.cls",
+   "line": 109,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 24,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 31,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 41,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 41,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 93,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyOrgController.cls",
+   "line": 93,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  }
+ ],
+ "message": "30 violation(s) at High or above.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41217994164",
+ "finishedAt": "2026-10-31T16:06:50.477Z"
+}
