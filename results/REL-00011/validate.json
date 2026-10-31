@@ -1,0 +1,20 @@
+{
+ "request": "REL-00011",
+ "step": "validate",
+ "status": "Passed",
+ "changed": 4,
+ "deleted": [],
+ "ok": true,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cHXsvSAG",
+ "testsRun": 1,
+ "tests": [
+  "RlyDemoSearchTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41214753187",
+ "finishedAt": "2026-10-31T15:26:25.401Z"
+}
