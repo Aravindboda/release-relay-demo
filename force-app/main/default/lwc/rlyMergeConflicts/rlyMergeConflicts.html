@@ -1,0 +1,108 @@
+<template>
+    <section class="rr-conflicts" aria-label={heading}>
+        <div class="rr-conflicts-head rr-row">
+            <h3 class="rr-h3 rr-grow">{heading}</h3>
+            <span class="rr-pill rr-pill-bad">Conflict</span>
+            <span class="rr-small rr-weak" aria-live="polite">{progressText}</span>
+        </div>
+        <div class="rr-msg rr-msg-bad">{intro}</div>
+
+        <div class="rr-scroll-x">
+            <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table">
+                <thead><tr><th scope="col">File</th><th scope="col">With {target}</th><th scope="col"><span class="slds-assistive-text">Review</span></th></tr></thead>
+                <tbody>
+                    <template for:each={files} for:item="f">
+                        <tr key={f.key}>
+                            <td class="rr-mono rr-wrap">{f.file}</td>
+                            <td><span class={f.pillCls}>{f.pillText}</span></td>
+                            <td class="rr-cell-end"><button type="button" class="rr-textbtn" data-file={f.file} aria-label={f.openLabel} onclick={handleSelect}>Review</button></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+        <div class="rr-row rr-end-row">
+            <template lwc:if={readOnly}>
+                <span class="rr-small rr-weak rr-grow">The developer who raised this release, or an approver, resolves the conflicts.</span>
+            </template>
+            <lightning-button variant="brand" label={openLabel} onclick={openReview}></lightning-button>
+        </div>
+    </section>
+
+    <template lwc:if={isOpen}>
+        <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="rr-conflict-title" class="slds-modal slds-fade-in-open slds-modal_full rr-modal" onkeydown={handleKeydown}>
+            <div class="slds-modal__container rr-modal-container">
+                <button type="button" class="slds-button slds-button_icon slds-modal__close" title="Close" onclick={closeReview}>
+                    <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
+                </button>
+                <div class="slds-modal__header rr-modal-head">
+                    <h1 id="rr-conflict-title" class="slds-modal__title slds-hyphenate">{heading}</h1>
+                    <p class="rr-small rr-weak">{intro}</p>
+                </div>
+                <div class="slds-modal__content rr-modal-body">
+                    <nav class="rr-files" aria-label="Files in conflict">
+                        <p class="rr-files-title">Files <span class="rr-weak">({progressText})</span></p>
+                        <template for:each={files} for:item="f">
+                            <button key={f.key} type="button" class={f.navCls} data-file={f.file} aria-current={f.current} onclick={handleSelect}>
+                                <span class="rr-mono rr-wrap rr-file-name">{f.shortName}</span>
+                                <span class={f.pillCls}>{f.pillText}</span>
+                            </button>
+                        </template>
+                    </nav>
+                    <div class="rr-review">
+                        <template lwc:if={hasCurrent}>
+                            <p class="rr-mono rr-wrap rr-current">{currentFile}</p>
+                            <div class="rr-compare" role="group" aria-label={compareLabel}>
+                                <div class="rr-compare-head">
+                                    <div><span class="rr-pill rr-pill-info">Yours</span> <strong>{mineTitle}</strong></div>
+                                    <div><span class="rr-pill rr-pill-none">{target}</span> <strong>{theirsTitle}</strong></div>
+                                </div>
+                                <div class="rr-compare-body">
+                                    <div class="rr-code-col" tabindex="0" aria-label={mineTitle}>
+                                        <template for:each={mineRows} for:item="r">
+                                            <div key={r.key} class={r.cls}><span class="rr-code-num" aria-hidden="true">{r.num}</span>{r.text}<template lwc:if={r.changed}><span class="slds-assistive-text"> (differs)</span></template></div>
+                                        </template>
+                                    </div>
+                                    <div class="rr-code-col" tabindex="0" aria-label={theirsTitle}>
+                                        <template for:each={theirsRows} for:item="r">
+                                            <div key={r.key} class={r.cls}><span class="rr-code-num" aria-hidden="true">{r.num}</span>{r.text}<template lwc:if={r.changed}><span class="slds-assistive-text"> (differs)</span></template></div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                            <template lwc:if={truncated}>
+                                <p class="rr-small rr-weak">This file is too long to show in full, so it can't be edited here: keep yours or {target}'s, or fix it on the release branch.</p>
+                            </template>
+                            <template lwc:if={canResolve}>
+                                <div class="rr-row">
+                                    <span class="rr-small rr-strong">Keep</span>
+                                    <div class="rr-segs" role="group" aria-label={choiceGroupLabel}>
+                                        <template for:each={choiceButtons} for:item="b">
+                                            <button key={b.value} type="button" class={b.cls} data-value={b.value} aria-pressed={b.pressed} disabled={b.disabled} onclick={handleChoice}>{b.label}</button>
+                                        </template>
+                                    </div>
+                                    <span class="rr-grow"></span>
+                                    <template lwc:if={hasNextFile}>
+                                        <lightning-button label="Next file" icon-name="utility:chevronright" icon-position="right" onclick={nextFile}></lightning-button>
+                                    </template>
+                                </div>
+                                <template lwc:if={isEditing}>
+                                    <lightning-textarea class="rr-edit" label={editLabel} value={editText} onchange={handleEdit}></lightning-textarea>
+                                    <template lwc:if={editError}><p class="rr-small rr-bad" role="alert">{editError}</p></template>
+                                </template>
+                            </template>
+                        </template>
+                    </div>
+                </div>
+                <div class="slds-modal__footer rr-modal-foot">
+                    <span class="rr-small rr-weak rr-grow">Every file needs a choice. An edited file must not keep the &lt;&lt;&lt;&lt;&lt;&lt;&lt; or &gt;&gt;&gt;&gt;&gt;&gt;&gt; markers.</span>
+                    <lightning-button label="Close" onclick={closeReview}></lightning-button>
+                    <template lwc:if={canResolve}>
+                        <lightning-button variant="brand" label={resolveLabel} onclick={handleResolve} disabled={cantResolve}></lightning-button>
+                    </template>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+    </template>
+</template>
