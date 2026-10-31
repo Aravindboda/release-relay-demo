@@ -5,6 +5,8 @@
  *   checkGit        repository, default branch, pipeline files, and every route branch (RlyGitCheck)
  *   saveRoute       the order of the stages (admins)
  *   createBranches  creates the route branches that are missing, from the pipeline branch (admins)
+ *   getPipelineFiles     the packaged pipeline files' version and the repository's (RlyPipelineFiles)
+ *   updatePipelineFiles  writes the packaged pipeline files to the repository, by pull request or commit (admins)
  *
  * The route (RlyRouteRules): developer orgs raise into the first stage; stages follow Stage_Order__c;
  * the hub (production) is the last stage. Each org's branch comes from its RLY_Org__c record.
@@ -140,6 +142,26 @@ public with sharing class RlyRouteController {
             rows.add(new RLY_Org__c(Id = i, Stage_Order__c = o.Role__c == 'Hub' ? 999 : pos++));
         }
         data.saveOrgs(rows);
+    }
+
+    /**
+     * @description The pipeline files: the version packaged with the hub, the version in the repository, every file.
+     * @return the status
+     */
+    @AuraEnabled(cacheable=false)
+    public static RlyPipelineFiles.Status getPipelineFiles() {
+        return RlyPipelineFiles.currentStatus();
+    }
+
+    /**
+     * @description Writes the hub's packaged pipeline files to the repository (admins).
+     * @param how pullRequest (the default): a branch and a pull request into the pipeline branch; commit: straight to it
+     * @return what happened, with the pull request's or commit's link
+     */
+    @AuraEnabled
+    public static RlyPipelineFiles.UpdateResult updatePipelineFiles(String how) {
+        requireAdmin();
+        return RlyPipelineFiles.updateRepository(how);
     }
 
     private static RLY_Git_Connection__c requireGit(Data data) {

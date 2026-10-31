@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StaticResource xmlns="http://soap.sforce.com/2006/04/metadata">
+    <cacheControl>Private</cacheControl>
+    <contentType>text/plain</contentType>
+    <description>Release Relay pipeline script for every provider (scripts/release-relay.js)</description>
+</StaticResource>

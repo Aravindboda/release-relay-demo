@@ -25,6 +25,8 @@ public with sharing class RlyReleaseStart {
         @AuraEnabled public Boolean canHotfix = false;
         /** @description Stage orgs a hotfix can be raised from (only with RLY_Hotfix). */
         @AuraEnabled public List<RlyHotfix.StageSource> stageSources = new List<RlyHotfix.StageSource>();
+        /** @description Stage and hub orgs, shown in their environment for context (no sign-in fields). */
+        @AuraEnabled public List<RLY_Org__c> routeStops = new List<RLY_Org__c>();
     }
 
     /**
@@ -39,8 +41,11 @@ public with sharing class RlyReleaseStart {
         for (RLY_Org__c o : data.orgs()) {
             if (o.Role__c == 'Developer') {
                 s.developers.add(o);
-            } else if (o.Role__c == 'Stage') {
-                stages.add(o);
+            } else {
+                s.routeStops.add(o);
+                if (o.Role__c == 'Stage') {
+                    stages.add(o);
+                }
             }
         }
         RLY_Org__c target = firstStage(stages);
@@ -95,7 +100,7 @@ public with sharing class RlyReleaseStart {
          */
         public List<RLY_Org__c> orgs() {
             return [SELECT Id, Name, Role__c, Branch__c, Stage_Order__c, Git_Environment__c, Status__c, Source_Tracking__c,
-                           Org_Type__c, Is_Sandbox__c
+                           Org_Type__c, Is_Sandbox__c, Environment__c
                     FROM RLY_Org__c WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }
 

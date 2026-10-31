@@ -4,12 +4,12 @@
             <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
         </template>
 
-        <!-- step 1: source (board HubHotfix / HubNewRelease) -->
-        <template lwc:if={isSource}>
+        <!-- step 1: where the changes come from (board HubSourceEnvironments) -->
+        <template lwc:if={isOrigin}>
             <section class="rr-card rr-head">
                 <div class="rr-head-text">
-                    <p class="rr-kicker">{sourceKicker}</p>
-                    <h1 class="rr-title">Where are the changes?</h1>
+                    <p class="rr-kicker">{originKicker}</p>
+                    <h1 class="rr-title">Where should the changes come from?</h1>
                 </div>
             </section>
 
@@ -20,41 +20,57 @@
                 </ul>
             </template>
 
-            <section class="rr-card" aria-label="Source org">
+            <section class="rr-card" aria-label="Salesforce environment">
                 <div class="rr-pad rr-stack">
-                    <p class="rr-label">Developer orgs</p>
                     <template lwc:if={noDevelopers}>
                         <div class="rr-empty">No developer org yet. An admin registers it on the Pipeline tab with the role Developer.</div>
                     </template>
-                    <div class="rr-src-row" role="group" aria-label="Developer orgs">
-                        <template for:each={orgCards} for:item="o">
-                            <button key={o.id} type="button" class={o.cls} data-id={o.id} aria-pressed={o.pressed} disabled={o.disabled} onclick={handleOrg}>
-                                <span class="rr-src-top">
-                                    <strong class="rr-src-name">{o.name}</strong>
-                                    <template lwc:if={o.showStatus}><span class="rr-pill rr-pill-wait">{o.status}</span></template>
-                                </span>
-                                <span class="rr-mono rr-weak">{o.branch}</span>
-                                <span class="rr-small rr-weak">{o.note}</span>
+                    <div class="rr-tiles" role="group" aria-label="Salesforce environment">
+                        <template for:each={envTiles} for:item="t">
+                            <button key={t.key} type="button" class={t.cls} data-value={t.value} aria-pressed={t.on} disabled={t.disabled} onclick={handleEnv}>
+                                <span class="rr-tile-name">{t.label}</span>
+                                <span class="rr-small rr-weak">{t.hint}</span>
+                                <span class="rr-tile-count">{t.count}</span>
                             </button>
                         </template>
                     </div>
+                </div>
+                <div class="rr-card-foot">
+                    <lightning-button variant="brand" label="Next: pick the org" disabled={cantPickEnv} onclick={goSource}></lightning-button>
+                </div>
+            </section>
+        </template>
 
-                    <template lwc:if={hasStageSources}>
-                        <p class="rr-label">Stage orgs (hotfix: changes made directly in the org)</p>
-                        <div class="rr-src-row" role="group" aria-label="Stage orgs">
-                            <template for:each={stageCards} for:item="o">
-                                <button key={o.id} type="button" class={o.cls} data-id={o.id} aria-pressed={o.pressed} disabled={o.disabled} onclick={handleOrg}>
-                                    <span class="rr-src-top">
-                                        <strong class="rr-src-name">{o.name}</strong>
-                                        <span class="rr-pill rr-pill-wait">Hotfix</span>
-                                        <template lwc:if={o.showStatus}><span class="rr-pill rr-pill-none">{o.status}</span></template>
-                                    </span>
-                                    <span class="rr-mono rr-weak">{o.branch}</span>
-                                    <span class="rr-small rr-weak">{o.next}</span>
-                                </button>
-                            </template>
-                        </div>
+        <!-- step 2: the org (board HubSourceEnvironments / HubHotfix) -->
+        <template lwc:if={isSource}>
+            <section class="rr-card rr-head">
+                <div class="rr-head-text">
+                    <p class="rr-kicker">{sourceKicker}</p>
+                    <h1 class="rr-title">{sourceTitle}</h1>
+                </div>
+                <lightning-button label="Back" onclick={backToOrigin}></lightning-button>
+            </section>
+
+            <section class="rr-card" aria-label="Source org">
+                <div class="rr-pad rr-stack">
+                    <template lwc:if={showOrgSearch}>
+                        <lightning-input type="search" label="Search orgs" variant="label-hidden" placeholder="Search by org name or branch"
+                            value={orgSearch} onchange={handleOrgSearch} class="rr-org-search"></lightning-input>
                     </template>
+                    <p class="rr-small rr-weak" aria-live="polite">{orgCountText}</p>
+                    <div class="rr-orgs" role="group" aria-label={sourceTitle}>
+                        <template lwc:if={noOrgMatch}><p class="rr-env-none rr-pad">No org matches the search.</p></template>
+                        <template for:each={orgRows} for:item="o">
+                            <button key={o.id} type="button" class={o.rowCls} data-id={o.id} aria-pressed={o.pressed} disabled={o.disabled} onclick={handleOrg}>
+                                <span class="rr-org-radio" aria-hidden="true"></span>
+                                <span class="rr-org-name">{o.name}</span>
+                                <span class="rr-mono rr-weak">{o.branch}</span>
+                                <span class="rr-small rr-weak rr-grow">{o.note}</span>
+                                <template lwc:if={o.hotfix}><span class="rr-pill rr-pill-wait">Hotfix</span></template>
+                                <template lwc:if={o.showStatus}><span class={o.statusCls}>{o.status}</span></template>
+                            </button>
+                        </template>
+                    </div>
 
                     <template lwc:if={isHotfix}>
                         <div class="rr-note rr-note-hotfix">

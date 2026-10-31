@@ -73,6 +73,32 @@
 .rr-src:hover { border-color: var(--rr-blue); }
 .rr-src-on { border: 2px solid var(--rr-blue); background: #eef4ff; padding: 9px 11px; }
 .rr-src-off { opacity: 0.6; cursor: not-allowed; }
+.rr-env-none { margin: 0; font-size: 13px; color: var(--rr-muted); }
+.rr-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.rr-tile {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; font: inherit; color: inherit;
+    border: 1px solid var(--rr-line); border-radius: 4px; padding: 12px; background: #fff; cursor: pointer;
+}
+.rr-tile:hover { border-color: var(--rr-blue); }
+.rr-tile-on { border: 2px solid var(--rr-blue); background: #eef4ff; padding: 11px; }
+.rr-tile-off { background: #fafaf9; cursor: default; }
+.rr-tile-off:hover { border-color: var(--rr-line); }
+.rr-tile-name { font-size: 15px; font-weight: 700; }
+.rr-tile-count { margin-top: 4px; font-size: 13px; font-weight: 700; color: var(--rr-link); }
+.rr-tile-off .rr-tile-count { font-weight: 400; color: var(--rr-muted); }
+.rr-org-search { max-width: 420px; }
+.rr-orgs { border: 1px solid var(--rr-line); border-radius: 4px; max-height: 360px; overflow-y: auto; }
+.rr-org {
+    width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; text-align: left; font: inherit; color: inherit;
+    background: #fff; border: 0; border-top: 1px solid var(--rr-line); padding: 10px 12px; cursor: pointer;
+}
+.rr-org:first-child { border-top: 0; }
+.rr-org:hover { background: #f3f6ff; }
+.rr-org-on { background: #eef4ff; box-shadow: inset 3px 0 0 var(--rr-blue); }
+.rr-org-off { opacity: 0.6; cursor: not-allowed; }
+.rr-org-radio { width: 14px; height: 14px; border-radius: 50%; border: 1px solid #939393; flex: none; }
+.rr-org-on .rr-org-radio { border: 4px solid var(--rr-blue); }
+.rr-org-name { font-size: 14px; font-weight: 700; min-width: 120px; }
 .rr-src-top { display: flex; align-items: center; gap: 6px; }
 .rr-src-name { font-size: 16px; font-weight: 700; }
 .rr-goes { margin: 0; font-size: 13px; }

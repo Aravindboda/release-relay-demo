@@ -15,7 +15,9 @@ private class RlyHotfixTest {
     // DEV1 -> SIT -> UAT -> hub with a checked GitHub connection.
     private static void routeWithUat() {
         RlyReleaseTestData.route();
-        insert RlyTestData.stage('UAT', 'uat', 2);
+        RLY_Org__c uat = RlyTestData.stage('UAT', 'uat', 2);
+        uat.Environment__c = 'Full_Copy';
+        insert uat;
     }
 
     private static Id orgId(String name) {
@@ -34,6 +36,8 @@ private class RlyHotfixTest {
             System.assertEquals('uat', s.stageSources[0].targetBranch, 'With its branch');
             System.assertEquals('PROD', s.stageSources[1].targetName, 'The last stage goes to the hub');
             System.assertEquals('prod', s.stageSources[1].targetBranch, 'The hub\'s branch');
+            System.assertEquals('Full_Copy', s.stageSources[1].environment, 'Each stage keeps its environment');
+            System.assertEquals(3, s.routeStops.size(), 'SIT, UAT and the hub are shown for context');
         }
         User plain = RlyTestData.plainUser();
         System.runAs(plain) {
