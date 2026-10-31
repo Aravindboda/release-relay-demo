@@ -1,0 +1,63 @@
+<template>
+    <div class="rr-page slds-is-relative">
+        <section class="rr-head">
+            <span class="rr-head-icon"><lightning-icon icon-name={icon} size="small" variant="inverse" alternative-text=""></lightning-icon></span>
+            <div class="rr-head-text">
+                <p class="rr-kicker">Release Relay</p>
+                <h1 class="rr-title">{heading}</h1>
+            </div>
+            <template lwc:if={showDetail}>
+                <lightning-button label="Back to the list" onclick={back}></lightning-button>
+            </template>
+            <template lwc:else>
+                <template lwc:if={notApprovals}>
+                    <div class="rr-segs" role="group" aria-label="Show">
+                        <template for:each={viewButtons} for:item="v">
+                            <button key={v.value} type="button" class={v.cls} data-value={v.value} aria-pressed={v.pressed} onclick={handleView}>{v.label}</button>
+                        </template>
+                    </div>
+                </template>
+                <lightning-button-icon icon-name="utility:refresh" alternative-text="Refresh" title="Refresh" onclick={load}></lightning-button-icon>
+            </template>
+        </section>
+
+        <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+
+        <template lwc:if={showDetail}>
+            <c-rly-release-view release-id={selectedId}></c-rly-release-view>
+        </template>
+        <template lwc:else>
+            <p class="rr-small rr-weak">{intro}</p>
+            <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+            <template lwc:if={isEmpty}><div class="rr-empty">{emptyText}</div></template>
+            <section class="rr-card rr-scroll">
+                <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_striped rr-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Release</th>
+                            <th scope="col">Title</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Route</th>
+                            <th scope="col">Raised by</th>
+                            <th scope="col">Scan</th>
+                            <th scope="col">Validation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={tableRows} for:item="r">
+                            <tr key={r.id}>
+                                <th scope="row"><button type="button" class="rr-linkbtn" data-id={r.id} aria-label={r.openLabel} onclick={open}>{r.name}</button><template lwc:if={r.hotfix}> <span class="rr-pill rr-pill-wait">Hotfix</span></template></th>
+                                <td class="rr-wrap">{r.title}</td>
+                                <td><span class={r.statusCls}>{r.status}</span></td>
+                                <td class="rr-small">{r.source} → {r.target}</td>
+                                <td class="rr-small">{r.raisedBy}<br/><span class="rr-weak">{r.when}</span></td>
+                                <td class="rr-small">{r.scan}</td>
+                                <td class="rr-small">{r.validation}</td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </section>
+        </template>
+    </div>
+</template>
