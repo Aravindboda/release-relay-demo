@@ -69,3 +69,5 @@
     background: #fff; border: 1px dashed #c9c9c9; border-radius: 4px; padding: 24px; text-align: center;
     color: var(--rr-muted); font-size: 13px;
 }
+/* test class names wrap between names, not inside them */
+.rr-tests { min-width: 160px; overflow-wrap: break-word; word-break: normal; }
