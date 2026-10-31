@@ -997,6 +997,25 @@ function copyConverted(fromDir, toDir, wholeObjects) {
 }
 
 /** MODE=hub: turn the hub's Metadata API zip on BRANCH into source files and open the PR/MR. */
+/** Converts the hub's metadata zip to source format. On failure the CLI's own message goes into raise.json, so the hub can show it. */
+function convertFromHub(mdapi, out) {
+    try {
+        execFileSync('sf', ['project', 'convert', 'mdapi', '--root-dir', mdapi, '--output-dir', out, '--json'],
+            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (e) {
+        let detail = String(e.stdout || '') + String(e.stderr || '');
+        try {
+            const parsed = JSON.parse(String(e.stdout || '{}'));
+            detail = [parsed.name, parsed.message].concat(parsed.actions || []).filter(Boolean).join(' | ') || detail;
+        } catch (ignored) {
+            // not JSON: keep the raw output
+        }
+        const message = 'Converting the files from the hub failed: ' + detail.replace(/\s+/g, ' ').trim().slice(0, 1500);
+        writeResult('raise', { status: 'Failed', message });
+        fail(message);
+    }
+}
+
 async function raiseFromHub() {
     const components = parseList(input('COMPONENTS'), 'COMPONENTS');
     const zipFile = path.join('.relay-inbox', requestId + '.zip');
@@ -1013,7 +1032,7 @@ async function raiseFromHub() {
     const mdapi = path.join(tmp, 'mdapi');
     const out = path.join(tmp, 'source');
     run('unzip', ['-q', '-o', zipFile, '-d', mdapi]);
-    run('sf', ['project', 'convert', 'mdapi', '--root-dir', mdapi, '--output-dir', out], { stdio: ['ignore', 'inherit', 'inherit'] });
+    convertFromHub(mdapi, out);
     const converted = fs.existsSync(path.join(out, 'main', 'default')) ? path.join(out, 'main', 'default') : out;
     const wholeObjects = new Set(components.filter((c) => c.type === 'CustomObject').map((c) => c.name));
     const copied = copyConverted(converted, sourcePath(), wholeObjects);
