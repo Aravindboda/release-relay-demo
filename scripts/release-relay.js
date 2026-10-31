@@ -217,6 +217,8 @@ const options = (() => {
     }
 })();
 const APEX_NAME_RE = /^[A-Za-z][A-Za-z0-9_]{0,39}$/;
+// The hub's token for this run: every result file echoes it, so the hub never reads an earlier run's result.
+const runToken = typeof options.attempt === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(options.attempt) ? options.attempt : null;
 const targetEnv = input('TARGET_ENVIRONMENT');
 
 let orgEnv = sourceEnv; // whose login and settings v() reads
@@ -324,6 +326,9 @@ function checkoutReleaseBranch() {
 /** Saves this step's result on the results branch. Each step has its own file; pushes retry on races. */
 function writeResult(name, data) {
     const result = { request: requestId, step: name, ...data, runUrl: runUrl(), finishedAt: new Date().toISOString() };
+    if (runToken) {
+        result.attempt = runToken;
+    }
     const json = JSON.stringify(result, null, 1);
     summary('```json\n' + json.slice(0, 4000) + '\n```');
     if (env.RELAY_LOCAL_RESULTS === 'true') {
