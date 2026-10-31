@@ -1,0 +1,151 @@
+# Release Relay for Bitbucket Pipelines. Started only from Salesforce: the Release Relay hub runs the
+# custom pipeline "release-relay" on the default branch through the API, with the release as
+# variables. If you already have a bitbucket-pipelines.yml, copy the release-relay entry under
+# pipelines: custom: into it, and set clone: depth: full.
+#   MODE=org     retrieve the selected components from the source org, apply deletions, commit to a
+#                new branch, open a pull request into the target branch, then scan and validate it.
+#   MODE=branch  open a pull request from a branch that already exists, then scan and validate it.
+#   MODE=promote make a promote/ branch from the target, cherry-pick the merge commits listed in
+#                COMPONENTS (from the previous stage), open a pull request, then scan and validate it.
+#   MODE=hub     the hub committed its retrieve (a Metadata API zip) to the branch: convert it to
+#                source format, open a pull request into the target, scan and validate.
+#   MODE=resolve merge the target into the branch with the conflict choices the hub committed, then
+#                scan and validate again.
+#   MODE=check   scan and validate an open pull request again.
+#   MODE=merge   merge the pull request approved in Salesforce, then deploy it to the target org.
+# Bitbucket can't skip steps by variable, so every step runs and a step the mode doesn't need ends at
+# once. Validation and deployment run only when TARGET_ENVIRONMENT is set ("-" means empty). Each
+# step writes its result as JSON to the release-relay-results branch, where Salesforce reads it.
+#
+# Repository variables (see pipelines/README.md): RELAY_TOKEN, and each org's login prefixed with its
+# environment name in upper case: SIT_SF_USERNAME, SIT_SF_CLIENT_ID, SIT_SF_INSTANCE_URL, SIT_SF_JKS ...
+
+image: node:22
+
+clone:
+  depth: full
+
+pipelines:
+  custom:
+    release-relay:
+      - variables:
+          - name: REQUEST_ID
+            description: Salesforce release number
+          - name: MODE
+            description: org, branch, promote, hub, resolve, check or merge
+          - name: ENVIRONMENT
+            description: Environment name of the source org
+          - name: TARGET_ENVIRONMENT
+            description: Environment name of the target org (- = Git only, no validate or deploy)
+            default: '-'
+          - name: BRANCH
+            description: Source branch
+          - name: TARGET
+            description: Target branch
+          - name: TITLE
+            description: Pull request title
+          - name: COMPONENTS
+            description: Type:Name list to retrieve, comma separated (promote = merge commits to cherry-pick)
+            default: '-'
+          - name: DELETIONS
+            description: Type:Name list to delete, comma separated
+            default: '-'
+          - name: OPTIONS
+            description: JSON options from Salesforce
+            default: '{}'
+
+      - step:
+          name: Raise pull request
+          max-time: 30
+          script:
+            - export RELAY_PROVIDER=bitbucket
+            # The release branch may hold an older copy of the script: always run the pipeline's own.
+            - git show "$BITBUCKET_COMMIT:scripts/release-relay.js" > /tmp/release-relay.js
+            - case "$MODE" in org|branch|promote|hub|resolve) ;; *) echo "Not needed for mode $MODE."; exit 0 ;; esac
+            - &relay-java |
+              if env | grep -Eq '^([A-Z0-9_]+_)?SF_JKS=.'; then
+                apt-get update -qq && apt-get install -y -qq openjdk-17-jre-headless > /dev/null
+              fi
+            - |
+              if [ "$MODE" = hub ] || { [ "$MODE" = org ] && [ -n "$COMPONENTS" ] && [ "$COMPONENTS" != "-" ]; }; then
+                npm install --global @salesforce/cli@2 --silent
+              fi
+            - STEP=raise node /tmp/release-relay.js
+
+      - parallel:
+          steps:
+            - step:
+                name: Code scan
+                max-time: 30
+                script:
+                  - export RELAY_PROVIDER=bitbucket
+                  - git show "$BITBUCKET_COMMIT:scripts/release-relay.js" > /tmp/release-relay.js
+                  - case "$MODE" in org|branch|promote|hub|resolve|check) ;; *) echo "Not needed for mode $MODE."; exit 0 ;; esac
+                  - if echo "$OPTIONS" | grep -Eq '"scan"[[:space:]]*:[[:space:]]*"off"'; then echo "Code scan is off."; exit 0; fi
+                  - apt-get update -qq && apt-get install -y -qq openjdk-17-jre-headless > /dev/null
+                  - npm install --global @salesforce/cli@2 --silent
+                  - sf plugins install code-analyzer
+                  - STEP=scan node /tmp/release-relay.js
+            - step:
+                name: Validate against the target org
+                max-time: 120
+                script:
+                  - export RELAY_PROVIDER=bitbucket
+                  - git show "$BITBUCKET_COMMIT:scripts/release-relay.js" > /tmp/release-relay.js
+                  - case "$MODE" in org|branch|promote|hub|resolve|check) ;; *) echo "Not needed for mode $MODE."; exit 0 ;; esac
+                  - if [ -z "$TARGET_ENVIRONMENT" ] || [ "$TARGET_ENVIRONMENT" = "-" ]; then echo "No target environment, so Git only."; exit 0; fi
+                  - *relay-java
+                  - npm install --global @salesforce/cli@2 --silent
+                  - STEP=validate node /tmp/release-relay.js
+                after-script:
+                  # Tells the org in OPTIONS.notify to read the results now (never fails the run):
+                  # here for the raise and check modes, after the deploy step for merge.
+                  - if [ "$MODE" != merge ]; then export RELAY_NOTIFY=yes; fi
+                  - &relay-notify |
+                    if [ "$RELAY_NOTIFY" = yes ] && [ -f /tmp/release-relay.js ] && echo "$OPTIONS" | grep -Eq '"notify"[[:space:]]*:[[:space:]]*"[^"]+"'; then
+                      export RELAY_PROVIDER=bitbucket
+                      if env | grep -Eq '^([A-Z0-9_]+_)?SF_JKS=.' && ! command -v keytool > /dev/null; then
+                        apt-get update -qq && apt-get install -y -qq openjdk-17-jre-headless > /dev/null || true
+                      fi
+                      command -v sf > /dev/null || npm install --global @salesforce/cli@2 --silent || true
+                      node -e '
+                        let o = {};
+                        try { o = JSON.parse(process.env.OPTIONS || "{}"); } catch (e) { o = {}; }
+                        const p = String(o.notify || "").toUpperCase().replace(/[^A-Z0-9]+/g, "_") + "_";
+                        const e = { ...process.env, STEP: "notify" };
+                        for (const k of ["SF_USERNAME", "SF_CLIENT_ID", "SF_INSTANCE_URL", "SF_JWT_KEY", "SF_JKS", "SF_JKS_PASSWORD", "SF_JKS_ALIAS"]) {
+                          if (e[p + k]) { e[k] = e[p + k]; }
+                        }
+                        require("child_process").execFileSync("node", ["/tmp/release-relay.js"], { stdio: "inherit", env: e });
+                      ' || true
+                    fi
+
+      - step:
+          name: Merge the approved pull request
+          max-time: 15
+          script:
+            - export RELAY_PROVIDER=bitbucket
+            - git show "$BITBUCKET_COMMIT:scripts/release-relay.js" > /tmp/release-relay.js
+            - if [ "$MODE" != merge ]; then echo "Not needed for mode $MODE."; exit 0; fi
+            - STEP=merge node /tmp/release-relay.js
+            # Hands the merge commit to the deploy step.
+            - cp .relay-merge-sha relay-merge-sha.txt
+          artifacts:
+            - relay-merge-sha.txt
+
+      # To ask for approval or limit who deploys, see "Deployment permissions" in pipelines/README.md.
+      - step:
+          name: Deploy to the target org
+          max-time: 120
+          script:
+            - export RELAY_PROVIDER=bitbucket
+            - git show "$BITBUCKET_COMMIT:scripts/release-relay.js" > /tmp/release-relay.js
+            - if [ "$MODE" != merge ]; then echo "Not needed for mode $MODE."; exit 0; fi
+            - if [ -z "$TARGET_ENVIRONMENT" ] || [ "$TARGET_ENVIRONMENT" = "-" ]; then echo "No target environment, so Git only."; exit 0; fi
+            - export MERGE_SHA="$(cat relay-merge-sha.txt)"
+            - *relay-java
+            - npm install --global @salesforce/cli@2 --silent
+            - STEP=deploy node /tmp/release-relay.js
+          after-script:
+            - if [ "$MODE" = merge ]; then export RELAY_NOTIFY=yes; fi
+            - *relay-notify
