@@ -112,3 +112,15 @@
 .rr-weak { color: var(--rr-muted); }
 .rr-small { font-size: 12px; }
 .rr-empty { background: #fff; border: 1px dashed #c9c9c9; border-radius: 4px; padding: 24px; text-align: center; color: var(--rr-muted); font-size: 13px; }
+
+/* pipeline files: the line on the Git connection card, and the update modal */
+.rr-files-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border: 1px solid var(--rr-line); border-radius: 4px; background: #fafaf9; }
+.rr-files-text { font-size: 13px; }
+.rr-files-sub { margin-top: 4px; }
+.rr-files-body { display: flex; flex-direction: column; gap: 14px; }
+.rr-files-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--rr-line); border-radius: 4px; }
+.rr-files-item { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 12px; }
+.rr-files-item + .rr-files-item { border-top: 1px solid var(--rr-line); }
+.rr-files-name { display: block; font-weight: 700; }
+.rr-files-path { display: block; }
+.rr-msg-ok { background: #ebf7e6; color: #2e844a; }

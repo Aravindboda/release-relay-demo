@@ -23,7 +23,7 @@ public with sharing class RlyOrgController {
         @AuraEnabled public Map<Id, String> keyHints = new Map<Id, String>();
         /** @description Where releases into an org can be approved, from the hub's connections. */
         @AuraEnabled public List<ApprovalOption> approvalOptions = new List<ApprovalOption>();
-        /** @description Slack is set up, so orgs can be approved from their Slack card. */
+        /** @description Slack is on and its app answers (auth.test), so orgs can be approved from their Slack card. */
         @AuraEnabled public Boolean slackAvailable = false;
         /** @description The Git provider's name (for the "also require reviewers" toggle), or null without a Git connection. */
         @AuraEnabled public String gitProvider;
@@ -62,7 +62,7 @@ public with sharing class RlyOrgController {
             p.keyHints.put(k.Id, RlyOrgSession.keyHint(k));
         }
         p.approvalOptions = approvalOptions();
-        p.slackAvailable = RlySlack.isOn();
+        p.slackAvailable = RlySlack.isConnected();
         p.gitProvider = RlyGitName.labelFor(RlyReleaseStore.git());
         return p;
     }

@@ -13,6 +13,7 @@
  *   seq       { stops: [{ title, text }], shots: [] } a row of stops with arrows, screenshots under it
  *   repo      { providers }                           tree + files table, one tab per Git provider
  *   shots     { shots: [] }
+ *   files     {}                                      the pipeline files to download (PIPELINE_FILES), versions from the hub
  * providers: { GitHub: [...], GitLab: [...], Bitbucket: [...], AzureDevOps: [...] } (lists shown in a tab set).
  * shot: { name: 'pipeline', cap } (a jpg in the RLY_Guide_Shots static resource).
  * Names of orgs and branches appear only in clearly marked examples; the screenshots come from a demo hub.
@@ -121,6 +122,33 @@ function repoRows(provider) {
     ];
 }
 
+/**
+ * The pipeline files packaged with the app (one static resource each). provider All: every provider needs it.
+ * The GitHub workflow's name comes from the Git connection when the hub has one.
+ */
+export const PIPELINE_FILES = [
+    {
+        resource: 'RLY_Pipeline_GitHub', provider: 'GitHub', name: 'release-relay.yml', path: PIPE_FILE.GitHub,
+        what: 'The GitHub Actions workflow: starts the jobs (raise, scan, validate, merge, deploy) when the hub asks.'
+    },
+    {
+        resource: 'RLY_Pipeline_GitLab', provider: 'GitLab', name: '.gitlab-ci.yml', path: PIPE_FILE.GitLab,
+        what: 'The GitLab CI pipeline: starts the same jobs when the hub asks.'
+    },
+    {
+        resource: 'RLY_Pipeline_Bitbucket', provider: 'Bitbucket', name: 'bitbucket-pipelines.yml', path: PIPE_FILE.Bitbucket,
+        what: 'The Bitbucket custom pipeline: starts the same jobs when the hub asks.'
+    },
+    {
+        resource: 'RLY_Pipeline_Azure', provider: 'AzureDevOps', name: 'azure-pipelines.yml', path: PIPE_FILE.AzureDevOps,
+        what: 'The Azure Pipeline: starts the same jobs when the hub asks.'
+    },
+    {
+        resource: 'RLY_Pipeline_Script', provider: 'All', name: 'release-relay.js', path: 'scripts/release-relay.js',
+        what: 'Every step the pipeline runs, for every provider: converts the hub\'s zip, opens the pull request, merges, tests, deploys.'
+    }
+];
+
 function byProvider(fn) {
     const out = {};
     PROVIDERS.forEach((p) => {
@@ -183,7 +211,7 @@ const SECTIONS = [
         group: 'start',
         label: 'Set up, step by step',
         adminOnly: true,
-        more: [{ key: 'repo-main' }, { key: 'how-order', only: 'seq', noAside: true }],
+        more: [{ key: 'repo-main' }, { key: 'repo-files' }, { key: 'how-order', only: 'seq', noAside: true }],
         cards: [
             {
                 key: 'setup-main',
@@ -274,6 +302,17 @@ const SECTIONS = [
                         type: 'repo',
                         providers: byProvider((p) => ({ tree: tree(p), rows: repoRows(p) }))
                     }
+                ]
+            },
+            {
+                key: 'repo-files',
+                title: 'Download the pipeline files',
+                blocks: [
+                    {
+                        type: 'text',
+                        paras: ['Put each file at its path on the pipeline branch (usually `main`). Your provider\'s file and `release-relay.js` are all you need. When a new version of Release Relay brings new files, update them from the Pipeline tab: it opens a pull request with them.']
+                    },
+                    { type: 'files' }
                 ]
             }
         ]

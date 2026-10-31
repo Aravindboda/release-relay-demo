@@ -1,9 +1,25 @@
 import APP_NAME from '@salesforce/label/c.RLY_App_Name';
 import { LightningElement } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
 import IS_ADMIN from '@salesforce/customPermission/RLY_Admin';
 import SHOTS from '@salesforce/resourceUrl/RLY_Guide_Shots';
+import PIPE_GITHUB from '@salesforce/resourceUrl/RLY_Pipeline_GitHub';
+import PIPE_GITLAB from '@salesforce/resourceUrl/RLY_Pipeline_GitLab';
+import PIPE_BITBUCKET from '@salesforce/resourceUrl/RLY_Pipeline_Bitbucket';
+import PIPE_AZURE from '@salesforce/resourceUrl/RLY_Pipeline_Azure';
+import PIPE_SCRIPT from '@salesforce/resourceUrl/RLY_Pipeline_Script';
 import getSetup from '@salesforce/apex/RlyRouteController.getSetup';
-import SECTIONS, { GROUPS, PROVIDERS } from './guideContent';
+import getPipelineFiles from '@salesforce/apex/RlyRouteController.getPipelineFiles';
+import SECTIONS, { GROUPS, PROVIDERS, PIPELINE_FILES } from './guideContent';
+
+const PIPELINE_TAB = 'RLY_Pipeline';
+const RESOURCE_URLS = {
+    RLY_Pipeline_GitHub: PIPE_GITHUB,
+    RLY_Pipeline_GitLab: PIPE_GITLAB,
+    RLY_Pipeline_Bitbucket: PIPE_BITBUCKET,
+    RLY_Pipeline_Azure: PIPE_AZURE,
+    RLY_Pipeline_Script: PIPE_SCRIPT
+};
 
 const MARK = /(`[^`]+`|\*\*[^*]+\*\*)/;
 
@@ -32,8 +48,22 @@ function rich(text, key, gitlab) {
     };
 }
 
+/** "Pipeline files: …" as the Pipeline tab says it: up to date, older in the repository, or not found. */
+function filesStatusText(st) {
+    if (!st || !st.packagedVersion) {
+        return '';
+    }
+    if (st.repoVersion === null || st.repoVersion === undefined) {
+        return 'Pipeline files: not found in your repository · version ' + st.packagedVersion + ' available';
+    }
+    if (st.upToDate) {
+        return 'Pipeline files: up to date (version ' + st.packagedVersion + ')';
+    }
+    return 'Pipeline files: version ' + st.repoVersion + ' in your repository · version ' + st.packagedVersion + ' available';
+}
+
 /** The Release Relay guide: a left navigation (Start here, Daily use, Reference) and the chosen section on the right. */
-export default class RlyReleaseGuide extends LightningElement {
+export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
     get appName() { return APP_NAME; }
     current = IS_ADMIN ? 'setup' : 'how';
@@ -42,8 +72,14 @@ export default class RlyReleaseGuide extends LightningElement {
     setupStep = 1;
     zoom;
     focusClose = false;
+    /** RlyRouteController.getPipelineFiles: versions in the repository and packaged (admins, read once). */
+    pipeStatus;
+    pipeLoading = false;
+    pipeError;
+    showOtherFiles = false;
 
     connectedCallback() {
+        this.loadFilesIfShown();
         // The Git connection decides which provider tab opens first (admins only: the setup sections are theirs).
         if (IS_ADMIN) {
             getSetup()
@@ -94,6 +130,108 @@ export default class RlyReleaseGuide extends LightningElement {
         })).filter((g) => g.items.length > 0);
     }
 
+    /** The section on screen shows the download list (Repository files, or Set up, which includes it). */
+    get filesShown() {
+        const s = this.section;
+        return !!s && (s.cards.some((c) => c.blocks.some((b) => b.type === 'files'))
+            || (s.more || []).some((m) => m.key === 'repo-files'));
+    }
+
+    loadFilesIfShown() {
+        if (!IS_ADMIN || this.pipeStatus || this.pipeLoading || !this.filesShown) {
+            return;
+        }
+        this.pipeLoading = true;
+        getPipelineFiles()
+            .then((st) => {
+                this.pipeStatus = st;
+                if (st && st.provider) {
+                    this.provider = st.provider;
+                }
+            })
+            .catch((e) => {
+                this.pipeError = (e && e.body && e.body.message) || 'The versions in your repository could not be read.';
+            })
+            .finally(() => {
+                this.pipeLoading = false;
+            });
+    }
+
+    /** The hub's provider (Git connection), or none yet: then every file shows. */
+    get hubProvider() {
+        return (this.pipeStatus && this.pipeStatus.provider) || (this.repository ? this.provider : '');
+    }
+
+    /** Every packaged file: this hub's provider first (and the script), the other providers behind "Show other providers". */
+    get fileRows() {
+        const st = this.pipeStatus;
+        const fromHub = (st && st.files) || [];
+        const hub = this.hubProvider;
+        const packaged = st && st.packagedVersion;
+        return PIPELINE_FILES.map((f, i) => {
+            const h = fromHub.find((x) => x.resourceName === f.resource) || {};
+            const name = h.name || f.name;
+            const mine = !hub || f.provider === 'All' || f.provider === hub;
+            const repo = mine && st ? h.repoVersion : undefined;
+            let repoText = '';
+            let repoCls = '';
+            if (mine && st) {
+                if (repo === null || repo === undefined) {
+                    repoText = 'Not in your repository';
+                    repoCls = 'rr-pill rr-pill-none';
+                } else if (repo >= packaged) {
+                    repoText = 'Up to date in your repository';
+                    repoCls = 'rr-pill rr-pill-ok';
+                } else {
+                    repoText = 'Version ' + repo + ' in your repository';
+                    repoCls = 'rr-pill rr-pill-wait';
+                }
+            }
+            const providerLabel = f.provider === 'All' ? 'Every provider' : (PROVIDERS.find((p) => p.value === f.provider) || {}).label;
+            return {
+                key: 'pf' + i,
+                name,
+                path: h.repoPath || f.path,
+                what: plain(f.what, (f.provider === 'GitLab') || (f.provider === 'All' && this.gitlab)),
+                providerLabel,
+                version: packaged ? 'Version ' + packaged : '',
+                repoText,
+                repoCls,
+                url: RESOURCE_URLS[f.resource],
+                downloadLabel: 'Download ' + name,
+                order: mine ? 0 : 1,
+                mine,
+                // The script last among this hub's files.
+                rank: f.provider === 'All' ? 1 : 0
+            };
+        }).sort((a, b) => (a.order - b.order) || (a.rank - b.rank));
+    }
+
+    get filesStatusLine() {
+        if (this.pipeLoading) {
+            return 'Pipeline files: checking your repository…';
+        }
+        return filesStatusText(this.pipeStatus);
+    }
+    get filesStatusCls() {
+        const st = this.pipeStatus;
+        if (!st || this.pipeLoading) {
+            return 'rr-pill rr-pill-none';
+        }
+        return st.upToDate ? 'rr-pill rr-pill-ok' : 'rr-pill rr-pill-wait';
+    }
+    get filesStatusPill() {
+        const st = this.pipeStatus;
+        if (!st || this.pipeLoading) {
+            return 'Checking';
+        }
+        if (st.upToDate) {
+            return 'Up to date';
+        }
+        return st.repoVersion === null || st.repoVersion === undefined ? 'Not found' : 'Update available';
+    }
+    get filesCanUpdate() { return !!this.pipeStatus && this.pipeStatus.isAdmin === true && !this.pipeStatus.upToDate; }
+
     get section() {
         return this.visibleSections.find((s) => s.key === this.current) || this.visibleSections[0];
     }
@@ -131,8 +269,24 @@ export default class RlyReleaseGuide extends LightningElement {
             isSteps: b.type === 'steps',
             isSeq: b.type === 'seq',
             isRepo: b.type === 'repo',
-            isShots: b.type === 'shots'
+            isShots: b.type === 'shots',
+            isFiles: b.type === 'files'
         };
+        if (out.isFiles) {
+            const rows = this.fileRows;
+            const other = rows.filter((r) => !r.mine);
+            out.fileList = rows.filter((r) => r.mine || this.showOtherFiles);
+            out.hasOtherFiles = other.length > 0;
+            out.otherFilesLabel = this.showOtherFiles ? 'Hide other providers' : 'Show other providers (' + other.length + ')';
+            out.filesStatus = IS_ADMIN && (this.pipeLoading || !!this.pipeStatus) ? {
+                text: this.filesStatusLine,
+                cls: this.filesStatusCls,
+                pill: this.filesStatusPill,
+                canUpdate: this.filesCanUpdate,
+                note: this.pipeStatus && this.pipeStatus.message
+            } : null;
+            out.filesError = this.pipeError;
+        }
         out.paras = (b.paras || []).map((t, i) => rich(t, key + 'p' + i, g));
         out.items = (b.items || []).map((t, i) => rich(t, key + 'i' + i, g));
         out.note = b.text ? rich(b.text, key + 'n', g) : null;
@@ -208,6 +362,16 @@ export default class RlyReleaseGuide extends LightningElement {
     handleNav(event) {
         this.current = event.currentTarget.dataset.name;
         this.zoom = undefined;
+        this.loadFilesIfShown();
+    }
+
+    toggleOtherFiles() {
+        this.showOtherFiles = !this.showOtherFiles;
+    }
+
+    /** Updating the files (pull request or commit) lives on the Pipeline tab, next to the Git connection. */
+    openPipelineTab() {
+        this[NavigationMixin.Navigate]({ type: 'standard__navItemPage', attributes: { apiName: PIPELINE_TAB } });
     }
 
     handleProgress(event) {
