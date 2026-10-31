@@ -1,0 +1,46 @@
+{
+ "request": "REL-90002",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 149,
+ "deleted": [],
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cHhM2SAK",
+ "testsRun": 0,
+ "tests": [
+  "RlyApprovalServiceTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyConsumerKeyTest",
+  "RlyDeployReaderTest",
+  "RlyGitProvidersTest",
+  "RlyOrgControllerTest",
+  "RlyOrgSessionTest",
+  "RlyRaiseServiceTest",
+  "RlyRouteControllerTest",
+  "RlyStatusReaderTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [
+  {
+   "type": "CustomApplication",
+   "name": "Release_Relay",
+   "problem": "In field: tab - no CustomTab named RLY_Relay_Guide found"
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Admin",
+   "problem": "In field: tab - no CustomTab named RLY_Relay_Guide found"
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Approver",
+   "problem": "In field: tab - no CustomTab named RLY_Relay_Guide found"
+  }
+ ],
+ "testFailures": [],
+ "message": "3 component error(s)",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41220850486",
+ "finishedAt": "2026-10-31T16:42:36.946Z"
+}
