@@ -1,0 +1,80 @@
+/**
+ * @description The options a pipeline run starts with (the options input, as JSON): the hub flag, the org label,
+ * the test classes, the scan switch, validateMerged (hub, promote, check and resolve: validate the release merged with
+ * the target branch), attempt (the run's token, echoed in every result file) and syncBranches (the branches to update
+ * from the target after the merge: every developer branch when the target is the first stage; after a merge into the
+ * hub, every stage branch in route order, then every developer branch: the back-merge).
+ */
+public with sharing class RlyPipelineOptions {
+
+    private static final Set<String> VALIDATE_MERGED_MODES = new Set<String>{ 'hub', RlyPromotion.MODE, 'check', 'resolve' };
+
+    /**
+     * @description The options for a run of the release.
+     * @param rel the release, with Target_Org__c and Test_Classes__c
+     * @param mode hub, promote, check, resolve, merge or sync
+     * @return the options
+     */
+    public static Map<String, Object> forMode(RLY_Release__c rel, String mode) {
+        List<String> tests = String.isBlank(rel.Test_Classes__c) ? new List<String>() : rel.Test_Classes__c.split(',');
+        Map<String, Object> options = new Map<String, Object>{ 'hub' => true, 'label' => rel.Org_Label__c, 'tests' => tests };
+        if (String.isNotBlank(rel.Check_Token__c)) {
+            options.put('attempt', rel.Check_Token__c);
+        }
+        RLY_Git_Connection__c conn = RlyReleaseStore.git();
+        if (conn != null && conn.Code_Scan__c != true) {
+            options.put('scan', 'off');
+        }
+        if (VALIDATE_MERGED_MODES.contains(mode)) {
+            options.put('validateMerged', true);
+        }
+        if (mode == 'merge') {
+            addSyncBranches(rel, options);
+        }
+        return options;
+    }
+
+    // A merge into the first stage brings the developer branches up to date; a merge into the hub every stage branch
+    // and then every developer branch (merged back down).
+    private static void addSyncBranches(RLY_Release__c rel, Map<String, Object> options) {
+        List<String> branches = isHub(rel) ? backMergeBranches()
+            : isFirstStage(rel) ? RlyReleaseStore.developerBranches() : new List<String>();
+        if (!branches.isEmpty()) {
+            options.put('syncBranches', branches);
+        }
+    }
+
+    private static Boolean isHub(RLY_Release__c rel) {
+        return rel.Target_Org__r != null && rel.Target_Org__r.Role__c == 'Hub';
+    }
+
+    private static Boolean isFirstStage(RLY_Release__c rel) {
+        RLY_Org__c firstStage = RlyReleaseStore.firstStage();
+        return firstStage != null && firstStage.Id == rel.Target_Org__c;
+    }
+
+    /**
+     * @description The stage branches in route order (the hub left out), each once.
+     * @return the branch names
+     */
+    public static List<String> stageBranches() {
+        List<String> out = new List<String>();
+        for (RLY_Org__c o : RlyRouteRules.ordered(RlyReleaseStore.routeOrgs())) {
+            if (o.Role__c == 'Stage' && String.isNotBlank(o.Branch__c) && !out.contains(o.Branch__c.trim())) {
+                out.add(o.Branch__c.trim());
+            }
+        }
+        return out;
+    }
+
+    // The back-merge after a deploy to the hub: stage branches in route order, then developer branches.
+    private static List<String> backMergeBranches() {
+        List<String> out = stageBranches();
+        for (String b : RlyReleaseStore.developerBranches()) {
+            if (!out.contains(b)) {
+                out.add(b);
+            }
+        }
+        return out;
+    }
+}
