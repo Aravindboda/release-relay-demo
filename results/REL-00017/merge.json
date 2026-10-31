@@ -1,0 +1,22 @@
+{
+ "request": "REL-00017",
+ "step": "merge",
+ "status": "Merged",
+ "pr": 21,
+ "sha": "2fcb123a9fb5e9eb8b2d7985eb717023a9486173",
+ "method": "merge",
+ "sync": [
+  {
+   "branch": "sit",
+   "status": "Synced",
+   "message": "sit now includes the hotfix (its lines win, as the sit org already runs them)."
+  },
+  {
+   "branch": "dev1",
+   "status": "Synced",
+   "message": "dev1 now includes sit."
+  }
+ ],
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41232008125",
+ "finishedAt": "2026-10-31T18:59:22.033Z"
+}
