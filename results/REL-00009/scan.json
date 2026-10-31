@@ -1,0 +1,12 @@
+{
+ "request": "REL-00009",
+ "step": "scan",
+ "status": "Skipped",
+ "total": 0,
+ "blocking": 0,
+ "files": [],
+ "violations": [],
+ "message": "No code files in this pull request.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41160704574",
+ "finishedAt": "2026-10-31T02:36:57.293Z"
+}
