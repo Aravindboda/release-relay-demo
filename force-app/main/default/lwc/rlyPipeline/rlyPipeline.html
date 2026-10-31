@@ -1,0 +1,199 @@
+<template>
+    <div class="rr-page slds-is-relative">
+        <template lwc:if={loading}>
+            <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+        </template>
+
+        <section class="rr-head">
+            <span class="rr-head-icon"><lightning-icon icon-name="utility:hierarchy" size="small" variant="inverse" alternative-text=""></lightning-icon></span>
+            <div class="rr-head-text">
+                <p class="rr-kicker">Release Relay hub</p>
+                <h1 class="rr-title">Pipeline</h1>
+            </div>
+            <lightning-button label={setupLabel} onclick={toggleSetup}></lightning-button>
+            <template lwc:if={isAdmin}>
+                <lightning-button variant="brand" label="Register an org" onclick={startAdd}></lightning-button>
+            </template>
+        </section>
+
+        <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+
+        <template lwc:if={showSetup}>
+            <section class="rr-card rr-setup" aria-label="Setup steps">
+                <h2 class="rr-h2">Before you register an org</h2>
+                <p class="rr-weak rr-small">The hub signs in to each org itself, with a JWT signed by the hub's certificate. Each org needs this once. Menu names can differ slightly between Salesforce releases.</p>
+                <ol class="rr-steps">
+                    <li><strong>In this hub:</strong> Setup &gt; Certificate and Key Management. Use the certificate <span class="rr-mono">release_relay</span> (or create a self-signed one) and download its .crt file.</li>
+                    <li><strong>In the org:</strong> create an integration user with API Enabled, View Setup and Configuration, and Modify Metadata Through Metadata API Functions.</li>
+                    <li><strong>In the org:</strong> Setup &gt; External Client App Manager &gt; New External Client App. Turn on OAuth with the scopes api and refresh_token/offline_access, turn on the JWT bearer flow and upload the hub's .crt. Under policies, set Permitted Users to admin-approved users are pre-authorized and add the integration user's profile or permission set. Copy the consumer key.</li>
+                    <li><strong>In this hub:</strong> Setup &gt; Remote Site Settings &gt; New, with the org's My Domain URL, for example <span class="rr-mono">{remoteSite}</span>.</li>
+                    <li><strong>Here:</strong> Register an org, then Save and test sign-in.</li>
+                </ol>
+                <p class="rr-weak rr-small">This hub is <span class="rr-mono">{hubDomain}</span>. Register it too, with the role Hub, so releases can be deployed to production.</p>
+            </section>
+        </template>
+
+
+        <section class="rr-card" aria-label="Git connection">
+            <div class="rr-card-head rr-row">
+                <h2 class="rr-h2 rr-grow">Git connection</h2>
+                <template lwc:if={hasGit}><span class={gitStatusCls}>{git.Status__c}</span></template>
+                <template lwc:if={isAdmin}>
+                    <template lwc:if={hasGit}>
+                        <lightning-button label="Edit" onclick={startGitEdit}></lightning-button>
+                        <lightning-button label={gitCheckLabel} onclick={handleGitCheck} disabled={gitBusy}></lightning-button>
+                    </template>
+                </template>
+            </div>
+            <template lwc:if={noGit}>
+                <div class="rr-pad-all rr-row">
+                    <p class="rr-weak rr-small rr-grow">Where the code lives and the pipeline runs. One connection for the whole hub; the token stays in a Named Credential.</p>
+                    <template lwc:if={isAdmin}><lightning-button variant="brand" label="Set up Git" onclick={startGitEdit}></lightning-button></template>
+                </div>
+            </template>
+            <template lwc:if={editingGit}>
+                <div class="rr-form">
+                    <lightning-combobox label="Provider" data-field="Provider__c" value={gitForm.Provider__c} options={providerOptions} onchange={handleGitField}></lightning-combobox>
+                    <lightning-input label="Repository" data-field="Repository__c" value={gitForm.Repository__c} onchange={handleGitField}
+                        placeholder={gitProvider.repo} required></lightning-input>
+                    <lightning-input label="Named Credential (token)" data-field="Named_Credential__c" value={gitForm.Named_Credential__c} onchange={handleGitField}
+                        field-level-help="API name of the Named Credential that holds the provider token." required></lightning-input>
+                    <lightning-input label={gitProvider.pipeLabel} data-field="Pipeline__c" value={gitForm.Pipeline__c} onchange={handleGitField}></lightning-input>
+                    <lightning-input label="Pipeline branch" data-field="Pipeline_Branch__c" value={gitForm.Pipeline_Branch__c} onchange={handleGitField}
+                        field-level-help="Branch the pipeline files live on, usually main. Missing route branches are created from it." required></lightning-input>
+                    <lightning-input label="Source path" data-field="Source_Path__c" value={gitForm.Source_Path__c} onchange={handleGitField} required></lightning-input>
+                    <lightning-input type="toggle" label="Code scan on every pull request" data-field="Code_Scan__c" checked={gitForm.Code_Scan__c}
+                        onchange={handleGitField} message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                </div>
+                <template lwc:if={gitError}><div class="rr-msg rr-msg-bad rr-pad" role="alert">{gitError}</div></template>
+                <div class="rr-card-foot">
+                    <lightning-button label="Cancel" onclick={cancelGitEdit}></lightning-button>
+                    <lightning-button variant="brand" label="Save and check" onclick={handleGitSave} disabled={gitBusy}></lightning-button>
+                </div>
+            </template>
+            <template lwc:if={hasGit}>
+                <template lwc:if={notEditingGit}>
+                    <dl class="rr-facts">
+                        <div><dt>Provider</dt><dd>{gitProviderLabel}</dd></div>
+                        <div><dt>Repository</dt><dd class="rr-mono">{git.Repository__c}</dd></div>
+                        <div><dt>Named Credential</dt><dd class="rr-mono">{git.Named_Credential__c}</dd></div>
+                        <div><dt>Pipeline</dt><dd class="rr-mono">{git.Pipeline__c}</dd></div>
+                        <div><dt>Pipeline branch</dt><dd class="rr-mono">{git.Pipeline_Branch__c}</dd></div>
+                        <div><dt>Source path</dt><dd class="rr-mono">{git.Source_Path__c}</dd></div>
+                        <div><dt>Code scan</dt><dd>{scanText}</dd></div>
+                    </dl>
+                    <template lwc:if={git.Status_Message__c}><p class={gitMessageCls}>{git.Status_Message__c}</p></template>
+                </template>
+            </template>
+        </section>
+
+        <section class="rr-card" aria-label="Route">
+            <div class="rr-card-head rr-row">
+                <h2 class="rr-h2 rr-grow">Route</h2>
+                <template lwc:if={isAdmin}>
+                    <template lwc:if={hasGit}>
+                        <lightning-button label="Create missing branches" onclick={handleCreateBranches} disabled={gitBusy}></lightning-button>
+                    </template>
+                    <template lwc:if={routeDirty}>
+                        <lightning-button variant="brand" label="Save route" onclick={handleSaveRoute} disabled={routeBusy}></lightning-button>
+                    </template>
+                </template>
+            </div>
+            <template lwc:if={hasRoute}>
+                <div class="rr-route">
+                    <div class="rr-route-col">
+                        <p class="rr-label">Developer orgs</p>
+                        <template for:each={developerChips} for:item="d">
+                            <div key={d.id} class="rr-stop rr-stop-dev"><strong>{d.name}</strong><span class="rr-mono rr-weak">{d.branch}</span></div>
+                        </template>
+                    </div>
+                    <span class="rr-arrow" aria-hidden="true">→</span>
+                    <ol class="rr-route-stages" aria-label="Stages in order">
+                        <template for:each={stageChips} for:item="s">
+                            <li key={s.id} class="rr-stop">
+                                <div class="rr-stop-text">
+                                    <span class="rr-weak rr-small">{s.label}</span>
+                                    <strong>{s.name}</strong>
+                                    <span class="rr-mono rr-weak">{s.branch}</span>
+                                </div>
+                                <template lwc:if={isAdmin}>
+                                    <div class="rr-stop-move">
+                                        <lightning-button-icon icon-name="utility:chevronleft" size="small" alternative-text={s.upLabel} title={s.upLabel}
+                                            data-id={s.id} data-dir="up" onclick={moveStage} disabled={s.cantUp}></lightning-button-icon>
+                                        <lightning-button-icon icon-name="utility:chevronright" size="small" alternative-text={s.downLabel} title={s.downLabel}
+                                            data-id={s.id} data-dir="down" onclick={moveStage} disabled={s.cantDown}></lightning-button-icon>
+                                    </div>
+                                </template>
+                            </li>
+                        </template>
+                    </ol>
+                </div>
+            </template>
+            <template lwc:if={hasWarnings}>
+                <ul class="rr-warnings">
+                    <template for:each={warnings} for:item="w">
+                        <li key={w}>{w}</li>
+                    </template>
+                </ul>
+            </template>
+        </section>
+
+        <template lwc:if={editing}>
+            <section class="rr-card" aria-label={formTitle}>
+                <div class="rr-card-head"><h2 class="rr-h2">{formTitle}</h2></div>
+                <div class="rr-form">
+                    <lightning-input label="Org name" data-field="Name" value={form.Name} onchange={handleField} max-length="40" placeholder="DEV1" required></lightning-input>
+                    <lightning-combobox label="Role" data-field="Role__c" value={form.Role__c} options={roleOptions} onchange={handleField}></lightning-combobox>
+                    <lightning-input class="rr-wide" label="My Domain URL" data-field="My_Domain__c" value={form.My_Domain__c} onchange={handleField}
+                        placeholder="https://yourdomain.my.salesforce.com" field-level-help="Setup > My Domain in that org. Add the same URL as a Remote Site Setting in this hub." required></lightning-input>
+                    <lightning-combobox label="Login type" data-field="Login_Type__c" value={form.Login_Type__c} options={loginOptions} onchange={handleField}></lightning-combobox>
+                    <lightning-input label="Integration username" data-field="Username__c" value={form.Username__c} onchange={handleField} placeholder="relay@yourorg.dev" required></lightning-input>
+                    <lightning-input label="Client Id (consumer key)" data-field="Client_Id__c" value={form.Client_Id__c} onchange={handleField}
+                        field-level-help="From the External Client App in that org. Not a secret." required></lightning-input>
+                    <lightning-input label="Hub certificate" data-field="Certificate__c" value={form.Certificate__c} onchange={handleField}
+                        field-level-help="API name of the certificate in this hub that signs the login." required></lightning-input>
+                    <lightning-input label="Git environment" data-field="Git_Environment__c" value={form.Git_Environment__c} onchange={handleField}
+                        placeholder="dev1" field-level-help="The environment in your Git provider that holds this org's login for the pipeline."></lightning-input>
+                    <lightning-input label="Branch" data-field="Branch__c" value={form.Branch__c} onchange={handleField}
+                        placeholder="sit" field-level-help="This org's Git branch: a stage branch (sit, uat, prod) or a developer org's own branch (dev1)."></lightning-input>
+                </div>
+                <template lwc:if={formError}><div class="rr-msg rr-msg-bad rr-pad" role="alert">{formError}</div></template>
+                <div class="rr-card-foot">
+                    <lightning-button label="Cancel" onclick={cancelEdit}></lightning-button>
+                    <lightning-button variant="brand" label={saveLabel} onclick={handleSave} disabled={saving}></lightning-button>
+                </div>
+            </section>
+        </template>
+
+        <template lwc:if={noOrgs}>
+            <div class="rr-empty">No orgs registered yet. Follow the setup steps, then register your first org.</div>
+        </template>
+
+        <template lwc:if={hasOrgs}>
+            <section class="rr-grid" aria-label="Registered orgs">
+                <template for:each={cards} for:item="o">
+                    <article key={o.Id} class="rr-card rr-org">
+                        <div class="rr-org-top">
+                            <h2 class="rr-h2">{o.Name}</h2>
+                            <span class={o.statusCls}>{o.Status__c}</span>
+                            <template lwc:if={o.tracking}><span class={o.trackingCls}>{o.tracking}</span></template>
+                        </div>
+                        <p class="rr-weak rr-small">{o.roleLabel} · branch <span class="rr-mono">{o.Branch__c}</span> · env <span class="rr-mono">{o.Git_Environment__c}</span></p>
+                        <p class="rr-mono rr-domain" title={o.My_Domain__c}>{o.My_Domain__c}</p>
+                        <p class="rr-weak rr-small">{o.Username__c}</p>
+                        <template lwc:if={o.identity}><p class="rr-small">{o.identity}</p></template>
+                        <template lwc:if={o.Status_Message__c}><p class={o.messageCls}>{o.Status_Message__c}</p></template>
+                        <div class="rr-org-foot">
+                            <span class="rr-weak rr-small">{o.checkedText}</span>
+                            <span class="rr-grow"></span>
+                            <template lwc:if={isAdmin}>
+                                <lightning-button label="Edit" data-id={o.Id} onclick={handleEdit}></lightning-button>
+                                <lightning-button label={o.checkLabel} data-id={o.Id} onclick={handleCheck} disabled={o.checking}></lightning-button>
+                            </template>
+                        </div>
+                    </article>
+                </template>
+            </section>
+        </template>
+    </div>
+</template>

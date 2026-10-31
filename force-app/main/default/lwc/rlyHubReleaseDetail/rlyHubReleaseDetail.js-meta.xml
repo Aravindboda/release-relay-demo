@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>63.0</apiVersion>
+    <isExposed>false</isExposed>
+    <masterLabel>Release Relay: Release detail (hub)</masterLabel>
+    <description>One release: its progress, code scan, validation, approval and deploy, with the actions for it.</description>
+</LightningComponentBundle>

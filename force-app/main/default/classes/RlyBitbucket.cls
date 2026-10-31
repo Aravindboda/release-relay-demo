@@ -1,0 +1,56 @@
+/**
+ * Bitbucket Cloud REST API 2.0, through the Named Credential (URL https://api.bitbucket.org/2.0).
+ * Token: repository access token with Repositories: write, Pull requests: write, Pipelines: write.
+ */
+public with sharing class RlyBitbucket extends RlyGit {
+
+    private static final Pattern REPO = Pattern.compile('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$');
+
+    public override Pattern repositoryPattern() { return REPO; }
+    public override String repositoryHint() { return 'workspace/repository'; }
+
+    private String r(String path) {
+        return '/repositories/' + conn.Repository__c.trim() + path;
+    }
+
+    public override String defaultBranch() {
+        HttpResponse res = send('GET', r(''), null);
+        assertOk(res, 'Opening ' + conn.Repository__c);
+        Object main = ((Map<String, Object>) parse(res)).get('mainbranch');
+        return main == null ? 'main' : String.valueOf(((Map<String, Object>) main).get('name'));
+    }
+
+    public override Boolean branchExists(String branch) {
+        HttpResponse res = send('GET', r('/refs/branches/' + enc(branch)), null);
+        if (res.getStatusCode() == 404) {
+            return false;
+        }
+        assertOk(res, 'Branch lookup');
+        return true;
+    }
+
+    public override Boolean fileExists(String path, String ref) {
+        HttpResponse res = send('GET', r('/src/' + enc(ref) + '/' + encPath(path) + '?format=meta'), null);
+        if (res.getStatusCode() == 404) {
+            return false;
+        }
+        assertOk(res, 'File lookup');
+        return true;
+    }
+
+    public override void createBranch(String branch, String fromRef) {
+        HttpResponse ref = send('GET', r('/refs/branches/' + enc(fromRef)), null);
+        if (ref.getStatusCode() == 404) {
+            throw new GitException('Branch ' + fromRef + ' wasn\'t found in ' + conn.Repository__c + '.');
+        }
+        assertOk(ref, 'Branch lookup');
+        String hash = String.valueOf(((Map<String, Object>) ((Map<String, Object>) parse(ref)).get('target')).get('hash'));
+        HttpResponse res = send('POST', r('/refs/branches'),
+            JSON.serialize(new Map<String, Object>{ 'name' => branch, 'target' => new Map<String, Object>{ 'hash' => hash } }));
+        assertOk(res, 'Creating branch ' + branch);
+    }
+
+    public override List<String> pipelineFiles() {
+        return new List<String>{ 'bitbucket-pipelines.yml', 'scripts/release-relay.js' };
+    }
+}
