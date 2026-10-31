@@ -155,4 +155,21 @@ private class RlyOrgControllerTest {
             System.assertEquals('Not checked', saved.Status__c, 'Needs a new check');
         }
     }
+
+    @IsTest
+    static void slackAvailableOnlyWhenConnected() {
+        System.runAs(RlyTestData.admin()) {
+            System.assertEquals(false, RlyOrgController.getOrgs().slackAvailable, 'Slack off');
+            RlyReleaseTestData.slackOn(null);
+            Test.startTest();
+            Test.setMock(HttpCalloutMock.class, RlyReleaseTestData.withSlack(new RlyHttpMock()));
+            Boolean connected = RlyOrgController.getOrgs().slackAvailable;
+            Test.setMock(HttpCalloutMock.class, new RlyHttpMock()
+                .match('POST', 'callout:RLY_Slack/auth.test').reply(200, '{"ok":false,"error":"invalid_auth"}'));
+            Boolean refused = RlyOrgController.getOrgs().slackAvailable;
+            Test.stopTest();
+            System.assertEquals(true, connected, 'Slack on and its app answers');
+            System.assertEquals(false, refused, 'Slack on but its token is refused');
+        }
+    }
 }

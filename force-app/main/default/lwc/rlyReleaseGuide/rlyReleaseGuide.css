@@ -86,3 +86,16 @@ ul.rr-list { list-style: disc; }
 .rr-repo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 12px; }
 @media (max-width: 1000px) { .rr-repo { grid-template-columns: minmax(0, 1fr); } }
 .rr-tree { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 20px; background: #1e1e1e; color: #d4d4d4; border-radius: 4px; padding: 10px 14px; white-space: pre; overflow-x: auto; margin: 0; }
+
+/* pipeline files to download */
+.rr-files { display: flex; flex-direction: column; gap: 10px; }
+.rr-files-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border: 1px solid var(--rr-line); border-radius: 4px; background: #fafaf9; }
+.rr-files-text { font-size: 13px; }
+.rr-files-err { margin: 0; padding: 8px 10px; border-radius: 4px; font-size: 12px; background: #fef1ee; color: #8e030f; }
+.rr-file-prov { display: block; font-size: 11px; color: var(--rr-muted); margin-top: 2px; }
+.rr-file-repo { display: block; margin-top: 4px; }
+.rr-nowrap { white-space: nowrap; }
+.rr-pill { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.rr-pill-ok { background: #ebf7e6; color: #2e844a; }
+.rr-pill-wait { background: #fef1cd; color: #8c4b02; }
+.rr-pill-none { background: #f3f3f3; color: #444; }

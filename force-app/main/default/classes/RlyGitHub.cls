@@ -113,15 +113,27 @@ public with sharing class RlyGitHub extends RlyGit {
     /**
      * @description Creates or replaces a file on a branch (the current sha is sent when the file exists).
      * @param file the file and its commit
+     * @return link to the commit (commit.html_url), or null
      */
-    public override void putFile(RlyGitFile file) {
+    public override String putFile(RlyGitFile file) {
         String contentPath = repo() + '/contents/' + encPath(file.path);
         Map<String, Object> body = new Map<String, Object>{ 'message' => file.message, 'content' => file.base64Content, 'branch' => file.branch };
         HttpResponse existing = send('GET', contentPath + '?ref=' + enc(file.branch), null);
         if (existing.getStatusCode() == 200) {
             body.put('sha', ((Map<String, Object>) parse(existing)).get('sha'));
         }
-        assertOk(send('PUT', contentPath, JSON.serialize(body)), 'Committing ' + file.path);
+        HttpResponse res = send('PUT', contentPath, JSON.serialize(body));
+        assertOk(res, 'Committing ' + file.path);
+        return commitLink(res);
+    }
+
+    // commit.html_url of a contents answer; null when the answer has none.
+    private String commitLink(HttpResponse res) {
+        try {
+            return (String) ((Map<String, Object>) ((Map<String, Object>) parse(res)).get('commit')).get('html_url');
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
@@ -217,6 +229,21 @@ public with sharing class RlyGitHub extends RlyGit {
     public override void closePullRequest(Integer prNumber) {
         assertOk(send('PATCH', repo() + '/pulls/' + prNumber, JSON.serialize(new Map<String, Object>{ 'state' => 'closed' })),
             'Closing pull request #' + prNumber);
+    }
+
+    /**
+     * @description Opens a pull request from one branch into another.
+     * @param head the branch with the changes
+     * @param baseBranch the branch to merge into
+     * @param message the title, then (after a line break) the description
+     * @return the pull request's link
+     */
+    public override String openPullRequest(String head, String baseBranch, String message) {
+        String text = message == null ? '' : message;
+        HttpResponse res = send('POST', repo() + '/pulls', JSON.serialize(new Map<String, Object>{
+            'head' => head, 'base' => baseBranch, 'title' => text.substringBefore('\n').trim(), 'body' => text.substringAfter('\n').trim() }));
+        assertOk(res, 'Opening a pull request into ' + baseBranch);
+        return (String) ((Map<String, Object>) parse(res)).get('html_url');
     }
 
     /**

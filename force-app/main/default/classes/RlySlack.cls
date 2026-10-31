@@ -66,6 +66,23 @@ public with sharing class RlySlack {
     }
 
     /**
+     * @description Whether Slack is on and its app answers through the Named Credential (one auth.test callout, only
+     * when Slack is on). Never throws.
+     * @return true when on and connected
+     */
+    public static Boolean isConnected() {
+        if (!isOn()) {
+            return false;
+        }
+        try {
+            RlySlackApi.call('auth.test', new Map<String, Object>());
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
      * @description Whether a message would be sent for an event (Slack on and the event selected; Approved whenever on).
      * @param event the event
      * @return true when it would be sent
