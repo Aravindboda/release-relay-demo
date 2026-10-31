@@ -1242,6 +1242,10 @@ function syncDeveloperBranches() {
         return out;
     }
     fetchBranch(target);
+    // A hotfix lists its source stage first: that org already runs the hotfix, so the stage branch takes the
+    // hotfix's lines where they differ, and the developer branches then take the stage branch.
+    const hotfix = branch.startsWith('hotfix/');
+    let from = target;
     for (const b of branches) {
         if (!REF_RE.test(b) || b === target) {
             out.push({ branch: b, status: 'Missing', message: 'Not a valid branch name.' });
@@ -1253,14 +1257,21 @@ function syncDeveloperBranches() {
         }
         try {
             fetchBranch(b);
+            const stage = hotfix && from === target && b === branches[0];
             git(['checkout', '-q', '-B', b, `refs/remotes/origin/${b}`]);
-            run('git', ['merge', '--no-edit', '-m', `Release Relay ${requestId}: bring ${target} into ${b}`, `refs/remotes/origin/${target}`],
+            run('git', ['merge', '--no-edit', ...(stage ? ['-X', 'theirs'] : []),
+                '-m', `Release Relay ${requestId}: bring ${from} into ${b}`, `refs/remotes/origin/${from}`],
                 { stdio: ['ignore', 'pipe', 'pipe'] });
             git(['push', '-q', 'origin', `HEAD:refs/heads/${b}`]);
-            out.push({ branch: b, status: 'Synced', message: `${b} now includes ${target}.` });
+            out.push({ branch: b, status: 'Synced', message: stage
+                ? `${b} now includes the hotfix (its lines win, as the ${b} org already runs them).` : `${b} now includes ${from}.` });
+            if (stage) {
+                gitQuiet(['update-ref', `refs/remotes/origin/${b}`, 'HEAD']);
+                from = b;
+            }
         } catch (e) {
             gitQuiet(['merge', '--abort']);
-            out.push({ branch: b, status: 'Conflict', message: `${b} couldn't take ${target} automatically: ${String(e.stderr || e.message).slice(0, 300)}` });
+            out.push({ branch: b, status: 'Conflict', message: `${b} couldn't take ${from} automatically: ${String(e.stderr || e.message).slice(0, 300)}` });
         }
     }
     return out;
