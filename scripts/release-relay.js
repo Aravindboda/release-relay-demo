@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 8
+// Release Relay pipeline files: version 9
 /*
  * Release Relay: one script for every pipeline job, on GitHub, GitLab, Bitbucket or Azure DevOps.
  *
@@ -15,10 +15,16 @@
  *                  with the files, push, open a PR/MR into TARGET. No org login is needed.
  *                  MODE=resolve: merge TARGET into BRANCH, applying the choices the hub committed in
  *                  .relay-inbox/<REQUEST_ID>-resolve.json for each conflicted file, then push.
+ *                  Runs started by the hub (OPTIONS.hub) in modes hub and promote write
+ *                  results/<REQUEST_ID>/raise.json: the pull request opened, or why none was.
  *   STEP=scan      Salesforce Code Analyzer on the files the PR/MR changes.
  *   STEP=validate  Check-only deployment of the PR/MR's changes to the target org.
  *   STEP=merge     Merge the PR/MR approved in Salesforce.
  *   STEP=deploy    Deploy the merged changes (and deletions) to the target org.
+ *   STEP=sync      MODE=sync (back promote): merge BRANCH (the hub's production branch) into TARGET
+ *                  (a back-promote org's branch, made from BRANCH when missing), deploy what changed
+ *                  to TARGET_ENVIRONMENT's org, and push TARGET only when that deploy worked.
+ *                  Writes results/<REQUEST_ID>/sync.json.
  *   STEP=auto      Run the steps MODE needs, in order (GitLab and Bitbucket use one job).
  *   STEP=notify    Tell the Salesforce org that raised the release to read the results now
  *                  (POST /services/apexrest/release-relay/v1/status). Never fails the run.
@@ -33,8 +39,10 @@
  * isn't needed; {"tests":["AccountServiceTest"]} runs those tests (RunSpecifiedTests) when
  * validating and deploying, and {"tests":[]} means no Apex, so no tests run (NoTestRun).
  * {"validateMerged":true} validates BRANCH merged with TARGET (conflicts are reported, not guessed);
- * {"syncBranches":["dev1"]} merges TARGET into those branches after a merge, so every developer org's
- * branch starts from the latest stage.
+ * {"syncBranches":["sit","dev1"]} merges TARGET into each of those branches, in that order, after a
+ * merge (each branch takes TARGET directly), so every stage and developer branch starts from the latest;
+ * the merge result lists them under "sync". {"stageWins":true} lets the first listed branch take
+ * TARGET's lines where they conflict (-X theirs); without it a conflict is reported, never forced.
  *
  * Every input arrives as an environment variable and is validated here. Commands run with
  * execFileSync and argument arrays, never through a shell, so input can't inject commands.
@@ -261,16 +269,19 @@ function runUrl() {
 
 function checkCommonInputs() {
     if (!/^REL-\d{5,}$/.test(requestId)) { fail('REQUEST_ID must look like REL-00042.'); }
-    if (!['org', 'branch', 'promote', 'hub', 'resolve', 'check', 'merge'].includes(mode)) { fail('MODE must be org, branch, promote, hub, resolve, check or merge.'); }
-    if (!BRANCH_RE.test(branch)) { fail(`Branch "${branch}" must look like feature/short-name.`); }
-    if (!REF_RE.test(target) || target === branch) { fail(`Target "${target}" isn't a valid target branch.`); }
+    if (!['org', 'branch', 'promote', 'hub', 'resolve', 'check', 'merge', 'sync'].includes(mode)) { fail('MODE must be org, branch, promote, hub, resolve, check, merge or sync.'); }
+    if (mode === 'sync') {
+        // A back promote takes the hub's production branch (any branch name) into a back-promote org's branch.
+        if (!REF_RE.test(branch) || branch.includes('..')) { fail(`Branch "${branch}" isn't a valid source branch.`); }
+    } else if (!BRANCH_RE.test(branch)) { fail(`Branch "${branch}" must look like feature/short-name.`); }
+    if (!REF_RE.test(target) || target.includes('..') || target === branch || target === RESULTS_BRANCH) { fail(`Target "${target}" isn't a valid target branch.`); }
     if (!/^[A-Za-z0-9_./-]+$/.test(sourcePath()) || sourcePath().includes('..')) { fail('SOURCE_PATH is invalid.'); }
     if (!['github', 'gitlab', 'bitbucket', 'azure'].includes(PROVIDER)) { fail('RELAY_PROVIDER must be github, gitlab, bitbucket or azure.'); }
 }
 
 function checkAllowedTarget() {
     if (options.hub === true) {
-        return; // the Release Relay hub only raises along its registered route
+        return; // the Release Relay hub only raises (and back promotes) along its registered route
     }
     const allowed = v('ALLOWED_TARGETS').split(',').map((s) => s.trim()).filter(Boolean);
     if (!allowed.length) { fail(`ALLOWED_TARGETS isn't set for ${sourceEnv || 'this org'}, so it isn't configured for Release Relay.`); }
@@ -532,11 +543,15 @@ function releaseTests() {
     return [...new Set(options.tests.map(String))];
 }
 
-/** Runs a deployment (or a check-only one) and returns a result for Salesforce. */
+/**
+ * Runs a deployment (or a check-only one) and returns a result for Salesforce. The release's tests win;
+ * without them DEPLOY_TEST_LEVEL, else plan.defaultTestLevel (a back promote: by whether Apex changed),
+ * else RunLocalTests. plan.ownTests false ignores the release's tests (a back promote has none).
+ */
 function deployTo(alias, plan, checkOnly) {
-    const tests = releaseTests();
+    const tests = plan.ownTests === false ? null : releaseTests();
     const testLevel = tests ? (tests.length ? 'RunSpecifiedTests' : 'NoTestRun')
-        : TEST_LEVELS.includes(v('DEPLOY_TEST_LEVEL')) ? v('DEPLOY_TEST_LEVEL') : 'RunLocalTests';
+        : TEST_LEVELS.includes(v('DEPLOY_TEST_LEVEL')) ? v('DEPLOY_TEST_LEVEL') : (plan.defaultTestLevel || 'RunLocalTests');
     const args = ['project', 'deploy', 'start', '--manifest', plan.pkg, '--target-org', alias,
         '--test-level', testLevel, '--wait', '110', '--json'];
     (tests || []).forEach((t) => args.push('--tests', t));
@@ -873,11 +888,53 @@ const provider = providers[PROVIDER] || providers.github;
 
 // ---------- step: raise ----------
 
+/** Modes hub and promote started by the hub write raise.json: the hub reads the pull request, or why there's none. */
+function writesRaiseResult() {
+    return mode === 'hub' || (mode === 'promote' && options.hub === true);
+}
+
+/**
+ * results/<REQUEST_ID>/raise.json, the same shape for modes hub and promote:
+ * { status: 'Opened' | 'Failed', mode, branch, target, sha, pr, url, commits, conflicts, message }.
+ */
+function raiseResult(status, data) {
+    writeResult('raise', { status, mode, branch, target, sha: null, pr: null, url: null,
+        commits: [], conflicts: [], message: '', ...data });
+}
+
+/** Ends the raise; a hub run first says why in raise.json. */
+function raiseFailed(message, data) {
+    if (writesRaiseResult()) {
+        raiseResult('Failed', { ...data, message: String(message).slice(0, 1500) });
+    }
+    fail(message);
+}
+
+/** The pull/merge request number at the end of its web address. */
+function prNumber(url) {
+    const m = /(\d+)\/?$/.exec(String(url || ''));
+    return m ? Number(m[1]) : null;
+}
+
+/** Opens (or finds) the PR/MR for a hub or promote raise and records it in raise.json. */
+async function openAndRecord(body, data) {
+    let url;
+    try {
+        url = await provider.open(branch, target, title, body);
+    } catch (e) {
+        raiseFailed(`Opening the ${provider.label} failed: ${e && e.message ? e.message : e}`, data);
+    }
+    if (writesRaiseResult()) {
+        raiseResult('Opened', { ...data, pr: prNumber(url), url });
+    }
+    summary(`**${provider.label}:** ${url}\n\n${branch} → ${target}, release ${requestId}\n\n${body}`);
+}
+
 async function stepRaise() {
     orgEnv = sourceEnv;
     if (!['org', 'branch', 'promote', 'hub', 'resolve'].includes(mode)) { fail('MODE must be org, branch, promote, hub or resolve to raise.'); }
     checkAllowedTarget();
-    if (!title) { fail('Title is required.'); }
+    if (!title) { raiseFailed('Title is required.'); }
     preparePush();
 
     if (mode === 'promote') {
@@ -1016,23 +1073,30 @@ function convertFromHub(mdapi, out) {
         } catch (ignored) {
             // not JSON: keep the raw output
         }
-        const message = 'Converting the files from the hub failed: ' + detail.replace(/\s+/g, ' ').trim().slice(0, 1500);
-        writeResult('raise', { status: 'Failed', message });
-        fail(message);
+        raiseFailed('Converting the files from the hub failed: ' + detail.replace(/\s+/g, ' ').trim().slice(0, 1500));
     }
+}
+
+/** The pull request's line about the tests the release runs (OPTIONS.tests), or '' when it sent none. */
+function testsLine() {
+    const tests = releaseTests();
+    if (!tests) {
+        return '';
+    }
+    return tests.length ? `**Tests:** ${tests.map((t) => '`' + t + '`').join(', ')} (RunSpecifiedTests)` : '**Tests:** none, no Apex (NoTestRun)';
 }
 
 async function raiseFromHub() {
     const components = parseList(input('COMPONENTS'), 'COMPONENTS');
     const zipFile = path.join('.relay-inbox', requestId + '.zip');
     if (!remoteBranchExists(branch)) {
-        fail(`Branch ${branch} doesn't exist. Raise the release again from Release Relay.`);
+        raiseFailed(`Branch ${branch} doesn't exist. Raise the release again from Release Relay.`);
     }
     fetchBranch(target);
     fetchBranch(branch);
     git(['checkout', '-q', '-B', branch, `refs/remotes/origin/${branch}`]);
     if (!fs.existsSync(zipFile)) {
-        fail(`${zipFile} isn't on ${branch}. Raise the release again from Release Relay.`);
+        raiseFailed(`${zipFile} isn't on ${branch}. Raise the release again from Release Relay.`);
     }
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-hub-'));
     const mdapi = path.join(tmp, 'mdapi');
@@ -1046,34 +1110,56 @@ async function raiseFromHub() {
     git(['rm', '-q', '--', zipFile]);
     git(['add', '-A', '--', sourcePath()]);
     if (git(['diff', '--cached', '--name-only', '--', sourcePath()]) === '') {
-        fail(`${orgLabel()} already matches ${target} for these components. Nothing to commit.`);
+        raiseFailed(`${orgLabel()} already matches ${target} for these components. Nothing to commit.`);
     }
     git(['commit', '-q', '-m', title, '-m', `Release Relay ${requestId} from ${orgLabel()} (${copied.length} files)`]);
     git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
+    const sha = git(['rev-parse', 'HEAD']);
 
     const list = components.map((i) => `- ${i.type}: \`${i.name}\``).join('\n');
-    const tests = releaseTests();
     const body = [
         `Raised from the Release Relay hub (${orgLabel()}), release ${requestId}.`,
         '**Request type:** Changes',
         `### Added or updated from ${orgLabel()}\n${list}`,
-        tests ? (tests.length ? `**Tests:** ${tests.map((t) => '`' + t + '`').join(', ')} (RunSpecifiedTests)` : '**Tests:** none, no Apex (NoTestRun)') : '',
+        testsLine(),
         'Every item was selected and reviewed in Release Relay. Approve it in Salesforce; Release Relay merges it.'
     ].filter(Boolean).join('\n\n');
-    const url = await provider.open(branch, target, title, body);
-    summary(`**${provider.label}:** ${url}\n\n${branch} → ${target}, release ${requestId}\n\n${body}`);
+    await openAndRecord(body, { sha });
 }
 
 /**
  * A promotion: a new branch from the next stage, with the carried releases' merge commits
- * cherry-picked onto it in the order Salesforce sent them (oldest merge first).
+ * cherry-picked onto it in the order Salesforce sent them (oldest merge first). Started by the hub
+ * (OPTIONS.hub), it behaves like mode hub: raise.json, the release's tests, validateMerged and the
+ * run token; a re-run for the same release opens the pull request for the branch it already pushed.
  */
 async function raisePromotion() {
     const shas = (input('COMPONENTS') || '').split(',').map((x) => x.trim()).filter(Boolean);
     if (!shas.length || shas.some((x) => !SHA_RE.test(x))) {
-        fail('COMPONENTS must list the merge commits to promote, as full 40-character hashes.');
+        raiseFailed('COMPONENTS must list the merge commits to promote, as full 40-character hashes.');
     }
-    if (remoteBranchExists(branch)) { fail(`Branch ${branch} already exists. Promote again to get a new branch.`); }
+    const lines = (picked) => [
+        `Raised from Release Relay${options.hub === true ? ' hub' : ''}, release ${requestId}.`,
+        '**Request type:** Promotion',
+        `Promotes into \`${target}\` the changes already deployed to the previous stage, cherry-picked in this order:`,
+        picked.map((x) => `- ${x.slice(0, 7)}`).join('\n'),
+        testsLine(),
+        'Approve it in Salesforce; Release Relay merges it and deploys it.'
+    ].filter(Boolean).join('\n\n');
+
+    if (remoteBranchExists(branch)) {
+        if (options.hub !== true) {
+            fail(`Branch ${branch} already exists. Promote again to get a new branch.`);
+        }
+        fetchBranch(target);
+        fetchBranch(branch);
+        const head = git(['rev-parse', `refs/remotes/origin/${branch}`]);
+        if (git(['diff', '--name-only', `refs/remotes/origin/${target}`, head]) === '') {
+            raiseFailed(`Branch ${branch} already exists and matches ${target}. Nothing to promote.`, { sha: head });
+        }
+        await openAndRecord(lines(shas), { sha: head, commits: shas });
+        return;
+    }
 
     git(['fetch', '--no-tags', 'origin']); // the commits live on the previous stage's branch
     fetchBranch(target);
@@ -1082,7 +1168,7 @@ async function raisePromotion() {
     const picked = [];
     for (const sha of shas) {
         if (gitQuiet(['cat-file', '-t', sha]) !== 'commit') {
-            fail(`Commit ${sha.slice(0, 7)} isn't in the repository. Was its branch rewritten?`);
+            raiseFailed(`Commit ${sha.slice(0, 7)} isn't in the repository. Was its branch rewritten?`, { commits: picked });
         }
         const parents = (gitQuiet(['rev-list', '--parents', '-n', '1', sha]) || '').split(' ').length - 1;
         // A merge commit is picked against its first parent: the stage branch before the merge.
@@ -1092,28 +1178,20 @@ async function raisePromotion() {
         try {
             execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
         } catch (e) {
-            const files = gitQuiet(['diff', '--name-only', '--diff-filter=U']) || '';
+            const files = conflictedFiles();
             gitQuiet(['cherry-pick', '--abort']);
-            fail(`${sha.slice(0, 7)} doesn't apply cleanly on ${target}`
-                + (files ? ` (conflicts in ${files.split('\n').slice(0, 5).join(', ')})` : '')
-                + '. Promote the releases it depends on first, or resolve it in a branch and raise that branch.');
+            raiseFailed(`${sha.slice(0, 7)} doesn't apply cleanly on ${target}`
+                + (files.length ? ` (conflicts in ${files.slice(0, 5).join(', ')})` : '')
+                + '. Promote the releases it depends on first, or resolve it in a branch and raise that branch.',
+            { commits: picked, conflicts: files.slice(0, 50) });
         }
         picked.push(sha);
     }
     if (git(['diff', '--name-only', `refs/remotes/origin/${target}`, 'HEAD']) === '') {
-        fail(`Everything in these commits is already in ${target}. Nothing to promote.`);
+        raiseFailed(`Everything in these commits is already in ${target}. Nothing to promote.`, { commits: picked });
     }
     git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
-
-    const body = [
-        `Raised from Release Relay, release ${requestId}.`,
-        '**Request type:** Promotion',
-        `Promotes into \`${target}\` the changes already deployed to the previous stage, cherry-picked in this order:`,
-        picked.map((x) => `- ${x.slice(0, 7)}`).join('\n'),
-        'Approve it in Salesforce; Release Relay merges it and deploys it.'
-    ].join('\n\n');
-    const url = await provider.open(branch, target, title, body);
-    summary(`**${provider.label}:** ${url}\n\n${branch} → ${target}, release ${requestId}\n\n${body}`);
+    await openAndRecord(lines(picked), { sha: git(['rev-parse', 'HEAD']), commits: picked });
 }
 
 // ---------- step: validate ----------
@@ -1265,7 +1343,13 @@ function resolveConflicts() {
     summary(`Resolved ${conflicted.size} conflicted file(s) on ${branch}: ${[...conflicted].join(', ')}`);
 }
 
-/** After a merge: brings TARGET into each developer branch listed in OPTIONS.syncBranches. */
+/**
+ * After a merge: brings TARGET into each branch listed in OPTIONS.syncBranches, in the order given (after a
+ * deploy to production: every stage branch, then every developer branch). Each branch merges TARGET directly.
+ * A conflict is reported for that branch and left alone, never forced, unless OPTIONS.stageWins is true: then
+ * the first listed branch takes TARGET's lines where they differ (-X theirs).
+ * Returns [{ branch, status: 'Synced' | 'Conflict' | 'Missing', message }], the merge result's "sync".
+ */
 function syncDeveloperBranches() {
     const branches = Array.isArray(options.syncBranches) ? options.syncBranches.map(String) : [];
     const out = [];
@@ -1273,12 +1357,13 @@ function syncDeveloperBranches() {
         return out;
     }
     fetchBranch(target);
-    // A hotfix lists its source stage first: that org already runs the hotfix, so the stage branch takes the
-    // hotfix's lines where they differ, and the developer branches then take the stage branch.
-    const hotfix = branch.startsWith('hotfix/');
-    let from = target;
+    const stageWins = options.stageWins === true;
     for (const b of branches) {
-        if (!REF_RE.test(b) || b === target) {
+        if (b === target) {
+            out.push({ branch: b, status: 'Missing', message: `${b} is the branch just merged into.` });
+            continue;
+        }
+        if (!REF_RE.test(b) || b.includes('..') || b === RESULTS_BRANCH) {
             out.push({ branch: b, status: 'Missing', message: 'Not a valid branch name.' });
             continue;
         }
@@ -1286,23 +1371,22 @@ function syncDeveloperBranches() {
             out.push({ branch: b, status: 'Missing', message: `${b} doesn't exist in the repository.` });
             continue;
         }
+        const wins = stageWins && b === branches[0];
         try {
             fetchBranch(b);
-            const stage = hotfix && from === target && b === branches[0];
             git(['checkout', '-q', '-B', b, `refs/remotes/origin/${b}`]);
-            run('git', ['merge', '--no-edit', ...(stage ? ['-X', 'theirs'] : []),
-                '-m', `Release Relay ${requestId}: bring ${from} into ${b}`, `refs/remotes/origin/${from}`],
+            run('git', ['merge', '--no-edit', ...(wins ? ['-X', 'theirs'] : []),
+                '-m', `Release Relay ${requestId}: bring ${target} into ${b}`, `refs/remotes/origin/${target}`],
                 { stdio: ['ignore', 'pipe', 'pipe'] });
             git(['push', '-q', 'origin', `HEAD:refs/heads/${b}`]);
-            out.push({ branch: b, status: 'Synced', message: stage
-                ? `${b} now includes the hotfix (its lines win, as the ${b} org already runs them).` : `${b} now includes ${from}.` });
-            if (stage) {
-                gitQuiet(['update-ref', `refs/remotes/origin/${b}`, 'HEAD']);
-                from = b;
-            }
+            out.push({ branch: b, status: 'Synced', message: wins
+                ? `${b} now includes ${target} (${target}'s lines win where they differ).` : `${b} now includes ${target}.` });
         } catch (e) {
+            const files = conflictedFiles();
             gitQuiet(['merge', '--abort']);
-            out.push({ branch: b, status: 'Conflict', message: `${b} couldn't take ${from} automatically: ${String(e.stderr || e.message).slice(0, 300)}` });
+            out.push({ branch: b, status: 'Conflict', message: files.length
+                ? `${b} couldn't take ${target} automatically: ${files.length} file(s) conflict (${files.slice(0, 5).join(', ')}).`
+                : `${b} couldn't take ${target} automatically: ${String(e.stderr || e.message).slice(0, 300)}` });
         }
     }
     return out;
@@ -1352,7 +1436,7 @@ async function stepMerge() {
     try {
         sync = syncDeveloperBranches();
     } catch (e) {
-        sync = [{ branch: '*', status: 'Conflict', message: 'Updating the developer branches failed: ' + e.message.slice(0, 300) }];
+        sync = [{ branch: '*', status: 'Conflict', message: 'Updating the branches after the merge failed: ' + e.message.slice(0, 300) }];
     }
     writeResult('merge', { status: 'Merged', pr: Number(pr.id), sha, method, sync });
     shareMergeSha(sha);
@@ -1395,10 +1479,117 @@ async function stepDeploy() {
     }
 }
 
+// ---------- step: sync (back promote) ----------
+
+const APEX_TYPES = new Set(['ApexClass', 'ApexTrigger']);
+
+/** The first few component errors of a failed deploy, for the result's message. */
+function deployFailureText(r) {
+    const errors = (r.componentErrors || []).slice(0, 5).map((c) => `${c.type || ''} ${c.name || ''}: ${c.problem || ''}`.trim());
+    const tests = (r.testFailures || []).slice(0, 5).map((t) => `${t.name || ''}.${t.method || ''}: ${t.message || ''}`);
+    return [r.message || 'Deployment failed'].concat(errors, tests).join(' | ').slice(0, 1500);
+}
+
+/**
+ * MODE=sync: brings BRANCH (the hub's production branch) into TARGET (a back-promote org's branch) and
+ * deploys what that changed to TARGET_ENVIRONMENT's org. TARGET is pushed only after the deploy worked, so
+ * it always matches what the org received. A missing TARGET is made from BRANCH: the org is taken to match
+ * production already (a sandbox made from it), so that first sync deploys nothing.
+ * Writes results/<REQUEST_ID>/sync.json:
+ * { status: 'Deployed' | 'Nothing to deploy' | 'Conflict' | 'Failed', sha, deployId, testsRun, conflicts, message }.
+ */
+async function stepSync() {
+    orgEnv = sourceEnv;
+    if (mode !== 'sync') {
+        fail('STEP=sync needs MODE=sync.');
+    }
+    const result = (status, data) => writeResult('sync', { status, sha: null, deployId: null, testsRun: 0,
+        conflicts: [], message: '', ...data });
+    const stop = (data) => {
+        result('Failed', data);
+        process.exit(1);
+    };
+    checkAllowedTarget(); // runs not started by the hub: TARGET must be in the source's ALLOWED_TARGETS
+    orgEnv = targetEnv;
+    if (!targetEnv) {
+        stop({ message: 'No target environment: a back promote needs the org to deploy to.' });
+    }
+    let oldHead = null;
+    let head;
+    try {
+        fetchBranch(branch);
+        if (remoteBranchExists(target)) {
+            fetchBranch(target);
+            oldHead = git(['rev-parse', `refs/remotes/origin/${target}`]);
+            git(['checkout', '-q', '-B', target, oldHead]);
+            try {
+                run('git', ['merge', '--no-edit', '-m', `Release Relay ${requestId}: back promote ${branch} into ${target}`,
+                    `refs/remotes/origin/${branch}`], { stdio: ['ignore', 'pipe', 'pipe'] });
+            } catch (e) {
+                const files = conflictedFiles();
+                gitQuiet(['merge', '--abort']);
+                if (!files.length) {
+                    throw new Error(`Merging ${branch} into ${target} failed: ${String(e.stderr || e.message).slice(0, 500)}`);
+                }
+                result('Conflict', { sha: git(['rev-parse', `refs/remotes/origin/${branch}`]), conflicts: files.slice(0, 200),
+                    message: `${files.length} file(s) in ${target} conflict with ${branch}. Nothing was deployed or pushed. `
+                        + `Bring ${branch} into ${target} by hand (keep ${branch}'s lines), then sync again.` });
+                process.exit(1);
+            }
+        } else {
+            git(['checkout', '-q', '-B', target, `refs/remotes/origin/${branch}`]);
+        }
+        head = git(['rev-parse', 'HEAD']);
+    } catch (e) {
+        stop({ message: String(e.message || e).slice(0, 1500) });
+    }
+
+    const push = () => git(['push', '-q', 'origin', `HEAD:refs/heads/${target}`]);
+    let plan = null;
+    let apexChanged = false;
+    try {
+        if (oldHead && oldHead !== head) {
+            plan = buildDeployment(oldHead, head);
+            apexChanged = changedFiles(oldHead, head).some((f) => {
+                const c = componentFor(f.file);
+                return c && APEX_TYPES.has(c.type);
+            });
+        }
+        if (!plan) {
+            push();
+            result('Nothing to deploy', { sha: head, message: !oldHead
+                ? `Made ${target} from ${branch}. The org is taken to match ${branch} already, so nothing was deployed; later syncs deploy what changes.`
+                : oldHead === head ? `${target} already includes ${branch}.`
+                    : `Nothing deployable changed under ${sourcePath()}. ${target} now includes ${branch}.` });
+            return;
+        }
+        login('target-org');
+    } catch (e) {
+        stop({ sha: head, message: String(e.message || e).slice(0, 1500) });
+    }
+    plan.ownTests = false;
+    plan.defaultTestLevel = apexChanged ? 'RunLocalTests' : 'NoTestRun';
+    const r = deployTo('target-org', plan, false);
+    if (!r.ok) {
+        stop({ sha: head, deployId: r.deployId || null, testsRun: r.testsRun || 0,
+            message: `Deploying to ${targetEnv} failed, so ${target} wasn't updated: ${deployFailureText(r)}` });
+    }
+    try {
+        push();
+    } catch (e) {
+        stop({ sha: head, deployId: r.deployId || null, testsRun: r.testsRun || 0,
+            message: `Deployed to ${targetEnv}, but pushing ${target} failed (branch rules?). The next sync deploys these changes again: ${String(e.message || e).slice(0, 500)}` });
+    }
+    result('Deployed', { sha: head, deployId: r.deployId || null, testsRun: r.testsRun || 0,
+        message: `Deployed ${plan.changed} change(s)${plan.deleted ? ` and ${plan.deleted} deletion(s)` : ''} from ${branch} (${r.testLevel}).` });
+}
+
 // ---------- step: auto (one job runs everything MODE needs) ----------
 
 async function stepAuto() {
-    if (mode === 'org' || mode === 'branch' || mode === 'promote') {
+    if (mode === 'sync') {
+        await stepSync();
+    } else if (['org', 'branch', 'promote', 'hub', 'resolve'].includes(mode)) {
         await stepRaise();
         await stepScan();
         await stepValidate();
@@ -1436,7 +1627,7 @@ async function stepNotify() {
 
 // ---------- main ----------
 
-const STEPS = { raise: stepRaise, scan: stepScan, validate: stepValidate, merge: stepMerge, deploy: stepDeploy, auto: stepAuto };
+const STEPS = { raise: stepRaise, scan: stepScan, validate: stepValidate, merge: stepMerge, deploy: stepDeploy, sync: stepSync, auto: stepAuto };
 
 async function main() {
     if (step === 'notify') {
@@ -1445,7 +1636,7 @@ async function main() {
     }
     checkCommonInputs();
     if (!STEPS[step]) {
-        fail('STEP must be raise, scan, validate, merge, deploy or auto.');
+        fail('STEP must be raise, scan, validate, merge, deploy, sync or auto.');
     }
     preparePush();
     await STEPS[step]();
