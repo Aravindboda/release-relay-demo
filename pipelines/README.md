@@ -53,7 +53,8 @@ branches it updates after a merge (`syncBranches`), the back-promote orgs' branc
 branch merged with the target), `attempt` (the run's token, echoed in every result file), `notify`, and for
 `merge`: `syncBranches` (the branches to bring the target into after the merge, in order; after a deploy to
 production every stage branch, then every developer branch) and `stageWins` (true: the first listed branch takes
-the target's lines where they conflict; otherwise a conflict is reported for that branch, never forced).
+the target's lines where they conflict; otherwise a conflict is reported for that branch, never forced), and
+`quickDeploy` (false: always deploy in full; see Quick deploy).
 
 **Result files** on `release-relay-results`, `results/<REQUEST_ID>/<step>.json`, each with `request`, `step`,
 `status`, `runUrl`, `finishedAt` and `attempt`:
@@ -61,12 +62,24 @@ the target's lines where they conflict; otherwise a conflict is reported for tha
 - `raise.json` (modes `hub` and `promote` started by the hub): `status` `Opened` or `Failed`, `mode`, `branch`,
   `target`, `sha` (the branch head pushed), `pr` (number), `url`, `commits` (promote: the merge commits picked),
   `conflicts` (promote: files a commit conflicted on), `message`.
-- `scan.json`, `validate.json`, `deploy.json`: as before.
+- `scan.json`: as before. `validate.json` also records `mergedWith` (the target commit validated against),
+  `validatedTree` (the merged files' tree) and `environment`.
+- `deploy.json`: as before, plus `quick` (true when the validation was quick deployed) and `quickNote` (why it
+  wasn't, or which validation was used).
 - `merge.json`: `status` `Merged` or `Failed`, `pr`, `sha`, `method`, and `sync`: one entry per `syncBranches`
   branch, `{ "branch", "status": "Synced" | "Conflict" | "Missing", "message" }`.
 - `sync.json` (mode `sync`): `status` `Deployed`, `Nothing to deploy`, `Conflict` or `Failed`, `sha` (the
   back-promote branch's new head; for a conflict the production head that couldn't be merged), `deployId`,
   `testsRun`, `conflicts` (files), `message`.
+
+**Quick deploy.** After a merge, the deploy step quick deploys the release's validation
+(`sf project deploy quick --job-id <validate.json deployId>`, no tests run again) when all of these hold:
+`quickDeploy` isn't false; the validation passed with a deploy id, against the same environment, less than 10 days
+ago; it ran tests (RunSpecifiedTests, RunLocalTests or RunAllTestsInOrg; a NoTestRun validation only when the org
+is a sandbox, since production quick deploys only validations that ran tests); and the merge is exactly what was
+validated (the merge commit's target-side parent is `mergedWith` and its tree is `validatedTree`, so the target
+didn't move and the branch didn't change). If Salesforce refuses the quick deploy (expired, or another deploy
+since), the step deploys in full and says so in `message` and `quickNote`.
 
 **Mode `sync` (back promote).** `branch` = the hub's production branch, `target` = the back-promote org's branch,
 `environment` = the production org's environment, `target_environment` = the back-promote org's environment

@@ -43,6 +43,8 @@
  * merge (each branch takes TARGET directly), so every stage and developer branch starts from the latest;
  * the merge result lists them under "sync". {"stageWins":true} lets the first listed branch take
  * TARGET's lines where they conflict (-X theirs); without it a conflict is reported, never forced.
+ * The deploy step quick deploys the release's validation (no tests run again) when the merge is exactly
+ * what was validated; {"quickDeploy":false} always deploys in full. deploy.json says which: quick, quickNote.
  *
  * Every input arrives as an environment variable and is validated here. Commands run with
  * execFileSync and argument arrays, never through a shell, so input can't inject commands.
@@ -553,7 +555,7 @@ function deployTo(alias, plan, checkOnly) {
     const testLevel = tests ? (tests.length ? 'RunSpecifiedTests' : 'NoTestRun')
         : TEST_LEVELS.includes(v('DEPLOY_TEST_LEVEL')) ? v('DEPLOY_TEST_LEVEL') : (plan.defaultTestLevel || 'RunLocalTests');
     const args = ['project', 'deploy', 'start', '--manifest', plan.pkg, '--target-org', alias,
-        '--test-level', testLevel, '--wait', '110', '--json'];
+        '--test-level', testLevel, '--wait', DEPLOY_WAIT, '--json'];
     (tests || []).forEach((t) => args.push('--tests', t));
     if (plan.destructive) {
         args.push('--post-destructive-changes', plan.destructive);
@@ -561,6 +563,14 @@ function deployTo(alias, plan, checkOnly) {
     if (checkOnly) {
         args.push('--dry-run');
     }
+    return runDeploy(args, testLevel, tests);
+}
+
+/** WAIT for every deploy command: the deploy and validate jobs' time limits leave room for it. */
+const DEPLOY_WAIT = '110';
+
+/** Runs an sf project deploy command (--json) and turns its output into a result for Salesforce. */
+function runDeploy(args, testLevel, tests) {
     let raw;
     try {
         raw = execFileSync('sf', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
@@ -1204,6 +1214,7 @@ async function stepValidate() {
     }
     let plan;
     let mergedWith = null;
+    let validatedTree = null;
     try {
         let base;
         if (options.validateMerged === true) {
@@ -1218,6 +1229,7 @@ async function stepValidate() {
             base = checkoutReleaseBranch();
         }
         plan = buildDeployment(base, 'HEAD');
+        validatedTree = git(['rev-parse', 'HEAD^{tree}']); // a quick deploy needs exactly this tree
         if (!plan) {
             writeResult('validate', { status: 'Skipped', message: 'Nothing deployable changed under ' + sourcePath() + '.' });
             return;
@@ -1228,7 +1240,8 @@ async function stepValidate() {
         return;
     }
     const r = deployTo('target-org', plan, true);
-    writeResult('validate', { status: r.ok ? 'Passed' : 'Failed', changed: plan.changed, deleted: plan.deletedList, mergedWith, ...r });
+    writeResult('validate', { status: r.ok ? 'Passed' : 'Failed', changed: plan.changed, deleted: plan.deletedList,
+        mergedWith, validatedTree, environment: targetEnv, ...r });
 }
 
 const CONFLICT_TEXT_LIMIT = 15000;
@@ -1472,11 +1485,110 @@ async function stepDeploy() {
         writeResult('deploy', { status: 'Failed', sha, message: e.message.slice(0, 1500) });
         process.exit(1);
     }
-    const r = deployTo('target-org', plan, false);
-    writeResult('deploy', { status: r.ok ? 'Deployed' : 'Failed', sha, changed: plan.changed, deleted: plan.deletedList, ...r });
+    const check = quickDeployCheck(sha);
+    let r = null;
+    let quickNote = check.note;
+    if (check.validation) {
+        const val = check.validation;
+        console.log(`Quick deploying validation ${val.deployId} (${val.testLevel}, ${val.testsRun || 0} tests run).`);
+        const q = runDeploy(['project', 'deploy', 'quick', '--job-id', val.deployId, '--target-org', 'target-org',
+            '--wait', DEPLOY_WAIT, '--json'], val.testLevel, Array.isArray(val.tests) ? val.tests : []);
+        if (q.ok) {
+            r = { ...q, deployId: q.deployId || val.deployId, testsRun: Number(val.testsRun || 0), validationId: val.deployId };
+            quickNote = `Quick deployed validation ${val.deployId}: ` + (TESTED_LEVELS.includes(val.testLevel)
+                ? 'its tests already passed, so none ran again.' : 'a sandbox validation that ran no tests.');
+            r.message = quickNote;
+        } else {
+            quickNote = `Quick deploy of validation ${val.deployId} was refused (${String(q.message || 'no reason given').slice(0, 500)}), so the release was deployed in full.`;
+        }
+    }
+    const quick = r !== null;
+    if (!quick) {
+        r = deployTo('target-org', plan, false);
+        if (check.validation && r.ok) {
+            r.message = quickNote; // the fallback worked: say why it wasn't a quick deploy
+        }
+    }
+    writeResult('deploy', { status: r.ok ? 'Deployed' : 'Failed', sha, changed: plan.changed, deleted: plan.deletedList,
+        ...r, quick, quickNote: quickNote || '' });
     if (!r.ok) {
         process.exit(1);
     }
+}
+
+const QUICK_DEPLOY_DAYS = 10;
+const TESTED_LEVELS = ['RunSpecifiedTests', 'RunLocalTests', 'RunAllTestsInOrg'];
+
+/** This release's validate.json from the results branch, or null. */
+function validationResult() {
+    try {
+        if (!remoteBranchExists(RESULTS_BRANCH)) {
+            return null;
+        }
+        fetchBranch(RESULTS_BRANCH);
+        const raw = gitQuiet(['show', `refs/remotes/origin/${RESULTS_BRANCH}:results/${requestId}/validate.json`]);
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+/** Whether the target org is a sandbox (null when it can't be told). */
+function targetIsSandbox() {
+    try {
+        const out = JSON.parse(run('sf', ['data', 'query', '--query', 'SELECT IsSandbox FROM Organization',
+            '--target-org', 'target-org', '--json']));
+        const rows = (out.result && out.result.records) || [];
+        return rows.length ? rows[0].IsSandbox === true : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
+ * Can this merge be deployed as a quick deploy of the release's validation? Only when OPTIONS.quickDeploy
+ * isn't false, the validation passed in this target's org less than 10 days ago with a deploy id, it ran
+ * tests (a NoTestRun validation only in a sandbox: production never quick deploys one), and the merge is
+ * exactly what was validated: the merge's target-side parent is the target commit the validation merged
+ * with, and the merged tree is the validated tree. Returns { validation } or { note } (why not).
+ */
+function quickDeployCheck(sha) {
+    if (options.quickDeploy === false) {
+        return { note: 'Quick deploy is off for this release.' };
+    }
+    const val = validationResult();
+    if (!val) {
+        return { note: 'No validation result for this release, so it was deployed in full.' };
+    }
+    if (val.status !== 'Passed' || val.ok !== true || typeof val.deployId !== 'string' || !/^[A-Za-z0-9]{15,18}$/.test(val.deployId)) {
+        return { note: `The validation didn't pass with a deployment id (${val.status || 'no status'}), so it was deployed in full.` };
+    }
+    if (val.environment && val.environment !== targetEnv) {
+        return { note: `The validation ran against ${val.environment}, not ${targetEnv}, so it was deployed in full.` };
+    }
+    const finished = Date.parse(val.finishedAt || '');
+    if (!finished || Date.now() - finished > QUICK_DEPLOY_DAYS * 24 * 3600 * 1000) {
+        return { note: `The validation is older than ${QUICK_DEPLOY_DAYS} days (Salesforce keeps one for quick deploy that long), so it was deployed in full.` };
+    }
+    if (!SHA_RE.test(val.mergedWith || '') || !val.validatedTree) {
+        return { note: 'The validation didn\'t record the target commit and files it checked (validated without the target merged in, or by an older pipeline), so it was deployed in full.' };
+    }
+    const parent = gitQuiet(['rev-parse', `${sha}^1`]);
+    if (parent !== val.mergedWith) {
+        return { note: `${target} moved after the validation (validated against ${val.mergedWith.slice(0, 7)}, merged onto ${String(parent || '?').slice(0, 7)}), so it was deployed in full.` };
+    }
+    if (gitQuiet(['rev-parse', `${sha}^{tree}`]) !== val.validatedTree) {
+        return { note: 'The merged files differ from the validated ones (the branch changed after the validation), so it was deployed in full.' };
+    }
+    if (!TESTED_LEVELS.includes(val.testLevel)) {
+        const sandbox = targetIsSandbox();
+        if (sandbox !== true) {
+            return { note: sandbox === false
+                ? 'The validation ran no tests (NoTestRun), and production quick deploys only validations that ran tests, so it was deployed in full.'
+                : 'The validation ran no tests (NoTestRun) and the org couldn\'t be confirmed as a sandbox, so it was deployed in full.' };
+        }
+    }
+    return { validation: val };
 }
 
 // ---------- step: sync (back promote) ----------
