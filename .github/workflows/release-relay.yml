@@ -158,7 +158,10 @@ jobs:
           SOURCE_PATH: ${{ vars.SOURCE_PATH }}
           SCAN_RULES: ${{ vars.SCAN_RULES }}
           SCAN_BLOCK_SEVERITY: ${{ vars.SCAN_BLOCK_SEVERITY }}
-        run: node scripts/release-relay.js
+        # The release branch may hold an older copy of the script: always run the pipeline's own.
+        run: |
+          git show "$GITHUB_SHA:scripts/release-relay.js" > "$RUNNER_TEMP/release-relay.js"
+          node "$RUNNER_TEMP/release-relay.js"
 
   validate:
     needs: raise
@@ -189,7 +192,10 @@ jobs:
           SF_JKS: ${{ secrets.SF_JKS }}
           SF_JKS_PASSWORD: ${{ secrets.SF_JKS_PASSWORD }}
           SF_JKS_ALIAS: ${{ vars.SF_JKS_ALIAS }}
-        run: node scripts/release-relay.js
+        # The release branch may hold an older copy of the script: always run the pipeline's own.
+        run: |
+          git show "$GITHUB_SHA:scripts/release-relay.js" > "$RUNNER_TEMP/release-relay.js"
+          node "$RUNNER_TEMP/release-relay.js"
 
   merge:
     if: ${{ inputs.mode == 'merge' }}
@@ -252,7 +258,10 @@ jobs:
           SF_JKS: ${{ secrets.SF_JKS }}
           SF_JKS_PASSWORD: ${{ secrets.SF_JKS_PASSWORD }}
           SF_JKS_ALIAS: ${{ vars.SF_JKS_ALIAS }}
-        run: node scripts/release-relay.js
+        # The release branch may hold an older copy of the script: always run the pipeline's own.
+        run: |
+          git show "$GITHUB_SHA:scripts/release-relay.js" > "$RUNNER_TEMP/release-relay.js"
+          node "$RUNNER_TEMP/release-relay.js"
 
   # Tells the Salesforce org that raised the release to read the results now, instead of waiting
   # for its scheduled sync. Signs in with that org's environment; a failure here never fails the run.
