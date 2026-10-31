@@ -1,0 +1,68 @@
+<template>
+    <div class="rr-page">
+        <section class="rr-head">
+            <span class="rr-head-icon"><lightning-icon icon-name="utility:knowledge_base" size="small" variant="inverse" alternative-text=""></lightning-icon></span>
+            <div class="rr-head-text">
+                <p class="rr-kicker">Release Relay</p>
+                <h1 class="rr-title">Guide</h1>
+            </div>
+        </section>
+
+        <div class="rr-tabs" role="tablist" aria-label="Guide sections">
+            <template for:each={tabs} for:item="t">
+                <button key={t.key} type="button" role="tab" class={t.cls} aria-selected={t.selected} data-key={t.key} onclick={handleTab}>{t.label}</button>
+            </template>
+        </div>
+
+        <section class="rr-card" role="tabpanel" aria-label={section.label}>
+            <div class="rr-card-head">
+                <h2 class="rr-h2">{section.label}</h2>
+                <p class="rr-intro">{section.intro}</p>
+                <template lwc:if={hasRoute}>
+                    <ol class="rr-route" aria-label="Route">
+                        <template for:each={routeStops} for:item="r">
+                            <li key={r.key}>{r.label}</li>
+                        </template>
+                    </ol>
+                </template>
+            </div>
+            <ol class="rr-steps">
+                <template for:each={steps} for:item="st">
+                    <li key={st.key} class="rr-step">
+                        <span class="rr-num" aria-hidden="true">{st.num}</span>
+                        <div class="rr-step-body">
+                            <h3 class="rr-h3">{st.title}</h3>
+                            <template lwc:if={st.where}><p class="rr-where">{st.where}</p></template>
+                            <template lwc:if={st.hasText}>
+                                <template for:each={st.paragraphs} for:item="p"><p key={p.key} class="rr-p">{p.t}</p></template>
+                            </template>
+                            <template lwc:if={st.hasItems}>
+                                <ul class="rr-list">
+                                    <template for:each={st.listItems} for:item="it"><li key={it.key}>{it.t}</li></template>
+                                </ul>
+                            </template>
+                            <template lwc:if={st.hasTable}>
+                                <div class="rr-scroll">
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table">
+                                        <thead>
+                                            <tr>
+                                                <template for:each={st.tableCols} for:item="c"><th key={c.key} scope="col">{c.c}</th></template>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template for:each={st.tableRows} for:item="row">
+                                                <tr key={row.key}>
+                                                    <template for:each={row.cells} for:item="cell"><td key={cell.key}>{cell.c}</td></template>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                        </div>
+                    </li>
+                </template>
+            </ol>
+        </section>
+    </div>
+</template>
