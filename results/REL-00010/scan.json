@@ -1,0 +1,43 @@
+{
+ "request": "REL-00010",
+ "step": "scan",
+ "status": "Passed",
+ "total": 2,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Moderate": 1,
+  "Low": 1
+ },
+ "files": [
+  "force-app/main/default/classes/RlyDemoGreeting.cls",
+  "force-app/main/default/classes/RlyDemoGreetingTest.cls"
+ ],
+ "violations": [
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "UnusedLocalVariable",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyDemoGreeting.cls",
+   "line": 4,
+   "message": "Variable 'unused' defined but not used",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_bestpractices.html#unusedlocalvariable"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyDemoGreeting.cls",
+   "line": 3,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  }
+ ],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41214549318",
+ "finishedAt": "2026-10-31T15:23:26.411Z"
+}
