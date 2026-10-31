@@ -1,0 +1,31 @@
+{
+ "request": "REL-90004",
+ "step": "validate",
+ "status": "Passed",
+ "changed": 151,
+ "deleted": [],
+ "ok": true,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cHkuzSAC",
+ "testsRun": 58,
+ "tests": [
+  "RlyApprovalServiceTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyConsumerKeyTest",
+  "RlyDeployReaderTest",
+  "RlyGitAdviceTest",
+  "RlyGitProvidersTest",
+  "RlyOrgControllerTest",
+  "RlyOrgSessionTest",
+  "RlyRaiseServiceTest",
+  "RlyRouteControllerTest",
+  "RlyStatusReaderTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41221269242",
+ "finishedAt": "2026-10-31T16:48:24.267Z"
+}
