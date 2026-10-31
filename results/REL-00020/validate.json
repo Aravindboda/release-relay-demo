@@ -1,0 +1,24 @@
+{
+ "request": "REL-00020",
+ "step": "validate",
+ "status": "Passed",
+ "changed": 4,
+ "deleted": [],
+ "mergedWith": "0bf6926d2b24d8a88c2d96b78101cb8a09b07952",
+ "validatedTree": "2effebdb4f1afe2c08045209aa4c0c645f7c09e2",
+ "environment": "prod",
+ "ok": true,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0Afg800000K1gsvCAB",
+ "testsRun": 1,
+ "tests": [
+  "RlyDemoHotfixTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41254707500",
+ "finishedAt": "2026-10-31T23:59:33.206Z",
+ "attempt": "90cd69c50496a48d66798a926db543bb"
+}
