@@ -1,0 +1,42 @@
+{
+ "request": "REL-00014",
+ "step": "scan",
+ "status": "Passed",
+ "total": 2,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Low": 2
+ },
+ "files": [
+  "force-app/main/default/classes/RlyDemoGreeting.cls",
+  "force-app/main/default/classes/RlyDemoGreetingTest.cls"
+ ],
+ "violations": [
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyDemoGreeting.cls",
+   "line": 4,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyDemoGreeting.cls",
+   "line": 4,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  }
+ ],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41215327632",
+ "finishedAt": "2026-10-31T15:34:00.908Z"
+}
