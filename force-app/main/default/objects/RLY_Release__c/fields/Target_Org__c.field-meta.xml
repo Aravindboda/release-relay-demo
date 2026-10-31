@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Target_Org__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Hub: the stage org the release deploys to.</description>
+    <label>Target Org</label>
+    <referenceTo>RLY_Org__c</referenceTo>
+    <relationshipLabel>Releases received</relationshipLabel>
+    <relationshipName>Releases_To</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>
