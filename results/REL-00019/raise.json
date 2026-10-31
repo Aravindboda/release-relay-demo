@@ -1,0 +1,17 @@
+{
+ "request": "REL-00019",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "hotfix/rel-00019",
+ "target": "sit",
+ "sha": "a647140ce3ce3d516e0079c76326fcdb7d1b5a65",
+ "pr": 42,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/42",
+ "commits": [],
+ "conflicts": [],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41254451899",
+ "finishedAt": "2026-10-31T23:55:08.887Z",
+ "attempt": "e69a2e37883c34a3e9847b39cea602d7"
+}
