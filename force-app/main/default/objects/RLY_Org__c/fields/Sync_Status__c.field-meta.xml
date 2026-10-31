@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Sync_Status__c</fullName>
+    <description>For a back promote org: how its last sync went: Deployed, Failed, Conflict or Running.</description>
+    <externalId>false</externalId>
+    <label>Sync Status</label>
+    <length>40</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

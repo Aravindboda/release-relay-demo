@@ -4,12 +4,15 @@
  *
  * Statuses: Retrieving → Workflow running → Validating → Checks failed | Ready for approval
  *           → Deploying (after approval) → Deployed | Deploy failed. Rejected, Closed and
- *           Failed end it. Callouts come first (Slack too, for a status that's an event) and the saves last.
+ *           Failed end it. A promotion starts Submitted (queued: its first run, mode promote, starts on the next
+ *           read) → Workflow running → …; a back promote sync Submitted → Deploying (mode sync) → Deployed | Failed.
+ *           Callouts come first (Slack too, for a status that's an event) and the saves last; a deploy to the hub
+ *           then queues the back promote syncs (RlyBackPromote.afterDeploy).
  */
 public with sharing class RlyStatusReader {
 
     /** @description Statuses in which something is running and the page keeps checking. */
-    public static final Set<String> OPEN_STATUSES = new Set<String>{ 'Retrieving', 'Workflow running', 'Validating', 'Deploying' };
+    public static final Set<String> OPEN_STATUSES = new Set<String>{ 'Submitted', 'Retrieving', 'Workflow running', 'Validating', 'Deploying' };
 
     /**
      * @description Reads the latest status of a release and saves it. A failure to read keeps the release where it is,
@@ -36,11 +39,30 @@ public with sharing class RlyStatusReader {
         RlySlack.notifyTransition(rel, oldStatus); // the Slack callout comes before any DML
         RlyReleaseStore.save(rel);
         RlySlack.saveResults();
+        if (oldStatus != 'Deployed' && rel.Status__c == 'Deployed') {
+            RlyBackPromoteQueue.afterDeploy(rel);
+        }
         return rel;
     }
 
+    /**
+     * @description Whether something is running for the release (the page keeps checking).
+     * @param rel the release
+     * @return true in an open status
+     */
+    public static Boolean isOpen(RLY_Release__c rel) {
+        return rel != null && OPEN_STATUSES.contains(rel.Status__c);
+    }
+
     private static void readLatest(RLY_Release__c rel, RlyGit git) {
-        if (rel.Status__c == 'Retrieving') {
+        String relType = RlyPromotion.typeOf(rel);
+        if (relType == RlyPromotion.TYPE_BACK_PROMOTE) {
+            RlyBackPromoteRun.advanceSync(rel, git);
+        } else if (rel.Status__c == RlyPromotion.QUEUED) {
+            if (relType == RlyPromotion.TYPE_PROMOTION) {
+                RlyPromotion.dispatch(rel, git);
+            }
+        } else if (rel.Status__c == 'Retrieving') {
             afterRetrieve(rel, git);
         } else if (rel.Status__c == 'Deploying') {
             RlyDeployReader.readDeploy(rel, git);
@@ -77,9 +99,10 @@ public with sharing class RlyStatusReader {
     }
 
     // The developer org's branch; releases raised before every dev org had one start from the target, as they did.
-    // A hotfix starts from the target's branch, so its pull request carries only the hotfix.
+    // A hotfix starts from the target's branch, so its pull request (and its merge commit, promoted later on its own)
+    // carries only the hotfix.
     private static String baseBranch(RLY_Org__c source, RLY_Release__c rel) {
-        return source.Role__c == 'Stage' || String.isBlank(source.Branch__c) ? rel.Target_Branch__c : source.Branch__c.trim();
+        return RlyHotfix.isHotfix(rel) || String.isBlank(source.Branch__c) ? rel.Target_Branch__c : source.Branch__c.trim();
     }
 
     private static String retrieveProblem(RlyRetrieve.RetrieveStatus st, RLY_Org__c source) {

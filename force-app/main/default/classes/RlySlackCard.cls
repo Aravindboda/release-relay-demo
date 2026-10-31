@@ -1,6 +1,7 @@
 /**
  * @description The Slack card of a release (one message per release, edited as it moves) and the one-line replies
- * in its thread. The card: a title line (REL · title), a status line (emoji, status, route, who raised or approved
+ * in its thread. The card: a title line (REL · title, "Hotfix: " first for a hotfix), "Why: <reason>" for a hotfix and
+ * "Promotes REL-…" for a promotion, a status line (emoji, status, route, who raised or approved
  * it), a steps line, Approve and Reject while it's ready for approval into an org approved in Slack, and a button
  * that opens the release in the hub. Emoji are Slack short codes. The thread replies are RlySlackReply.
  */
@@ -36,8 +37,8 @@ public with sharing class RlySlackCard {
      * @return text and blocks
      */
     public static Map<String, Object> card(RLY_Release__c rel, String approverName) {
-        String title = rel.Name + ' · ' + rel.Title__c;
-        String body = '*' + RlySlackMessage.esc(title) + '*\n' + statusLine(rel, approverName) + '\n' + stepsLine(rel);
+        String title = RlySlackCardText.title(rel);
+        String body = '*' + RlySlackMessage.esc(title) + '*\n' + RlySlackCardText.aboutLines(rel) + statusLine(rel, approverName) + '\n' + stepsLine(rel);
         List<Object> blocks = new List<Object>{
             new Map<String, Object>{ 'type' => 'section', 'text' => new Map<String, Object>{ 'type' => 'mrkdwn', 'text' => body.left(2900) } },
             new Map<String, Object>{ 'type' => 'actions', 'block_id' => 'rly_actions', 'elements' => buttons(rel) }

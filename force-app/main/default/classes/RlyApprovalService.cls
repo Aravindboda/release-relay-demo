@@ -2,7 +2,8 @@
  * @description What people do to a release once its checks are done: approve (merge and deploy), reject,
  * bypass a blocking code scan, or run the checks again. Approving, rejecting and bypassing need the
  * RLY_Approver (or RLY_Admin) custom permission; approveAs and rejectAs act for an approver the caller checked
- * (RlySlackAction checks a linked Slack user's permission sets). Callouts come first (Slack too, when the new status is an event)
+ * (RlySlackAction checks a linked Slack user's permission sets). A hotfix into an org that needs two approvers waits for
+ * a second one (RlyTwoApprovers). Callouts come first (Slack too, when the new status is an event)
  * and the saves last.
  */
 public with sharing class RlyApprovalService {
@@ -79,12 +80,18 @@ public with sharing class RlyApprovalService {
             throw new RlyReleaseException('Only a release that\'s ready for approval can be approved.');
         }
         String oldStatus = rel.Status__c;
+        if (RlyTwoApprovers.recordsFirst(rel, who)) {
+            RlyReleaseStore.save(rel); // the first of two approvals: it keeps waiting, no event
+            return rel;
+        }
+        RLY_Release__c prior = rel.clone(true, true, true, true);
         RLY_Git_Connection__c conn = RlyReleaseStore.git();
         RlyGit git = RlyGit.forConnection(conn);
         if (RlyApprovalRuns.targetMoved(rel, git)) {
             RlyApprovalRuns.startChecks(rel, conn, RlyPipelineRun.RECHECK);
         } else {
             RlyApprovalRuns.startMerge(rel, git, who);
+            RlyTwoApprovers.keepBoth(rel, prior);
         }
         saveAndNotify(rel, oldStatus);
         return rel;

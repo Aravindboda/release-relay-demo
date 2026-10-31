@@ -179,7 +179,20 @@
                             </li>
                         </template>
                     </ol>
+                    <!-- back promote orgs: dashed, after the hub; they never send changes up the route -->
+                    <template lwc:if={hasBackPromoteNodes}>
+                        <span class="rr-arrow-side" aria-hidden="true">⤳</span>
+                        <ul class="rr-route-side" aria-label="Back promote orgs">
+                            <template for:each={backPromoteNodes} for:item="b">
+                                <li key={b.key} class="rr-stop rr-stop-side">
+                                    <strong class="rr-stop-name">{b.name}</strong>
+                                    <span class="rr-weak rr-small">{b.text}</span>
+                                </li>
+                            </template>
+                        </ul>
+                    </template>
                 </div>
+                <template lwc:if={hasBackPromoteNodes}><p class="rr-route-note rr-small rr-weak">{bpRouteNote}</p></template>
             </template>
             <template lwc:else>
                 <p class="rr-body rr-weak rr-small">No route yet. Register the developer orgs and the stages they deploy through.</p>
@@ -286,7 +299,23 @@
 
         <template lwc:if={hasOrgs}>
             <section class="rr-grid" aria-label="Registered orgs">
-                <template for:each={cards} for:item="o">
+                <template for:each={gridCards} for:item="o">
+                    <!-- Back promote: optional, off by default (board HubHotfixBackPromote) -->
+                    <template lwc:if={o.isSettings}>
+                        <article key={o.Id} class="rr-card rr-org" aria-label="Back promote">
+                            <div class="rr-card-head rr-row">
+                                <h3 class="rr-h3 rr-grow">Back promote</h3>
+                                <span class={bpPillCls}>{bpPill}</span>
+                            </div>
+                            <div class="rr-body">
+                                <lightning-input type="toggle" label={bpToggleLabel} checked={bpEnabled} onchange={handleBackPromoteToggle}
+                                    disabled={bpCantToggle} message-toggle-active="" message-toggle-inactive=""></lightning-input>
+                                <p class="rr-kicker">{bpHelpLead}<strong>Back promote (after production)</strong>{bpHelpTail}</p>
+                                <template lwc:if={bpNoOrgs}><p class="rr-kicker">No back promote org registered yet.</p></template>
+                            </div>
+                        </article>
+                    </template>
+                    <template lwc:if={o.isOrg}>
                     <article key={o.Id} class="rr-card rr-org">
                         <div class="rr-card-head rr-row">
                             <h3 class="rr-h3 rr-grow" title={o.My_Domain__c}>{o.Name}</h3>
@@ -320,6 +349,33 @@
                                             data-id={o.Id} data-field="Require_Git_Review__c" onchange={handleOrgToggle} disabled={o.cantEdit}
                                             message-toggle-active="" message-toggle-inactive=""></lightning-input>
                                     </template>
+                                    <lightning-input type="toggle" label={o.twoApproverLabel} checked={o.Hotfix_Two_Approvers__c}
+                                        data-id={o.Id} data-field="Hotfix_Two_Approvers__c" onchange={handleOrgToggle} disabled={o.cantEdit}
+                                        message-toggle-active="" message-toggle-inactive=""></lightning-input>
+                                    <template lwc:if={o.showTwoApproverHelp}><p class="rr-kicker">Two different approvers, and the person who raised the hotfix can't approve it.</p></template>
+                                </template>
+                                <template lwc:if={o.isBackPromote}>
+                                    <div class="rr-col">
+                                        <lightning-radio-group type="button" label="When" options={bpWhenOptions} value={o.bp.whenValue}
+                                            data-id={o.Id} onchange={handleBpWhen} disabled={o.bp.cantEdit}></lightning-radio-group>
+                                    </div>
+                                    <div class="rr-row">
+                                        <lightning-input type="toggle" label="Approve before syncing" checked={o.bp.approval} data-id={o.Id}
+                                            onchange={handleBpApproval} disabled={o.bp.cantEdit} message-toggle-active="" message-toggle-inactive=""></lightning-input>
+                                        <span class="rr-kicker">{o.bp.approvalText}</span>
+                                    </div>
+                                    <div class="rr-row">
+                                        <span class={o.bp.behindCls}>{o.bp.behindPill}</span>
+                                        <span class="rr-kicker rr-break">{o.bp.behindNames}</span>
+                                        <span class="rr-grow"></span>
+                                        <template lwc:if={bpIsAdmin}>
+                                            <lightning-button variant="brand" label={o.bp.syncLabel} data-id={o.Id} onclick={handleSyncNow} disabled={o.bp.cantSync}></lightning-button>
+                                        </template>
+                                    </div>
+                                    <template lwc:if={o.bp.lastText}>
+                                        <p class="rr-kicker">{o.bp.lastText}<template lwc:if={o.bp.syncStatus}><span class={o.bp.syncCls}>{o.bp.syncStatus}</span></template></p>
+                                    </template>
+                                    <template lwc:if={o.bp.offNote}><p class="rr-kicker">{o.bp.offNote}</p></template>
                                 </template>
                                 <template lwc:if={slackSetUp}>
                                     <div class="rr-sect-row">
@@ -349,6 +405,7 @@
                             </template>
                         </div>
                     </article>
+                    </template>
                 </template>
             </section>
         </template>

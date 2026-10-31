@@ -105,16 +105,13 @@ public with sharing class RlyChangesController {
         }
     }
 
-    // The org to read: a registered developer org, or a stage org for a hotfix (RLY_Hotfix permission).
+    // The org to read: a registered developer org (hotfixes come from developer orgs too).
     private static RLY_Org__c source(Id orgId) {
         RLY_Org__c org = new Data().org(orgId);
-        if (org != null && org.Role__c == 'Stage' && RlyHotfix.allowed()) {
-            return org;
-        }
         if (org == null || org.Role__c != 'Developer') {
             // Callers wrap it with handled(), which sets the message the page shows.
             throw new RlyReleaseException(org != null && org.Role__c == 'Stage'
-                ? 'Raising a hotfix from a stage org needs the Release Relay Hotfix permission.' : 'Pick a registered developer org.');
+                ? RlyRaiseRoute.STAGE_RETIRED : 'Pick a registered developer org.');
         }
         return org;
     }

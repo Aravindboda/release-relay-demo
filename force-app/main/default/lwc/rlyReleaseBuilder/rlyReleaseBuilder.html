@@ -41,7 +41,7 @@
             </section>
         </template>
 
-        <!-- step 2: the org (board HubSourceEnvironments / HubHotfix) -->
+        <!-- step 2: the org (board HubSourceEnvironments) -->
         <template lwc:if={isSource}>
             <section class="rr-card rr-head">
                 <div class="rr-head-text">
@@ -66,18 +66,10 @@
                                 <span class="rr-org-name">{o.name}</span>
                                 <span class="rr-mono rr-weak">{o.branch}</span>
                                 <span class="rr-small rr-weak rr-grow">{o.note}</span>
-                                <template lwc:if={o.hotfix}><span class="rr-pill rr-pill-wait">Hotfix</span></template>
                                 <template lwc:if={o.showStatus}><span class={o.statusCls}>{o.status}</span></template>
                             </button>
                         </template>
                     </div>
-
-                    <template lwc:if={isHotfix}>
-                        <div class="rr-note rr-note-hotfix">
-                            <strong>{hotfixTitle}</strong>
-                            {hotfixLead}<span class="rr-mono">{sourceBranch}</span>{hotfixTail}
-                        </div>
-                    </template>
 
                     <p class="rr-goes">Goes to <span class="rr-arrow-inline" aria-hidden="true">→</span> <strong>{targetText}</strong> <span class="rr-weak">{targetNote}</span></p>
 
@@ -260,7 +252,7 @@
         <template lwc:if={isReview}>
             <section class="rr-card rr-head">
                 <div class="rr-head-text">
-                    <p class="rr-kicker">New release · step 3 of 4 · Review</p>
+                    <p class="rr-kicker">{reviewKicker}</p>
                     <h1 class="rr-title">Review before raising</h1>
                 </div>
                 <span class="rr-pill rr-pill-info">{reviewSummary}</span>
@@ -296,6 +288,20 @@
                         <lightning-input label="Title" value={title} max-length="200" required onchange={handleTitle}
                             placeholder="What this release does, for example: Account region field and layout"></lightning-input>
                         <lightning-textarea label="Description (optional)" value={description} max-length="5000" onchange={handleDescription}></lightning-textarea>
+                        <!-- the hotfix flag (board HubHotfixBackPromote, 1): only with the Hotfix permission -->
+                        <template lwc:if={canHotfix}>
+                            <div class="rr-hotfix">
+                                <div class="rr-row">
+                                    <lightning-input type="checkbox" label="This is a hotfix" checked={isHotfix} onchange={handleHotfix} disabled={raising} class="rr-hotfix-check"></lightning-input>
+                                    <template lwc:if={isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
+                                </div>
+                                <p class="rr-small rr-weak">{hotfixHelp}</p>
+                                <template lwc:if={isHotfix}>
+                                    <lightning-textarea label="Why is this a hotfix?" value={hotfixReason} max-length="255" required onchange={handleHotfixReason}
+                                        disabled={raising} placeholder="What's broken, and since when"></lightning-textarea>
+                                </template>
+                            </div>
+                        </template>
                         <template lwc:if={raiseError}><div class="rr-msg rr-msg-bad" role="alert">{raiseError}</div></template>
                     </div>
                     <div class="rr-pair-foot">

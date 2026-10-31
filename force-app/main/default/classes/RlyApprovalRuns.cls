@@ -7,13 +7,18 @@
 public with sharing class RlyApprovalRuns {
 
     /**
-     * @description Starts the merge and deploy and records the approval.
+     * @description Starts the merge and deploy (for a back promote: the sync run) and records the approval.
      * @param rel the release
      * @param git the Git provider
      * @param who who approved, and where
      */
     public static void startMerge(RLY_Release__c rel, RlyGit git, RlyApprover who) {
-        git.startPipeline(RlyPipelineRun.inputs(rel, 'merge', rel.Source_Branch__c));
+        if (RlyPromotion.typeOf(rel) == RlyPromotion.TYPE_BACK_PROMOTE) {
+            RlyBackPromoteRun.dispatch(rel, git);
+        } else {
+            git.startPipeline(RlyPipelineRun.inputs(rel, 'merge', rel.Source_Branch__c));
+            rel.Pending_Run__c = 'merge';
+        }
         rel.Status__c = 'Deploying';
         rel.Approval_Status__c = 'Approved';
         rel.Approved_By__c = who.userId;
@@ -21,7 +26,6 @@ public with sharing class RlyApprovalRuns {
         rel.Approved_On__c = System.now();
         rel.Approval_Comment__c = who.comment == null ? null : who.comment.left(2000);
         rel.Deploy_Status__c = 'Deploying';
-        rel.Pending_Run__c = 'merge';
         rel.Checks_Requested__c = System.now();
         rel.Error_Message__c = null;
     }

@@ -16,6 +16,10 @@ import saveSlack from '@salesforce/apex/RlySlackController.saveSlack';
 import sendSlackTest from '@salesforce/apex/RlySlackController.sendSlackTest';
 import testSlack from '@salesforce/apex/RlySlackController.testSlack';
 import saveSlackMember from '@salesforce/apex/RlySlackController.saveSlackMember';
+import getBackPromote from '@salesforce/apex/RlyRouteController.getBackPromote';
+import setBackPromote from '@salesforce/apex/RlyRouteController.setBackPromote';
+import saveBackPromoteOrg from '@salesforce/apex/RlyRouteController.saveBackPromoteOrg';
+import syncNow from '@salesforce/apex/RlyRouteController.syncNow';
 
 const LOGIN_OPTIONS = [
     { label: 'Production or Developer Edition', value: 'Production' },
@@ -35,7 +39,9 @@ const STATUS_CLS = {
     Refreshed: 'rr-pill rr-pill-wait',
     'Not checked': 'rr-pill rr-pill-none'
 };
-const ROLE_ORDER = { Stage: 0, Hub: 1, Developer: 2 };
+const ROLE_ORDER = { Stage: 0, Hub: 1, Developer: 2, Back_Promote: 3 };
+const BACK_PROMOTE = 'Back_Promote';
+const SYNC_STATUS_CLS = { Deployed: 'rr-pill rr-pill-ok', Failed: 'rr-pill rr-pill-bad', Conflict: 'rr-pill rr-pill-wait', Running: 'rr-pill rr-pill-info' };
 const PROVIDERS = [
     { label: 'GitHub', value: 'GitHub', how: 'Actions workflow', repo: 'owner/repository', pipeLabel: 'Workflow file', pipe: 'release-relay.yml', cred: 'RLY_GitHub' },
     { label: 'GitLab', value: 'GitLab', how: 'CI pipeline', repo: 'group/project', pipeLabel: 'CI file', pipe: '.gitlab-ci.yml', cred: 'RLY_GitLab' },
@@ -54,7 +60,8 @@ function blankForm() {
     return {
         Id: null, Name: '', Role__c: 'Developer', Environment__c: 'Developer', My_Domain__c: '', Login_Type__c: 'Production',
         Username__c: '', Consumer_Key__c: '', Certificate__c: 'release_relay', Git_Environment__c: '', Branch__c: '',
-        Approve_In_Salesforce__c: true, Approve_In_Slack__c: false, Require_Git_Review__c: false, Slack_Channel__c: '', Slack_Post__c: false
+        Approve_In_Salesforce__c: true, Approve_In_Slack__c: false, Require_Git_Review__c: false, Slack_Channel__c: '', Slack_Post__c: false,
+        Hotfix_Two_Approvers__c: false
     };
 }
 
@@ -124,6 +131,10 @@ export default class RlyPipeline extends LightningElement {
     filesResult;
     filesUpdateError;
     focusFiles = false;
+    /** RlyRouteController.getBackPromote: the back promote switch and its orgs (null when this user can't read it). */
+    backPromote;
+    bpBusy = false;
+    bpBusyId;
 
     connectedCallback() {
         this.load();
@@ -142,9 +153,10 @@ export default class RlyPipeline extends LightningElement {
     load() {
         this.loading = true;
         this.error = undefined;
-        return Promise.all([getOrgs(), getSetup(), getSlack()])
-            .then(([h, s, sl]) => {
+        return Promise.all([getOrgs(), getSetup(), getSlack(), this.readBackPromote()])
+            .then(([h, s, sl, bp]) => {
                 this.applySlack(sl);
+                this.backPromote = bp;
                 this.orgs = h.orgs || [];
                 this.keyHints = h.keyHints || {};
                 this.hubDomain = h.hubDomain;
@@ -168,6 +180,11 @@ export default class RlyPipeline extends LightningElement {
             });
     }
 
+    /** Back promote is for admins: anyone else gets no board, and the page shows no back promote settings. */
+    readBackPromote() {
+        return getBackPromote().catch(() => null);
+    }
+
     // ---------- cards ----------
 
     get hasOrgs() { return this.orgs.length > 0; }
@@ -179,6 +196,7 @@ export default class RlyPipeline extends LightningElement {
             .map((o) => {
                 const isDeveloper = o.Role__c === 'Developer';
                 const isHub = o.Role__c === 'Hub';
+                const isBackPromote = o.Role__c === BACK_PROMOTE;
                 const ap = approvals(o);
                 const busy = this.orgSlackBusyId === o.Id;
                 return {
@@ -193,7 +211,13 @@ export default class RlyPipeline extends LightningElement {
                     checking: this.checkingId === o.Id,
                     checkLabel: this.checkingId === o.Id ? 'Signing in…' : 'Test sign-in',
                     isDeveloper,
-                    isTarget: !isDeveloper,
+                    isTarget: !isDeveloper && !isBackPromote,
+                    isBackPromote,
+                    isOrg: true,
+                    Hotfix_Two_Approvers__c: o.Hotfix_Two_Approvers__c === true,
+                    twoApproverLabel: 'Hotfixes into ' + o.Name + ' need 2 approvers',
+                    showTwoApproverHelp: o.Hotfix_Two_Approvers__c === true,
+                    bp: isBackPromote ? this.bpCard(o) : null,
                     Approve_In_Salesforce__c: ap.sf || !(this.slackAvailable && ap.slack),
                     Approve_In_Slack__c: ap.slack,
                     Require_Git_Review__c: ap.git,
@@ -205,11 +229,22 @@ export default class RlyPipeline extends LightningElement {
                     postLabel: isDeveloper ? 'Also post here' : 'Post to Slack',
                     cantEdit: !this.isAdmin || busy,
                     cantTest: !this.isAdmin || busy || this.slackBusy || !(o.Slack_Channel__c || '').trim(),
-                    showHubNote: !isDeveloper && !ap.slack && !!o.Slack_Post__c,
+                    showHubNote: !isDeveloper && !isBackPromote && !ap.slack && !!o.Slack_Post__c,
                     showEvents: !isDeveloper && (!!o.Slack_Post__c || ap.slack),
                     showSect: !isDeveloper || this.slackSetUp
                 };
             });
+    }
+
+    /** The org cards, with the Back promote card just before the back promote orgs (board HubHotfixBackPromote). */
+    get gridCards() {
+        const cards = this.cards;
+        if (!this.backPromote) {
+            return cards;
+        }
+        const at = cards.findIndex((c) => c.isBackPromote);
+        const settings = { Id: 'rr-back-promote', isSettings: true };
+        return at < 0 ? [...cards, settings] : [...cards.slice(0, at), settings, ...cards.slice(at)];
     }
 
     /** The org's place on the route (stages in route order), so the cards follow the route. */
@@ -221,6 +256,9 @@ export default class RlyPipeline extends LightningElement {
     sectTitle(o, isDeveloper) {
         if (isDeveloper) {
             return 'Slack for ' + o.Name + '\'s developers (optional)';
+        }
+        if (o.Role__c === BACK_PROMOTE) {
+            return 'Back promote from ' + this.hubName;
         }
         return (this.slackSetUp || this.slackAvailable ? 'Approval and Slack for releases into ' : 'Approval for releases into ') + o.Name;
     }
@@ -234,7 +272,8 @@ export default class RlyPipeline extends LightningElement {
         return [
             { label: 'Developer org' + into, value: 'Developer' },
             { label: 'Stage (an org on the route)', value: 'Stage' },
-            { label: 'Hub (this org, production)', value: 'Hub' }
+            { label: 'Hub (this org, production)', value: 'Hub' },
+            { label: 'Back promote (after production)', value: BACK_PROMOTE }
         ];
     }
 
@@ -245,6 +284,9 @@ export default class RlyPipeline extends LightningElement {
         }
         if (o.Role__c === 'Hub') {
             return 'Hub';
+        }
+        if (o.Role__c === BACK_PROMOTE) {
+            return 'Back promote';
         }
         const i = this.stages.findIndex((s) => s.Id === o.Id);
         return i >= 0 ? 'Stage ' + (i + 1) : 'Stage';
@@ -336,12 +378,13 @@ export default class RlyPipeline extends LightningElement {
         payload.Require_Git_Review__c = ap.git;
         payload.Slack_Channel__c = (o.Slack_Channel__c || '').trim() || null;
         payload.Slack_Post__c = !!o.Slack_Post__c;
+        payload.Hotfix_Two_Approvers__c = o.Hotfix_Two_Approvers__c === true;
         this.orgSlackBusyId = o.Id;
         return saveOrg({ orgJson: JSON.stringify(payload) })
             .then(() => getOrgs())
             .then((h) => {
                 this.orgs = h.orgs || this.orgs;
-                this.toast(o.Name + ': approval and Slack saved', 'success');
+                this.toast(o.Name + ': settings saved', 'success');
             })
             .catch((e) => {
                 this.toast(errorText(e), 'error');
@@ -359,8 +402,9 @@ export default class RlyPipeline extends LightningElement {
 
     applySetup(s) {
         this.git = s.git;
-        this.developers = s.developers || [];
-        this.stages = s.stages || [];
+        // Back promote orgs are drawn after the hub (backPromoteNodes); they aren't stages or developer orgs.
+        this.developers = (s.developers || []).filter((o) => o.Role__c !== BACK_PROMOTE);
+        this.stages = (s.stages || []).filter((o) => o.Role__c !== BACK_PROMOTE);
         this.warnings = s.warnings || [];
         this.routeDirty = false;
         this.editingRoute = false;
@@ -700,7 +744,145 @@ export default class RlyPipeline extends LightningElement {
         if (ap.git && this.showGitReview) {
             text += ' · ' + this.gitProviderName.trim() + ' reviewers';
         }
+        if (o.Hotfix_Two_Approvers__c === true) {
+            text += ' · hotfixes: 2 approvers';
+        }
         return text;
+    }
+
+    // ---------- back promote (optional, off by default) ----------
+
+    /** The hub's name (production), for the back promote wording. */
+    get hubName() {
+        const hub = this.stages.find((s) => s.Role__c === 'Hub') || this.orgs.find((o) => o.Role__c === 'Hub');
+        return hub ? hub.Name : 'production';
+    }
+    get bpOrgs() { return (this.backPromote && this.backPromote.orgs) || []; }
+    get bpEnabled() { return !!(this.backPromote && this.backPromote.enabled); }
+    get bpIsAdmin() { return !!(this.backPromote && this.backPromote.isAdmin) && this.isAdmin; }
+    get bpCantToggle() { return !this.bpIsAdmin || this.bpBusy; }
+    get bpPill() { return this.bpEnabled ? 'On' : 'Off by default'; }
+    get bpPillCls() { return this.bpEnabled ? 'rr-pill rr-pill-ok' : 'rr-pill rr-pill-none'; }
+    get bpToggleLabel() { return 'Send ' + this.hubName + '\'s changes to other orgs after a deploy'; }
+    get bpHelpLead() { return 'Register an org with the role '; }
+    get bpHelpTail() {
+        return ', then choose when it gets ' + this.hubName + '\'s changes. Metadata only: users and records in that org stay as they are.';
+    }
+    get bpNoOrgs() { return this.bpOrgs.length === 0; }
+
+    /** Dashed nodes after the hub on the route: "Back promote · matches <hub>" or "· n releases behind". */
+    get backPromoteNodes() {
+        return this.bpOrgs.map((b) => ({ key: 'bp-' + b.orgId, name: b.name, text: 'Back promote · ' + this.behindText(b) }));
+    }
+    get hasBackPromoteNodes() { return this.backPromoteNodes.length > 0; }
+    get bpRouteNote() {
+        return 'Dashed: orgs that receive ' + this.hubName + '\'s changes after a deploy. They never send changes up the route.';
+    }
+
+    behindText(b) {
+        const n = b.behind || 0;
+        return n ? n + (n === 1 ? ' release behind' : ' releases behind') : 'matches ' + this.hubName;
+    }
+
+    get bpWhenOptions() {
+        return [
+            { label: 'After every ' + this.hubName + ' deploy', value: 'After_Deploy' },
+            { label: 'When an admin clicks Sync now', value: 'Manual' }
+        ];
+    }
+
+    /** What the Back promote org card shows: When, Approve before syncing, how far behind, Sync now. */
+    bpCard(o) {
+        const b = this.bpOrgs.find((x) => x.orgId === o.Id) || { orgId: o.Id, whenValue: o.Back_Promote_When__c, approval: o.Back_Promote_Approval__c === true, behind: 0 };
+        const busy = this.bpBusyId === o.Id;
+        const behind = b.behind || 0;
+        const approval = b.approval === true;
+        let lastText = '';
+        if (b.syncedOn || b.syncStatus) {
+            lastText = 'Last sync' + (b.syncedOn ? ' ' + new Date(b.syncedOn).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '');
+        }
+        return {
+            whenValue: b.whenValue || 'Manual',
+            approval,
+            approvalText: approval ? 'On: an approver approves each sync first' : 'Off: ' + this.hubName + '\'s approval is enough',
+            behindPill: behind ? this.behindText(b) : 'Matches ' + this.hubName,
+            behindCls: behind ? 'rr-pill rr-pill-wait' : 'rr-pill rr-pill-ok',
+            behindNames: (b.behindNames || []).join(', '),
+            lastText,
+            syncStatus: b.syncStatus || '',
+            syncCls: SYNC_STATUS_CLS[b.syncStatus] || 'rr-pill rr-pill-none',
+            offNote: this.bpEnabled ? '' : 'Back promote is off. Switch it on in the Back promote card to sync this org.',
+            cantEdit: !this.bpIsAdmin || busy,
+            cantSync: !this.bpIsAdmin || busy || !this.bpEnabled,
+            syncLabel: busy ? 'Starting…' : 'Sync now',
+            groupLabel: 'When ' + o.Name + ' gets ' + this.hubName + '\'s changes'
+        };
+    }
+
+    handleBackPromoteToggle(event) {
+        const state = event.target.checked ? 'on' : 'off';
+        this.bpBusy = true;
+        setBackPromote({ state })
+            .then((bp) => {
+                this.backPromote = bp;
+                this.toast('Back promote ' + (bp && bp.enabled ? 'on' : 'off'), 'success');
+            })
+            .catch((e) => {
+                this.toast(errorText(e), 'error');
+                return this.readBackPromote().then((bp) => {
+                    this.backPromote = bp;
+                });
+            })
+            .finally(() => {
+                this.bpBusy = false;
+            });
+    }
+
+    handleBpWhen(event) {
+        this.saveBp(event.target.dataset.id, { whenValue: event.detail.value });
+    }
+
+    handleBpApproval(event) {
+        this.saveBp(event.target.dataset.id, { approval: event.target.checked });
+    }
+
+    /** Saves one back promote org's When and Approve before syncing (saveBackPromoteOrg returns the board again). */
+    saveBp(orgId, changes) {
+        const b = this.bpOrgs.find((x) => x.orgId === orgId) || {};
+        const settings = { orgId, whenValue: b.whenValue || 'Manual', approval: b.approval === true, ...changes };
+        this.backPromote = { ...this.backPromote, orgs: this.bpOrgs.map((x) => (x.orgId === orgId ? { ...x, ...changes } : x)) };
+        this.bpBusyId = orgId;
+        saveBackPromoteOrg({ settingsJson: JSON.stringify(settings) })
+            .then((bp) => {
+                this.backPromote = bp;
+                this.toast((b.name || 'Org') + ': back promote saved', 'success');
+            })
+            .catch((e) => {
+                this.toast(errorText(e), 'error');
+                return this.readBackPromote().then((bp) => {
+                    this.backPromote = bp;
+                });
+            })
+            .finally(() => {
+                this.bpBusyId = undefined;
+            });
+    }
+
+    handleSyncNow(event) {
+        const orgId = event.currentTarget.dataset.id;
+        const b = this.bpOrgs.find((x) => x.orgId === orgId) || {};
+        this.bpBusyId = orgId;
+        syncNow({ orgId })
+            .then(() => {
+                this.toast((b.name || 'Org') + (b.approval ? ': sync waiting for approval' : ': sync started'), 'success');
+                return this.readBackPromote().then((bp) => {
+                    this.backPromote = bp;
+                });
+            })
+            .catch((e) => this.toast(errorText(e), 'error'))
+            .finally(() => {
+                this.bpBusyId = undefined;
+            });
     }
 
     startRouteEdit() {
@@ -970,7 +1152,7 @@ export default class RlyPipeline extends LightningElement {
         // A blank consumer key isn't sent, so an edit keeps the saved one.
         const keys = ['Id', 'Name', 'Role__c', 'Environment__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Consumer_Key__c',
             'Certificate__c', 'Git_Environment__c', 'Branch__c', 'Approve_In_Salesforce__c', 'Approve_In_Slack__c',
-            'Require_Git_Review__c', 'Slack_Channel__c', 'Slack_Post__c'];
+            'Require_Git_Review__c', 'Slack_Channel__c', 'Slack_Post__c', 'Hotfix_Two_Approvers__c'];
         const payload = {};
         keys.forEach((k) => {
             if (this.form[k] !== null && this.form[k] !== undefined && this.form[k] !== '') {

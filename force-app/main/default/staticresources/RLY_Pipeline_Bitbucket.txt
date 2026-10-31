@@ -1,4 +1,4 @@
-# Release Relay pipeline files: version 8
+# Release Relay pipeline files: version 9
 # Release Relay for Bitbucket Pipelines. Started only from Salesforce: the Release Relay hub runs the
 # custom pipeline "release-relay" on the default branch through the API, with the release as
 # variables. If you already have a bitbucket-pipelines.yml, copy the release-relay entry under
@@ -14,6 +14,9 @@
 #                scan and validate again.
 #   MODE=check   scan and validate an open pull request again.
 #   MODE=merge   merge the pull request approved in Salesforce, then deploy it to the target org.
+#   MODE=sync    back promote: merge BRANCH (the hub's production branch) into TARGET (a back-promote
+#                org's branch, made from BRANCH when missing), deploy what changed to the org in
+#                TARGET_ENVIRONMENT, and push TARGET only when that deploy worked.
 # Bitbucket can't skip steps by variable, so every step runs and a step the mode doesn't need ends at
 # once. Validation and deployment run only when TARGET_ENVIRONMENT is set ("-" means empty). Each
 # step writes its result as JSON to the release-relay-results branch, where Salesforce reads it.
@@ -33,7 +36,7 @@ pipelines:
           - name: REQUEST_ID
             description: Salesforce release number
           - name: MODE
-            description: org, branch, promote, hub, resolve, check or merge
+            description: org, branch, promote, hub, resolve, check, merge or sync
           - name: ENVIRONMENT
             description: Environment name of the source org
           - name: TARGET_ENVIRONMENT
@@ -100,8 +103,9 @@ pipelines:
                   - STEP=validate node /tmp/release-relay.js
                 after-script:
                   # Tells the org in OPTIONS.notify to read the results now (never fails the run):
-                  # here for the raise and check modes, after the deploy step for merge.
-                  - if [ "$MODE" != merge ]; then export RELAY_NOTIFY=yes; fi
+                  # here for the raise and check modes, after the deploy step for merge, after the
+                  # back promote step for sync.
+                  - case "$MODE" in org|branch|promote|hub|resolve|check) export RELAY_NOTIFY=yes ;; esac
                   - &relay-notify |
                     if [ "$RELAY_NOTIFY" = yes ] && [ -f /tmp/release-relay.js ] && echo "$OPTIONS" | grep -Eq '"notify"[[:space:]]*:[[:space:]]*"[^"]+"'; then
                       export RELAY_PROVIDER=bitbucket
@@ -149,4 +153,20 @@ pipelines:
             - STEP=deploy node /tmp/release-relay.js
           after-script:
             - if [ "$MODE" = merge ]; then export RELAY_NOTIFY=yes; fi
+            - *relay-notify
+
+      # Back promote: production's changes into a back-promote org (its login: TARGET_ENVIRONMENT's prefix).
+      - step:
+          name: Back promote to the target org
+          max-time: 120
+          script:
+            - export RELAY_PROVIDER=bitbucket
+            - git show "$BITBUCKET_COMMIT:scripts/release-relay.js" > /tmp/release-relay.js
+            - if [ "$MODE" != sync ]; then echo "Not needed for mode $MODE."; exit 0; fi
+            - if [ -z "$TARGET_ENVIRONMENT" ] || [ "$TARGET_ENVIRONMENT" = "-" ]; then echo "No target environment to back promote to."; exit 1; fi
+            - *relay-java
+            - npm install --global @salesforce/cli@2 --silent
+            - STEP=sync node /tmp/release-relay.js
+          after-script:
+            - if [ "$MODE" = sync ]; then export RELAY_NOTIFY=yes; fi
             - *relay-notify

@@ -19,19 +19,23 @@ public with sharing class RlySlack {
 
     private static final Set<String> STATUS_EVENTS = new Set<String>{ 'Ready for approval', 'Checks failed', 'Deployed', 'Deploy failed', 'Rejected' };
     private static final Integer TIMEOUT_MS = 10000;
+    // Raised: from collecting (or queued) to the first run.
+    private static final Set<String> RAISED_FROM = new Set<String>{ 'Retrieving', 'Submitted' };
+    private static final Set<String> RAISED_TO = new Set<String>{ 'Workflow running', 'Deploying' };
 
     // The Slack record's last result, saved by saveResults() once the transaction's callouts are done.
     private static RLY_Notification__c pending;
 
     /**
      * @description The event a status change is, when it is one Slack can be told about. Raised is the move from
-     * Retrieving to Workflow running; Approved is the move to Deploying (the merge starts).
+     * Retrieving (or Submitted: a queued promotion or sync) to Workflow running (or Deploying: a sync); Approved is the
+     * move to Deploying (the merge starts).
      * @param oldStatus the status before
      * @param newStatus the status now
      * @return the event, or null
      */
     public static String eventFor(String oldStatus, String newStatus) {
-        if (oldStatus == 'Retrieving' && newStatus == 'Workflow running') {
+        if (RAISED_FROM.contains(oldStatus) && RAISED_TO.contains(newStatus)) {
             return 'Raised';
         }
         if (oldStatus == newStatus) {

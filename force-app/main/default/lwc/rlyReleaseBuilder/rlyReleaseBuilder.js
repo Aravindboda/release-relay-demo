@@ -52,13 +52,12 @@ function words(type) {
 
 // Orgs listed at once on step 2; search narrows the rest.
 const ORG_LIMIT = 50;
-// Salesforce's standard environments, smallest sandbox first.
+// Salesforce's sandbox types, smallest first. Production is the hub, where releases end, so it isn't a source.
 const ENVIRONMENTS = [
     { value: 'Developer', label: 'Developer sandbox', hint: 'Metadata only · refresh every day' },
     { value: 'Developer_Pro', label: 'Developer Pro sandbox', hint: 'Metadata, more storage · refresh every day' },
     { value: 'Partial_Copy', label: 'Partial Copy sandbox', hint: 'Metadata and sample data · refresh every 5 days' },
-    { value: 'Full_Copy', label: 'Full Copy sandbox', hint: 'Copy of production · refresh every 29 days' },
-    { value: 'Production', label: 'Production', hint: 'The live org' }
+    { value: 'Full_Copy', label: 'Full Copy sandbox', hint: 'Copy of production · refresh every 29 days' }
 ];
 
 export default class RlyReleaseBuilder extends LightningElement {
@@ -147,59 +146,10 @@ export default class RlyReleaseBuilder extends LightningElement {
     get problems() { return this.start ? this.start.problems : []; }
     get hasProblems() { return this.problems.length > 0; }
     get targetText() {
-        const src = this.sourceOrg;
-        if (src && src.isStage) {
-            return src.targetName + ' · ' + src.targetBranch;
-        }
         return this.start && this.start.targetName ? this.start.targetName + ' · ' + this.start.targetBranch : 'not set';
     }
-    get targetNote() {
-        return this.sourceOrg && this.sourceOrg.isStage ? '(the next stage after ' + this.sourceOrg.Name + ')' : '(the first stage of the route)';
-    }
+    get targetNote() { return '(the first stage of the route)'; }
     get sourceBranch() { return this.sourceOrg ? this.sourceOrg.Branch__c : ''; }
-    get hotfixTitle() {
-        const s = this.sourceOrg;
-        return s && s.isStage ? 'Hotfix from ' + s.Name + ' goes to ' + s.targetName + '.' : '';
-    }
-    get hotfixLead() {
-        const s = this.sourceOrg;
-        return s && s.isStage ? ' It\'s raised like any release (scan, check-only deploy to ' + s.targetName
-            + ' with its tests, approvals), and is committed to ' : '';
-    }
-    get hotfixTail() {
-        const s = this.sourceOrg;
-        return s && s.isStage ? ' first so ' + s.Name + ' and Git stay the same. Then it flows back to every dev branch so no org'
-            + ' overwrites it. Only users with the Hotfix permission see stage orgs here.' : '';
-    }
-    get isHotfix() { return !!(this.sourceOrg && this.sourceOrg.isStage); }
-
-    /** Stage orgs a hotfix can be raised from (only for users with the Release Relay Hotfix permission). */
-    get stageSources() {
-        return ((this.start && this.start.canHotfix && this.start.stageSources) || []).map((s) => ({
-            Id: s.id, Name: s.name, Branch__c: s.branch, environment: s.environment, Status__c: s.status, Source_Tracking__c: s.sourceTracking,
-            isStage: true, targetName: s.targetName, targetBranch: s.targetBranch
-        }));
-    }
-    get hasStageSources() { return this.stageSources.length > 0; }
-
-    get stageCards() {
-        return this.stageSources.map((s) => {
-            const ready = s.Status__c === 'Connected';
-            const on = s.Id === this.orgId;
-            return {
-                id: s.Id,
-                environment: s.environment,
-                name: s.Name,
-                branch: s.Branch__c,
-                next: '→ ' + s.targetName + ', skips no checks',
-                showStatus: !ready,
-                status: s.Status__c || 'Not checked',
-                cls: 'rr-src' + (on ? ' rr-src-on' : '') + (ready ? '' : ' rr-src-off'),
-                pressed: on ? 'true' : 'false',
-                disabled: ready ? null : true
-            };
-        });
-    }
 
     get orgCards() {
         return ((this.start && this.start.developers) || []).map((d) => {
@@ -224,21 +174,20 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     /** New Release groups the orgs by Salesforce environment, in Salesforce's own order. */
     get envGroups() {
-        const cards = [
-            ...this.orgCards.map((c) => ({ ...c, selectable: true, statusCls: 'rr-pill rr-pill-wait' })),
-            ...this.stageCards.map((c) => ({ ...c, note: c.next, selectable: true, hotfix: true, statusCls: 'rr-pill rr-pill-none' }))
-        ];
+        const cards = this.orgCards.map((c) => ({ ...c, selectable: true, statusCls: 'rr-pill rr-pill-wait' }));
         const picked = new Set(cards.map((c) => c.id));
-        ((this.start && this.start.routeStops) || []).filter((o) => !picked.has(o.Id)).forEach((o) => {
+        // The hub is production: releases end there, so it never shows as a place changes come from.
+        // Back promote orgs only receive production's changes, so they aren't places changes come from either.
+        ((this.start && this.start.routeStops) || []).filter((o) => !picked.has(o.Id) && o.Role__c !== 'Hub' && o.Role__c !== 'Back_Promote').forEach((o) => {
             cards.push({
                 id: o.Id, name: o.Name, branch: o.Branch__c, environment: o.Environment__c, selectable: false, cls: 'rr-src rr-src-stop',
-                note: o.Role__c === 'Hub' ? 'Hub · releases end here' : 'Stage' + (o.Stage_Order__c ? ' ' + o.Stage_Order__c : '') + ' · releases arrive here'
+                note: 'Stage' + (o.Stage_Order__c ? ' ' + o.Stage_Order__c : '') + ' · releases arrive here'
             });
         });
         const groups = ENVIRONMENTS.map((e) => ({ ...e, cards: cards.filter((c) => c.environment === e.value) }));
         const unset = cards.filter((c) => !ENVIRONMENTS.some((e) => e.value === c.environment));
         if (unset.length) {
-            groups.push({ value: 'none', label: 'Environment not set', hint: 'An admin sets it on the Pipeline tab (Edit org).', cards: unset });
+            groups.push({ value: 'none', label: 'Other orgs', hint: 'No sandbox type set. An admin sets it on the Pipeline tab (Edit org).', cards: unset });
         }
         return groups.map((g) => ({ ...g, key: 'env-' + g.value, empty: g.cards.length === 0,
             pickable: g.cards.filter((c) => c.selectable).length }));
@@ -348,8 +297,7 @@ export default class RlyReleaseBuilder extends LightningElement {
     }
 
     get sourceOrg() {
-        return ((this.start && this.start.developers) || []).find((d) => d.Id === this.orgId)
-            || this.stageSources.find((s) => s.Id === this.orgId);
+        return ((this.start && this.start.developers) || []).find((d) => d.Id === this.orgId);
     }
 
     goSelect() {
@@ -718,6 +666,8 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     title = '';
     description = '';
+    hotfix = false;
+    hotfixReason = '';
     raising = false;
     raiseError;
     raisedId;
@@ -725,8 +675,7 @@ export default class RlyReleaseBuilder extends LightningElement {
     get isRaised() { return this.step === 'raise'; }
     /** The target's branch, as the compare board names it (for example: main branch). */
     get targetBranchLabel() {
-        const src = this.sourceOrg;
-        const branch = src && src.isStage ? src.targetBranch : this.start && this.start.targetBranch;
+        const branch = this.start && this.start.targetBranch;
         return branch ? branch + ' branch' : this.targetText;
     }
     /** The provider's word for a pull request (merge request in GitLab); neutral when the provider isn't known. */
@@ -741,8 +690,43 @@ export default class RlyReleaseBuilder extends LightningElement {
         const w = this.crWord;
         return w.charAt(0).toUpperCase() + w.slice(1) + ' into ' + this.targetText;
     }
-    get raiseLabel() { return this.raising ? 'Raising…' : 'Raise ' + this.crWord; }
-    get cantRaise() { return this.raising || this.noneSelected || this.ruleBlocked || !(this.title || '').trim(); }
+    get raiseLabel() {
+        if (this.raising) {
+            return 'Raising…';
+        }
+        return this.isHotfix ? 'Raise hotfix' : 'Raise ' + this.crWord;
+    }
+    get cantRaise() {
+        return this.raising || this.noneSelected || this.ruleBlocked || !(this.title || '').trim()
+            || (this.isHotfix && !(this.hotfixReason || '').trim());
+    }
+    get reviewKicker() { return 'New release · step 4 of 5 · Review'; }
+
+    // ---------- the hotfix flag ----------
+
+    /** Only users with the Hotfix permission can flag a hotfix (Start.canHotfix). */
+    get canHotfix() { return !!(this.start && this.start.canHotfix); }
+    get isHotfix() { return this.canHotfix && this.hotfix; }
+    /** The stop after the first stage (where a hotfix is promoted to next), from the route's stops. */
+    get nextStopName() {
+        const stops = ((this.start && this.start.routeStops) || []).filter((o) => o.Role__c === 'Stage' || o.Role__c === 'Hub')
+            .map((o) => ({ name: o.Name, order: o.Role__c === 'Hub' ? Number.MAX_SAFE_INTEGER : Number(o.Stage_Order__c || 0) }))
+            .sort((a, b) => a.order - b.order);
+        const i = stops.findIndex((o) => o.name === (this.start && this.start.targetName));
+        return i >= 0 && i + 1 < stops.length ? stops[i + 1].name : '';
+    }
+    get hotfixHelp() {
+        const target = (this.start && this.start.targetName) || 'the first stage';
+        const next = this.nextStopName;
+        return 'Goes to ' + target + ' like any release (scan, check-only deploy, tests, approval). After approval it can be promoted to '
+            + (next || 'the next stop') + ' on its own.';
+    }
+    handleHotfix(event) {
+        this.hotfix = event.target.checked;
+    }
+    handleHotfixReason(event) {
+        this.hotfixReason = event.target.value;
+    }
     get testRunCls() { return 'rr-msg ' + (this.ruleBlocked ? 'rr-msg-bad' : 'rr-msg-info'); }
 
     handleTitle(event) { this.title = event.target.value; }
@@ -768,7 +752,9 @@ export default class RlyReleaseBuilder extends LightningElement {
                 title: this.title.trim(),
                 description: this.description,
                 items,
-                testClasses: this.testItems.map((t) => t.name)
+                testClasses: this.testItems.map((t) => t.name),
+                isHotfix: this.isHotfix,
+                hotfixReason: this.isHotfix ? this.hotfixReason.trim() : null
             };
             this.raisedId = await raiseRelease({ requestJson: JSON.stringify(request) });
             this.step = 'raise';
@@ -783,6 +769,8 @@ export default class RlyReleaseBuilder extends LightningElement {
         this.selected = new Set();
         this.title = '';
         this.description = '';
+        this.hotfix = false;
+        this.hotfixReason = '';
         this.raisedId = undefined;
         this.step = 'source';
     }

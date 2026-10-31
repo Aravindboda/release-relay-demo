@@ -1,6 +1,6 @@
 /**
  * @description Shared data for the release-flow tests: a route (DEV1 → SIT → hub) with a checked GitHub
- * connection, releases at a given status, result files and reloading a release.
+ * connection, releases at a given status or already deployed, result files and reloading a release.
  */
 @IsTest
 public with sharing class RlyReleaseTestData {
@@ -47,19 +47,44 @@ public with sharing class RlyReleaseTestData {
     }
 
     /**
-     * @description A hotfix already at a status: raised from SIT to UAT (route DEV1 → SIT → UAT → hub), one Apex class and its test.
+     * @description A hotfix already at a status: raised from DEV1 into SIT, flagged with a reason, on a hotfix branch.
      * @param status the release status
      * @return the release, with Id and Name
      */
     public static RLY_Release__c hotfixRelease(String status) {
         RLY_Release__c rel = release(status, 'hub');
-        RLY_Org__c uat = RlyTestData.stage('UAT', 'uat', 2);
-        insert uat;
-        Id sitId = [SELECT Id FROM RLY_Org__c WHERE Name = 'SIT' LIMIT 1].Id;
-        update new RLY_Release__c(Id = rel.Id, Source_Org__c = sitId, Target_Org__c = uat.Id, Org_Label__c = 'SIT',
-            Target_Branch__c = 'uat', Source_Environment__c = 'sit', Target_Environment__c = 'uat',
+        update new RLY_Release__c(Id = rel.Id, Is_Hotfix__c = true, Hotfix_Reason__c = 'Duplicate emails in production',
             Source_Branch__c = 'hotfix/' + rel.Name.toLowerCase());
         return rel;
+    }
+
+    /**
+     * @description A release already deployed to an org (route included or not: the org must exist), merged with a commit.
+     * @param orgName the org it was deployed to (its branch is the lower-case name)
+     * @param sha its merge commit
+     * @return the release, with Id and Name
+     */
+    public static RLY_Release__c deployedIn(String orgName, String sha) {
+        Id orgId = [SELECT Id FROM RLY_Org__c WHERE Name = :orgName LIMIT 1].Id;
+        Id devId = [SELECT Id FROM RLY_Org__c WHERE Name = 'DEV1' LIMIT 1].Id;
+        RLY_Release__c rel = new RLY_Release__c(Title__c = 'Change ' + sha.left(4), Status__c = 'Deployed', Mode__c = 'Org changes',
+            Request_Type__c = 'Changes', Release_Type__c = 'Release', Source_Org__c = devId, Target_Org__c = orgId, Org_Label__c = 'DEV1',
+            Target_Branch__c = orgName.toLowerCase(), Source_Environment__c = 'dev1', Target_Environment__c = orgName.toLowerCase(),
+            Test_Classes__c = 'AccountServiceTest', Scan_Status__c = 'Passed', Validation_Status__c = 'Passed',
+            Approval_Status__c = 'Approved', Deploy_Status__c = 'Deployed', Merge_Commit__c = sha,
+            Last_Synced__c = System.now().addMinutes(-30), Component_Count__c = 1);
+        insert rel;
+        insert new RLY_Release_Item__c(Release__c = rel.Id, Metadata_Type__c = 'ApexClass', Component_Name__c = 'AccountService' + sha.left(1));
+        return [SELECT Id, Name FROM RLY_Release__c WHERE Id = :rel.Id];
+    }
+
+    /**
+     * @description A 40-character commit hash made of one character.
+     * @param c the character
+     * @return the hash
+     */
+    public static String sha(String c) {
+        return c.repeat(40);
     }
 
     /**
@@ -82,7 +107,9 @@ public with sharing class RlyReleaseTestData {
                        Scan_Violations__c, Scan_Blocking__c, Validation_Status__c, Error_Message__c, Approval_Status__c,
                        Deploy_Status__c, Merge_Commit__c, Scan_Bypass_Reason__c, Retrieve_Id__c, Test_Classes__c,
                        Validation_Result__c, Deploy_Result__c, Check_Token__c, Slack_Channel_Id__c, Slack_Ts__c, Approved_Via__c,
-                       Approved_By__c, Checks_Requested__c
+                       Approved_By__c, Checks_Requested__c, Release_Type__c, Is_Hotfix__c, Hotfix_Reason__c, Promoted_In__c,
+                       Carried_Releases__c, Second_Approved_By__c, Second_Approved_On__c, Back_Merge_Result__c, Approved_On__c,
+                       Target_Org__c, Source_Org__c, Target_Branch__c, Target_Environment__c, Source_Environment__c, Component_Count__c
                 FROM RLY_Release__c WHERE Id = :relId];
     }
 

@@ -33,12 +33,16 @@
                     <template for:each={cards} for:item="r">
                         <button key={r.id} type="button" class={r.cls} data-id={r.id} aria-pressed={r.on} onclick={pick}>
                             <span class="rr-card-top">
+                                <template lwc:if={r.isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
+                                <template lwc:if={r.typeLabel}><span class="rr-pill rr-pill-run">{r.typeLabel}</span></template>
                                 <span class="rr-no">{r.name}</span>
                                 <span class={r.pillCls}>{r.status}</span>
                                 <span class="rr-grow"></span>
                                 <span class="rr-weak rr-small">{r.when}</span>
                             </span>
                             <span class="rr-card-title">{r.title}</span>
+                            <template lwc:if={r.hotfixReason}><span class="rr-reason">{r.hotfixReason}</span></template>
+                            <template lwc:if={r.carriesText}><span class="rr-weak rr-small">{r.carriesText}</span></template>
                             <span class="rr-segs" role="img" aria-label={r.pathLabel}>
                                 <template for:each={r.steps} for:item="s">
                                     <span key={s.key} class={s.cls}></span>

@@ -1,6 +1,7 @@
 /**
  * @description Reads an approved release's merge and deploy: the merge and deploy result files and the pipeline run.
- * The merge result's sync list (developer branches updated from the target) is kept in Deploy_Result__c.
+ * The merge result's sync list (branches brought up to date from the target: after a deploy to the hub, every stage
+ * branch and then every developer branch) is kept in Deploy_Result__c and, as a JSON array, in Back_Merge_Result__c.
  */
 public with sharing class RlyDeployReader {
 
@@ -20,6 +21,9 @@ public with sharing class RlyDeployReader {
             rel.Merge_Commit__c = String.valueOf(mergeResult.get('sha')).left(40);
         }
         Object sync = mergeResult == null ? null : mergeResult.get('sync');
+        if (sync instanceof List<Object>) {
+            rel.Back_Merge_Result__c = JSON.serialize(sync).left(32768);
+        }
         Map<String, Object> deploy = RlyPipelineRun.result(git, rel, 'deploy');
         if (deploy != null) {
             deployed(rel, withSync(deploy, sync));

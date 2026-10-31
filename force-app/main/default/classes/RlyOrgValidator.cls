@@ -7,7 +7,8 @@ public with sharing class RlyOrgValidator {
     /** @description Longest consumer key the encrypted field holds. */
     public static final Integer KEY_LENGTH = 175;
 
-    private static final Set<String> ROLES = new Set<String>{ 'Developer', 'Stage', 'Hub' };
+    private static final Set<String> ROLES = new Set<String>{ 'Developer', 'Stage', 'Hub', 'Back_Promote' };
+    private static final Set<String> BACK_PROMOTE_WHEN = new Set<String>{ 'Manual', 'After_Deploy' };
     private static final Set<String> LOGIN_TYPES = new Set<String>{ 'Production', 'Sandbox' };
     private static final Pattern DOMAIN = Pattern.compile('^https://[A-Za-z0-9.-]+\\.(salesforce|force)\\.com/?$');
     private static final Pattern API_NAME = Pattern.compile('^[A-Za-z][A-Za-z0-9_]{0,79}$');
@@ -41,6 +42,9 @@ public with sharing class RlyOrgValidator {
         if (String.isNotBlank(o.Approval_In__c) && !APPROVAL_IN.contains(o.Approval_In__c)) {
             problems.add('Pick where releases are approved: In Salesforce, In Slack or In the Git provider');
         }
+        if (String.isNotBlank(o.Back_Promote_When__c) && !BACK_PROMOTE_WHEN.contains(o.Back_Promote_When__c)) {
+            problems.add('Pick when a back promote org gets the changes: Manual or After_Deploy');
+        }
         if (String.isNotBlank(o.Slack_Channel__c) && !RlySlackRules.isChannel(o.Slack_Channel__c)) {
             problems.add('Slack channel must be a channel name such as #channel-name, or a channel ID');
         }
@@ -65,7 +69,7 @@ public with sharing class RlyOrgValidator {
             problems.add('Org name is required: up to 40 letters, numbers, spaces, dots, dashes or underscores');
         }
         if (!ROLES.contains(o.Role__c)) {
-            problems.add('Pick a role: Developer, Stage or Hub');
+            problems.add('Pick a role: Developer, Stage, Hub or Back promote');
         }
         if (!matches(o.My_Domain__c, DOMAIN)) {
             problems.add('My Domain URL must look like https://yourdomain.my.salesforce.com');

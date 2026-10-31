@@ -1,4 +1,5 @@
 import { LightningElement, api } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
 import refreshRelease from '@salesforce/apex/RlyReleasesController.refreshRelease';
 import bypassScan from '@salesforce/apex/RlyReleasesController.bypassScan';
 import checkAgain from '@salesforce/apex/RlyReleasesController.checkAgain';
@@ -33,6 +34,9 @@ const STEP_DOT = {
     Warn: 'rr-dot rr-dot-warn',
     Waiting: 'rr-dot'
 };
+const TYPE_LABEL = { Promotion: 'Promotion', Back_Promote: 'Back promote' };
+const RELEASES_TAB = 'RLY_My_Releases';
+const BRANCH_OK = 'Synced';
 const PATH = [
     { key: 'raised', label: 'Raised' },
     { key: 'pr', label: '' },
@@ -129,7 +133,7 @@ function pathPosition(r) {
     return { index: 0, failed: s === 'Failed' };
 }
 
-export default class RlyReleaseView extends LightningElement {
+export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     _releaseId;
     detail;
     error;
@@ -207,7 +211,12 @@ export default class RlyReleaseView extends LightningElement {
     // ---------- header ----------
 
     get rel() { return this.detail ? this.detail.release : {}; }
-    get eyebrow() { return 'Release · ' + (this.rel.Name || ''); }
+    get releaseType() { return (this.detail && this.detail.releaseType) || 'Release'; }
+    /** Promotion or Back promote for those release types; nothing for an ordinary release. */
+    get typeLabel() { return TYPE_LABEL[this.releaseType] || ''; }
+    get eyebrow() { return (this.typeLabel || 'Release') + ' · ' + (this.rel.Name || ''); }
+    get isHotfix() { return !!(this.detail && this.detail.isHotfix); }
+    get hotfixReason() { return this.isHotfix ? (this.detail.hotfixReason || '') : ''; }
     /** The header pill: Detail.phase (for example Resolving conflicts), else the status. */
     get phase() { return (this.detail && this.detail.phase) || this.rel.Status__c; }
     get phaseCls() { return pillCls(this.phase); }
@@ -301,6 +310,11 @@ export default class RlyReleaseView extends LightningElement {
         }
         steps.push(this.approvalStep());
         steps.push(this.deployStep());
+        this.backMergeSteps().forEach((st) => steps.push(st));
+        const backPromote = this.backPromoteStep();
+        if (backPromote) {
+            steps.push(backPromote);
+        }
         return steps.map((st, i) => this.decorate(st, i));
     }
 
@@ -317,12 +331,15 @@ export default class RlyReleaseView extends LightningElement {
         } else if (st.state === 'Running') {
             badge = '⟳';
         }
+        if (st.badge) {
+            badge = st.badge;
+        }
         return {
             ...st,
             badge,
             dotCls: STEP_DOT[st.state] || STEP_DOT.Waiting,
             stateLabel: label,
-            pillCls: st.conflict ? STEP_PILL.Warn : (STEP_PILL[st.state] || STEP_PILL.Waiting)
+            pillCls: st.pill || (st.conflict ? STEP_PILL.Warn : (STEP_PILL[st.state] || STEP_PILL.Waiting))
         };
     }
 
@@ -422,9 +439,13 @@ export default class RlyReleaseView extends LightningElement {
         const s = r.Status__c;
         let state = 'Waiting';
         let text = '';
-        if (r.Approval_Status__c === 'Approved' || r.Approval_Status__c === 'Rejected') {
+        if (s === 'Ready for approval' && this.needsSecondApprover) {
+            // The first of two approvals: the release keeps waiting for someone else.
+            state = 'Running';
+            text = 'Approved by ' + this.firstApprover + '. Waiting for a second approver.';
+        } else if (r.Approval_Status__c === 'Approved' || r.Approval_Status__c === 'Rejected') {
             state = r.Approval_Status__c === 'Approved' ? 'Done' : 'Failed';
-            text = r.Approval_Status__c + ' by ' + (r.Approved_By__r ? r.Approved_By__r.Name : '') + ', ' + when(r.Approved_On__c)
+            text = r.Approval_Status__c + ' by ' + (r.Approved_By__r ? r.Approved_By__r.Name : '') + this.secondApproverText + ', ' + when(r.Approved_On__c)
                 + (r.Approved_Via__c ? ' in ' + r.Approved_Via__c : '') + (r.Approval_Comment__c ? ': ' + r.Approval_Comment__c : '');
         } else if (s === 'Ready for approval') {
             state = 'Running';
@@ -449,8 +470,12 @@ export default class RlyReleaseView extends LightningElement {
             state = 'Failed';
             text = r.Error_Message__c || dep.message || 'Failed';
         }
-        const sync = this.syncRows;
-        return { key: 'deploy', title: 'Merge and deploy to ' + this.targetName, state, text, sync, hasSync: sync.length > 0 };
+        if (s === 'Deployed' && this.secondApprover) {
+            text += ' · 2 approvers';
+        }
+        // After a deploy to the hub the branches merged back are their own steps (backMergeSteps).
+        const sync = this.backMerge.length ? [] : this.syncRows;
+        return { key: 'deploy', title: 'Merge and deploy to ' + this.targetName, state, text, sync, hasSync: sync.length > 0, syncLabel: 'Developer branches' };
     }
 
     checkState(status, result) {
@@ -545,6 +570,127 @@ export default class RlyReleaseView extends LightningElement {
         });
     }
 
+    // ---------- after a deploy to the hub: merged back down, back promote ----------
+
+    /** Detail.backMerge: how each branch was updated from the hub's branch after the deploy (stage branches, then developer branches). */
+    get backMerge() {
+        return this.detail && Array.isArray(this.detail.backMerge) ? this.detail.backMerge : [];
+    }
+
+    /**
+     * "Merged back to <stage branches>" and "Merged back to developer branches", each Done or "n to review" with a line per branch.
+     * A branch's kind (Stage or Developer), when the server sends it, splits the list; without it the branches are one step.
+     */
+    backMergeSteps() {
+        const list = this.backMerge;
+        if (!list.length) {
+            return [];
+        }
+        const hasKind = list.some((b) => b.kind);
+        if (!hasKind) {
+            return [this.mergeBackStep('mb-all', 'Merged back to ' + list.map((b) => b.branch).join(', '), list)];
+        }
+        const stages = list.filter((b) => b.kind === 'Stage');
+        const devs = list.filter((b) => b.kind !== 'Stage');
+        const out = [];
+        if (stages.length) {
+            out.push(this.mergeBackStep('mb-stages', 'Merged back to ' + stages.map((b) => b.branch).join(', '), stages));
+        }
+        if (devs.length) {
+            out.push(this.mergeBackStep('mb-devs', 'Merged back to developer branches', devs));
+        }
+        return out;
+    }
+
+    mergeBackStep(key, title, branches) {
+        const open = branches.filter((b) => b.status !== BRANCH_OK);
+        const lines = branches.map((b, i) => {
+            const ok = b.status === BRANCH_OK;
+            let text = b.branch + ' updated from ' + (this.rel.Target_Branch__c || 'the target');
+            if (!ok) {
+                text = b.branch + (b.status === 'Missing' ? ': branch not found' : ': conflicts with work in progress')
+                    + (b.message ? ' (' + b.message + ')' : '') + '. Merge it by hand so it starts from the latest ' + (this.rel.Target_Branch__c || 'target') + '.';
+            }
+            const state = SYNC_STATE[b.status] || { label: b.status || 'Unknown', cls: 'rr-pill rr-pill-none' };
+            return { key: key + i, label: ok ? '✓' : state.label, cls: ok ? 'rr-pill rr-pill-ok' : state.cls, text };
+        });
+        return {
+            key, title, state: 'Done', badge: '✓',
+            label: open.length ? open.length + ' to review' : 'Done',
+            pill: open.length ? STEP_PILL.Warn : STEP_PILL.Done,
+            text: '', sync: lines, hasSync: true, syncLabel: title
+        };
+    }
+
+    /** Detail.backPromote: Off, or what happened per back promote org (for example "Sent to an org: Deployed"). */
+    backPromoteStep() {
+        const value = this.detail && this.detail.backPromote;
+        if (!value || this.rel.Status__c !== 'Deployed') {
+            return null;
+        }
+        if (value === 'Off') {
+            return { key: 'bp', title: 'Back promote', state: 'Waiting', badge: '→', label: 'Off', pill: STEP_PILL.Waiting, text: 'Not set up on the Pipeline tab' };
+        }
+        let state = 'Waiting';
+        let label = 'Waiting';
+        if (/Failed/.test(value)) {
+            state = 'Failed';
+            label = 'Failed';
+        } else if (/Conflict/.test(value)) {
+            state = 'Warn';
+            label = 'To review';
+        } else if (/Running|Deploying/.test(value)) {
+            state = 'Running';
+            label = 'In progress';
+        } else if (/Deployed|Nothing to deploy/.test(value)) {
+            state = 'Done';
+            label = 'Done';
+        }
+        return { key: 'bp', title: 'Back promote', state, label, badge: state === 'Waiting' ? '→' : '', text: value };
+    }
+
+    // ---------- promotions, second approver ----------
+
+    get carried() {
+        const list = this.detail && Array.isArray(this.detail.carried) ? this.detail.carried : [];
+        return list.map((c) => ({ key: 'c' + c.id, id: c.id, name: c.name, title: c.title, isHotfix: c.isHotfix === true, href: this.releaseHref(c.id) }));
+    }
+    get hasCarried() { return this.releaseType === 'Promotion' && this.carried.length > 0; }
+    get promotedIn() {
+        const d = this.detail;
+        return d && d.promotedInId ? { id: d.promotedInId, name: d.promotedInName || 'the promotion', href: this.releaseHref(d.promotedInId) } : null;
+    }
+
+    releaseHref(releaseId) {
+        return '/lightning/n/' + RELEASES_TAB + '?c__release=' + releaseId;
+    }
+
+    /** Opens another release (a carried one, or the promotion) on the Releases tab. */
+    openRelease(event) {
+        event.preventDefault();
+        this[NavigationMixin.Navigate]({
+            type: 'standard__navItemPage',
+            attributes: { apiName: RELEASES_TAB },
+            state: { c__release: event.currentTarget.dataset.id }
+        });
+    }
+
+    get needsSecondApprover() { return !!(this.detail && this.detail.needsSecondApprover); }
+    get firstApprover() { return (this.detail && this.detail.firstApprover) || 'the first approver'; }
+    get secondApprover() { return this.rel.Second_Approved_By__r ? this.rel.Second_Approved_By__r.Name : ''; }
+    get secondApproverText() { return this.secondApprover ? ' and ' + this.secondApprover : ''; }
+    /** Shown above the timeline unless the server's notice already says it. */
+    get secondApproverNotice() {
+        if (!this.needsSecondApprover || this.rel.Status__c !== 'Ready for approval') {
+            return '';
+        }
+        const notice = (this.detail.notice || '').toLowerCase();
+        if (notice.includes('second approver')) {
+            return '';
+        }
+        return 'Approved by ' + this.firstApprover + '. Waiting for a second approver: someone else, not the person who raised it.';
+    }
+
     // ---------- conflicts ----------
 
     get hasConflicts() {
@@ -592,6 +738,9 @@ export default class RlyReleaseView extends LightningElement {
         }
         if (this.needsApproverNote) {
             return 'An approver approves or rejects it on the Approvals tab.';
+        }
+        if (this.needsSecondApprover && this.rel.Status__c === 'Ready for approval') {
+            return 'A hotfix into ' + this.targetName + ' needs 2 approvers. The person who raised it can\'t approve it.';
         }
         return '';
     }

@@ -5,8 +5,20 @@
  */
 public with sharing class RlyReleasesController {
 
+    /** @description What a list row says about a release's kind (Row extends it). */
+    public virtual class RowKind {
+        /** @description A hotfix. */
+        @AuraEnabled public Boolean isHotfix;
+        /** @description Why it's a hotfix, or null. */
+        @AuraEnabled public String hotfixReason;
+        /** @description Release, Promotion or Back_Promote. */
+        @AuraEnabled public String releaseType;
+        /** @description For a promotion: the release numbers it carries. */
+        @AuraEnabled public List<String> carried = new List<String>();
+    }
+
     /** @description One row of the release list. */
-    public class Row {
+    public class Row extends RowKind {
         /** @description Release Id. */
         @AuraEnabled public Id id;
         /** @description Release number. */
@@ -29,12 +41,60 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public String scan;
         /** @description Validation status. */
         @AuraEnabled public String validation;
-        /** @description A hotfix raised from a stage org. */
+        /** @description A hotfix (same as isHotfix; kept for older pages). */
         @AuraEnabled public Boolean hotfix;
     }
 
+    /** @description A release a promotion carries. */
+    public class CarriedRelease {
+        /** @description The release. */
+        @AuraEnabled public Id id;
+        /** @description Its number. */
+        @AuraEnabled public String name;
+        /** @description Its title. */
+        @AuraEnabled public String title;
+        /** @description A hotfix. */
+        @AuraEnabled public Boolean isHotfix;
+    }
+
+    /** @description How one branch was brought up to date after the merge. */
+    public class BranchSync {
+        /** @description The branch. */
+        @AuraEnabled public String branch;
+        /** @description Synced, Conflict or Missing. */
+        @AuraEnabled public String status;
+        /** @description What happened. */
+        @AuraEnabled public String message;
+        /** @description Stage (a stage branch) or Developer (a developer branch). */
+        @AuraEnabled public String kind;
+    }
+
+    /** @description What a release page shows about the release's links to others (Detail extends it; RlyReleaseLinks fills it). */
+    public virtual class DetailLinks {
+        /** @description A hotfix. */
+        @AuraEnabled public Boolean isHotfix;
+        /** @description Why it's a hotfix, or null. */
+        @AuraEnabled public String hotfixReason;
+        /** @description Release, Promotion or Back_Promote. */
+        @AuraEnabled public String releaseType;
+        /** @description For a promotion: the releases it carries, oldest deploy first. */
+        @AuraEnabled public List<CarriedRelease> carried = new List<CarriedRelease>();
+        /** @description The promotion carrying this release, or null. */
+        @AuraEnabled public String promotedInName;
+        /** @description Its Id, or null. */
+        @AuraEnabled public Id promotedInId;
+        /** @description How the branches were brought up to date after the merge (stage branches, then developer branches). */
+        @AuraEnabled public List<BranchSync> backMerge = new List<BranchSync>();
+        /** @description After a deploy to the hub: Off, or where its changes were sent (each back promote org). */
+        @AuraEnabled public String backPromote;
+        /** @description A hotfix with its first approval, waiting for a second approver. */
+        @AuraEnabled public Boolean needsSecondApprover;
+        /** @description The first approver's name while it waits for the second, or null. */
+        @AuraEnabled public String firstApprover;
+    }
+
     /** @description One release, as its page shows it. */
-    public class Detail {
+    public class Detail extends DetailLinks {
         /** @description The release. */
         @AuraEnabled public RLY_Release__c release;
         /** @description Its components. */
@@ -75,8 +135,16 @@ public with sharing class RlyReleasesController {
     @AuraEnabled
     public static List<Row> listReleases(String view) {
         List<Row> out = new List<Row>();
-        for (RLY_Release__c r : RlyReleaseStore.releases(view)) {
-            out.add(toRow(r));
+        List<RLY_Release__c> rels = RlyReleaseStore.releases(view);
+        Map<Id, String> names = RlyReleaseLinks.carriedNames(rels);
+        for (RLY_Release__c r : rels) {
+            Row row = toRow(r);
+            for (Id carriedId : RlyCarried.ids(r)) {
+                if (names.containsKey(carriedId)) {
+                    row.carried.add(names.get(carriedId));
+                }
+            }
+            out.add(row);
         }
         return out;
     }
@@ -95,6 +163,9 @@ public with sharing class RlyReleasesController {
         row.scan = r.Scan_Status__c;
         row.validation = r.Validation_Status__c;
         row.hotfix = RlyHotfix.isHotfix(r);
+        row.isHotfix = row.hotfix;
+        row.hotfixReason = r.Hotfix_Reason__c;
+        row.releaseType = RlyPromotion.typeOf(r);
         return row;
     }
 
@@ -122,14 +193,19 @@ public with sharing class RlyReleasesController {
     }
 
     /**
-     * @description Reads the latest status first (callouts), then returns the release.
+     * @description Reads the latest status first (callouts), then returns the release. A release with nothing running
+     * starts or reads the queued and running back promote syncs instead (RlyBackPromoteRun.catchUp).
      * @param releaseId the release
      * @return the release
      */
     @AuraEnabled
     public static Detail refreshRelease(Id releaseId) {
         try {
-            RlyStatusReader.advance(releaseId);
+            if (RlyStatusReader.isOpen(RlyReleaseStore.release(releaseId))) {
+                RlyStatusReader.advance(releaseId);
+            } else {
+                RlyBackPromoteRun.catchUp();
+            }
             return detail(releaseId);
         } catch (Exception e) {
             throw handled(e);
@@ -250,6 +326,7 @@ public with sharing class RlyReleasesController {
         d.tests = RlyReleasePhase.tests(d.release);
         d.gitProvider = RlyGitName.labelFor(RlyReleaseStore.git());
         d.slackChannel = RlyReleasePhase.slackChannel(d.release);
+        RlyReleaseLinks.fill(d);
         return d;
     }
 
