@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Events__c</fullName>
+    <description>The release events that send a message.</description>
+    <label>Events</label>
+    <required>false</required>
+    <type>MultiselectPicklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Ready for approval</fullName>
+                <default>false</default>
+                <label>Ready for approval</label>
+            </value>
+            <value>
+                <fullName>Checks failed</fullName>
+                <default>false</default>
+                <label>Checks failed</label>
+            </value>
+            <value>
+                <fullName>Deployed</fullName>
+                <default>false</default>
+                <label>Deployed</label>
+            </value>
+            <value>
+                <fullName>Deploy failed</fullName>
+                <default>false</default>
+                <label>Deploy failed</label>
+            </value>
+            <value>
+                <fullName>Rejected</fullName>
+                <default>false</default>
+                <label>Rejected</label>
+            </value>
+            <value>
+                <fullName>Raised</fullName>
+                <default>false</default>
+                <label>Raised</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+    <visibleLines>6</visibleLines>
+</CustomField>

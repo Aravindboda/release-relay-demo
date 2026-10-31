@@ -1,0 +1,29 @@
+:host { display: block; --rr-blue: #0176d3; --rr-ink: #181818; --rr-muted: #5c5c5c; --rr-line: #e5e5e5; }
+.rr-page { display: flex; flex-direction: column; gap: 12px; color: var(--rr-ink); }
+.rr-head { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid var(--rr-line); border-radius: 4px; padding: 12px 16px; }
+.rr-head-icon { width: 32px; height: 32px; border-radius: 4px; background: #2347d6; display: inline-flex; align-items: center; justify-content: center; }
+.rr-kicker { margin: 0; font-size: 12px; color: var(--rr-muted); }
+.rr-title { margin: 0; font-size: 18px; font-weight: 700; }
+.rr-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.rr-tab { border: 1px solid #c9c9c9; background: #fff; border-radius: 16px; padding: 6px 14px; font: inherit; font-size: 13px; color: var(--rr-ink); cursor: pointer; }
+.rr-tab:hover { border-color: var(--rr-blue); }
+.rr-tab-on { background: var(--rr-blue); border-color: var(--rr-blue); color: #fff; font-weight: 700; }
+.rr-card { background: #fff; border: 1px solid var(--rr-line); border-radius: 4px; }
+.rr-card-head { padding: 14px 16px; border-bottom: 1px solid var(--rr-line); }
+.rr-h2 { margin: 0; font-size: 16px; font-weight: 700; }
+.rr-intro { margin: 4px 0 0; font-size: 13px; color: var(--rr-muted); max-width: 820px; line-height: 1.5; }
+.rr-route { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rr-route li { border: 1px solid var(--rr-line); border-radius: 4px; padding: 6px 10px; font-size: 13px; background: #fafaf9; }
+.rr-route li + li::before { content: '→'; color: var(--rr-blue); font-weight: 700; margin-right: 8px; }
+.rr-steps { list-style: none; margin: 0; padding: 8px 16px 16px; display: flex; flex-direction: column; gap: 4px; }
+.rr-step { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f3f3f3; }
+.rr-step:last-child { border-bottom: 0; }
+.rr-num { flex: 0 0 26px; height: 26px; border-radius: 50%; background: #eef4ff; color: #014486; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
+.rr-step-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.rr-h3 { margin: 0; font-size: 14px; font-weight: 700; }
+.rr-where { margin: 0; font-size: 12px; color: #014486; }
+.rr-p { margin: 0; font-size: 13px; line-height: 1.55; max-width: 860px; }
+.rr-list { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.55; display: flex; flex-direction: column; gap: 4px; max-width: 860px; }
+.rr-scroll { overflow-x: auto; }
+.rr-table td, .rr-table th { white-space: normal; vertical-align: top; font-size: 13px; }
+.rr-table th { background: #f3f3f3; }
