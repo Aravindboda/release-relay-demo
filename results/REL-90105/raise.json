@@ -1,0 +1,8 @@
+{
+ "request": "REL-90105",
+ "step": "raise",
+ "status": "Failed",
+ "message": "Converting the files from the hub failed: InvalidProjectWorkspaceError | /tmp/relay-hub-CtJsHX/source does not contain a valid Salesforce DX project.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41238617501",
+ "finishedAt": "2026-10-31T20:23:15.613Z"
+}
