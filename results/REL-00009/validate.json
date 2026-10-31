@@ -1,0 +1,22 @@
+{
+ "request": "REL-00009",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 1,
+ "deleted": [],
+ "ok": false,
+ "testLevel": "NoTestRun",
+ "deployId": "0AfgL00000cFCUPSA4",
+ "testsRun": 0,
+ "componentErrors": [
+  {
+   "type": "PermissionSet",
+   "name": "RLY_User",
+   "problem": "In field: tab - no CustomTab named RLY_My_Releases found"
+  }
+ ],
+ "testFailures": [],
+ "message": "1 component error(s)",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41160704574",
+ "finishedAt": "2026-10-31T02:36:55.517Z"
+}
