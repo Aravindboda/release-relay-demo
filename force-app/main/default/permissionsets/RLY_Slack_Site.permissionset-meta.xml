@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <classAccesses>
+        <apexClass>RlySlackActions</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <description>For the guest user of the Salesforce Site that receives Slack's Approve and Reject (Apex REST /rly/slack/actions) only. The code checks Slack's signature and the linked approver, then works in system mode. Also grant the Git credential's principal (External Credential Principal Access) here.</description>
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal>RLY_Slack-Bot</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Release Relay Slack Site</label>
+</PermissionSet>
