@@ -1,15 +1,15 @@
 /**
  * @description The rules a release request must meet before anything is called or saved: components selected,
- * a title, a source and target (RlyRaiseRoute: a developer org with its own branch, or a stage org for a hotfix), a checked Git connection, supported names,
+ * a title, a source and target (RlyRaiseRoute: a developer org with its own branch, into the first stage), a checked Git connection, supported names,
  * and no deletions yet. The test rule is RlyTestRule.
  */
 public with sharing class RlyRaiseRules {
 
     /** @description Where a release goes: its source org, its target (RlyRaiseRoute) and the Git connection. */
     public class Route {
-        /** @description The developer org, or the stage org of a hotfix. */
+        /** @description The developer org. */
         public RLY_Org__c source;
-        /** @description The first stage, or a hotfix's next stop. */
+        /** @description The first stage. */
         public RLY_Org__c target;
         /** @description The hub's Git connection. */
         public RLY_Git_Connection__c git;
@@ -29,7 +29,7 @@ public with sharing class RlyRaiseRules {
     }
 
     /**
-     * @description The source org, its target (first stage, or a hotfix's next stop) and the Git connection, each checked.
+     * @description The source org, its target (the first stage) and the Git connection, each checked.
      * @param sourceOrgId the developer org
      * @return the route
      */

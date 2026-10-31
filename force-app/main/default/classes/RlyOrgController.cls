@@ -106,6 +106,7 @@ public with sharing class RlyOrgController {
             throw new AuraHandledException('An org named ' + input.Name.trim() + ' is already registered.');
         }
         RLY_Org__c row = buildRow(input);
+        RlyOrgSettings.apply(row, orgJson);
         applyStatus(row, saved);
         data.save(row);
         return row.Id;
@@ -212,7 +213,8 @@ public with sharing class RlyOrgController {
          */
         public List<RLY_Org__c> allOrgs() {
             return [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Environment__c, Username__c, Certificate__c,
-                           Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c, Org_Id__c, Org_Type__c, Is_Sandbox__c, Api_Version__c, Source_Tracking__c,
+                           Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c,
+                           Hotfix_Two_Approvers__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c, Org_Id__c, Org_Type__c, Is_Sandbox__c, Api_Version__c, Source_Tracking__c,
                            Status__c, Status_Message__c, Last_Checked__c
                     FROM RLY_Org__c WITH SYSTEM_MODE ORDER BY Role__c, Name LIMIT 200];
         }
@@ -232,7 +234,8 @@ public with sharing class RlyOrgController {
          */
         public RLY_Org__c byId(Id orgId) {
             List<RLY_Org__c> rows = [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Environment__c, Username__c, Consumer_Key__c, Client_Id__c,
-                                            Certificate__c, Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c, Org_Id__c, Org_Type__c,
+                                            Certificate__c, Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c,
+                           Hotfix_Two_Approvers__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c, Org_Id__c, Org_Type__c,
                                             Is_Sandbox__c, Api_Version__c, Source_Tracking__c, Status__c, Status_Message__c, Last_Checked__c
                                      FROM RLY_Org__c WHERE Id = :orgId WITH SYSTEM_MODE];
             if (rows.isEmpty()) {
@@ -248,7 +251,8 @@ public with sharing class RlyOrgController {
          */
         public RLY_Org__c view(Id orgId) {
             return [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Environment__c, Username__c, Certificate__c,
-                           Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c, Org_Id__c, Org_Type__c, Is_Sandbox__c, Api_Version__c,
+                           Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c,
+                           Hotfix_Two_Approvers__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c, Org_Id__c, Org_Type__c, Is_Sandbox__c, Api_Version__c,
                            Source_Tracking__c, Status__c, Status_Message__c, Last_Checked__c
                     FROM RLY_Org__c WHERE Id = :orgId WITH SYSTEM_MODE LIMIT 1];
         }

@@ -53,6 +53,9 @@
 .rr-no { font-size: 12px; font-weight: 700; color: var(--rr-link); }
 .rr-no-weak { color: var(--rr-muted); }
 .rr-card-title { font-size: 14px; font-weight: 600; }
+/* hotfix rows (board HubHotfixBackPromote, 2): tinted, with the reason under the title */
+.rr-card-hot { background: #fff7f5; }
+.rr-reason { font-size: 12px; line-height: 1.4; color: var(--rr-muted); overflow-wrap: anywhere; }
 .rr-segs { gap: 3px; width: 100%; }
 .rr-seg { flex: 1; height: 4px; border-radius: 3px; background: var(--rr-line); }
 .rr-seg-done { background: #2e844a; }

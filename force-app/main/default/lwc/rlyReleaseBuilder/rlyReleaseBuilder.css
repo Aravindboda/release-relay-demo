@@ -48,7 +48,6 @@
 .rr-msg-info { background: #eef4ff; color: #014486; }
 .rr-msg-inset { margin: 8px 16px; }
 .rr-note { padding: 8px 10px; border-radius: 4px; font-size: 12px; line-height: 1.45; max-width: 760px; }
-.rr-note-hotfix { background: #fef1cd; color: #5e3600; }
 .rr-warnings { margin: 0; padding: 8px 10px 8px 26px; background: #fef1cd; color: #5e3600; border-radius: 4px; font-size: 12px; line-height: 1.5; }
 .rr-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
 .rr-weak { color: var(--rr-muted); }
@@ -194,3 +193,8 @@
     .rr-pair-left { border-right: 0; border-bottom: 1px solid var(--rr-line); }
     .rr-pair-arrow { display: none; }
 }
+
+/* the hotfix flag on the review step (board HubHotfixBackPromote, 1) */
+.rr-hotfix { border-top: 1px solid var(--rr-line); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.rr-hotfix .rr-row { gap: 8px; }
+.rr-hotfix-check { font-weight: 700; }

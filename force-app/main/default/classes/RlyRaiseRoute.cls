@@ -1,19 +1,21 @@
 /**
- * @description Where a release comes from and goes to. A developer org (with its own branch) releases into the first
- * stage; a stage org (a hotfix, with the RLY_Hotfix permission) releases into its next stop on the route.
+ * @description Where a release comes from and goes to: a developer org (with its own branch) releases into the first
+ * stage, hotfixes included. Raising from a stage org is retired: hotfixes are raised from a developer org now.
  */
 public with sharing class RlyRaiseRoute {
 
+    /** @description What raising from a stage org says. */
+    public static final String STAGE_RETIRED = 'Hotfixes are raised from a developer org now. Pick the developer org that has the fix.';
+
     /**
-     * @description The source org, checked: a developer org with its branch, or a stage org for a hotfix.
+     * @description The source org, checked: a developer org with its branch.
      * @param sourceOrgId the source org
      * @return the org, with its sign-in fields
      */
     public static RLY_Org__c source(Id sourceOrgId) {
         RLY_Org__c source = RlyReleaseStore.org(sourceOrgId);
         if (source != null && source.Role__c == 'Stage') {
-            requireHotfix();
-            return source;
+            throw new RlyReleaseException(STAGE_RETIRED);
         }
         if (source == null || source.Role__c != 'Developer') {
             throw new RlyReleaseException('Pick a registered developer org.');
@@ -26,38 +28,14 @@ public with sharing class RlyRaiseRoute {
     }
 
     /**
-     * @description Refuses a hotfix to users without the RLY_Hotfix custom permission.
-     */
-    public static void requireHotfix() {
-        if (!RlyHotfix.allowed()) {
-            throw new RlyReleaseException('Raising a hotfix from a stage org needs the Release Relay Hotfix permission.');
-        }
-    }
-
-    /**
-     * @description Where the release goes: the first stage, or a hotfix's next stop.
+     * @description Where the release goes: the first stage.
      * @param source the checked source org
      * @return the target org, with its branch
      */
     public static RLY_Org__c target(RLY_Org__c source) {
-        return source.Role__c == 'Stage' ? nextStop(source) : firstStage();
-    }
-
-    private static RLY_Org__c firstStage() {
         RLY_Org__c target = RlyReleaseStore.firstStage();
         if (target == null || String.isBlank(target.Branch__c)) {
             throw new RlyReleaseException('No stage to release into yet: register the first stage org with its branch on the Pipeline tab.');
-        }
-        return target;
-    }
-
-    private static RLY_Org__c nextStop(RLY_Org__c source) {
-        RLY_Org__c target = RlyHotfix.nextStop(source.Id, RlyReleaseStore.routeOrgs());
-        if (target == null) {
-            throw new RlyReleaseException(source.Name + ' has no next stop on the route to send a hotfix to.');
-        }
-        if (String.isBlank(target.Branch__c)) {
-            throw new RlyReleaseException(target.Name + ' has no branch: set it on the Pipeline tab.');
         }
         return target;
     }

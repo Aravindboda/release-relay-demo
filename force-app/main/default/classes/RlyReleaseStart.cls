@@ -1,7 +1,7 @@
 /**
  * @description What New Release step 1 shows: the registered developer orgs (without sign-in fields), where
- * releases go (the first stage of the route), the repository, anything that blocks raising a release, and, for
- * users with the RLY_Hotfix permission, the stage orgs a hotfix can be raised from (with their next stop).
+ * releases go (the first stage of the route), the repository, anything that blocks raising a release, and whether
+ * the user may flag a hotfix (RLY_Hotfix). Hotfixes come from developer orgs, so stageSources is always empty.
  */
 public with sharing class RlyReleaseStart {
 
@@ -21,9 +21,9 @@ public with sharing class RlyReleaseStart {
         @AuraEnabled public String hubUserName;
         /** @description What blocks raising a release. */
         @AuraEnabled public List<String> problems = new List<String>();
-        /** @description The current user may raise hotfixes from stage orgs. */
+        /** @description The current user may flag a release as a hotfix. */
         @AuraEnabled public Boolean canHotfix = false;
-        /** @description Stage orgs a hotfix can be raised from (only with RLY_Hotfix). */
+        /** @description Retired (hotfixes come from developer orgs): always empty. */
         @AuraEnabled public List<RlyHotfix.StageSource> stageSources = new List<RlyHotfix.StageSource>();
         /** @description Stage and hub orgs, shown in their environment for context (no sign-in fields). */
         @AuraEnabled public List<RLY_Org__c> routeStops = new List<RLY_Org__c>();
@@ -41,7 +41,7 @@ public with sharing class RlyReleaseStart {
         for (RLY_Org__c o : data.orgs()) {
             if (o.Role__c == 'Developer') {
                 s.developers.add(o);
-            } else {
+            } else if (o.Role__c != RlyBackPromote.ROLE) {
                 s.routeStops.add(o);
                 if (o.Role__c == 'Stage') {
                     stages.add(o);
@@ -57,9 +57,6 @@ public with sharing class RlyReleaseStart {
         s.repository = git == null ? null : git.Repository__c;
         s.provider = RlyGitName.labelFor(git);
         s.canHotfix = RlyHotfix.allowed();
-        if (s.canHotfix) {
-            s.stageSources = RlyHotfix.stageSources(RlyReleaseStore.routeOrgs());
-        }
         addProblems(s, git, target);
         return s;
     }
@@ -86,7 +83,7 @@ public with sharing class RlyReleaseStart {
         if (target == null || String.isBlank(target.Branch__c)) {
             s.problems.add('No stage to release into yet: register the first stage org with its branch (Pipeline tab).');
         }
-        if (s.developers.isEmpty() && s.stageSources.isEmpty()) {
+        if (s.developers.isEmpty()) {
             s.problems.add('No developer org registered yet (Pipeline tab).');
         }
     }

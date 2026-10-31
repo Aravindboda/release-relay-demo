@@ -14,6 +14,7 @@
     <tabs>RLY_New_Release</tabs>
     <tabs>RLY_My_Releases</tabs>
     <tabs>RLY_Approvals</tabs>
+    <tabs>RLY_Promote</tabs>
     <tabs>RLY_Pipeline</tabs>
     <tabs>RLY_Relay_Guide</tabs>
     <uiType>Lightning</uiType>

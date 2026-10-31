@@ -7,6 +7,8 @@
  *   createBranches  creates the route branches that are missing, from the pipeline branch (admins)
  *   getPipelineFiles     the packaged pipeline files' version and the repository's (RlyPipelineFiles)
  *   updatePipelineFiles  writes the packaged pipeline files to the repository, by pull request or commit (admins)
+ *   getBackPromote       back promote: on or off and each back promote org (RlyBackPromote); starts queued syncs first
+ *   setBackPromote, saveBackPromoteOrg, syncNow   back promote settings and Sync now (admins)
  *
  * The route (RlyRouteRules): developer orgs raise into the first stage; stages follow Stage_Order__c;
  * the hub (production) is the last stage. Each org's branch comes from its RLY_Org__c record.
@@ -21,6 +23,8 @@ public with sharing class RlyRouteController {
         @AuraEnabled public List<RLY_Org__c> developers = new List<RLY_Org__c>();
         /** @description Stages in route order, the hub last. */
         @AuraEnabled public List<RLY_Org__c> stages = new List<RLY_Org__c>();
+        /** @description Back promote orgs (after the hub, never on the route itself). */
+        @AuraEnabled public List<RLY_Org__c> backPromoteOrgs = new List<RLY_Org__c>();
         /** @description What's missing from the route. */
         @AuraEnabled public List<String> warnings = new List<String>();
         /** @description The current user is an admin. */
@@ -40,6 +44,8 @@ public with sharing class RlyRouteController {
         for (RLY_Org__c o : data.orgs()) {
             if (o.Role__c == 'Developer') {
                 s.developers.add(o);
+            } else if (o.Role__c == RlyBackPromote.ROLE) {
+                s.backPromoteOrgs.add(o);
             } else {
                 s.stages.add(o);
             }
@@ -136,7 +142,7 @@ public with sharing class RlyRouteController {
         Integer pos = 1;
         for (Id i : stageIds) {
             RLY_Org__c o = byId.get(i);
-            if (o == null || o.Role__c == 'Developer') {
+            if (o == null || !RlyRouteRules.isStage(o)) {
                 throw new AuraHandledException('Only stages can be ordered on the route.');
             }
             rows.add(new RLY_Org__c(Id = i, Stage_Order__c = o.Role__c == 'Hub' ? 999 : pos++));
@@ -164,6 +170,49 @@ public with sharing class RlyRouteController {
         return RlyPipelineFiles.updateRepository(how);
     }
 
+    /**
+     * @description Back promote: starts the queued syncs and reads the running ones (callouts, then saves), then the board.
+     * @return the board
+     */
+    @AuraEnabled
+    public static RlyBackPromote.BackPromoteBoard getBackPromote() {
+        RlyBackPromoteRun.catchUp();
+        return RlyBackPromote.board();
+    }
+
+    /**
+     * @description Turns back promote on or off (admins).
+     * @param state on or off
+     * @return the board
+     */
+    @AuraEnabled
+    public static RlyBackPromote.BackPromoteBoard setBackPromote(String state) {
+        RlyBackPromote.setEnabled(state);
+        return RlyBackPromote.board();
+    }
+
+    /**
+     * @description Saves a back promote org's settings (admins).
+     * @param settingsJson {orgId, whenValue: Manual|After_Deploy, approval}
+     * @return the board
+     */
+    @AuraEnabled
+    public static RlyBackPromote.BackPromoteBoard saveBackPromoteOrg(String settingsJson) {
+        RlyBackPromote.saveOrgSettings(settingsJson);
+        return RlyBackPromote.board();
+    }
+
+    /**
+     * @description Sync now (admins): saves a sync of the hub's changes to the org. It waits for an approver when the org
+     * asks for one; otherwise it starts on the next read of the board (getBackPromote) or of its page.
+     * @param orgId the back promote org
+     * @return the sync release's Id
+     */
+    @AuraEnabled
+    public static Id syncNow(Id orgId) {
+        return RlyBackPromoteQueue.queueSync(orgId);
+    }
+
     private static RLY_Git_Connection__c requireGit(Data data) {
         RLY_Git_Connection__c g = data.git();
         if (g == null) {
@@ -188,7 +237,7 @@ public with sharing class RlyRouteController {
         public RLY_Git_Connection__c git() {
             List<RLY_Git_Connection__c> rows = [SELECT Id, Name, Provider__c, Repository__c, Named_Credential__c, Pipeline__c,
                                                        Pipeline_Branch__c, Source_Path__c, Code_Scan__c, Status__c, Status_Message__c,
-                                                       Last_Checked__c
+                                                       Last_Checked__c, Back_Promote__c
                                                 FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY CreatedDate ASC LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
         }
@@ -198,7 +247,8 @@ public with sharing class RlyRouteController {
          * @return the orgs, by name
          */
         public List<RLY_Org__c> orgs() {
-            return [SELECT Id, Name, Role__c, Branch__c, Stage_Order__c, Git_Environment__c, Status__c, Source_Tracking__c, My_Domain__c
+            return [SELECT Id, Name, Role__c, Branch__c, Stage_Order__c, Git_Environment__c, Status__c, Source_Tracking__c, My_Domain__c,
+                           Environment__c, Hotfix_Two_Approvers__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c
                     FROM RLY_Org__c WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }
 

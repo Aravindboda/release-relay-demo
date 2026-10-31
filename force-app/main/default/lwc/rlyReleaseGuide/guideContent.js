@@ -106,19 +106,20 @@ function tree(provider) {
         + '\n'
         + 'branches:  main (pipeline branch)\n'
         + '           one per org (example: dev1 · sit · prod)\n'
-        + '           feature/rel-xxxxx · hotfix/rel-xxxxx\n'
+        + '           feature/rel-xxxxx · hotfix/rel-xxxxx · promote/rel-xxxxx\n'
         + '           release-relay-results  ← step results';
 }
 
 function repoRows(provider) {
     const word = provider === 'GitLab' ? 'merge request' : 'pull request';
     return [
-        ['`' + PIPE_FILE[provider].split('/').pop() + '`', 'Starts the jobs: raise, scan, validate, merge, deploy. Modes: hub, check, resolve, merge. Lives at `' + PIPE_FILE[provider] + '` on the pipeline branch.'],
+        ['`' + PIPE_FILE[provider].split('/').pop() + '`', 'Starts the jobs: raise, scan, validate, merge, deploy. Modes: hub, check, resolve, merge, promote, sync. Lives at `' + PIPE_FILE[provider] + '` on the pipeline branch.'],
         ['`release-relay.js`', 'The steps themselves: convert the hub\'s zip, open the ' + word + ', merge the target, run tests, deploy, update branches.'],
         ['`.relay-inbox/`', 'Where the hub commits a release\'s zip and your conflict choices. The pipeline removes them after use.'],
         ['`release-relay-results`', 'One folder per release with `scan.json`, `validate.json`, `merge.json`, `deploy.json`. The hub reads these.'],
         ['`feature/rel-xxxxx`', 'One branch per release, from the developer org\'s branch.'],
-        ['`hotfix/rel-xxxxx`', 'A hotfix release raised from a stage org, from the next stage\'s branch.']
+        ['`hotfix/rel-xxxxx`', 'A hotfix: a release from a developer org marked urgent. Same checks as a feature branch.'],
+        ['`promote/rel-xxxxx`', 'A promotion: the merge commits of releases deployed to a stage, into the next stop\'s branch.']
     ];
 }
 
@@ -175,7 +176,8 @@ const SECTIONS = [
                             '**Hub**: this org. It holds the releases, approvals and history, and signs in to every registered org itself.',
                             '**Git provider**: one repository (GitHub, GitLab, Bitbucket or Azure DevOps). Each org has a branch; every release is a pull request into the next stage\'s branch.',
                             '**Pipeline**: your provider\'s pipeline runs the code scan and a check-only deploy with your tests, and later merges and deploys.',
-                            '**Route**: developer orgs → stages in order → production (the hub). Pipeline → Route shows yours.'
+                            '**Route**: developer orgs → stages in order → production (the hub). Pipeline → Route shows yours.',
+                            '**Promote**: what is deployed to a stage moves on to the next stop from the Promote tab, hotfixes first.'
                         ]
                     }
                 ]
@@ -352,7 +354,10 @@ const SECTIONS = [
                             {
                                 title: 'Review and raise',
                                 where: 'New Release → Review',
-                                text: ['Check the list (remove anything that shouldn\'t go), give the release a title, and raise it. The release page opens and follows the release step by step.'],
+                                text: [
+                                    'Check the list (remove anything that shouldn\'t go), give the release a title, and raise it. The release page opens and follows the release step by step.',
+                                    'With the Hotfix permission you also see **This is a hotfix**. Tick it for an urgent fix and say why: the button becomes **Raise hotfix** (see Hotfix).'
+                                ],
                                 shot: { name: 'review', cap: 'Example: Review, what goes in and which tests run.' }
                             },
                             {
@@ -386,7 +391,7 @@ const SECTIONS = [
                             {
                                 title: 'See what\'s waiting',
                                 where: 'Approvals tab',
-                                text: ['The list shows releases whose checks finished: Ready for approval, or Checks failed. Open one to see its progress, code scan findings, deployment errors and components.'],
+                                text: ['The list shows releases whose checks finished: Ready for approval, or Checks failed. Hotfixes come first, with a red **Hotfix** pill and the reason under the title; promotions show a **Promotion** pill. Open one to see its progress, code scan findings, deployment errors and components.'],
                                 shot: { name: 'approvals', cap: 'Example: the Approvals tab.' }
                             },
                             {
@@ -401,6 +406,10 @@ const SECTIONS = [
                             {
                                 title: 'Reject',
                                 text: ['Reject needs a comment. The pull request is closed with your comment, so the developer sees why.']
+                            },
+                            {
+                                title: 'Hotfixes that need 2 approvers',
+                                text: ['An org card on the Pipeline tab can say **Hotfixes into <org> need 2 approvers**. Then a hotfix into that org needs two different approvers, and the person who raised it can\'t approve it. After the first approval the release page shows who approved and waits for the second. Approval is never skipped.']
                             },
                             {
                                 title: 'Approve in Slack or in the Git provider',
@@ -456,24 +465,114 @@ const SECTIONS = [
     {
         key: 'hotfix',
         group: 'daily',
-        label: 'Hotfix from a stage',
+        label: 'Hotfix',
         cards: [
             {
                 key: 'hf-main',
-                title: 'Hotfix from a stage',
+                title: 'Hotfix',
                 blocks: [
-                    { type: 'text', paras: ['For a fix made directly in a stage org that must reach the next stage now. Needs the Hotfix permission (included in `RLY_Admin`).'] },
+                    { type: 'text', paras: ['A hotfix is a release from a **developer org**, marked urgent with a reason. It goes through the first stage like any release, is promoted to production on its own, and is then merged back down so no org overwrites it. Only users with the Hotfix permission (included in `RLY_Admin`) can mark a release as a hotfix. Approval is never skipped.'] },
                     {
                         type: 'steps',
                         steps: [
                             {
-                                title: 'Raise from the stage org',
-                                where: 'New Release → Source → Stage orgs',
-                                text: ['Pick the stage org under Stage orgs. The release goes to the next stage and its branch starts from that stage\'s branch, so it carries only the hotfix, none of the releases not promoted yet. It gets the same scan, check-only deploy, tests and approval as any release.']
+                                title: 'Raise it from the developer org that has the fix',
+                                where: 'New Release → Review',
+                                text: ['Pick your developer org and the components as usual. On the review step tick **This is a hotfix**, say why (required, up to 255 characters) and press **Raise hotfix**. Its branch is `hotfix/rel-xxxxx`. It gets the same scan, check-only deploy, tests and approval into the first stage as any release. Stage orgs aren\'t offered as sources: fix it in a developer org.']
                             },
                             {
-                                title: 'After it\'s deployed',
-                                text: ['The fix is committed to the stage\'s own branch and flows back into every developer branch, so the next release doesn\'t overwrite it.']
+                                title: 'Approve it first',
+                                where: 'Approvals tab and Slack',
+                                text: ['Hotfixes are listed first, with the reason. The Slack card starts with **Hotfix:** and shows **Why:**.']
+                            },
+                            {
+                                title: 'Promote it on its own',
+                                where: 'Promote tab',
+                                text: ['When the hotfix is deployed to the stage, it waits on the Promote tab, ticked on its own: **Promote hotfix to** the next stop sends only its changes. Other work waiting in the stage stays there. Into production it is approved again (2 approvers if the production org card asks for it).']
+                            },
+                            {
+                                title: 'Merged back down',
+                                where: 'The release page',
+                                text: ['After the deploy to production the hub merges production\'s branch into every stage branch and then every developer branch. The release page shows each one: **Done**, or **n to review** when a branch conflicts with work in progress. Nothing is forced: merge that branch by hand.']
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'promote',
+        group: 'daily',
+        label: 'Promote to production',
+        cards: [
+            {
+                key: 'pr-main',
+                title: 'Promote to production',
+                blocks: [
+                    { type: 'text', paras: ['Releases deployed to a stage move on to the next stop (the next stage, or production) from the **Promote** tab. You need `RLY_Approver` or `RLY_Admin`.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Pick what goes',
+                                where: 'Promote tab',
+                                items: [
+                                    'One block per stage: the releases deployed there and not promoted yet. Hotfixes are first, then the oldest deploy first.',
+                                    'Tick the releases to promote. Unticked ones stay in the stage for a later promotion.',
+                                    'The panel on the right counts the releases and components and lists the test classes that run in the next stop (RunSpecifiedTests).'
+                                ]
+                            },
+                            {
+                                title: 'Promote',
+                                text: ['Give the promotion a title and press **Promote <n> releases to** the next stop (or **Promote hotfix to** it). Release Relay raises one release of type Promotion on the branch `promote/rel-xxxxx` with the releases\' merge commits, oldest first. It runs the code scan, a check-only deploy and the tests into the next stop, then waits for approval like any release.']
+                            },
+                            {
+                                title: 'Follow it',
+                                where: 'The release page',
+                                text: ['The promotion lists what it **Carries**; each carried release shows **Promoted in** with a link. If the promotion is rejected or fails, the releases it carried are ready to promote again.']
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'backpromote',
+        group: 'daily',
+        label: 'Back promote (optional)',
+        cards: [
+            {
+                key: 'bp-main',
+                title: 'Back promote (optional)',
+                blocks: [
+                    { type: 'text', paras: ['Back promote keeps other orgs (for example a training or demo sandbox) in line with production. It is **off by default** and set up by an admin on the Pipeline tab. Metadata only: users and records in those orgs stay as they are, and they never send changes up the route.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Register the org',
+                                where: 'Pipeline → Register an org',
+                                text: ['Use the role **Back promote (after production)**, with its own branch and Git environment. On the route it shows dashed after production, with how many releases it is behind.']
+                            },
+                            {
+                                title: 'Switch it on',
+                                where: 'Pipeline → Back promote',
+                                text: ['Turn on **Send production\'s changes to other orgs after a deploy**.']
+                            },
+                            {
+                                title: 'Choose when, and whether to approve',
+                                where: 'Pipeline → the org\'s card',
+                                items: [
+                                    '**When**: After every production deploy, or When an admin clicks Sync now (the default).',
+                                    '**Approve before syncing**: off by default, so production\'s approval is enough. On: each sync waits for an approver.',
+                                    '**Sync now** brings the org up to date with production at once. The card shows the releases it is behind and the last sync.'
+                                ]
+                            },
+                            {
+                                title: 'What a sync does',
+                                text: ['A sync is a release of type Back promote from the hub to that org. The pipeline merges production\'s branch into the org\'s branch, deploys what changed, and only then pushes the branch. A conflict or a failed deploy stops it, and nothing is pushed.']
                             }
                         ]
                     }
@@ -582,8 +681,8 @@ const SECTIONS = [
                         cols: ['Permission set', 'Gives'],
                         rows: [
                             ['`RLY_Developer`', 'New Release, Releases and Guide tabs: raise and follow releases.'],
-                            ['`RLY_Approver`', 'Approvals tab: approve, reject, bypass a code scan.'],
-                            ['`RLY_Admin`', 'Pipeline tab: Git connection, orgs, route, Slack, linked approvers. Includes Hotfix. Shows the admin sections of this Guide.'],
+                            ['`RLY_Approver`', 'Approvals and Promote tabs: approve, reject, bypass a code scan, promote what is deployed to a stage.'],
+                            ['`RLY_Admin`', 'Pipeline tab: Git connection, orgs, route, Slack, linked approvers, back promote. Promote tab. Includes Hotfix. Shows the admin sections of this Guide.'],
                             ['`RLY_Slack_Site`', 'For the Site guest user only, so Approve in Slack can reach the hub. Needed only when an org is approved in Slack.']
                         ]
                     }

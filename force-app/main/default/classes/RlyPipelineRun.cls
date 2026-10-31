@@ -10,12 +10,13 @@ public with sharing class RlyPipelineRun {
     public static final String RECHECK = 'recheck';
 
     /**
-     * @description The release branch: feature/rel-00001, or hotfix/rel-00001 for a hotfix from a stage org.
-     * @param rel the release, with Source_Org__r.Role__c
+     * @description The release branch: feature/rel-00001, hotfix/rel-00001 for a hotfix, promote/rel-00001 for a promotion.
+     * @param rel the release, with Release_Type__c and Is_Hotfix__c
      * @return the branch name
      */
     public static String branchName(RLY_Release__c rel) {
-        return (RlyHotfix.isHotfix(rel) ? 'hotfix/' : 'feature/') + rel.Name.toLowerCase();
+        String prefix = RlyHotfix.isHotfix(rel) ? 'hotfix/' : 'feature/';
+        return (RlyPromotion.isPromotion(rel) ? 'promote/' : prefix) + rel.Name.toLowerCase();
     }
 
     /**
@@ -33,7 +34,7 @@ public with sharing class RlyPipelineRun {
      * the scan switch, validateMerged, syncBranches and attempt. Each run gets a new token (Check_Token__c, saved by
      * the caller) that its result files echo as attempt.
      * @param rel the release
-     * @param mode hub, check, resolve or merge
+     * @param mode hub, promote, check, resolve, merge or sync
      * @param branch the release branch
      * @return the inputs
      */
@@ -45,7 +46,7 @@ public with sharing class RlyPipelineRun {
             'target_environment' => rel.Target_Environment__c == null ? '' : rel.Target_Environment__c,
             'branch' => branch, 'target' => rel.Target_Branch__c,
             'title' => (rel.Name + ': ' + rel.Title__c).left(200),
-            'components' => mode == 'hub' ? components(rel) : '',
+            'components' => components(rel, mode),
             'deletions' => '', 'options' => JSON.serialize(RlyPipelineOptions.forMode(rel, mode))
         };
     }
@@ -58,7 +59,14 @@ public with sharing class RlyPipelineRun {
         return EncodingUtil.convertToHex(Crypto.generateAesKey(128));
     }
 
-    private static String components(RLY_Release__c rel) {
+    // hub: the selected components; promote: the carried merge commits, oldest first; other modes: none.
+    private static String components(RLY_Release__c rel, String mode) {
+        if (mode == RlyPromotion.MODE) {
+            return RlyCarried.mergeCommits(rel);
+        }
+        if (mode != 'hub') {
+            return '';
+        }
         List<String> names = new List<String>();
         for (RLY_Release_Item__c i : RlyReleaseStore.items(rel.Id)) {
             names.add(i.Metadata_Type__c + ':' + i.Component_Name__c);

@@ -6,6 +6,8 @@
 public with sharing class RlyCheckReader {
 
     private static final Set<String> FINISHED = new Set<String>{ 'Passed', 'Failed', 'Skipped', 'Error', 'Bypassed' };
+    // Runs that open the pull request (and write raise.json).
+    private static final Set<String> RAISE_MODES = new Set<String>{ 'hub', RlyPromotion.MODE };
 
     /**
      * @description Reads the pull request and the check results of a release that is being checked.
@@ -16,8 +18,8 @@ public with sharing class RlyCheckReader {
         RlyGit.PullRequest pr = git.findPullRequest(rel.Source_Branch__c, rel.Target_Branch__c);
         RlyGit.Run run = RlyPipelineRun.findRun(git, rel);
         if (pr == null) {
-            if (run != null && run.failed() && rel.Pending_Run__c == 'hub') {
-                RlyStatusReader.fail(rel, 'The pipeline couldn\'t open the pull request. Open the run for the reason.');
+            if (run != null && run.failed() && RAISE_MODES.contains(rel.Pending_Run__c)) {
+                RlyStatusReader.fail(rel, raiseProblem(rel, git));
             }
             return;
         }
@@ -37,6 +39,15 @@ public with sharing class RlyCheckReader {
             markMissingResults(rel);
         }
         decide(rel);
+    }
+
+    // raise.json's message when the run says why it failed (hub and promote write it), else a pointer to the run.
+    private static String raiseProblem(RLY_Release__c rel, RlyGit git) {
+        Map<String, Object> raiseResult = RlyPipelineRun.result(git, rel, 'raise');
+        if (raiseResult != null && String.valueOf(raiseResult.get('status')) == 'Failed' && raiseResult.get('message') != null) {
+            return String.valueOf(raiseResult.get('message'));
+        }
+        return 'The pipeline couldn\'t open the pull request. Open the run for the reason.';
     }
 
     private static void readScan(RLY_Release__c rel, RlyGit git) {

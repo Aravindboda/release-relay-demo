@@ -70,6 +70,15 @@ public with sharing class RlyRouteRules {
         return w;
     }
 
+    /**
+     * @description Whether an org is on the route: a stage or the hub (not a developer or back promote org).
+     * @param o the org
+     * @return true for stages and the hub
+     */
+    public static Boolean isStage(RLY_Org__c o) {
+        return o.Role__c == 'Stage' || o.Role__c == 'Hub';
+    }
+
     private static void addOrgWarnings(RLY_Org__c o, Set<String> branches, List<String> w) {
         if (String.isBlank(o.Branch__c)) {
             w.add(o.Name + ' has no branch: edit it and set its Git branch.');

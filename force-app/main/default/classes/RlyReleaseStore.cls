@@ -75,7 +75,7 @@ public with sharing class RlyReleaseStore {
     /**
      * @description Releases for a list view: mine (raised by the current user), all, or approvals (waiting for an approver).
      * @param view mine, all or approvals
-     * @return up to 200 releases, newest first
+     * @return up to 200 releases, newest first (approvals: hotfixes first, then oldest first)
      */
     public static List<RLY_Release__c> releases(String view) {
         SystemAccess access = new SystemAccess();
@@ -99,7 +99,24 @@ public with sharing class RlyReleaseStore {
      * @param rel the release, as the flow changed it
      */
     public static void save(RLY_Release__c rel) {
-        new SystemAccess().updateFlowFields(rel);
+        saveAll(new List<RLY_Release__c>{ rel });
+    }
+
+    /**
+     * @description Saves the fields the flow owns on several releases (one update), then what follows from them.
+     * @param rels the releases, as the flow changed them
+     */
+    public static void saveAll(List<RLY_Release__c> rels) {
+        if (rels.isEmpty()) {
+            return;
+        }
+        SystemAccess access = new SystemAccess();
+        List<RLY_Release__c> rows = new List<RLY_Release__c>();
+        for (RLY_Release__c rel : rels) {
+            rows.add(access.flowFields(rel));
+        }
+        access.updateRows(rows);
+        RlyReleaseEffects.afterSave(rels);
     }
 
     /**
@@ -141,7 +158,8 @@ public with sharing class RlyReleaseStore {
          * @return the orgs, by name
          */
         public List<RLY_Org__c> readRouteOrgs() {
-            return [SELECT Id, Name, Role__c, Branch__c, Git_Environment__c, Stage_Order__c, Status__c, Source_Tracking__c, Environment__c
+            return [SELECT Id, Name, Role__c, Branch__c, Git_Environment__c, Stage_Order__c, Status__c, Source_Tracking__c, Environment__c,
+                           Hotfix_Two_Approvers__c
                     FROM RLY_Org__c WHERE Role__c IN ('Stage', 'Hub') WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }
 
@@ -160,7 +178,7 @@ public with sharing class RlyReleaseStore {
          */
         public RLY_Git_Connection__c readGit() {
             List<RLY_Git_Connection__c> rows = [SELECT Id, Provider__c, Repository__c, Named_Credential__c, Pipeline__c, Pipeline_Branch__c,
-                                                       Source_Path__c, Code_Scan__c, Status__c
+                                                       Source_Path__c, Code_Scan__c, Status__c, Back_Promote__c
                                                 FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY CreatedDate ASC LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
         }
@@ -181,7 +199,10 @@ public with sharing class RlyReleaseStore {
                     Scan_Status__c, Scan_Violations__c, Scan_Blocking__c, Scan_Result__c, Scan_Bypassed_By__c, Scan_Bypassed_By__r.Name,
                     Scan_Bypass_Reason__c, Validation_Status__c, Validation_Result__c,
                     Approval_Status__c, Approved_By__c, Approved_By__r.Name, Approved_On__c, Approval_Comment__c,
-                    Merge_Commit__c, Deploy_Status__c, Deploy_Result__c, CreatedDate, CreatedBy.Name, CreatedById
+                    Merge_Commit__c, Deploy_Status__c, Deploy_Result__c, CreatedDate, CreatedBy.Name, CreatedById,
+                    Release_Type__c, Is_Hotfix__c, Hotfix_Reason__c, Promoted_In__c, Promoted_In__r.Name, Carried_Releases__c,
+                    Second_Approved_By__c, Second_Approved_By__r.Name, Second_Approved_On__c, Back_Merge_Result__c,
+                    Target_Org__r.Role__c, Target_Org__r.Hotfix_Two_Approvers__c, Target_Org__r.Branch__c, Source_Org__r.Git_Environment__c
                 FROM RLY_Release__c WHERE Id = :releaseId WITH SYSTEM_MODE];
             return rows.isEmpty() ? null : rows[0];
         }
@@ -207,14 +228,15 @@ public with sharing class RlyReleaseStore {
         }
 
         /**
-         * @description Releases whose checks finished and that wait for an approver.
+         * @description Releases whose checks finished and that wait for an approver: hotfixes first, then oldest first.
          * @return the releases
          */
         public List<RLY_Release__c> waitingForApproval() {
             return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
-                           CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c
+                           CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
+                           Release_Type__c, Carried_Releases__c
                     FROM RLY_Release__c WHERE Source_Org__c != null AND Status__c IN ('Ready for approval', 'Checks failed')
-                    WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
+                    WITH SYSTEM_MODE ORDER BY Is_Hotfix__c DESC, CreatedDate ASC LIMIT 200];
         }
 
         /**
@@ -223,7 +245,8 @@ public with sharing class RlyReleaseStore {
          */
         public List<RLY_Release__c> allReleases() {
             return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
-                           CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c
+                           CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
+                           Release_Type__c, Carried_Releases__c
                     FROM RLY_Release__c WHERE Source_Org__c != null WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
         }
 
@@ -234,7 +257,8 @@ public with sharing class RlyReleaseStore {
          */
         public List<RLY_Release__c> raisedBy(Id userId) {
             return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
-                           CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c
+                           CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
+                           Release_Type__c, Carried_Releases__c
                     FROM RLY_Release__c WHERE Source_Org__c != null AND CreatedById = :userId
                     WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
         }
@@ -253,11 +277,20 @@ public with sharing class RlyReleaseStore {
         }
 
         /**
-         * @description See RlyReleaseStore.save. Only the fields the flow owns; relationship fields from the query can't be saved.
-         * @param rel the release
+         * @description Saves releases (see RlyReleaseStore.saveAll).
+         * @param rows the rows built by flowFields
          */
-        public void updateFlowFields(RLY_Release__c rel) {
-            update as system new RLY_Release__c(Id = rel.Id, Status__c = rel.Status__c, Source_Branch__c = rel.Source_Branch__c,
+        public void updateRows(List<RLY_Release__c> rows) {
+            update as system rows;
+        }
+
+        /**
+         * @description Only the fields the flow owns; relationship fields from the query can't be saved.
+         * @param rel the release
+         * @return the row to save
+         */
+        public RLY_Release__c flowFields(RLY_Release__c rel) {
+            return new RLY_Release__c(Id = rel.Id, Status__c = rel.Status__c, Source_Branch__c = rel.Source_Branch__c,
                 PR_Number__c = rel.PR_Number__c, PR_URL__c = rel.PR_URL__c, Run_ID__c = rel.Run_ID__c, Run_URL__c = rel.Run_URL__c,
                 Pending_Run__c = rel.Pending_Run__c, Checks_Requested__c = rel.Checks_Requested__c, Last_Synced__c = rel.Last_Synced__c,
                 Error_Message__c = rel.Error_Message__c, Scan_Status__c = rel.Scan_Status__c, Scan_Violations__c = rel.Scan_Violations__c,
@@ -267,7 +300,8 @@ public with sharing class RlyReleaseStore {
                 Approved_By__c = rel.Approved_By__c, Approved_On__c = rel.Approved_On__c, Approval_Comment__c = rel.Approval_Comment__c,
                 Merge_Commit__c = rel.Merge_Commit__c, Deploy_Status__c = rel.Deploy_Status__c, Deploy_Result__c = rel.Deploy_Result__c,
                 Check_Token__c = rel.Check_Token__c, Slack_Channel_Id__c = rel.Slack_Channel_Id__c, Slack_Ts__c = rel.Slack_Ts__c,
-                Approved_Via__c = rel.Approved_Via__c);
+                Approved_Via__c = rel.Approved_Via__c, Second_Approved_By__c = rel.Second_Approved_By__c,
+                Second_Approved_On__c = rel.Second_Approved_On__c, Back_Merge_Result__c = rel.Back_Merge_Result__c);
         }
     }
 }

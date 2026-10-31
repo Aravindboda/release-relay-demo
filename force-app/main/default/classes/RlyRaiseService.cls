@@ -1,6 +1,7 @@
 /**
  * @description Raises a release: checks the request (RlyRaiseRules, RlyTestRule), starts the Metadata API retrieve in the
- * developer org and saves the release with its items. The retrieve callout comes before any DML.
+ * developer org and saves the release with its items. A request flagged as a hotfix needs the RLY_Hotfix permission and
+ * a reason (RlyHotfix.reason). The retrieve callout comes before any DML.
  */
 public with sharing class RlyRaiseService {
 
@@ -28,6 +29,10 @@ public with sharing class RlyRaiseService {
         public List<Item> items;
         /** @description The selected Apex test classes. */
         public List<String> testClasses;
+        /** @description Flagged as a hotfix (needs the RLY_Hotfix permission). */
+        public Boolean isHotfix;
+        /** @description Why it's a hotfix (required for a hotfix, up to 255 characters). */
+        public String hotfixReason;
     }
 
     /**
@@ -37,6 +42,7 @@ public with sharing class RlyRaiseService {
      */
     public static Id raise(RaiseRequest req) {
         RlyRaiseRules.checkRequest(req);
+        String hotfixReason = RlyHotfix.reason(req);
         RlyRaiseRules.Route route = RlyRaiseRules.route(req.sourceOrgId);
         Set<String> tests = RlyTestRule.testNames(req.testClasses);
         Map<String, Set<String>> byType = RlyRaiseRules.byType(req.items, route.source);
@@ -46,6 +52,8 @@ public with sharing class RlyRaiseService {
 
         RLY_Release__c rel = buildRelease(req, route, tests);
         rel.Retrieve_Id__c = retrieveId;
+        rel.Is_Hotfix__c = hotfixReason != null;
+        rel.Hotfix_Reason__c = hotfixReason;
         RlyReleaseStore.insertRelease(rel, buildItems(req.items));
         return rel.Id;
     }
@@ -55,7 +63,7 @@ public with sharing class RlyRaiseService {
         RLY_Org__c target = route.target;
         return new RLY_Release__c(
             Title__c = req.title.trim(), Description__c = req.description == null ? null : req.description.left(5000),
-            Mode__c = 'Org changes', Request_Type__c = 'Changes', Status__c = 'Retrieving',
+            Mode__c = 'Org changes', Request_Type__c = 'Changes', Release_Type__c = RlyPromotion.TYPE_RELEASE, Status__c = 'Retrieving',
             Source_Org__c = source.Id, Target_Org__c = target.Id, Org_Label__c = source.Name.left(40),
             Target_Branch__c = target.Branch__c, Source_Environment__c = source.Git_Environment__c,
             Target_Environment__c = target.Git_Environment__c,

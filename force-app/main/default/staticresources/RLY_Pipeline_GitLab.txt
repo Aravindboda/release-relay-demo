@@ -1,4 +1,4 @@
-# Release Relay pipeline files: version 8
+# Release Relay pipeline files: version 9
 # Release Relay for GitLab CI/CD. Started only from Salesforce (the Release Relay hub creates a
 # pipeline on the default branch through the API, with the release in pipeline variables).
 #   MODE=org     retrieve the selected components from the source org, apply deletions, commit to a
@@ -12,6 +12,9 @@
 #                scan and validate again.
 #   MODE=check   scan and validate an open merge request again.
 #   MODE=merge   merge the merge request approved in Salesforce, then deploy it to the target org.
+#   MODE=sync    back promote: merge BRANCH (the hub's production branch) into TARGET (a back-promote
+#                org's branch, made from BRANCH when missing), deploy what changed to the org in
+#                TARGET_ENVIRONMENT, and push TARGET only when that deploy worked.
 # Validation and deployment run only when TARGET_ENVIRONMENT is set. Each step writes its result as
 # JSON to the release-relay-results branch, where Salesforce reads it.
 #
@@ -21,7 +24,7 @@
 # scoped to its environment or prefixed with it: SIT_SF_USERNAME).
 #
 # If you already have a .gitlab-ci.yml, save this file as release-relay.gitlab-ci.yml, add
-# "include: [{ local: release-relay.gitlab-ci.yml }]" to yours, and add the four relay-* stages to
+# "include: [{ local: release-relay.gitlab-ci.yml }]" to yours, and add the five relay-* stages to
 # your stages: list. Your own jobs also run in the hub's pipelines unless their rules leave them out:
 #   rules: [ { if: '$REQUEST_ID', when: never }, { when: on_success } ]
 
@@ -42,6 +45,7 @@ stages:
   - relay-check
   - relay-merge
   - relay-deploy
+  - relay-sync
 
 .release-relay:
   image: node:22
@@ -139,6 +143,21 @@ release-relay-deploy:
   script:
     - npm install --global @salesforce/cli@2 --silent
     - STEP=deploy node /tmp/release-relay.js
+
+# Back promote: production's changes into a back-promote org. A real deployment to the target org's
+# environment, like the deploy job, so its login, protection and approvals apply.
+release-relay-sync:
+  extends: .release-relay
+  stage: relay-sync
+  timeout: 2h
+  needs: []
+  environment:
+    name: $TARGET_ENVIRONMENT
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $REQUEST_ID && $MODE == "sync" && $TARGET_ENVIRONMENT && $TARGET_ENVIRONMENT != "-"'
+  script:
+    - npm install --global @salesforce/cli@2 --silent
+    - STEP=sync node /tmp/release-relay.js
 
 # Tells the Salesforce org named in OPTIONS.notify to read the results now. Its login is read as
 # <NOTIFY>_SF_USERNAME etc. (prefixed variables). A failure here never fails the pipeline.

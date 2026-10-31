@@ -12,6 +12,8 @@
                         <p class="rr-kicker">{eyebrow}</p>
                         <h1 class="rr-title">{rel.Title__c}</h1>
                     </div>
+                    <template lwc:if={isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
+                    <template lwc:if={typeLabel}><span class="rr-pill rr-pill-info">{typeLabel}</span></template>
                     <span class={phaseCls}>{phase}</span>
                     <template lwc:if={detail.slackUrl}>
                         <a class="slds-button slds-button_neutral" href={detail.slackUrl} target="_blank" rel="noopener">Open in Slack</a>
@@ -68,7 +70,7 @@
                                     <p><strong>{s.title}</strong><template lwc:if={s.stateLabel}><span class={s.pillCls}>{s.stateLabel}</span></template></p>
                                     <template lwc:if={s.text}><p class="rr-small rr-weak">{s.text}</p></template>
                                     <template lwc:if={s.hasSync}>
-                                        <ul class="rr-sync-list" aria-label="Developer branches">
+                                        <ul class="rr-sync-list" aria-label={s.syncLabel}>
                                             <template for:each={s.sync} for:item="b">
                                                 <li key={b.key}><span class={b.cls}>{b.label}</span><span class="rr-small rr-sp">{b.text}</span></li>
                                             </template>
@@ -80,6 +82,7 @@
                     </ol>
 
                     <template lwc:if={detail.notice}><div class="rr-msg rr-msg-warn rr-notice" role="status">{detail.notice}</div></template>
+                    <template lwc:if={secondApproverNotice}><div class="rr-msg rr-msg-info rr-notice" role="status">{secondApproverNotice}</div></template>
 
                     <template lwc:if={hasConflicts}>
                         <div class="rr-pad-all rr-line-top">
@@ -145,6 +148,26 @@
                         <dt>Code scan</dt><dd><span class={scanPillCls}>{scanLabel}</span><span class="rr-sp">{scanSummary}</span></dd>
                         <dt>Validation</dt><dd><span class={validationPillCls}>{validationLabel}</span></dd>
                         <dt>Branch</dt><dd><span class="rr-small rr-break">{rel.Source_Branch__c}</span></dd>
+                        <template lwc:if={hotfixReason}>
+                            <dt>Why it's a hotfix</dt><dd class="rr-break">{hotfixReason}</dd>
+                        </template>
+                        <template lwc:if={hasCarried}>
+                            <dt>Carries</dt>
+                            <dd>
+                                <ul class="rr-carried">
+                                    <template for:each={carried} for:item="c">
+                                        <li key={c.key}>
+                                            <a href={c.href} data-id={c.id} onclick={openRelease}>{c.name}</a>
+                                            <template lwc:if={c.isHotfix}><span class="rr-pill rr-pill-bad rr-sp">Hotfix</span></template>
+                                            <span class="rr-small rr-weak rr-sp">{c.title}</span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </dd>
+                        </template>
+                        <template lwc:if={promotedIn}>
+                            <dt>Promoted in</dt><dd><a href={promotedIn.href} data-id={promotedIn.id} onclick={openRelease}>{promotedIn.name}</a></dd>
+                        </template>
                         <template lwc:if={detail.slackUrl}>
                             <dt>Slack</dt><dd><template lwc:if={detail.slackChannel}><span class="rr-small">{detail.slackChannel} · </span></template><a href={detail.slackUrl} target="_blank" rel="noopener">Open</a></dd>
                         </template>

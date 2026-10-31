@@ -82,6 +82,7 @@
 .rr-dot-failed { background: #ba0517; color: #fff; }
 .rr-dot-warn { background: #dd7a01; color: #fff; }
 .rr-sync-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rr-carried { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 
 /* countdown */
 .rr-meter { display: inline-block; width: 200px; max-width: 30vw; height: 4px; border-radius: 2px; background: #e5e5e5; overflow: hidden; }

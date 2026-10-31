@@ -21,6 +21,7 @@ const CHIPS = [
 ];
 const APPROVAL_CHIPS = ['all', 'mine'];
 const TAB = 'RLY_My_Releases';
+const TYPE_LABEL = { Promotion: 'Promotion', Back_Promote: 'Back promote' };
 const NEW_RELEASE_TAB = 'RLY_New_Release';
 
 function errorText(e) {
@@ -272,8 +273,10 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
 
     get shown() {
         const q = this.search;
-        return this.rows.filter((r) => this.matches(r, this.filter))
-            .filter((r) => !q || [r.name, r.title, r.source, r.target].some((v) => (v || '').toLowerCase().includes(q)));
+        const list = this.rows.filter((r) => this.matches(r, this.filter))
+            .filter((r) => !q || [r.name, r.title, r.source, r.target, r.hotfixReason].some((v) => (v || '').toLowerCase().includes(q)));
+        // Approvals: hotfixes first (the server sends them first; a sort keeps it so after a status change).
+        return this.isApprovals ? [...list].sort((a, b) => Number(!!b.isHotfix) - Number(!!a.isHotfix)) : list;
     }
 
     // ---------- list ----------
@@ -283,12 +286,18 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
             const p = position(r);
             const on = r.id === this.selectedId;
             const count = r.components || 0;
-            const meta = [r.hotfix ? 'Hotfix' : null, count + (count === 1 ? ' component' : ' components'),
+            const isHotfix = r.isHotfix === true;
+            const carried = Array.isArray(r.carried) ? r.carried : [];
+            const meta = [count + (count === 1 ? ' component' : ' components'),
                 this.mineIds.includes(r.id) ? 'You' : r.raisedBy].filter((x) => x);
             return {
                 id: r.id,
                 name: r.name,
                 title: r.title,
+                isHotfix,
+                hotfixReason: isHotfix ? r.hotfixReason : '',
+                typeLabel: TYPE_LABEL[r.releaseType] || '',
+                carriesText: r.releaseType === 'Promotion' && carried.length ? 'Carries ' + carried.join(', ') : '',
                 status: r.status,
                 pillCls: 'rr-pill rr-pill-' + tone(r.status),
                 when: relative(r.raisedOn),
@@ -299,7 +308,7 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
                 failed: p.fail >= 0,
                 failStep: FAILED_STEP[p.fail] || '',
                 failReason: failReason(r),
-                cls: on ? 'rr-card rr-card-on' : 'rr-card',
+                cls: 'rr-card' + (on ? ' rr-card-on' : '') + (isHotfix ? ' rr-card-hot' : ''),
                 on: on ? 'true' : 'false'
             };
         });
