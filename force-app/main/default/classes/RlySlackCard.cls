@@ -112,7 +112,6 @@ public with sharing class RlySlackCard {
         return rel.Status__c == 'Deploying' && RlyApprovalRuns.approvedInGit(rel);
     }
 
-
     /**
      * @description " by <name>", or nothing.
      * @param name the name, or null
