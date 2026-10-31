@@ -8,6 +8,10 @@
  *                  MODE=promote: make BRANCH (promote/rel-...) from TARGET, cherry-pick the merge
  *                  commits listed in COMPONENTS (oldest first) from the previous stage, push,
  *                  open a PR/MR into TARGET.
+ *                  MODE=hub: the Release Relay hub already retrieved the components from the
+ *                  developer org and committed the Metadata API zip to BRANCH as
+ *                  .relay-inbox/<REQUEST_ID>.zip. Convert it to source format, replace the zip
+ *                  with the files, push, open a PR/MR into TARGET. No org login is needed.
  *   STEP=scan      Salesforce Code Analyzer on the files the PR/MR changes.
  *   STEP=validate  Check-only deployment of the PR/MR's changes to the target org.
  *   STEP=merge     Merge the PR/MR approved in Salesforce.
@@ -21,6 +25,10 @@
  * environment name), then NAME, so one job can hold the logins of both orgs.
  * scan, validate, merge and deploy write results/<REQUEST_ID>/<step>.json to the
  * release-relay-results branch, where Salesforce reads them.
+ *
+ * OPTIONS (JSON from Salesforce): {"hub":true} means the hub checked the route, so ALLOWED_TARGETS
+ * isn't needed; {"tests":["AccountServiceTest"]} runs those tests (RunSpecifiedTests) when
+ * validating and deploying, and {"tests":[]} means no Apex, so no tests run (NoTestRun).
  *
  * Every input arrives as an environment variable and is validated here. Commands run with
  * execFileSync and argument arrays, never through a shell, so input can't inject commands.
@@ -195,6 +203,15 @@ const branch = input('BRANCH');
 const target = input('TARGET');
 const title = input('TITLE').replace(/[\r\n\t]+/g, ' ').slice(0, 200);
 const sourceEnv = input('ENVIRONMENT');
+const options = (() => {
+    try {
+        const o = JSON.parse(input('OPTIONS') || '{}');
+        return o && typeof o === 'object' && !Array.isArray(o) ? o : {};
+    } catch (e) {
+        return {};
+    }
+})();
+const APEX_NAME_RE = /^[A-Za-z][A-Za-z0-9_]{0,39}$/;
 const targetEnv = input('TARGET_ENVIRONMENT');
 
 let orgEnv = sourceEnv; // whose login and settings v() reads
@@ -214,7 +231,8 @@ function sourcePath() {
 }
 
 function orgLabel() {
-    return v('ORG_LABEL') || sourceEnv || 'the source org';
+    const label = typeof options.label === 'string' && /^[A-Za-z0-9 ._-]{1,40}$/.test(options.label) ? options.label : '';
+    return label || v('ORG_LABEL') || sourceEnv || 'the source org';
 }
 
 function runUrl() {
@@ -235,7 +253,7 @@ function runUrl() {
 
 function checkCommonInputs() {
     if (!/^REL-\d{5,}$/.test(requestId)) { fail('REQUEST_ID must look like REL-00042.'); }
-    if (!['org', 'branch', 'promote', 'check', 'merge'].includes(mode)) { fail('MODE must be org, branch, promote, check or merge.'); }
+    if (!['org', 'branch', 'promote', 'hub', 'check', 'merge'].includes(mode)) { fail('MODE must be org, branch, promote, hub, check or merge.'); }
     if (!BRANCH_RE.test(branch)) { fail(`Branch "${branch}" must look like feature/short-name.`); }
     if (!REF_RE.test(target) || target === branch) { fail(`Target "${target}" isn't a valid target branch.`); }
     if (!/^[A-Za-z0-9_./-]+$/.test(sourcePath()) || sourcePath().includes('..')) { fail('SOURCE_PATH is invalid.'); }
@@ -243,6 +261,9 @@ function checkCommonInputs() {
 }
 
 function checkAllowedTarget() {
+    if (options.hub === true) {
+        return; // the Release Relay hub only raises along its registered route
+    }
     const allowed = v('ALLOWED_TARGETS').split(',').map((s) => s.trim()).filter(Boolean);
     if (!allowed.length) { fail(`ALLOWED_TARGETS isn't set for ${sourceEnv || 'this org'}, so it isn't configured for Release Relay.`); }
     if (!allowed.includes(target)) { fail(`${sourceEnv || 'This org'} can only raise into: ${allowed.join(', ')}.`); }
@@ -488,11 +509,26 @@ function asList(value) {
     return Array.isArray(value) ? value : [value];
 }
 
+/** The release's test classes from OPTIONS.tests, or null when the release didn't send any. */
+function releaseTests() {
+    if (!Array.isArray(options.tests)) {
+        return null;
+    }
+    const bad = options.tests.filter((t) => !APEX_NAME_RE.test(String(t)));
+    if (bad.length) {
+        fail(`These test class names aren't valid: ${bad.slice(0, 5).join(', ')}.`);
+    }
+    return [...new Set(options.tests.map(String))];
+}
+
 /** Runs a deployment (or a check-only one) and returns a result for Salesforce. */
 function deployTo(alias, plan, checkOnly) {
-    const testLevel = TEST_LEVELS.includes(v('DEPLOY_TEST_LEVEL')) ? v('DEPLOY_TEST_LEVEL') : 'RunLocalTests';
+    const tests = releaseTests();
+    const testLevel = tests ? (tests.length ? 'RunSpecifiedTests' : 'NoTestRun')
+        : TEST_LEVELS.includes(v('DEPLOY_TEST_LEVEL')) ? v('DEPLOY_TEST_LEVEL') : 'RunLocalTests';
     const args = ['project', 'deploy', 'start', '--manifest', plan.pkg, '--target-org', alias,
         '--test-level', testLevel, '--wait', '110', '--json'];
+    (tests || []).forEach((t) => args.push('--tests', t));
     if (plan.destructive) {
         args.push('--post-destructive-changes', plan.destructive);
     }
@@ -528,6 +564,10 @@ function deployTo(alias, plan, checkOnly) {
         testLevel,
         deployId: r.id || null,
         testsRun: details.runTestResult ? Number(details.runTestResult.numTestsRun || 0) : 0,
+        tests: tests || [],
+        coverageWarnings: asList(details.runTestResult && details.runTestResult.codeCoverageWarnings).slice(0, 50).map((w) => ({
+            name: w.name, message: w.message
+        })),
         componentErrors,
         testFailures,
         message: ok ? '' : (componentErrors.length ? `${componentErrors.length} component error(s)`
@@ -824,13 +864,18 @@ const provider = providers[PROVIDER] || providers.github;
 
 async function stepRaise() {
     orgEnv = sourceEnv;
-    if (!['org', 'branch', 'promote'].includes(mode)) { fail('MODE must be org, branch or promote to raise.'); }
+    if (!['org', 'branch', 'promote', 'hub'].includes(mode)) { fail('MODE must be org, branch, promote or hub to raise.'); }
     checkAllowedTarget();
     if (!title) { fail('Title is required.'); }
     preparePush();
 
     if (mode === 'promote') {
         await raisePromotion();
+        return;
+    }
+
+    if (mode === 'hub') {
+        await raiseFromHub();
         return;
     }
 
@@ -907,6 +952,73 @@ async function stepRaise() {
         'Every item was reviewed in Release Relay. Approve it in Salesforce; Release Relay merges it.'
     ].filter(Boolean).join('\n\n');
 
+    const url = await provider.open(branch, target, title, body);
+    summary(`**${provider.label}:** ${url}\n\n${branch} → ${target}, release ${requestId}\n\n${body}`);
+}
+
+/** Copies converted source files into the repo; an object's own file only when the object itself was selected. */
+function copyConverted(fromDir, toDir, wholeObjects) {
+    const copied = [];
+    const walk = (rel) => {
+        for (const entry of fs.readdirSync(path.join(fromDir, rel), { withFileTypes: true })) {
+            const r = path.join(rel, entry.name);
+            if (entry.isDirectory()) {
+                walk(r);
+                continue;
+            }
+            const parts = r.split(path.sep);
+            const dest = path.join(toDir, r);
+            const objectFile = parts[0] === 'objects' && parts.length === 3 && parts[2] === `${parts[1]}.object-meta.xml`;
+            if (objectFile && !wholeObjects.has(parts[1]) && fs.existsSync(dest)) {
+                continue; // only the object's fields etc. were selected: keep the object's own settings
+            }
+            fs.mkdirSync(path.dirname(dest), { recursive: true });
+            fs.copyFileSync(path.join(fromDir, r), dest);
+            copied.push(r);
+        }
+    };
+    walk('');
+    return copied;
+}
+
+/** MODE=hub: turn the hub's Metadata API zip on BRANCH into source files and open the PR/MR. */
+async function raiseFromHub() {
+    const components = parseList(input('COMPONENTS'), 'COMPONENTS');
+    const zipFile = path.join('.relay-inbox', requestId + '.zip');
+    if (!remoteBranchExists(branch)) {
+        fail(`Branch ${branch} doesn't exist. Raise the release again from Release Relay.`);
+    }
+    fetchBranch(target);
+    fetchBranch(branch);
+    git(['checkout', '-q', '-B', branch, `refs/remotes/origin/${branch}`]);
+    if (!fs.existsSync(zipFile)) {
+        fail(`${zipFile} isn't on ${branch}. Raise the release again from Release Relay.`);
+    }
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-hub-'));
+    const mdapi = path.join(tmp, 'mdapi');
+    const out = path.join(tmp, 'source');
+    run('unzip', ['-q', '-o', zipFile, '-d', mdapi]);
+    run('sf', ['project', 'convert', 'mdapi', '--root-dir', mdapi, '--output-dir', out], { stdio: ['ignore', 'inherit', 'inherit'] });
+    const converted = fs.existsSync(path.join(out, 'main', 'default')) ? path.join(out, 'main', 'default') : out;
+    const wholeObjects = new Set(components.filter((c) => c.type === 'CustomObject').map((c) => c.name));
+    const copied = copyConverted(converted, sourcePath(), wholeObjects);
+    git(['rm', '-q', '--', zipFile]);
+    git(['add', '-A', '--', sourcePath()]);
+    if (git(['diff', '--cached', '--name-only', '--', sourcePath()]) === '') {
+        fail(`${orgLabel()} already matches ${target} for these components. Nothing to commit.`);
+    }
+    git(['commit', '-q', '-m', title, '-m', `Release Relay ${requestId} from ${orgLabel()} (${copied.length} files)`]);
+    git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
+
+    const list = components.map((i) => `- ${i.type}: \`${i.name}\``).join('\n');
+    const tests = releaseTests();
+    const body = [
+        `Raised from the Release Relay hub (${orgLabel()}), release ${requestId}.`,
+        '**Request type:** Changes',
+        `### Added or updated from ${orgLabel()}\n${list}`,
+        tests ? (tests.length ? `**Tests:** ${tests.map((t) => '`' + t + '`').join(', ')} (RunSpecifiedTests)` : '**Tests:** none, no Apex (NoTestRun)') : '',
+        'Every item was selected and reviewed in Release Relay. Approve it in Salesforce; Release Relay merges it.'
+    ].filter(Boolean).join('\n\n');
     const url = await provider.open(branch, target, title, body);
     summary(`**${provider.label}:** ${url}\n\n${branch} → ${target}, release ${requestId}\n\n${body}`);
 }

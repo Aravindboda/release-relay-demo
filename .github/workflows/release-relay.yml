@@ -4,12 +4,16 @@
 #   mode=branch  open a pull request from a branch that already exists, then scan and validate it.
 #   mode=promote make a promote/ branch from the target, cherry-pick the merge commits listed in
 #                components (from the previous stage), open a pull request, then scan and validate it.
+#   mode=hub     the Release Relay hub committed its retrieve (a Metadata API zip) to the branch:
+#                convert it to source format, open a pull request into the target, scan and validate.
 #   mode=check   scan and validate an open pull request again (after a fix, or on request).
 #   mode=merge   merge the pull request approved in Salesforce, then deploy it to the target org.
 # Validation and deployment run only when Salesforce passes a target environment (the GitHub
 # environment that holds the target org's login). Each step writes its result as JSON to the
 # release-relay-results branch, where Salesforce reads it.
-# options (JSON, from Salesforce): {"scan":"off"} skips the code scan; {"notify":"dev"} makes the
+# options (JSON, from Salesforce): {"scan":"off"} skips the code scan; {"hub":true} skips the
+# ALLOWED_TARGETS check (the hub enforces its route); {"tests":[...]} sets the test classes
+# (RunSpecifiedTests, or NoTestRun when empty); {"notify":"dev"} makes the
 # last job tell that org (signing in with that environment's login) to read the results at once.
 name: Release Relay
 run-name: "Release Relay ${{ inputs.request_id }} (${{ inputs.mode }})"
@@ -22,10 +26,10 @@ on:
         required: true
         type: string
       mode:
-        description: org, branch, promote, check or merge
+        description: org, branch, promote, hub, check or merge
         required: true
         type: choice
-        options: [org, branch, promote, check, merge]
+        options: [org, branch, promote, hub, check, merge]
       environment:
         description: GitHub environment of the source org
         required: true
@@ -83,7 +87,7 @@ env:
 
 jobs:
   raise:
-    if: ${{ inputs.mode == 'org' || inputs.mode == 'branch' || inputs.mode == 'promote' }}
+    if: ${{ inputs.mode == 'org' || inputs.mode == 'branch' || inputs.mode == 'promote' || inputs.mode == 'hub' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     timeout-minutes: 30
@@ -104,12 +108,13 @@ jobs:
         with:
           node-version: 22
       - name: Install Salesforce CLI
-        if: ${{ inputs.mode == 'org' && inputs.components != '' }}
+        if: ${{ (inputs.mode == 'org' && inputs.components != '') || inputs.mode == 'hub' }}
         run: npm install --global @salesforce/cli@2
       # Inputs reach the script only as environment variables, never inside a shell command.
       - name: Raise pull request
         env:
           STEP: raise
+          OPTIONS: ${{ inputs.options }}
           GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
           COMPONENTS: ${{ inputs.components }}
           DELETIONS: ${{ inputs.deletions }}
@@ -174,6 +179,7 @@ jobs:
       - name: Validate against the target org
         env:
           STEP: validate
+          OPTIONS: ${{ inputs.options }}
           SOURCE_PATH: ${{ vars.SOURCE_PATH }}
           DEPLOY_TEST_LEVEL: ${{ vars.DEPLOY_TEST_LEVEL }}
           SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
@@ -210,6 +216,7 @@ jobs:
         id: merge
         env:
           STEP: merge
+          OPTIONS: ${{ inputs.options }}
           GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
           ALLOWED_TARGETS: ${{ vars.ALLOWED_TARGETS }}
           MERGE_METHOD: ${{ vars.MERGE_METHOD }}
@@ -234,6 +241,7 @@ jobs:
       - name: Deploy to the target org
         env:
           STEP: deploy
+          OPTIONS: ${{ inputs.options }}
           MERGE_SHA: ${{ needs.merge.outputs.sha }}
           SOURCE_PATH: ${{ vars.SOURCE_PATH }}
           DEPLOY_TEST_LEVEL: ${{ vars.DEPLOY_TEST_LEVEL }}
