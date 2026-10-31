@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Require_Git_Review__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>After the approval, the deploy also waits for the Git provider&apos;s environment reviewers (set up in the provider).</description>
+    <label>Also require Git reviewers</label>
+    <type>Checkbox</type>
+</CustomField>

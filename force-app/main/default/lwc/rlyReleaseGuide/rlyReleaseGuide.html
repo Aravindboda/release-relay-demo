@@ -1,0 +1,259 @@
+<template>
+    <div class="rr-page">
+        <section class="rr-head">
+            <span class="rr-head-icon"><lightning-icon icon-name="utility:question" size="small" variant="inverse" alternative-text=""></lightning-icon></span>
+            <div class="rr-head-text">
+                <p class="rr-kicker">{appName}</p>
+                <h1 class="rr-title">Guide</h1>
+            </div>
+            <span class="rr-small rr-weak">{adminNote}</span>
+        </section>
+
+        <div class="rr-lay">
+            <nav class="rr-card rr-nav" aria-label="Guide sections">
+                <template for:each={navGroups} for:item="g">
+                    <div key={g.key}>
+                        <p class="rr-grp" id={g.key}>{g.label}</p>
+                        <ul class="rr-nav-list" aria-label={g.label}>
+                            <template for:each={g.items} for:item="i">
+                                <li key={i.key}><button type="button" class={i.cls} data-name={i.key} aria-current={i.current} onclick={handleNav}>{i.label}</button></li>
+                            </template>
+                        </ul>
+                    </div>
+                </template>
+            </nav>
+
+            <div class="rr-main">
+                <template for:each={cards} for:item="c">
+                    <section key={c.key} class="rr-card" aria-label={c.title}>
+                        <div class="rr-hd">
+                            <h2 class="rr-h2 rr-grow">{c.title}</h2>
+                            <template lwc:if={c.aside}><span class="rr-small rr-weak">{c.aside}</span></template>
+                        </div>
+
+                        <template for:each={c.blocks} for:item="b">
+                            <div key={b.key} class="rr-block">
+                                <!-- paragraphs -->
+                                <template lwc:if={b.isText}>
+                                    <div class="rr-pad">
+                                        <template for:each={b.paras} for:item="p">
+                                            <p key={p.key} class="rr-p"><template for:each={p.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></p>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <!-- list -->
+                                <template lwc:if={b.isList}>
+                                    <ul class="rr-list rr-pad-list">
+                                        <template for:each={b.items} for:item="p">
+                                            <li key={p.key}><template for:each={p.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></li>
+                                        </template>
+                                    </ul>
+                                </template>
+
+                                <!-- note -->
+                                <template lwc:if={b.isNote}>
+                                    <div class="rr-note"><template for:each={b.note.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></div>
+                                </template>
+
+                                <!-- table -->
+                                <template lwc:if={b.isTable}>
+                                    <div class="rr-pad rr-scroll">
+                                        <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table">
+                                            <thead><tr><template for:each={b.cols} for:item="col"><th key={col.key} scope="col">{col.c}</th></template></tr></thead>
+                                            <tbody>
+                                                <template for:each={b.rows} for:item="row">
+                                                    <tr key={row.key}>
+                                                        <template for:each={row.cells} for:item="cell">
+                                                            <td key={cell.key}><template for:each={cell.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></td>
+                                                        </template>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </template>
+
+                                <!-- setup progress strip -->
+                                <template lwc:if={b.isProgress}>
+                                    <ol class="rr-prog" aria-label="Setup steps">
+                                        <template for:each={b.progress} for:item="p">
+                                            <li key={p.key}>
+                                                <button type="button" class={p.cls} data-num={p.num} aria-current={p.current} aria-label={p.aria} onclick={handleProgress}>
+                                                    <b>{p.num}</b><span>{p.label}</span>
+                                                </button>
+                                            </li>
+                                        </template>
+                                    </ol>
+                                </template>
+
+                                <!-- numbered steps -->
+                                <template lwc:if={b.isSteps}>
+                                    <template for:each={b.steps} for:item="st">
+                                        <div key={st.key} class="rr-stp" data-step={st.num}>
+                                            <span class="rr-num" aria-hidden="true">{st.num}</span>
+                                            <div class="rr-stp-body">
+                                                <h3 class="rr-h3">{st.title}<template lwc:if={st.who}><span class="rr-who">{st.who}</span></template></h3>
+                                                <template lwc:if={st.hasItems}>
+                                                    <ol class="rr-list">
+                                                        <template for:each={st.items} for:item="p">
+                                                            <li key={p.key}><template for:each={p.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></li>
+                                                        </template>
+                                                    </ol>
+                                                </template>
+                                                <template for:each={st.paras} for:item="p">
+                                                    <p key={p.key} class="rr-p rr-p-top"><template for:each={p.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></p>
+                                                </template>
+                                                <template lwc:if={st.hasTabs}>
+                                                    <lightning-tabset class="rr-tabs" variant="scoped" active-tab-value={provider}>
+                                                        <template for:each={st.tabs} for:item="t">
+                                                            <lightning-tab key={t.key} label={t.label} value={t.value}>
+                                                                <ul class="rr-list">
+                                                                    <template for:each={t.items} for:item="p">
+                                                                        <li key={p.key}><template for:each={p.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></li>
+                                                                    </template>
+                                                                </ul>
+                                                            </lightning-tab>
+                                                        </template>
+                                                    </lightning-tabset>
+                                                </template>
+                                                <template lwc:if={st.where}><span class="rr-where">{st.where}</span></template>
+                                            </div>
+                                            <div class="rr-stp-shot">
+                                                <template lwc:if={st.shot}>
+                                                    <button type="button" class="rr-shotbtn" data-url={st.shot.url} data-cap={st.shot.cap} aria-label={st.shot.label} onclick={openShot}>
+                                                        <img class="rr-shot" src={st.shot.url} alt={st.shot.cap}>
+                                                    </button>
+                                                    <p class="rr-cap">{st.shot.cap}</p>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </template>
+
+                                <!-- a release, in order -->
+                                <template lwc:if={b.isSeq}>
+                                    <ol class="rr-seq" aria-label="A release, in order">
+                                        <template for:each={b.stops} for:item="st">
+                                            <li key={st.key} class="rr-seq-item"><template lwc:if={st.arrow}><span class="rr-seq-arrow" aria-hidden="true">→</span></template><span class="rr-seq-stop"><strong>{st.title}</strong><span>{st.text}</span></span></li>
+                                        </template>
+                                    </ol>
+                                </template>
+                                <template lwc:if={b.hasShots}>
+                                    <div class="rr-shots">
+                                        <template for:each={b.shots} for:item="sh">
+                                            <div key={sh.key}>
+                                                <button type="button" class="rr-shotbtn" data-url={sh.url} data-cap={sh.cap} aria-label={sh.label} onclick={openShot}>
+                                                    <img class="rr-shot" src={sh.url} alt={sh.cap}>
+                                                </button>
+                                                <p class="rr-cap">{sh.cap}</p>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <!-- pipeline files to download -->
+                                <template lwc:if={b.isFiles}>
+                                    <div class="rr-pad rr-files">
+                                        <template lwc:if={b.filesStatus}>
+                                            <div class="rr-files-status" role="status">
+                                                <span class={b.filesStatus.cls}>{b.filesStatus.pill}</span>
+                                                <span class="rr-files-text rr-grow">{b.filesStatus.text}</span>
+                                                <template lwc:if={b.filesStatus.canUpdate}>
+                                                    <lightning-button label="Update from the Pipeline tab" onclick={openPipelineTab}></lightning-button>
+                                                </template>
+                                            </div>
+                                            <template lwc:if={b.filesStatus.note}><p class="rr-small rr-weak">{b.filesStatus.note}</p></template>
+                                        </template>
+                                        <template lwc:if={b.filesError}><p class="rr-files-err" role="alert">{b.filesError}</p></template>
+                                        <div class="rr-scroll">
+                                            <table class="rr-ftable" aria-label="Pipeline files to download">
+                                                <thead><tr><th scope="col">File</th><th scope="col">Path in the repository</th><th scope="col">What it's for</th><th scope="col">Version</th><th scope="col"><span class="slds-assistive-text">Download</span></th></tr></thead>
+                                                <tbody>
+                                                    <template for:each={b.fileList} for:item="f">
+                                                        <tr key={f.key}>
+                                                            <td class="rr-nowrap"><span class="rr-mono rr-strong">{f.name}</span><span class="rr-file-prov">{f.providerLabel}</span></td>
+                                                            <td><span class="rr-mono">{f.path}</span></td>
+                                                            <td>{f.what}</td>
+                                                            <td class="rr-nowrap">{f.version}<template lwc:if={f.repoText}><span class="rr-file-repo"><span class={f.repoCls}>{f.repoText}</span></span></template></td>
+                                                            <td class="rr-nowrap"><a class="slds-button slds-button_neutral" href={f.url} download={f.name} aria-label={f.downloadLabel}>Download</a></td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <template lwc:if={b.hasOtherFiles}>
+                                            <div><lightning-button variant="base" label={b.otherFilesLabel} onclick={toggleOtherFiles}></lightning-button></div>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <!-- repository files, per provider -->
+                                <template lwc:if={b.repoOne}>
+                                    <div class="rr-repo rr-pad">
+                                        <pre class="rr-tree">{b.repoOne.tree}</pre>
+                                        <div class="rr-scroll">
+                                            <table class="rr-ftable">
+                                                <thead><tr><th scope="col">File or branch</th><th scope="col">What it's for</th></tr></thead>
+                                                <tbody>
+                                                    <template for:each={b.repoOne.rows} for:item="row">
+                                                        <tr key={row.key}>
+                                                            <template for:each={row.cells} for:item="cell">
+                                                                <td key={cell.key}><template for:each={cell.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></td>
+                                                            </template>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template lwc:if={b.repoTabs}>
+                                    <lightning-tabset class="rr-tabs rr-pad" variant="scoped" active-tab-value={provider}>
+                                        <template for:each={b.tabs} for:item="t">
+                                            <lightning-tab key={t.key} label={t.label} value={t.value}>
+                                                <div class="rr-repo">
+                                                    <pre class="rr-tree">{t.tree}</pre>
+                                                    <div class="rr-scroll">
+                                                        <table class="rr-ftable">
+                                                            <thead><tr><th scope="col">File or branch</th><th scope="col">What it's for</th></tr></thead>
+                                                            <tbody>
+                                                                <template for:each={t.rows} for:item="row">
+                                                                    <tr key={row.key}>
+                                                                        <template for:each={row.cells} for:item="cell">
+                                                                            <td key={cell.key}><template for:each={cell.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></td>
+                                                                        </template>
+                                                                    </tr>
+                                                                </template>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </lightning-tab>
+                                        </template>
+                                    </lightning-tabset>
+                                </template>
+                            </div>
+                        </template>
+                    </section>
+                </template>
+            </div>
+        </div>
+
+        <!-- a screenshot, larger -->
+        <template lwc:if={zoom}>
+            <section role="dialog" tabindex="-1" aria-modal="true" aria-label={zoom.cap} class="slds-modal slds-fade-in-open slds-modal_large" onkeydown={handleModalKey}>
+                <div class="slds-modal__container">
+                    <button type="button" class="slds-button slds-button_icon slds-modal__close rr-close" title="Close" onclick={closeShot}>
+                        <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
+                    </button>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <img class="rr-zoom" src={zoom.url} alt={zoom.cap}>
+                        <p class="rr-cap">{zoom.cap}</p>
+                    </div>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open" role="presentation" onclick={closeShot}></div>
+        </template>
+    </div>
+</template>

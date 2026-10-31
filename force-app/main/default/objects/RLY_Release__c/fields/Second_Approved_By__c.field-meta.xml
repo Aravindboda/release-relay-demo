@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Second_Approved_By__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Hub: the second approver of a hotfix into an org that needs two approvers.</description>
+    <label>Second Approved By</label>
+    <referenceTo>User</referenceTo>
+    <relationshipName>RLY_Second_Approvals</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>
