@@ -10,6 +10,8 @@
  *   STEP=merge     Merge the PR/MR approved in Salesforce.
  *   STEP=deploy    Deploy the merged changes (and deletions) to the target org.
  *   STEP=auto      Run the steps MODE needs, in order (GitLab and Bitbucket use one job).
+ *   STEP=notify    Tell the Salesforce org that raised the release to read the results now
+ *                  (POST /services/apexrest/release-relay/v1/status). Never fails the run.
  *
  * RELAY_PROVIDER: github, gitlab, bitbucket or azure.
  * Each org's login is read as PREFIX_NAME first (DEV_SF_USERNAME, prefix from the org's
@@ -1023,11 +1025,38 @@ async function stepAuto() {
     }
 }
 
+// ---------- step: notify ----------
+
+/** Signs in to the org in this job's environment and asks it to read this release's results. */
+async function stepNotify() {
+    orgEnv = ''; // this job's environment holds the login of the org to tell
+    if (!/^REL-\d{5,}$/.test(requestId)) {
+        fail('REQUEST_ID must look like REL-00042.');
+    }
+    try {
+        login('relay-notify');
+        const org = JSON.parse(run('sf', ['org', 'display', '--target-org', 'relay-notify', '--json'])).result;
+        const res = await http('POST', org.instanceUrl.replace(/\/+$/, '') + '/services/apexrest/release-relay/v1/status',
+            { Authorization: 'Bearer ' + org.accessToken }, { request: requestId });
+        if (!res.ok) {
+            throw apiError('Status update', res);
+        }
+        summary(`Salesforce updated ${requestId}: ${res.json && res.json.status ? res.json.status : 'done'}.`);
+    } catch (e) {
+        // The scheduled sync or an open release page picks the result up anyway.
+        summary(`Couldn't tell Salesforce about ${requestId} (${e.message}). It catches up on its next sync.`);
+    }
+}
+
 // ---------- main ----------
 
 const STEPS = { raise: stepRaise, scan: stepScan, validate: stepValidate, merge: stepMerge, deploy: stepDeploy, auto: stepAuto };
 
 async function main() {
+    if (step === 'notify') {
+        await stepNotify();
+        return;
+    }
     checkCommonInputs();
     if (!STEPS[step]) {
         fail('STEP must be raise, scan, validate, merge, deploy or auto.');
