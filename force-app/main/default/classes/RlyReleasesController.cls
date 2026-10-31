@@ -49,16 +49,16 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public String targetName;
         /** @description The current user may resolve conflicts (raised it, or approves releases). */
         @AuraEnabled public Boolean canResolve;
-        /** @description A hotfix raised from a stage org. */
-        @AuraEnabled public Boolean hotfix;
         /** @description The status pill: Resolving conflicts while a resolve run checks it, otherwise the status. */
         @AuraEnabled public String phase;
         /** @description An info line above the timeline, or null. */
         @AuraEnabled public String notice;
         /** @description Link to the release's Slack card, or null. */
         @AuraEnabled public String slackUrl;
-        /** @description Where releases into the target org are approved: Salesforce, Slack or Git. */
+        /** @description Where releases into the target org are approved: Salesforce, Slack, or Salesforce or Slack. */
         @AuraEnabled public String approvedIn;
+        /** @description The release can be approved here in Salesforce. */
+        @AuraEnabled public Boolean approveHere;
         /** @description The release's test classes. */
         @AuraEnabled public List<String> tests;
         /** @description The Git provider's name, for example GitHub. */
@@ -242,11 +242,11 @@ public with sharing class RlyReleasesController {
         d.sourceName = d.release.Source_Org__r.Name;
         d.targetName = d.release.Target_Org__r.Name;
         d.canResolve = RlyConflictService.mayResolve(d.release);
-        d.hotfix = RlyHotfix.isHotfix(d.release);
         d.phase = RlyReleasePhase.phase(d.release);
         d.notice = RlyReleasePhase.notice(d.release);
         d.slackUrl = RlyReleasePhase.slackUrl(d.release);
         d.approvedIn = RlyApprover.approvalIn(d.release.Target_Org__r);
+        d.approveHere = RlyApprover.inSalesforce(d.release.Target_Org__r);
         d.tests = RlyReleasePhase.tests(d.release);
         d.gitProvider = RlyGitName.labelFor(RlyReleaseStore.git());
         d.slackChannel = RlyReleasePhase.slackChannel(d.release);

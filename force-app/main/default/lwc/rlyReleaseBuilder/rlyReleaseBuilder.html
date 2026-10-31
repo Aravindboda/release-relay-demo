@@ -1,26 +1,19 @@
 <template>
-    <div class="rr-page slds-is-relative">
+    <div class={pageCls}>
         <template lwc:if={loading}>
             <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
         </template>
 
-        <section class="rr-head">
-            <span class="rr-head-icon"><lightning-icon icon-name="utility:upload" size="small" variant="inverse" alternative-text=""></lightning-icon></span>
-            <div class="rr-head-text">
-                <p class="rr-kicker">{appName}</p>
-                <h1 class="rr-title">New release</h1>
-            </div>
-            <ol class="rr-path" aria-label="Steps">
-                <template for:each={pathSteps} for:item="s">
-                    <li key={s.key} class={s.cls} aria-current={s.current}>{s.label}</li>
-                </template>
-            </ol>
-        </section>
-
-        <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
-
-        <!-- step 1: source -->
+        <!-- step 1: source (board HubHotfix / HubNewRelease) -->
         <template lwc:if={isSource}>
+            <section class="rr-card rr-head">
+                <div class="rr-head-text">
+                    <p class="rr-kicker">{sourceKicker}</p>
+                    <h1 class="rr-title">Where are the changes?</h1>
+                </div>
+            </section>
+
+            <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
             <template lwc:if={hasProblems}>
                 <ul class="rr-warnings" role="alert">
                     <template for:each={problems} for:item="p"><li key={p}>{p}</li></template>
@@ -28,16 +21,18 @@
             </template>
 
             <section class="rr-card" aria-label="Source org">
-                <div class="rr-card-head"><h2 class="rr-h2">Where are the changes?</h2></div>
-                <div class="rr-pad-all rr-col">
-                    <p class="rr-label">Developer org</p>
+                <div class="rr-pad rr-stack">
+                    <p class="rr-label">Developer orgs</p>
                     <template lwc:if={noDevelopers}>
                         <div class="rr-empty">No developer org yet. An admin registers it on the Pipeline tab with the role Developer.</div>
                     </template>
-                    <div class="rr-src-grid">
+                    <div class="rr-src-row" role="group" aria-label="Developer orgs">
                         <template for:each={orgCards} for:item="o">
                             <button key={o.id} type="button" class={o.cls} data-id={o.id} aria-pressed={o.pressed} disabled={o.disabled} onclick={handleOrg}>
-                                <span class="rr-src-name">{o.name}</span>
+                                <span class="rr-src-top">
+                                    <strong class="rr-src-name">{o.name}</strong>
+                                    <template lwc:if={o.showStatus}><span class="rr-pill rr-pill-wait">{o.status}</span></template>
+                                </span>
                                 <span class="rr-mono rr-weak">{o.branch}</span>
                                 <span class="rr-small rr-weak">{o.note}</span>
                             </button>
@@ -45,22 +40,32 @@
                     </div>
 
                     <template lwc:if={hasStageSources}>
-                        <p class="rr-label rr-gap">Stage orgs (hotfix)</p>
-                        <div class="rr-src-grid">
+                        <p class="rr-label">Stage orgs (hotfix: changes made directly in the org)</p>
+                        <div class="rr-src-row" role="group" aria-label="Stage orgs">
                             <template for:each={stageCards} for:item="o">
                                 <button key={o.id} type="button" class={o.cls} data-id={o.id} aria-pressed={o.pressed} disabled={o.disabled} onclick={handleOrg}>
-                                    <span class="rr-src-name">{o.name} <span class="rr-pill rr-pill-hotfix">Hotfix</span></span>
-                                    <span class="rr-mono rr-weak">{o.branch} {o.next}</span>
-                                    <span class="rr-small rr-hotfix-text">{o.warning}</span>
+                                    <span class="rr-src-top">
+                                        <strong class="rr-src-name">{o.name}</strong>
+                                        <span class="rr-pill rr-pill-wait">Hotfix</span>
+                                        <template lwc:if={o.showStatus}><span class="rr-pill rr-pill-none">{o.status}</span></template>
+                                    </span>
+                                    <span class="rr-mono rr-weak">{o.branch}</span>
+                                    <span class="rr-small rr-weak">{o.next}</span>
                                 </button>
                             </template>
                         </div>
                     </template>
 
-                    <p class="rr-label rr-gap">Goes to</p>
-                    <p class="rr-small"><span class="rr-arrow-inline rr-sp-r">→</span><strong>{targetText}</strong><span class="rr-weak rr-sp-l">{targetNote}</span></p>
+                    <template lwc:if={isHotfix}>
+                        <div class="rr-note rr-note-hotfix">
+                            <strong>{hotfixTitle}</strong>
+                            {hotfixLead}<span class="rr-mono">{sourceBranch}</span>{hotfixTail}
+                        </div>
+                    </template>
 
-                    <div class="rr-row rr-gap">
+                    <p class="rr-goes">Goes to <span class="rr-arrow-inline" aria-hidden="true">→</span> <strong>{targetText}</strong> <span class="rr-weak">{targetNote}</span></p>
+
+                    <div class="rr-filters">
                         <div class="rr-col">
                             <p class="rr-label">Changed</p>
                             <div class="rr-segs" role="group" aria-label="Changed">
@@ -88,12 +93,27 @@
             </section>
         </template>
 
-        <!-- step 2: select -->
+        <!-- step 2: select (board HubSelect) -->
         <template lwc:if={isSelect}>
+            <section class="rr-card rr-head">
+                <span class="rr-head-icon"><lightning-icon icon-name="utility:arrowup" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
+                <div class="rr-head-text">
+                    <p class="rr-kicker">{appName}</p>
+                    <h1 class="rr-title">New release</h1>
+                </div>
+                <ol class="rr-path" aria-label="Steps">
+                    <template for:each={pathSteps} for:item="s">
+                        <li key={s.key} class={s.cls} aria-current={s.current}>{s.label}</li>
+                    </template>
+                </ol>
+            </section>
+
+            <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+
             <section class="rr-card rr-select" aria-label="Select changes">
                 <div class="rr-card-head rr-row">
-                    <div class="rr-grow rr-route-head">
-                        <h2 class="rr-h2"><span>{sourceName}</span><span class="rr-arrow-inline rr-sp-l rr-sp-r" aria-label="to">→</span><span>{targetText}</span></h2>
+                    <div class="rr-route-head">
+                        <h2 class="rr-h2"><span>{sourceName}</span><span class="rr-arrow-inline" aria-label="to">→</span><span>{targetText}</span></h2>
                         <p class="rr-small rr-weak">{scopeText} · <button type="button" class="rr-textbtn" onclick={backToSource}>Change</button></p>
                     </div>
                     <div class="rr-segs" role="group" aria-label="Show">
@@ -102,16 +122,16 @@
                         </template>
                     </div>
                     <lightning-input type="search" label="Search" variant="label-hidden" placeholder="Search by name or type" onchange={handleSearch} class="rr-search"></lightning-input>
-                    <lightning-button-icon icon-name="utility:refresh" alternative-text="Read the org again" title="Read the org again" onclick={refresh} disabled={scanning}></lightning-button-icon>
+                    <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Read the org again" title="Read the org again" onclick={refresh} disabled={scanning}></lightning-button-icon>
                 </div>
 
                 <template lwc:if={scanning}>
-                    <div class="rr-pad-all" aria-live="polite">
+                    <div class="rr-pad" aria-live="polite">
                         <p class="rr-small rr-weak">{scanText}</p>
                         <lightning-progress-bar value={scanPercent} size="small"></lightning-progress-bar>
                     </div>
                 </template>
-                <template lwc:if={hasScanErrors}><div class="rr-msg rr-msg-bad rr-pad">{scanErrorText}</div></template>
+                <template lwc:if={hasScanErrors}><div class="rr-msg rr-msg-bad rr-msg-inset">{scanErrorText}</div></template>
 
                 <div class="rr-split">
                     <nav class="rr-types" aria-label="Types">
@@ -121,7 +141,7 @@
                                     <p class="rr-type-group">{t.label}</p>
                                 </template>
                                 <template lwc:else>
-                                    <button type="button" class={t.cls} data-value={t.value} onclick={handleType}>
+                                    <button type="button" class={t.cls} data-value={t.value} aria-pressed={t.pressed} onclick={handleType}>
                                         <span class="rr-grow">{t.label}</span><span class="rr-count">{t.count}</span>
                                     </button>
                                 </template>
@@ -130,45 +150,47 @@
                     </nav>
 
                     <div class="rr-list">
-                        <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table">
-                            <thead>
-                                <tr>
-                                    <th scope="col" class="rr-check-col">
-                                        <lightning-input type="checkbox" label="Select all shown" variant="label-hidden" checked={allShownChecked} onchange={handleCheckAll}></lightning-input>
-                                    </th>
-                                    <th scope="col">Name</th>
-                                    <th scope="col">Type</th>
-                                    <th scope="col">Kind</th>
-                                    <th scope="col">Changed</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template for:each={rows} for:item="r">
-                                    <tr key={r.key} class={r.rowCls}>
-                                        <td class="rr-check-col">
-                                            <lightning-input type="checkbox" label={r.selLabel} variant="label-hidden" data-key={r.key} checked={r.checked} onchange={handleCheck}></lightning-input>
-                                        </td>
-                                        <td class="rr-name">
-                                            <span class="rr-mono">{r.name}</span>
-                                            <template lwc:if={r.deleted}><span class="rr-pill rr-pill-bad rr-ml">Deleted</span></template>
-                                        </td>
-                                        <td class="rr-small">{r.typeLabel}</td>
-                                        <td><span class={r.kindCls}>{r.kind}</span></td>
-                                        <td class="rr-small rr-weak">{r.when} {r.by}</td>
+                        <div class="rr-list-scroll">
+                            <table class="slds-table slds-table_cell-buffer rr-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" class="rr-check-col">
+                                            <lightning-input type="checkbox" label="Select all shown" variant="label-hidden" checked={allShownChecked} onchange={handleCheckAll}></lightning-input>
+                                        </th>
+                                        <th scope="col">Name</th>
+                                        <th scope="col">Type</th>
+                                        <th scope="col">Kind</th>
+                                        <th scope="col">Changed</th>
                                     </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                        <template lwc:if={noRows}><div class="rr-empty rr-pad-top">{emptyText}</div></template>
-                        <template lwc:if={hasMore}>
-                            <div class="rr-more"><lightning-button variant="base" label={moreLabel} onclick={showMore}></lightning-button></div>
-                        </template>
+                                </thead>
+                                <tbody>
+                                    <template for:each={rows} for:item="r">
+                                        <tr key={r.key} class={r.rowCls}>
+                                            <td class="rr-check-col">
+                                                <lightning-input type="checkbox" label={r.selLabel} variant="label-hidden" data-key={r.key} checked={r.checked} onchange={handleCheck}></lightning-input>
+                                            </td>
+                                            <td class="rr-name">
+                                                <span class="rr-mono">{r.name}</span>
+                                                <template lwc:if={r.deleted}><span class="rr-pill rr-pill-bad rr-ml">Deleted</span></template>
+                                            </td>
+                                            <td>{r.typeLabel}</td>
+                                            <td><span class={r.kindCls}>{r.kind}</span></td>
+                                            <td class="rr-weak">{r.changedText}</td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <template lwc:if={noRows}><div class="rr-empty rr-empty-inset">{emptyText}</div></template>
+                            <template lwc:if={hasMore}>
+                                <div class="rr-more"><lightning-button variant="base" label={moreLabel} onclick={showMore}></lightning-button></div>
+                            </template>
+                        </div>
 
                         <div class="rr-manual">
                             <p class="rr-label">Not in the list? Add it by name</p>
-                            <div class="rr-row rr-end">
-                                <lightning-combobox label="Type" value={manualType} options={typeOptions} onchange={handleManualType} class="rr-manual-type"></lightning-combobox>
-                                <lightning-input label="API name" value={manualName} onchange={handleManualName} class="rr-grow"></lightning-input>
+                            <div class="rr-manual-row">
+                                <lightning-combobox label="Type" variant="label-hidden" value={manualType} options={typeOptions} onchange={handleManualType} class="rr-manual-type"></lightning-combobox>
+                                <lightning-input label="API name" variant="label-hidden" placeholder="API name" value={manualName} onchange={handleManualName} class="rr-grow"></lightning-input>
                                 <lightning-button label="Add" onclick={addManual}></lightning-button>
                             </div>
                             <template lwc:if={manualError}><p class="rr-small rr-bad">{manualError}</p></template>
@@ -183,7 +205,7 @@
                         <h2 class="rr-h2 rr-grow">Selected</h2>
                         <lightning-button variant="base" label="Clear all" onclick={clearSelection}></lightning-button>
                     </div>
-                    <div class="rr-pad-all rr-col">
+                    <div class="rr-pad rr-drawer-body">
                         <template for:each={grouped} for:item="g">
                             <div key={g.key}>
                                 <p class="rr-label">{g.label}</p>
@@ -191,7 +213,7 @@
                                     <template for:each={g.items} for:item="i">
                                         <li key={i.key} class="rr-chip">
                                             <span class="rr-mono">{i.name}</span>
-                                            <button type="button" class="rr-chip-x" data-key={i.key} aria-label={i.removeLabel} onclick={removeItem}>×</button>
+                                            <button type="button" class="rr-chip-x" data-key={i.key} aria-label={i.removeLabel} title={i.removeLabel} onclick={removeItem}>×</button>
                                         </li>
                                     </template>
                                 </ul>
@@ -206,15 +228,11 @@
                 <div class="rr-bar-text">
                     <strong>{barText}</strong>
                     <template lwc:if={ruleBlocked}>
-                        <span class="rr-small">{ruleText}</span>
-                        <template lwc:if={hasSuggestions}>
-                            <span class="rr-row">
-                                <span class="rr-small">Maybe:</span>
-                                <template for:each={suggestions} for:item="s">
-                                    <button key={s.key} type="button" class="rr-suggest" data-key={s.key} onclick={addSuggestion}>+ {s.name}</button>
-                                </template>
-                            </span>
-                        </template>
+                        <span class="rr-small">{ruleText}
+                            <template for:each={suggestions} for:item="s">
+                                <button key={s.key} type="button" class="rr-suggest" data-key={s.key} title={s.addLabel} onclick={addSuggestion}>+ {s.name}</button>
+                            </template>
+                        </span>
                     </template>
                 </div>
                 <lightning-button variant="base" label={drawerLabel} onclick={toggleDrawer} disabled={noneSelected}></lightning-button>
@@ -222,51 +240,71 @@
             </div>
         </template>
 
-        <!-- step 3: review and raise -->
+        <!-- step 3: review and raise (board HubCompare: the list and the source/target frame; compare is not built) -->
         <template lwc:if={isReview}>
-            <section class="rr-card" aria-label="Review">
-                <div class="rr-card-head rr-row">
-                    <div class="rr-grow rr-route-head">
-                        <h2 class="rr-h2"><span>{sourceName}</span><span class="rr-arrow-inline rr-sp-l rr-sp-r" aria-label="to">→</span><span>{targetText}</span></h2>
-                        <p class="rr-small rr-weak">In this release: {reviewSummary}</p>
-                    </div>
+            <section class="rr-card rr-head">
+                <div class="rr-head-text">
+                    <p class="rr-kicker">New release · step 3 of 4 · Review</p>
+                    <h1 class="rr-title">Review before raising</h1>
                 </div>
-                <div class="rr-pad-all rr-col">
-                    <div class={testRunCls}>{testRunText}</div>
-                    <div class="rr-review-grid">
-                        <div class="rr-review-list">
-                            <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table">
-                                <thead><tr><th scope="col">Type</th><th scope="col">Name</th><th scope="col">Kind</th><th scope="col" class="rr-check-col"><span class="slds-assistive-text">Remove</span></th></tr></thead>
-                                <tbody>
-                                    <template for:each={reviewRows} for:item="r">
-                                        <tr key={r.key}>
-                                            <td class="rr-small">{r.typeLabel}</td>
-                                            <td class="rr-mono">{r.name}</td>
-                                            <td><span class={r.kindCls}>{r.kind}</span></td>
-                                            <td><button type="button" class="rr-chip-x" data-key={r.key} aria-label={r.removeLabel} title={r.removeLabel} onclick={removeItem}>×</button></td>
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="rr-form-1">
-                            <lightning-input label="Title" value={title} max-length="200" required onchange={handleTitle}
-                                placeholder="What this release does, for example: Account region field and layout"></lightning-input>
-                            <lightning-textarea label="Description (optional)" value={description} max-length="5000" onchange={handleDescription}></lightning-textarea>
-                            <template lwc:if={raiseError}><div class="rr-msg rr-msg-bad" role="alert">{raiseError}</div></template>
-                        </div>
-                    </div>
-                </div>
+                <span class="rr-pill rr-pill-info">{reviewSummary}</span>
             </section>
-            <div class="rr-bar" role="status">
-                <lightning-button label="Back" onclick={backToSelect} disabled={raising}></lightning-button>
-                <div class="rr-bar-text"><strong>{barText}</strong><span class="rr-small">{intoText}</span></div>
-                <lightning-button variant="brand" label={raiseLabel} onclick={raise} disabled={cantRaise}></lightning-button>
+
+            <div class="rr-review">
+                <nav class="rr-card rr-files" aria-label="Components in this release">
+                    <ul class="rr-file-list">
+                        <template for:each={reviewRows} for:item="r">
+                            <li key={r.key} class="rr-file">
+                                <span class="rr-file-text">
+                                    <strong class="rr-file-name">{r.name}</strong>
+                                    <span class="rr-small rr-weak">{r.subText}</span>
+                                </span>
+                                <button type="button" class="rr-chip-x" data-key={r.key} aria-label={r.removeLabel} title={r.removeLabel} onclick={removeItem} disabled={raising}>×</button>
+                            </li>
+                        </template>
+                    </ul>
+                </nav>
+
+                <section class="rr-card rr-pair" aria-label="Release">
+                    <div class="rr-pair-head">
+                        <div class="rr-pair-side rr-pair-left">
+                            <span class="rr-pill rr-pill-custom">Source</span><strong class="rr-pair-name">{sourceName}</strong><span class="rr-small rr-weak">what the release brings</span>
+                        </div>
+                        <div class="rr-pair-side">
+                            <span class="rr-pair-arrow" role="img" aria-label="goes to"><lightning-icon icon-name="utility:forward" size="xx-small" variant="inverse" alternative-text=""></lightning-icon></span>
+                            <span class="rr-pill rr-pill-none">Target</span><strong class="rr-pair-name">{targetBranchLabel}</strong><span class="rr-small rr-weak">what's there now</span>
+                        </div>
+                    </div>
+                    <div class="rr-pad rr-stack">
+                        <div class={testRunCls}>{testRunText}</div>
+                        <lightning-input label="Title" value={title} max-length="200" required onchange={handleTitle}
+                            placeholder="What this release does, for example: Account region field and layout"></lightning-input>
+                        <lightning-textarea label="Description (optional)" value={description} max-length="5000" onchange={handleDescription}></lightning-textarea>
+                        <template lwc:if={raiseError}><div class="rr-msg rr-msg-bad" role="alert">{raiseError}</div></template>
+                    </div>
+                    <div class="rr-pair-foot">
+                        <lightning-button label="Back" onclick={backToSelect} disabled={raising}></lightning-button>
+                        <span class="rr-grow rr-small rr-weak">{intoText}</span>
+                        <lightning-button variant="brand" label={raiseLabel} onclick={raise} disabled={cantRaise}></lightning-button>
+                    </div>
+                </section>
             </div>
         </template>
 
         <!-- step 4: raised -->
         <template lwc:if={isRaised}>
+            <section class="rr-card rr-head">
+                <span class="rr-head-icon"><lightning-icon icon-name="utility:arrowup" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
+                <div class="rr-head-text">
+                    <p class="rr-kicker">{appName}</p>
+                    <h1 class="rr-title">New release</h1>
+                </div>
+                <ol class="rr-path" aria-label="Steps">
+                    <template for:each={pathSteps} for:item="s">
+                        <li key={s.key} class={s.cls} aria-current={s.current}>{s.label}</li>
+                    </template>
+                </ol>
+            </section>
             <c-rly-release-view release-id={raisedId}></c-rly-release-view>
             <div class="rr-row">
                 <lightning-button label="Raise another release" onclick={startOver}></lightning-button>

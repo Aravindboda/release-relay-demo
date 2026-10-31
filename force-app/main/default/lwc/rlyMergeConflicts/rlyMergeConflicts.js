@@ -83,6 +83,14 @@ export default class RlyMergeConflicts extends LightningElement {
         return text + ' Both sides changed the same lines. Choose for each file; the choices are committed to the release branch, then the checks run again.';
     }
 
+    /** The review window's line under the heading. */
+    get windowIntro() {
+        const n = this.conflicts.length;
+        const since = this.sourceName ? this.sourceName + '\'s branch started' : 'your branch started';
+        return n + (n === 1 ? ' file' : ' files') + ' changed on both sides since ' + since
+            + '. Choose what to keep for each file; your choices are committed to the release branch, then the checks run again.';
+    }
+
     choiceLabel(choice) {
         if (choice === 'mine') {
             return 'Keep mine';

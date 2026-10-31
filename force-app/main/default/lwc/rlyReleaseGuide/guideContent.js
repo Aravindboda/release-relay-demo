@@ -17,6 +17,8 @@
  * shot: { name: 'pipeline', cap } (a jpg in the RLY_Guide_Shots static resource).
  * Names of orgs and branches appear only in clearly marked examples; the screenshots come from a demo hub.
  * adminOnly sections show only to users with the RLY_Admin custom permission.
+ * more: cards of other sections shown under a section's own ({ key, only: block type, noAside }).
+ * "Release Relay" in the text is replaced with the app's name (Custom Label RLY_App_Name).
  */
 
 export const PROVIDERS = [
@@ -181,6 +183,7 @@ const SECTIONS = [
         group: 'start',
         label: 'Set up, step by step',
         adminOnly: true,
+        more: [{ key: 'repo-main' }, { key: 'how-order', only: 'seq', noAside: true }],
         cards: [
             {
                 key: 'setup-main',

@@ -65,7 +65,7 @@ private class RlyHotfixTest {
             System.assertEquals('Changes', rel.Request_Type__c, 'Request type unchanged');
             System.assertEquals('Org changes', rel.Mode__c, 'Mode unchanged');
             RlyReleasesController.Detail d = RlyReleasesController.getRelease(relId);
-            System.assert(d.hotfix, 'Shown as a hotfix');
+            System.assert(RlyHotfix.isHotfix(d.release), 'Shown as a hotfix');
             System.assertEquals('PROD', RlyHotfix.nextStop(orgId('UAT'), RlyReleaseStore.routeOrgs()).Name, 'The last stage goes to the hub');
             System.assertEquals(null, RlyHotfix.nextStop(orgId('PROD'), RlyReleaseStore.routeOrgs()), 'Nothing after the hub');
         }

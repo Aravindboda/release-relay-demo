@@ -35,7 +35,6 @@ public with sharing class RlyApprovalService {
         rel.Scan_Bypassed_By__c = UserInfo.getUserId();
         rel.Scan_Bypass_Reason__c = reason.trim().left(2000);
         RlyCheckReader.decide(rel);
-        RlyApprovalRuns.approveInGitIfSet(rel);
         saveAndNotify(rel, oldStatus);
         return rel;
     }
@@ -63,6 +62,7 @@ public with sharing class RlyApprovalService {
      */
     public static RLY_Release__c approveRelease(Id releaseId, String comment) {
         requireApprover();
+        RlyApprover.requireSalesforce(RlyReleaseStore.release(releaseId));
         return approveAs(releaseId, RlyApprover.currentUser(comment));
     }
 

@@ -32,12 +32,12 @@
     <template lwc:if={isOpen}>
         <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="rr-conflict-title" class="slds-modal slds-fade-in-open slds-modal_full rr-modal" onkeydown={handleKeydown}>
             <div class="slds-modal__container rr-modal-container">
-                <button type="button" class="slds-button slds-button_icon slds-modal__close" title="Close" onclick={closeReview}>
-                    <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
+                <button type="button" class="slds-button slds-button_icon rr-close" title="Close" onclick={closeReview}>
+                    <lightning-icon class="rr-close-icon" icon-name="utility:close" size="x-small" alternative-text="Close"></lightning-icon>
                 </button>
                 <div class="slds-modal__header rr-modal-head">
                     <h1 id="rr-conflict-title" class="slds-modal__title slds-hyphenate">{heading}</h1>
-                    <p class="rr-small rr-weak">{intro}</p>
+                    <p class="rr-small rr-weak">{windowIntro}</p>
                 </div>
                 <div class="slds-modal__content rr-modal-body">
                     <nav class="rr-files" aria-label="Files in conflict">

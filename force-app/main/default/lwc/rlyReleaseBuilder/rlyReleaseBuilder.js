@@ -109,6 +109,9 @@ export default class RlyReleaseBuilder extends LightningElement {
     // ---------- steps ----------
 
     get isSource() { return this.step === 'source'; }
+    /** The select step fits the screen: its lists scroll inside the card and the bar stays at the bottom. */
+    get pageCls() { return 'rr-page slds-is-relative' + (this.isSelect ? ' rr-page-fit' : ''); }
+    get sourceKicker() { return APP_NAME + ' hub · New release · step 1 of 4'; }
     get isSelect() { return this.step === 'select'; }
     get isReview() { return this.step === 'review'; }
 
@@ -136,7 +139,22 @@ export default class RlyReleaseBuilder extends LightningElement {
         return this.start && this.start.targetName ? this.start.targetName + ' · ' + this.start.targetBranch : 'not set';
     }
     get targetNote() {
-        return this.sourceOrg && this.sourceOrg.isStage ? '(its next stop: a hotfix)' : '(the first stage of the route)';
+        return this.sourceOrg && this.sourceOrg.isStage ? '(the next stage after ' + this.sourceOrg.Name + ')' : '(the first stage of the route)';
+    }
+    get sourceBranch() { return this.sourceOrg ? this.sourceOrg.Branch__c : ''; }
+    get hotfixTitle() {
+        const s = this.sourceOrg;
+        return s && s.isStage ? 'Hotfix from ' + s.Name + ' goes to ' + s.targetName + '.' : '';
+    }
+    get hotfixLead() {
+        const s = this.sourceOrg;
+        return s && s.isStage ? ' It\'s raised like any release (scan, check-only deploy to ' + s.targetName
+            + ' with its tests, approvals), and is committed to ' : '';
+    }
+    get hotfixTail() {
+        const s = this.sourceOrg;
+        return s && s.isStage ? ' first so ' + s.Name + ' and Git stay the same. Then it flows back to every dev branch so no org'
+            + ' overwrites it. Only users with the Hotfix permission see stage orgs here.' : '';
     }
     get isHotfix() { return !!(this.sourceOrg && this.sourceOrg.isStage); }
 
@@ -157,10 +175,10 @@ export default class RlyReleaseBuilder extends LightningElement {
                 id: s.Id,
                 name: s.Name,
                 branch: s.Branch__c,
-                next: '→ ' + s.targetName + ' · ' + s.targetBranch,
-                warning: 'Hotfix: changes made directly in ' + s.Name + '. They go to ' + s.targetName + '; afterwards '
-                    + s.targetName + ' flows back into ' + s.Name + '\'s branch and every developer branch.',
-                cls: 'rr-src rr-src-hotfix' + (on ? ' rr-src-on' : '') + (ready ? '' : ' rr-src-off'),
+                next: '→ ' + s.targetName + ', skips no checks',
+                showStatus: !ready,
+                status: s.Status__c || 'Not checked',
+                cls: 'rr-src' + (on ? ' rr-src-on' : '') + (ready ? '' : ' rr-src-off'),
                 pressed: on ? 'true' : 'false',
                 disabled: ready ? null : true
             };
@@ -175,7 +193,11 @@ export default class RlyReleaseBuilder extends LightningElement {
                 id: d.Id,
                 name: d.Name,
                 branch: d.Branch__c,
-                note: ready ? (d.Source_Tracking__c === 'Available' ? 'Fast: source tracking' : 'Metadata API') : 'Not connected: check it on the Pipeline tab',
+                note: ready
+                    ? (d.Source_Tracking__c === 'Available' ? 'Fast: source tracking' : 'Metadata API') + (this.start.targetName ? ' · → ' + this.start.targetName : '')
+                    : 'Not connected: check it on the Pipeline tab',
+                showStatus: !ready,
+                status: d.Status__c || 'Not checked',
                 cls: 'rr-src' + (on ? ' rr-src-on' : '') + (ready ? '' : ' rr-src-off'),
                 pressed: on ? 'true' : 'false',
                 disabled: ready ? null : true
@@ -352,11 +374,11 @@ export default class RlyReleaseBuilder extends LightningElement {
         });
         const order = ['Code', 'Automation', 'Data model', 'Access and UI', 'Other'];
         const nav = [{ key: 'g-all', isGroup: false, value: 'all', label: 'All changed', count: pool.length,
-            cls: 'rr-type' + (this.typeFilter === 'all' ? ' rr-type-on' : '') }];
+            cls: 'rr-type' + (this.typeFilter === 'all' ? ' rr-type-on' : ''), pressed: this.typeFilter === 'all' ? 'true' : 'false' }];
         order.filter((g) => groups[g]).forEach((g) => {
             nav.push({ key: 'g-' + g, isGroup: true, label: g });
             groups[g].sort().forEach((t) => nav.push({ key: 't-' + t, isGroup: false, value: t, label: words(t), count: counts[t],
-                cls: 'rr-type' + (this.typeFilter === t ? ' rr-type-on' : '') }));
+                cls: 'rr-type' + (this.typeFilter === t ? ' rr-type-on' : ''), pressed: this.typeFilter === t ? 'true' : 'false' }));
         });
         return nav;
     }
@@ -399,6 +421,7 @@ export default class RlyReleaseBuilder extends LightningElement {
                 kindCls: 'rr-pill ' + (c.standard ? 'rr-pill-std' : 'rr-pill-custom'),
                 when: c.modifiedOn ? new Date(c.modifiedOn).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '',
                 by: c.modifiedBy || '',
+                changedText: [c.modifiedOn ? new Date(c.modifiedOn).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '', c.modifiedBy || ''].join(' ').trim(),
                 selLabel: 'Select ' + c.name
             };
         });
@@ -506,7 +529,7 @@ export default class RlyReleaseBuilder extends LightningElement {
         return parts.join(' · ');
     }
     get ruleText() {
-        return 'Apex selected without a test class. Tick the test class that covers it (or add it by name): the release runs it in every org it deploys to.';
+        return 'Apex selected without a test class. Tick the test class that covers it (or add it by name).';
     }
     get suggestions() {
         if (!this.ruleBlocked) {
@@ -517,7 +540,7 @@ export default class RlyReleaseBuilder extends LightningElement {
             .filter((c) => c.type === 'ApexClass' && this.tests.has(c.name) && !this.selected.has(c.key)
                 && names.some((n) => c.name.toLowerCase().includes(n)))
             .slice(0, 3)
-            .map((c) => ({ key: c.key, name: c.name }));
+            .map((c) => ({ key: c.key, name: c.name, addLabel: 'Add ' + c.name }));
     }
     get hasSuggestions() { return this.suggestions.length > 0; }
 
@@ -575,7 +598,8 @@ export default class RlyReleaseBuilder extends LightningElement {
                 return {
                     key: c.key, name: c.name, typeLabel: isTest ? 'Apex test class' : words(c.type),
                     kind: c.standard ? 'Standard' : 'Custom', kindCls: 'rr-pill ' + (c.standard ? 'rr-pill-std' : 'rr-pill-custom'),
-                    removeLabel: 'Remove ' + c.name
+                    removeLabel: 'Remove ' + c.name,
+                    subText: (isTest ? 'Apex test class' : words(c.type)) + ' · ' + (c.deleted ? 'Deleted' : c.standard ? 'Standard' : 'Custom')
                 };
             })
             .sort((a, b) => (a.typeLabel + a.name).localeCompare(b.typeLabel + b.name));
@@ -594,6 +618,12 @@ export default class RlyReleaseBuilder extends LightningElement {
     raisedId;
 
     get isRaised() { return this.step === 'raise'; }
+    /** The target's branch, as the compare board names it (for example: main branch). */
+    get targetBranchLabel() {
+        const src = this.sourceOrg;
+        const branch = src && src.isStage ? src.targetBranch : this.start && this.start.targetBranch;
+        return branch ? branch + ' branch' : this.targetText;
+    }
     /** The provider's word for a pull request (merge request in GitLab); neutral when the provider isn't known. */
     get crWord() {
         const p = this.start && this.start.provider;
