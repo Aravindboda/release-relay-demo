@@ -1,0 +1,9 @@
+{
+ "request": "REL-00013",
+ "step": "merge",
+ "status": "Failed",
+ "pr": 11,
+ "message": "The merge was refused: GraphQL: Pull Request has merge conflicts (mergePullRequest) (conflicts, or a branch rule that needs a bypass for this pipeline).",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41215688571",
+ "finishedAt": "2026-10-31T15:36:56.826Z"
+}
