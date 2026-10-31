@@ -1,0 +1,19 @@
+{
+ "request": "REL-90027",
+ "step": "scan",
+ "status": "Passed",
+ "total": 0,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {},
+ "files": [
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+  "force-app/main/default/lwc/rlyPromote/rlyPromote.html"
+ ],
+ "violations": [],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41252960470",
+ "finishedAt": "2026-10-31T23:33:54.335Z"
+}
