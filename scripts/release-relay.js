@@ -12,6 +12,8 @@
  *                  developer org and committed the Metadata API zip to BRANCH as
  *                  .relay-inbox/<REQUEST_ID>.zip. Convert it to source format, replace the zip
  *                  with the files, push, open a PR/MR into TARGET. No org login is needed.
+ *                  MODE=resolve: merge TARGET into BRANCH, applying the choices the hub committed in
+ *                  .relay-inbox/<REQUEST_ID>-resolve.json for each conflicted file, then push.
  *   STEP=scan      Salesforce Code Analyzer on the files the PR/MR changes.
  *   STEP=validate  Check-only deployment of the PR/MR's changes to the target org.
  *   STEP=merge     Merge the PR/MR approved in Salesforce.
@@ -29,6 +31,9 @@
  * OPTIONS (JSON from Salesforce): {"hub":true} means the hub checked the route, so ALLOWED_TARGETS
  * isn't needed; {"tests":["AccountServiceTest"]} runs those tests (RunSpecifiedTests) when
  * validating and deploying, and {"tests":[]} means no Apex, so no tests run (NoTestRun).
+ * {"validateMerged":true} validates BRANCH merged with TARGET (conflicts are reported, not guessed);
+ * {"syncBranches":["dev1"]} merges TARGET into those branches after a merge, so every developer org's
+ * branch starts from the latest stage.
  *
  * Every input arrives as an environment variable and is validated here. Commands run with
  * execFileSync and argument arrays, never through a shell, so input can't inject commands.
@@ -253,7 +258,7 @@ function runUrl() {
 
 function checkCommonInputs() {
     if (!/^REL-\d{5,}$/.test(requestId)) { fail('REQUEST_ID must look like REL-00042.'); }
-    if (!['org', 'branch', 'promote', 'hub', 'check', 'merge'].includes(mode)) { fail('MODE must be org, branch, promote, hub, check or merge.'); }
+    if (!['org', 'branch', 'promote', 'hub', 'resolve', 'check', 'merge'].includes(mode)) { fail('MODE must be org, branch, promote, hub, resolve, check or merge.'); }
     if (!BRANCH_RE.test(branch)) { fail(`Branch "${branch}" must look like feature/short-name.`); }
     if (!REF_RE.test(target) || target === branch) { fail(`Target "${target}" isn't a valid target branch.`); }
     if (!/^[A-Za-z0-9_./-]+$/.test(sourcePath()) || sourcePath().includes('..')) { fail('SOURCE_PATH is invalid.'); }
@@ -864,7 +869,7 @@ const provider = providers[PROVIDER] || providers.github;
 
 async function stepRaise() {
     orgEnv = sourceEnv;
-    if (!['org', 'branch', 'promote', 'hub'].includes(mode)) { fail('MODE must be org, branch, promote or hub to raise.'); }
+    if (!['org', 'branch', 'promote', 'hub', 'resolve'].includes(mode)) { fail('MODE must be org, branch, promote, hub or resolve to raise.'); }
     checkAllowedTarget();
     if (!title) { fail('Title is required.'); }
     preparePush();
@@ -876,6 +881,11 @@ async function stepRaise() {
 
     if (mode === 'hub') {
         await raiseFromHub();
+        return;
+    }
+
+    if (mode === 'resolve') {
+        resolveConflicts();
         return;
     }
 
@@ -1084,8 +1094,20 @@ async function stepValidate() {
         return;
     }
     let plan;
+    let mergedWith = null;
     try {
-        const base = checkoutReleaseBranch();
+        let base;
+        if (options.validateMerged === true) {
+            const merged = mergeForValidation();
+            if (merged.conflicts) {
+                writeResult('validate', merged.conflicts);
+                return;
+            }
+            base = merged.base;
+            mergedWith = merged.base;
+        } else {
+            base = checkoutReleaseBranch();
+        }
         plan = buildDeployment(base, 'HEAD');
         if (!plan) {
             writeResult('validate', { status: 'Skipped', message: 'Nothing deployable changed under ' + sourcePath() + '.' });
@@ -1097,7 +1119,151 @@ async function stepValidate() {
         return;
     }
     const r = deployTo('target-org', plan, true);
-    writeResult('validate', { status: r.ok ? 'Passed' : 'Failed', changed: plan.changed, deleted: plan.deletedList, ...r });
+    writeResult('validate', { status: r.ok ? 'Passed' : 'Failed', changed: plan.changed, deleted: plan.deletedList, mergedWith, ...r });
+}
+
+const CONFLICT_TEXT_LIMIT = 15000;
+const CONFLICT_FILES_LIMIT = 6;
+
+function textAt(ref, file) {
+    const out = gitQuiet(['show', `${ref}:${file}`]);
+    return out === null ? null : out;
+}
+
+function clip(text) {
+    if (text === null || text === undefined) {
+        return { text: null, truncated: false };
+    }
+    return { text: text.slice(0, CONFLICT_TEXT_LIMIT), truncated: text.length > CONFLICT_TEXT_LIMIT };
+}
+
+function conflictedFiles() {
+    const out = gitQuiet(['diff', '--name-only', '--diff-filter=U']);
+    return out ? out.split('\n').filter(Boolean) : [];
+}
+
+/**
+ * Checks out TARGET and merges BRANCH into it locally (nothing is pushed), so validation deploys what
+ * the target will really get. Returns { base } (the target commit) or { conflicts } (a result to write).
+ */
+function mergeForValidation() {
+    fetchBranch(target);
+    fetchBranch(branch);
+    const base = git(['rev-parse', `refs/remotes/origin/${target}`]);
+    git(['checkout', '-q', '--detach', base]);
+    try {
+        run('git', ['merge', '--no-ff', '--no-commit', `refs/remotes/origin/${branch}`], { stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (e) {
+        const files = conflictedFiles();
+        if (!files.length) {
+            throw new Error('Merging ' + branch + ' into ' + target + ' failed: ' + String(e.stderr || e.message).slice(0, 500));
+        }
+        const conflicts = files.slice(0, CONFLICT_FILES_LIMIT).map((file) => {
+            const merged = clip(fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null);
+            const mine = clip(textAt(`refs/remotes/origin/${branch}`, file));
+            const theirs = clip(textAt(`refs/remotes/origin/${target}`, file));
+            return { file, merged: merged.text, mine: mine.text, theirs: theirs.text,
+                truncated: merged.truncated || mine.truncated || theirs.truncated };
+        });
+        gitQuiet(['merge', '--abort']);
+        return { conflicts: { status: 'Conflict', conflicts, conflictCount: files.length,
+            message: `${files.length} file(s) conflict with ${target}. Choose what to keep in Release Relay, then check again.` } };
+    }
+    // Nothing to merge (already contained) still needs a commit to diff against.
+    gitQuiet(['commit', '-q', '--allow-empty', '-m', `${requestId}: ${branch} merged into ${target} for validation`]);
+    return { base };
+}
+
+const MARKER_RE = /^(<{7}|>{7})( |$)/m;
+
+/** MODE=resolve: merge TARGET into BRANCH with the hub's per-file choices, then push. */
+function resolveConflicts() {
+    if (!remoteBranchExists(branch)) {
+        fail(`Branch ${branch} doesn't exist.`);
+    }
+    fetchBranch(target);
+    fetchBranch(branch);
+    git(['checkout', '-q', '-B', branch, `refs/remotes/origin/${branch}`]);
+    const inbox = path.join('.relay-inbox', requestId + '-resolve.json');
+    if (!fs.existsSync(inbox)) {
+        fail(`${inbox} isn't on ${branch}. Resolve the conflicts again in Release Relay.`);
+    }
+    let resolutions;
+    try {
+        resolutions = JSON.parse(fs.readFileSync(inbox, 'utf8')).resolutions || [];
+    } catch (e) {
+        fail(`${inbox} isn't valid JSON.`);
+    }
+    git(['rm', '-q', '--', inbox]);
+    git(['commit', '-q', '-m', `${requestId}: conflict choices received`]);
+    try {
+        run('git', ['merge', '--no-ff', '--no-commit', `refs/remotes/origin/${target}`], { stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (e) {
+        // conflicts expected: resolved below
+    }
+    const conflicted = new Set(conflictedFiles());
+    const byFile = new Map(resolutions.map((r) => [String(r.file), r]));
+    const missing = [...conflicted].filter((f) => !byFile.has(f));
+    if (missing.length) {
+        gitQuiet(['merge', '--abort']);
+        fail(`No choice was sent for: ${missing.join(', ')}. Resolve every file in Release Relay.`);
+    }
+    for (const file of conflicted) {
+        const r = byFile.get(file);
+        if (r.choice === 'mine' || r.choice === 'theirs') {
+            const ref = r.choice === 'mine' ? 'HEAD' : 'MERGE_HEAD';
+            if (gitQuiet(['cat-file', '-e', `${ref}:${file}`]) === null) {
+                git(['rm', '-q', '--', file]);
+                continue;
+            }
+            git(['checkout', `--${r.choice === 'mine' ? 'ours' : 'theirs'}`, '--', file]);
+        } else if (r.choice === 'edit' && typeof r.content === 'string' && !MARKER_RE.test(r.content)) {
+            fs.writeFileSync(file, r.content);
+        } else {
+            gitQuiet(['merge', '--abort']);
+            fail(`The choice for ${file} isn't valid (mine, theirs, or edited text without conflict markers).`);
+        }
+        git(['add', '--', file]);
+    }
+    if (conflictedFiles().length) {
+        gitQuiet(['merge', '--abort']);
+        fail('Some conflicts are still open after applying the choices.');
+    }
+    git(['commit', '-q', '--no-edit', '-m', `${requestId}: merge ${target} into ${branch} (conflicts resolved in Release Relay)`]);
+    git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
+    summary(`Resolved ${conflicted.size} conflicted file(s) on ${branch}: ${[...conflicted].join(', ')}`);
+}
+
+/** After a merge: brings TARGET into each developer branch listed in OPTIONS.syncBranches. */
+function syncDeveloperBranches() {
+    const branches = Array.isArray(options.syncBranches) ? options.syncBranches.map(String) : [];
+    const out = [];
+    if (!branches.length) {
+        return out;
+    }
+    fetchBranch(target);
+    for (const b of branches) {
+        if (!REF_RE.test(b) || b === target) {
+            out.push({ branch: b, status: 'Missing', message: 'Not a valid branch name.' });
+            continue;
+        }
+        if (!remoteBranchExists(b)) {
+            out.push({ branch: b, status: 'Missing', message: `${b} doesn't exist in the repository.` });
+            continue;
+        }
+        try {
+            fetchBranch(b);
+            git(['checkout', '-q', '-B', b, `refs/remotes/origin/${b}`]);
+            run('git', ['merge', '--no-edit', '-m', `Release Relay ${requestId}: bring ${target} into ${b}`, `refs/remotes/origin/${target}`],
+                { stdio: ['ignore', 'pipe', 'pipe'] });
+            git(['push', '-q', 'origin', `HEAD:refs/heads/${b}`]);
+            out.push({ branch: b, status: 'Synced', message: `${b} now includes ${target}.` });
+        } catch (e) {
+            gitQuiet(['merge', '--abort']);
+            out.push({ branch: b, status: 'Conflict', message: `${b} couldn't take ${target} automatically: ${String(e.stderr || e.message).slice(0, 300)}` });
+        }
+    }
+    return out;
 }
 
 // ---------- step: merge ----------
@@ -1140,7 +1306,13 @@ async function stepMerge() {
         writeResult('merge', { status: 'Failed', pr: Number(pr.id), message: 'Merged, but the merge commit couldn\'t be read.' });
         process.exit(1);
     }
-    writeResult('merge', { status: 'Merged', pr: Number(pr.id), sha, method });
+    let sync = [];
+    try {
+        sync = syncDeveloperBranches();
+    } catch (e) {
+        sync = [{ branch: '*', status: 'Conflict', message: 'Updating the developer branches failed: ' + e.message.slice(0, 300) }];
+    }
+    writeResult('merge', { status: 'Merged', pr: Number(pr.id), sha, method, sync });
     shareMergeSha(sha);
 }
 

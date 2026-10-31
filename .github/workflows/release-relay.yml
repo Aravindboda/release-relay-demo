@@ -6,6 +6,8 @@
 #                components (from the previous stage), open a pull request, then scan and validate it.
 #   mode=hub     the Release Relay hub committed its retrieve (a Metadata API zip) to the branch:
 #                convert it to source format, open a pull request into the target, scan and validate.
+#   mode=resolve merge the target into the branch with the conflict choices the hub committed, then
+#                scan and validate again.
 #   mode=check   scan and validate an open pull request again (after a fix, or on request).
 #   mode=merge   merge the pull request approved in Salesforce, then deploy it to the target org.
 # Validation and deployment run only when Salesforce passes a target environment (the GitHub
@@ -26,10 +28,10 @@ on:
         required: true
         type: string
       mode:
-        description: org, branch, promote, hub, check or merge
+        description: org, branch, promote, hub, resolve, check or merge
         required: true
         type: choice
-        options: [org, branch, promote, hub, check, merge]
+        options: [org, branch, promote, hub, resolve, check, merge]
       environment:
         description: GitHub environment of the source org
         required: true
@@ -87,7 +89,7 @@ env:
 
 jobs:
   raise:
-    if: ${{ inputs.mode == 'org' || inputs.mode == 'branch' || inputs.mode == 'promote' || inputs.mode == 'hub' }}
+    if: ${{ inputs.mode == 'org' || inputs.mode == 'branch' || inputs.mode == 'promote' || inputs.mode == 'hub' || inputs.mode == 'resolve' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     timeout-minutes: 30
