@@ -1,0 +1,26 @@
+{
+ "request": "REL-00015",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 4,
+ "deleted": [],
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cHsKfSAK",
+ "testsRun": 1,
+ "tests": [
+  "RlyDemoDiscountTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [
+  {
+   "name": "RlyDemoDiscountTest",
+   "method": "tenPercentOff",
+   "message": "System.AssertException: Assertion Failed: Expects 20% off, but the rule gives 10%: Expected: 80, Actual: 90.0"
+  }
+ ],
+ "message": "1 test failure(s)",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41224902257",
+ "finishedAt": "2026-10-31T17:32:21.527Z"
+}
