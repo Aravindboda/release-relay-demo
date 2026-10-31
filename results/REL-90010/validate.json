@@ -1,0 +1,144 @@
+{
+ "request": "REL-90010",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 246,
+ "deleted": [],
+ "mergedWith": "2dbe36b72fdbd6e9675fb1bdb3414d3d1ee3fccc",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cIRezSAG",
+ "testsRun": 0,
+ "tests": [
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyDeployReaderTest",
+  "RlyGitAdviceTest",
+  "RlyGitProvidersTest",
+  "RlyHotfixTest",
+  "RlyOrgControllerTest",
+  "RlyOrgSessionTest",
+  "RlyPullRequestCloseTest",
+  "RlyRaiseServiceTest",
+  "RlyRouteControllerTest",
+  "RlySlackActionsTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRunsTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyConsumerKeyTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyOrgController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyOrgControllerTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyOrgSessionTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyOrgValidator",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRouteController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRouteControllerTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRouteController : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackAction",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackDirectory : Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackActions",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackAction : Dependent class is invalid and needs recompilation:\n Class RlySlackDirectory : Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackActionsTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackActions : Dependent class is invalid and needs recompilation:\n Class RlySlackAction : Dependent class is invalid and needs recompilation:\n Class RlySlackDirectory : Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackDirectory",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackRules",
+   "problem": "Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackDirectory : Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Method does not exist or incorrect signature: void matcher(String) from the type String",
+   "line": 37
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Slack_Site",
+   "problem": "Description: data value too large: For the guest user of the Salesforce Site that receives Slack&#39;s Approve and Reject (Apex REST /rly/slack/actions) only. The code checks Slack&#39;s signature and the linked approver, then works in system mode. Also grant the Git credential&#39;s principal (External Credential Principal Access) here. (max length=255)"
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyReleaseGuide",
+   "problem": "Unable to find Apex action class referenced as 'RlyRouteController'."
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Admin",
+   "problem": "In field: apexClass - no ApexClass named RlyOrgController found"
+  }
+ ],
+ "testFailures": [],
+ "message": "18 component error(s)",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41239085823",
+ "finishedAt": "2026-10-31T20:30:29.051Z"
+}
