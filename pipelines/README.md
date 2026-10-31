@@ -1,4 +1,4 @@
-<!-- Release Relay pipeline files: version 9 -->
+<!-- Release Relay pipeline files: version 10 -->
 # Release Relay pipelines for GitLab, Bitbucket and Azure DevOps
 
 These files do what `.github/workflows/release-relay.yml` does on GitHub, with the same modes
@@ -61,7 +61,10 @@ the target's lines where they conflict; otherwise a conflict is reported for tha
 
 - `raise.json` (modes `hub` and `promote` started by the hub): `status` `Opened` or `Failed`, `mode`, `branch`,
   `target`, `sha` (the branch head pushed), `pr` (number), `url`, `commits` (promote: the merge commits picked),
-  `conflicts` (promote: files a commit conflicted on), `message`.
+  `conflicts` (promote: files a commit conflicted on), `deleted` (mode `hub`: the `Type:Name` deletions removed
+  from the branch; `[]` otherwise), `message`.
+- `validate.json` and `deploy.json` list `deleted` (`Type:Name`): the components deployed as
+  `destructiveChangesPost.xml` because their files were removed.
 - `scan.json`: as before. `validate.json` also records `mergedWith` (the target commit validated against),
   `validatedTree` (the merged files' tree) and `environment`.
 - `deploy.json`: as before, plus `quick` (true when the validation was quick deployed) and `quickNote` (why it
@@ -71,6 +74,17 @@ the target's lines where they conflict; otherwise a conflict is reported for tha
 - `sync.json` (mode `sync`): `status` `Deployed`, `Nothing to deploy`, `Conflict` or `Failed`, `sha` (the
   back-promote branch's new head; for a conflict the production head that couldn't be merged), `deployId`,
   `testsRun`, `conflicts` (files), `message`.
+
+**Deletions (mode `hub`).** `deletions` is a comma-separated `Type:Name` list. The hub commits either
+`.relay-inbox/<REQUEST_ID>.zip` (the retrieve), `.relay-inbox/<REQUEST_ID>.deletions` (a marker, empty or holding the
+same list, when the release has only deletions), or both; the pipeline accepts any of these and removes both files.
+Each deletion's files must be on the branch (`ApexClass:X` = `classes/X.cls` + `-meta.xml`, bundles and
+`CustomObject` = their folder, `CustomField:Object.Field` etc. = the child file, `StaticResource` = the resource and
+its `-meta.xml`), else `raise.json` is `Failed` with "<Type> <Name> isn't in <branch>, so there's nothing to
+delete." A component both added and deleted fails the raise. The files are removed in the same commit as the
+converted components; validate (check-only) and deploy then send the removed components as
+`destructiveChangesPost.xml`, and a quick deploy of that validation includes them. A custom object deleted as a whole
+is sent as the object alone (its fields and other children go with it).
 
 **Quick deploy.** After a merge, the deploy step quick deploys the release's validation
 (`sf project deploy quick --job-id <validate.json deployId>`, no tests run again) when all of these hold:
