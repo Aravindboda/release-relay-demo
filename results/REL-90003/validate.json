@@ -1,0 +1,35 @@
+{
+ "request": "REL-90003",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 149,
+ "deleted": [],
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cHkRxSAK",
+ "testsRun": 54,
+ "tests": [
+  "RlyApprovalServiceTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyConsumerKeyTest",
+  "RlyDeployReaderTest",
+  "RlyGitProvidersTest",
+  "RlyOrgControllerTest",
+  "RlyOrgSessionTest",
+  "RlyRaiseServiceTest",
+  "RlyRouteControllerTest",
+  "RlyStatusReaderTest"
+ ],
+ "coverageWarnings": [
+  {
+   "name": "RlyGitAdvice",
+   "message": "Test coverage of selected Apex Class is 70%, at least 75% test coverage is required"
+  }
+ ],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "Deployment failed",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41221062372",
+ "finishedAt": "2026-10-31T16:45:28.740Z"
+}
