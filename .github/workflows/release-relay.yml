@@ -2,6 +2,8 @@
 #   mode=org     retrieve the selected components from the source org, apply deletions, commit to a
 #                new branch, open a pull request into the target branch, then scan and validate it.
 #   mode=branch  open a pull request from a branch that already exists, then scan and validate it.
+#   mode=promote make a promote/ branch from the target, cherry-pick the merge commits listed in
+#                components (from the previous stage), open a pull request, then scan and validate it.
 #   mode=check   scan and validate an open pull request again (after a fix, or on request).
 #   mode=merge   merge the pull request approved in Salesforce, then deploy it to the target org.
 # Validation and deployment run only when Salesforce passes a target environment (the GitHub
@@ -20,10 +22,10 @@ on:
         required: true
         type: string
       mode:
-        description: org, branch, check or merge
+        description: org, branch, promote, check or merge
         required: true
         type: choice
-        options: [org, branch, check, merge]
+        options: [org, branch, promote, check, merge]
       environment:
         description: GitHub environment of the source org
         required: true
@@ -46,7 +48,7 @@ on:
         required: true
         type: string
       components:
-        description: Type:Name list to retrieve, comma separated
+        description: Type:Name list to retrieve, comma separated (promote = merge commits to cherry-pick)
         required: false
         type: string
         default: ''
@@ -81,7 +83,7 @@ env:
 
 jobs:
   raise:
-    if: ${{ inputs.mode == 'org' || inputs.mode == 'branch' }}
+    if: ${{ inputs.mode == 'org' || inputs.mode == 'branch' || inputs.mode == 'promote' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     timeout-minutes: 30

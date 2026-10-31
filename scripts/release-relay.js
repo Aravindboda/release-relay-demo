@@ -5,6 +5,9 @@
  *   STEP=raise     MODE=org: retrieve COMPONENTS from the source org, remove DELETIONS, write a
  *                  destructive manifest, commit to a new BRANCH from TARGET, push, open a PR/MR.
  *                  MODE=branch: open a PR/MR from an existing BRANCH into TARGET.
+ *                  MODE=promote: make BRANCH (promote/rel-...) from TARGET, cherry-pick the merge
+ *                  commits listed in COMPONENTS (oldest first) from the previous stage, push,
+ *                  open a PR/MR into TARGET.
  *   STEP=scan      Salesforce Code Analyzer on the files the PR/MR changes.
  *   STEP=validate  Check-only deployment of the PR/MR's changes to the target org.
  *   STEP=merge     Merge the PR/MR approved in Salesforce.
@@ -30,7 +33,7 @@ const os = require('os');
 const path = require('path');
 
 const env = process.env;
-const BRANCH_RE = /^(feature|bugfix|hotfix)\/[a-z0-9._-]{1,100}$/;
+const BRANCH_RE = /^(feature|bugfix|hotfix|promote)\/[a-z0-9._-]{1,100}$/;
 const REF_RE = /^[A-Za-z0-9._/-]{1,100}$/;
 const ITEM_RE = /^([A-Za-z]{2,80}):([^,:\r\n]{1,255})$/;
 
@@ -232,7 +235,7 @@ function runUrl() {
 
 function checkCommonInputs() {
     if (!/^REL-\d{5,}$/.test(requestId)) { fail('REQUEST_ID must look like REL-00042.'); }
-    if (!['org', 'branch', 'check', 'merge'].includes(mode)) { fail('MODE must be org, branch, check or merge.'); }
+    if (!['org', 'branch', 'promote', 'check', 'merge'].includes(mode)) { fail('MODE must be org, branch, promote, check or merge.'); }
     if (!BRANCH_RE.test(branch)) { fail(`Branch "${branch}" must look like feature/short-name.`); }
     if (!REF_RE.test(target) || target === branch) { fail(`Target "${target}" isn't a valid target branch.`); }
     if (!/^[A-Za-z0-9_./-]+$/.test(sourcePath()) || sourcePath().includes('..')) { fail('SOURCE_PATH is invalid.'); }
@@ -821,10 +824,15 @@ const provider = providers[PROVIDER] || providers.github;
 
 async function stepRaise() {
     orgEnv = sourceEnv;
-    if (mode !== 'org' && mode !== 'branch') { fail('MODE must be org or branch to raise.'); }
+    if (!['org', 'branch', 'promote'].includes(mode)) { fail('MODE must be org, branch or promote to raise.'); }
     checkAllowedTarget();
     if (!title) { fail('Title is required.'); }
     preparePush();
+
+    if (mode === 'promote') {
+        await raisePromotion();
+        return;
+    }
 
     if (mode === 'branch') {
         if (!remoteBranchExists(branch)) {
@@ -899,6 +907,58 @@ async function stepRaise() {
         'Every item was reviewed in Release Relay. Approve it in Salesforce; Release Relay merges it.'
     ].filter(Boolean).join('\n\n');
 
+    const url = await provider.open(branch, target, title, body);
+    summary(`**${provider.label}:** ${url}\n\n${branch} → ${target}, release ${requestId}\n\n${body}`);
+}
+
+/**
+ * A promotion: a new branch from the next stage, with the carried releases' merge commits
+ * cherry-picked onto it in the order Salesforce sent them (oldest merge first).
+ */
+async function raisePromotion() {
+    const shas = (input('COMPONENTS') || '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (!shas.length || shas.some((x) => !SHA_RE.test(x))) {
+        fail('COMPONENTS must list the merge commits to promote, as full 40-character hashes.');
+    }
+    if (remoteBranchExists(branch)) { fail(`Branch ${branch} already exists. Promote again to get a new branch.`); }
+
+    git(['fetch', '--no-tags', 'origin']); // the commits live on the previous stage's branch
+    fetchBranch(target);
+    git(['checkout', '-q', '-B', branch, `refs/remotes/origin/${target}`]);
+
+    const picked = [];
+    for (const sha of shas) {
+        if (gitQuiet(['cat-file', '-t', sha]) !== 'commit') {
+            fail(`Commit ${sha.slice(0, 7)} isn't in the repository. Was its branch rewritten?`);
+        }
+        const parents = (gitQuiet(['rev-list', '--parents', '-n', '1', sha]) || '').split(' ').length - 1;
+        // A merge commit is picked against its first parent: the stage branch before the merge.
+        const args = ['cherry-pick', '-x', '--allow-empty', '--keep-redundant-commits'];
+        if (parents > 1) { args.push('-m', '1'); }
+        args.push(sha);
+        try {
+            execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+        } catch (e) {
+            const files = gitQuiet(['diff', '--name-only', '--diff-filter=U']) || '';
+            gitQuiet(['cherry-pick', '--abort']);
+            fail(`${sha.slice(0, 7)} doesn't apply cleanly on ${target}`
+                + (files ? ` (conflicts in ${files.split('\n').slice(0, 5).join(', ')})` : '')
+                + '. Promote the releases it depends on first, or resolve it in a branch and raise that branch.');
+        }
+        picked.push(sha);
+    }
+    if (git(['diff', '--name-only', `refs/remotes/origin/${target}`, 'HEAD']) === '') {
+        fail(`Everything in these commits is already in ${target}. Nothing to promote.`);
+    }
+    git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
+
+    const body = [
+        `Raised from Release Relay, release ${requestId}.`,
+        '**Request type:** Promotion',
+        `Promotes into \`${target}\` the changes already deployed to the previous stage, cherry-picked in this order:`,
+        picked.map((x) => `- ${x.slice(0, 7)}`).join('\n'),
+        'Approve it in Salesforce; Release Relay merges it and deploys it.'
+    ].join('\n\n');
     const url = await provider.open(branch, target, title, body);
     summary(`**${provider.label}:** ${url}\n\n${branch} → ${target}, release ${requestId}\n\n${body}`);
 }
@@ -1012,7 +1072,7 @@ async function stepDeploy() {
 // ---------- step: auto (one job runs everything MODE needs) ----------
 
 async function stepAuto() {
-    if (mode === 'org' || mode === 'branch') {
+    if (mode === 'org' || mode === 'branch' || mode === 'promote') {
         await stepRaise();
         await stepScan();
         await stepValidate();
