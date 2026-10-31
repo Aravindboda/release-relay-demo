@@ -1,0 +1,31 @@
+{
+ "request": "REL-00013",
+ "step": "scan",
+ "status": "Passed",
+ "total": 1,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Low": 1
+ },
+ "files": [
+  "force-app/main/default/classes/RlyDemoGreeting.cls"
+ ],
+ "violations": [
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyDemoGreeting.cls",
+   "line": 3,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  }
+ ],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41215167911",
+ "finishedAt": "2026-10-31T15:32:08.812Z"
+}
