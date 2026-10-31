@@ -66,12 +66,71 @@ public with sharing class RlyApprover {
     }
 
     /**
-     * @description Where releases into an org are approved.
-     * @param org the target org, with Approval_In__c (or null)
-     * @return Salesforce, Slack or Git; blank is Salesforce, and so is Slack while Slack is off
+     * @description Whether releases into an org can be approved in Salesforce. Always true when Slack approval isn't
+     * available, so every org can be approved somewhere.
+     * @param org the target org (or null)
+     * @return true when Salesforce approval is on
+     */
+    public static Boolean inSalesforce(RLY_Org__c org) {
+        if (org == null || !inSlack(org)) {
+            return true;
+        }
+        return usesToggles(org) ? org.Approve_In_Salesforce__c == true : org.Approval_In__c != IN_SLACK;
+    }
+
+    /**
+     * @description Whether releases into an org can be approved from their Slack card (and Slack is on).
+     * @param org the target org (or null)
+     * @return true when Slack approval is on
+     */
+    public static Boolean inSlack(RLY_Org__c org) {
+        if (org == null || !RlySlack.isOn()) {
+            return false;
+        }
+        return usesToggles(org) ? org.Approve_In_Slack__c == true : org.Approval_In__c == IN_SLACK;
+    }
+
+    /**
+     * @description Whether the deploy into an org also waits for the Git provider's environment reviewers.
+     * @param org the target org (or null)
+     * @return true when Git review is required
+     */
+    public static Boolean gitReview(RLY_Org__c org) {
+        if (org == null) {
+            return false;
+        }
+        return org.Require_Git_Review__c == true || org.Approval_In__c == IN_GIT;
+    }
+
+    /**
+     * @description Where releases into an org are approved, in words: Salesforce, Slack, or Salesforce or Slack.
+     * @param org the target org (or null)
+     * @return the places, for the release page
      */
     public static String approvalIn(RLY_Org__c org) {
-        String value = org == null || String.isBlank(org.Approval_In__c) ? IN_SALESFORCE : org.Approval_In__c;
-        return value == IN_SLACK && !RlySlack.isOn() ? IN_SALESFORCE : value;
+        List<String> places = new List<String>();
+        if (inSalesforce(org)) {
+            places.add(IN_SALESFORCE);
+        }
+        if (inSlack(org)) {
+            places.add(IN_SLACK);
+        }
+        String text = String.join(places, ' or ');
+        return gitReview(org) ? text + ', then ' + RlyGitName.reviewers() + ' reviewers' : text;
+    }
+
+    /**
+     * @description Refuses a Salesforce approval for a release into an org approved only from Slack.
+     * @param rel the release (or null)
+     */
+    public static void requireSalesforce(RLY_Release__c rel) {
+        if (rel != null && !inSalesforce(rel.Target_Org__r)) {
+            throw new RlyReleaseException('Releases into ' + rel.Target_Org__r.Name + ' are approved from their Slack card.');
+        }
+    }
+
+    // Rows saved since the toggles came use them; older rows (no toggle switched from its default) use Approval_In__c.
+    private static Boolean usesToggles(RLY_Org__c org) {
+        return String.isBlank(org.Approval_In__c) || org.Approve_In_Slack__c == true || org.Approve_In_Salesforce__c != true;
     }
 }

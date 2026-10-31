@@ -33,7 +33,6 @@ const STEP_DOT = {
     Warn: 'rr-dot rr-dot-warn',
     Waiting: 'rr-dot'
 };
-const APPROVED_IN = { Salesforce: 'Salesforce', Slack: 'Slack' };
 const PATH = [
     { key: 'raised', label: 'Raised' },
     { key: 'pr', label: '' },
@@ -92,6 +91,14 @@ function providerOf(detail, url) {
         return 'Azure DevOps';
     }
     return null;
+}
+
+/** A metadata type for people: ApexClass → Apex Class, and Apex test class for the release's tests. */
+function typeLabel(type, isTest) {
+    if (type === 'ApexClass' && isTest) {
+        return 'Apex test class';
+    }
+    return (type || '').replace(/([a-z])([A-Z])/g, '$1 $2');
 }
 
 function when(value) {
@@ -220,27 +227,19 @@ export default class RlyReleaseView extends LightningElement {
 
     get pathSteps() {
         const pos = pathPosition(this.rel);
-        const deployed = this.rel.Status__c === 'Deployed';
         return PATH.map((p, i) => {
-            let state = 'incomplete';
+            let state = 'todo';
             if (i < pos.index) {
-                state = 'complete';
+                state = 'done';
             } else if (i === pos.index) {
                 state = pos.failed ? 'lost' : 'current';
-            }
-            let cls = 'slds-path__item slds-is-' + state;
-            if (state === 'current' || state === 'lost') {
-                cls += ' slds-is-active';
-            }
-            if (deployed && i === PATH.length - 1) {
-                cls = 'slds-path__item slds-is-won';
             }
             return {
                 ...p,
                 label: p.key === 'pr' ? this.crLabel : p.label,
-                cls,
+                cls: 'rr-path-item rr-path-' + state,
                 current: i === pos.index ? 'step' : null,
-                stateText: state === 'complete' ? 'Done' : state === 'lost' ? 'Failed' : state === 'current' ? 'Current' : 'Not yet'
+                stateText: { done: 'Done', lost: 'Failed', current: 'Current', todo: 'Not yet' }[state]
             };
         });
     }
@@ -253,13 +252,10 @@ export default class RlyReleaseView extends LightningElement {
         const tests = this.detail && Array.isArray(this.detail.tests) ? this.detail.tests : [];
         return tests.length ? tests.join(', ') : 'None (no Apex)';
     }
-    /** Where the target org is approved (Approval_In__c: Salesforce, Slack or Git), and where it was, once approved. */
-    get approvedInText() {
-        const value = (this.detail && this.detail.approvedIn) || 'Salesforce';
-        const where = APPROVED_IN[value] || (value === 'Git' ? (this.provider || 'Git provider') : value);
-        const via = this.rel.Approved_Via__c;
-        return via && via !== where ? where + ' · approved in ' + via : where;
-    }
+    /** Where releases into the target org are approved, as Detail.approvedIn gives it (for example "Salesforce or Slack"). */
+    get approvedInText() { return (this.detail && this.detail.approvedIn) || 'Salesforce'; }
+    /** False when this release can't be approved in Salesforce (its target org approves from the Slack card). */
+    get approveHere() { return !(this.detail && this.detail.approveHere === false); }
 
     // ---------- progress ----------
 
@@ -432,9 +428,7 @@ export default class RlyReleaseView extends LightningElement {
                 + (r.Approved_Via__c ? ' in ' + r.Approved_Via__c : '') + (r.Approval_Comment__c ? ': ' + r.Approval_Comment__c : '');
         } else if (s === 'Ready for approval') {
             state = 'Running';
-            text = this.detail && this.detail.approvedIn === 'Git'
-                ? 'Waiting for approval in ' + (this.provider || 'the Git provider') + '.'
-                : 'Waiting for an approver.';
+            text = this.approveHere ? 'Waiting for an approver.' : 'Waiting for approval in ' + this.approvedInText + '.';
         }
         return { key: 'approval', title: 'Approval', state, text };
     }
@@ -502,8 +496,9 @@ export default class RlyReleaseView extends LightningElement {
     get validationPillCls() { return this.validationLabel === 'Conflict' ? 'rr-pill rr-pill-wait' : pillCls(this.validationLabel); }
 
     get items() {
+        const tests = this.detail && Array.isArray(this.detail.tests) ? this.detail.tests : [];
         return (this.detail && this.detail.items ? this.detail.items : []).map((i) => ({
-            key: i.Id, dtKey: i.Id + 't', type: i.Metadata_Type__c, name: i.Component_Name__c
+            key: i.Id, dtKey: i.Id + 't', type: typeLabel(i.Metadata_Type__c, tests.includes(i.Component_Name__c)), name: i.Component_Name__c
         }));
     }
     get itemCount() { return String(this.items.length); }
@@ -565,7 +560,9 @@ export default class RlyReleaseView extends LightningElement {
     // ---------- actions ----------
 
     get isApprover() { return !!(this.detail && this.detail.isApprover); }
-    get canApprove() { return this.isApprover && this.rel.Status__c === 'Ready for approval'; }
+    get canApprove() { return this.isApprover && this.approveHere && this.rel.Status__c === 'Ready for approval'; }
+    /** Ready for approval, but approved from the Slack card rather than here. */
+    get approvedElsewhere() { return !this.approveHere && this.rel.Status__c === 'Ready for approval'; }
     get canReject() { return this.isApprover && (this.rel.Status__c === 'Ready for approval' || this.rel.Status__c === 'Checks failed'); }
     get canBypass() {
         return this.isApprover && this.rel.Status__c === 'Checks failed'
@@ -579,7 +576,7 @@ export default class RlyReleaseView extends LightningElement {
     get waitingForChecks() { return this.running && ['Retrieving', 'Workflow running', 'Validating'].includes(this.rel.Status__c); }
     get showCheckAgain() { return this.waitingForChecks || this.canCheckAgain; }
     get showReject() { return (this.waitingForChecks && this.isApprover) || this.canReject; }
-    get showApprove() { return (this.waitingForChecks && this.isApprover) || this.canApprove; }
+    get showApprove() { return (this.waitingForChecks && this.isApprover && this.approveHere) || this.canApprove; }
     get checkAgainDisabled() { return this.busy || !this.canCheckAgain; }
     get rejectDisabled() { return this.busy || !this.canReject; }
     get approveDisabled() { return this.busy || !this.canApprove; }
@@ -589,6 +586,9 @@ export default class RlyReleaseView extends LightningElement {
     get footNote() {
         if (this.waitingForChecks) {
             return 'Actions show when the checks finish.';
+        }
+        if (this.approvedElsewhere) {
+            return 'Approved from the Slack card.';
         }
         if (this.needsApproverNote) {
             return 'An approver approves or rejects it on the Approvals tab.';

@@ -46,7 +46,6 @@ public with sharing class RlyStatusReader {
             RlyDeployReader.readDeploy(rel, git);
         } else {
             RlyCheckReader.readChecks(rel, git);
-            RlyApprovalRuns.approveInGitIfSet(rel);
         }
     }
 

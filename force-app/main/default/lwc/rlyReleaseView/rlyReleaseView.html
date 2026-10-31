@@ -12,7 +12,6 @@
                         <p class="rr-kicker">{eyebrow}</p>
                         <h1 class="rr-title">{rel.Title__c}</h1>
                     </div>
-                    <template lwc:if={detail.hotfix}><span class="rr-pill rr-pill-wait" title="Raised from a stage org">Hotfix</span></template>
                     <span class={phaseCls}>{phase}</span>
                     <template lwc:if={detail.slackUrl}>
                         <a class="slds-button slds-button_neutral" href={detail.slackUrl} target="_blank" rel="noopener">Open in Slack</a>
@@ -25,28 +24,11 @@
                     </template>
                 </div>
 
-                <div class="slds-path rr-path">
-                    <div class="slds-grid slds-path__track">
-                        <div class="slds-grid slds-path__scroller-container">
-                            <div class="slds-path__scroller">
-                                <div class="slds-path__scroller_inner">
-                                    <ul class="slds-path__nav" aria-label="Release path">
-                                        <template for:each={pathSteps} for:item="p">
-                                            <li key={p.key} class={p.cls} aria-current={p.current}>
-                                                <span class="slds-path__link">
-                                                    <span class="slds-path__stage">
-                                                        <lightning-icon icon-name="utility:check" size="xx-small" variant="inverse" alternative-text={p.stateText}></lightning-icon>
-                                                    </span>
-                                                    <span class="slds-path__title">{p.label}</span>
-                                                </span>
-                                            </li>
-                                        </template>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <ol class="rr-path" aria-label="Release path">
+                    <template for:each={pathSteps} for:item="p">
+                        <li key={p.key} class={p.cls} aria-current={p.current}>{p.label}<span class="slds-assistive-text">: {p.stateText}</span></li>
+                    </template>
+                </ol>
 
                 <div class="rr-hl">
                     <div>
@@ -76,7 +58,6 @@
                         <lightning-button label="Check now" onclick={refresh} disabled={checking}></lightning-button>
                     </div>
 
-                    <template lwc:if={detail.notice}><div class="rr-msg rr-msg-info rr-note" role="status">{detail.notice}</div></template>
                     <template lwc:if={errorBanner}><div class={errorBannerCls} role="alert">{errorBanner}</div></template>
 
                     <ol class="rr-steps" aria-live="polite">
@@ -97,6 +78,8 @@
                             </li>
                         </template>
                     </ol>
+
+                    <template lwc:if={detail.notice}><div class="rr-msg rr-msg-warn rr-notice" role="status">{detail.notice}</div></template>
 
                     <template lwc:if={hasConflicts}>
                         <div class="rr-pad-all rr-line-top">

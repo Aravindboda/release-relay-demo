@@ -77,22 +77,11 @@ public with sharing class RlyApprovalRuns {
     }
 
     /**
-     * @description Whether releases into the target org are approved in the Git provider.
-     * @param rel the release, with Target_Org__r.Approval_In__c
-     * @return true for Git
+     * @description Whether the deploy into the release's target org also waits for the Git provider's reviewers.
+     * @param rel the release, with its target org's approval fields
+     * @return true when Git review is required
      */
     public static Boolean approvedInGit(RLY_Release__c rel) {
-        return RlyApprover.approvalIn(rel.Target_Org__r) == RlyApprover.IN_GIT;
-    }
-
-    /**
-     * @description A release whose checks just passed, into an org approved in the Git provider: starts its merge now.
-     * @param rel the release
-     */
-    public static void approveInGitIfSet(RLY_Release__c rel) {
-        if (rel.Status__c == 'Ready for approval' && approvedInGit(rel)) {
-            RlyGit git = RlyGit.forConnection(RlyReleaseStore.git());
-            startMerge(rel, git, RlyApprover.gitProvider(git.providerLabel()));
-        }
+        return RlyApprover.gitReview(rel.Target_Org__r);
     }
 }

@@ -32,6 +32,21 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>RLY_Org__c.Approve_In_Salesforce__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>RLY_Org__c.Approve_In_Slack__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>RLY_Org__c.Require_Git_Review__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>RLY_Org__c.Slack_Channel__c</field>
         <readable>true</readable>
     </fieldPermissions>
