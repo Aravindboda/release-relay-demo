@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Where Release Relay sends notifications: one record per channel (Slack). Admins change it on the Pipeline tab; the flow reads it in Apex. The webhook URL is encrypted and never sent to the browser.</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>false</enableHistory>
+    <enableReports>false</enableReports>
+    <enableSearch>false</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <label>Release Relay Notification</label>
+    <nameField>
+        <label>Notification Name</label>
+        <type>Text</type>
+    </nameField>
+    <pluralLabel>Release Relay Notifications</pluralLabel>
+    <searchLayouts></searchLayouts>
+    <sharingModel>Private</sharingModel>
+</CustomObject>
