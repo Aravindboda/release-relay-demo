@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Release Relay pipeline files: version 8
 /*
  * Release Relay: one script for every pipeline job, on GitHub, GitLab, Bitbucket or Azure DevOps.
  *

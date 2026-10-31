@@ -1,3 +1,4 @@
+# Release Relay pipeline files: version 8
 # Release Relay for Bitbucket Pipelines. Started only from Salesforce: the Release Relay hub runs the
 # custom pipeline "release-relay" on the default branch through the API, with the release as
 # variables. If you already have a bitbucket-pipelines.yml, copy the release-relay entry under

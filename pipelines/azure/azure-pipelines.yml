@@ -1,3 +1,4 @@
+# Release Relay pipeline files: version 8
 # Release Relay for Azure Pipelines. Started only from Salesforce: the Release Relay hub runs this
 # pipeline on the default branch through the Runs API, with the release as template parameters
 # (empty values arrive as '-'). Create the pipeline from this file (Pipelines > New pipeline >

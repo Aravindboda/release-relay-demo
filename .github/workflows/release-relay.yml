@@ -1,3 +1,4 @@
+# Release Relay pipeline files: version 8
 # Release Relay: started only from Salesforce (workflow_dispatch).
 #   mode=org     retrieve the selected components from the source org, apply deletions, commit to a
 #                new branch, open a pull request into the target branch, then scan and validate it.
