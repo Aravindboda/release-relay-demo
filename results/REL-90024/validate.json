@@ -1,0 +1,89 @@
+{
+ "request": "REL-90024",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 314,
+ "deleted": [],
+ "mergedWith": "2dbe36b72fdbd6e9675fb1bdb3414d3d1ee3fccc",
+ "validatedTree": "0adf2c437ee719e99b9163606e1c73e8bc69c7b0",
+ "environment": "sit",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cIudlSAC",
+ "testsRun": 138,
+ "tests": [
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyBackPromoteTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyDeployReaderTest",
+  "RlyGitAdviceTest",
+  "RlyGitProvidersTest",
+  "RlyHotfixTest",
+  "RlyOrgControllerTest",
+  "RlyOrgSessionTest",
+  "RlyPipelineFilesTest",
+  "RlyPromoteTest",
+  "RlyPullRequestCloseTest",
+  "RlyRaiseServiceTest",
+  "RlyRouteControllerTest",
+  "RlySlackActionsTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest",
+  "RlyTwoApproversTest"
+ ],
+ "coverageWarnings": [
+  {
+   "name": "RlyCarried",
+   "message": "Test coverage of selected Apex Class is 54.545%, at least 75% test coverage is required"
+  },
+  {
+   "name": "RlyReleaseLinks",
+   "message": "Test coverage of selected Apex Class is 61.702%, at least 75% test coverage is required"
+  }
+ ],
+ "componentErrors": [],
+ "testFailures": [
+  {
+   "name": "RlyBackPromoteTest",
+   "method": "saveOrgKeepsBackPromoteSettings",
+   "message": "System.AssertException: Assertion Failed: Kept when the page doesn't send it: Expected: After_Deploy, Actual: Manual"
+  },
+  {
+   "name": "RlyPromoteTest",
+   "method": "backMergeIsShownPerBranch",
+   "message": "System.AuraHandledException: Insert failed. First exception on row 0; first error: INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST, Mode: bad value for restricted picklist field: Promotion: [Mode__c]"
+  },
+  {
+   "name": "RlyPromoteTest",
+   "method": "failedPromoteRunShowsWhyAndFreesTheReleases",
+   "message": "System.AuraHandledException: Insert failed. First exception on row 0; first error: INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST, Mode: bad value for restricted picklist field: Promotion: [Mode__c]"
+  },
+  {
+   "name": "RlyPromoteTest",
+   "method": "mergeIntoTheHubMergesBackDown",
+   "message": "System.AuraHandledException: Insert failed. First exception on row 0; first error: INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST, Mode: bad value for restricted picklist field: Promotion: [Mode__c]"
+  },
+  {
+   "name": "RlyPromoteTest",
+   "method": "promoteSavesTheQueuedPromotion",
+   "message": "System.AuraHandledException: Insert failed. First exception on row 0; first error: INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST, Mode: bad value for restricted picklist field: Promotion: [Mode__c]"
+  },
+  {
+   "name": "RlyPromoteTest",
+   "method": "queuedPromotionStartsOnItsPage",
+   "message": "System.AuraHandledException: Insert failed. First exception on row 0; first error: INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST, Mode: bad value for restricted picklist field: Promotion: [Mode__c]"
+  },
+  {
+   "name": "RlyPromoteTest",
+   "method": "rejectedPromotionFreesItsReleasesAndSlackSaysWhatItCarries",
+   "message": "System.AuraHandledException: Insert failed. First exception on row 0; first error: INVALID_OR_NULL_FOR_RESTRICTED_PICKLIST, Mode: bad value for restricted picklist field: Promotion: [Mode__c]"
+  }
+ ],
+ "message": "7 test failure(s)",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41251399617",
+ "finishedAt": "2026-10-31T23:14:41.188Z"
+}
