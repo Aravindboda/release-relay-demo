@@ -1,25 +1,21 @@
 {
  "request": "REL-00016",
  "step": "validate",
- "status": "Conflict",
- "conflicts": [
-  {
-   "file": "force-app/main/default/classes/RlyDemoGreeting.cls",
-   "merged": "/** A friendly greeting, for the Release Relay end-to-end run. */\npublic with sharing class RlyDemoGreeting {\n    /** Greets by name; a blank name gets a general greeting. */\n    public static String greet(String name) {\n<<<<<<< HEAD\n        return String.isBlank(name) ? 'Hello, team' : 'Hi, ' + name.trim() + '!';\n=======\n        return String.isBlank(name) ? 'Welcome, friend' : 'Hi, ' + name.trim() + '!';\n>>>>>>> refs/remotes/origin/feature/rel-00016\n    }\n}",
-   "mine": "/** A friendly greeting, for the Release Relay end-to-end run. */\npublic with sharing class RlyDemoGreeting {\n    /** Greets by name; a blank name gets a general greeting. */\n    public static String greet(String name) {\n        return String.isBlank(name) ? 'Welcome, friend' : 'Hi, ' + name.trim() + '!';\n    }\n}",
-   "theirs": "/** A friendly greeting, for the Release Relay end-to-end run. */\npublic with sharing class RlyDemoGreeting {\n    /** Greets by name; a blank name gets a general greeting. */\n    public static String greet(String name) {\n        return String.isBlank(name) ? 'Hello, team' : 'Hi, ' + name.trim() + '!';\n    }\n}",
-   "truncated": false
-  },
-  {
-   "file": "force-app/main/default/classes/RlyDemoGreetingTest.cls",
-   "merged": "@IsTest\nprivate class RlyDemoGreetingTest {\n    @IsTest\n    static void greetsByName() {\n        System.runAs(new User(Id = UserInfo.getUserId())) {\n            System.assertEquals('Hi, Ana!', RlyDemoGreeting.greet(' Ana '), 'Greets by name');\n<<<<<<< HEAD\n            System.assertEquals('Hello, team', RlyDemoGreeting.greet(''), 'Blank name');\n=======\n            System.assertEquals('Welcome, friend', RlyDemoGreeting.greet(''), 'Blank name');\n>>>>>>> refs/remotes/origin/feature/rel-00016\n        }\n    }\n}",
-   "mine": "@IsTest\nprivate class RlyDemoGreetingTest {\n    @IsTest\n    static void greetsByName() {\n        System.runAs(new User(Id = UserInfo.getUserId())) {\n            System.assertEquals('Hi, Ana!', RlyDemoGreeting.greet(' Ana '), 'Greets by name');\n            System.assertEquals('Welcome, friend', RlyDemoGreeting.greet(''), 'Blank name');\n        }\n    }\n}",
-   "theirs": "@IsTest\nprivate class RlyDemoGreetingTest {\n    @IsTest\n    static void greetsByName() {\n        System.runAs(new User(Id = UserInfo.getUserId())) {\n            System.assertEquals('Hi, Ana!', RlyDemoGreeting.greet(' Ana '), 'Greets by name');\n            System.assertEquals('Hello, team', RlyDemoGreeting.greet(''), 'Blank name');\n        }\n    }\n}",
-   "truncated": false
-  }
+ "status": "Passed",
+ "changed": 2,
+ "deleted": [],
+ "mergedWith": "8b445be0505a75230fc01de879a225b02b73de69",
+ "ok": true,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cIBYbSAO",
+ "testsRun": 1,
+ "tests": [
+  "RlyDemoGreetingTest"
  ],
- "conflictCount": 2,
- "message": "2 file(s) conflict with sit. Choose what to keep in Release Relay, then check again.",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41232141907",
- "finishedAt": "2026-10-31T19:01:15.685Z"
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41232280613",
+ "finishedAt": "2026-10-31T19:03:08.873Z"
 }
