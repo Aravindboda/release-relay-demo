@@ -999,9 +999,14 @@ function copyConverted(fromDir, toDir, wholeObjects) {
 /** MODE=hub: turn the hub's Metadata API zip on BRANCH into source files and open the PR/MR. */
 /** Converts the hub's metadata zip to source format. On failure the CLI's own message goes into raise.json, so the hub can show it. */
 function convertFromHub(mdapi, out) {
+    // Some types (custom labels, for example) are only converted inside a Salesforce DX project, so the output
+    // folder is made one: a minimal sfdx-project.json whose package directory receives the files.
+    fs.mkdirSync(out, { recursive: true });
+    fs.writeFileSync(path.join(out, 'sfdx-project.json'),
+        JSON.stringify({ packageDirectories: [{ path: 'force-app', default: true }], sourceApiVersion: '63.0' }));
     try {
-        execFileSync('sf', ['project', 'convert', 'mdapi', '--root-dir', mdapi, '--output-dir', out, '--json'],
-            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+        execFileSync('sf', ['project', 'convert', 'mdapi', '--root-dir', mdapi, '--output-dir', path.join(out, 'force-app'), '--json'],
+            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], cwd: out });
     } catch (e) {
         let detail = String(e.stdout || '') + String(e.stderr || '');
         try {
@@ -1033,7 +1038,8 @@ async function raiseFromHub() {
     const out = path.join(tmp, 'source');
     run('unzip', ['-q', '-o', zipFile, '-d', mdapi]);
     convertFromHub(mdapi, out);
-    const converted = fs.existsSync(path.join(out, 'main', 'default')) ? path.join(out, 'main', 'default') : out;
+    const converted = [path.join(out, 'force-app', 'main', 'default'), path.join(out, 'force-app')]
+        .find((p) => fs.existsSync(p));
     const wholeObjects = new Set(components.filter((c) => c.type === 'CustomObject').map((c) => c.name));
     const copied = copyConverted(converted, sourcePath(), wholeObjects);
     git(['rm', '-q', '--', zipFile]);
