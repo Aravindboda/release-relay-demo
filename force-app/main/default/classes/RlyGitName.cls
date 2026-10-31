@@ -19,4 +19,13 @@ public with sharing class RlyGitName {
             return null;
         }
     }
+
+    /**
+     * @description Whose reviewers a Git review waits for: the hub's provider name, or a general phrase.
+     * @return for example GitHub
+     */
+    public static String reviewers() {
+        String provider = labelFor(RlyReleaseStore.git());
+        return provider == null ? 'the Git provider\'s' : provider;
+    }
 }

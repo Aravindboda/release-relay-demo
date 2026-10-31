@@ -24,8 +24,8 @@ public with sharing class RlySlackReply {
             'Rejected' => RlySlackCard.statusLine(rel, approverName)
         };
         if (event == RlySlack.APPROVED) {
-            return RlySlackCard.waitingInGit(rel, approverName) ? RlySlackCard.WAITING + ' Waiting for approval in ' + RlySlackMessage.esc(rel.Approved_Via__c)
-                : ':+1: Approved' + RlySlackCard.byWhom(approverName) + ' (' + RlySlackMessage.esc(rel.Approved_Via__c) + ') · deploying…';
+            return ':+1: Approved' + RlySlackCard.byWhom(approverName) + ' (' + RlySlackMessage.esc(rel.Approved_Via__c) + ')'
+                + (RlySlackCard.waitingInGit(rel) ? ' · waiting for ' + RlySlackMessage.esc(RlyGitName.reviewers()) + ' reviewers' : ' · deploying…');
         }
         return lines.containsKey(event) ? lines.get(event) : RlySlackCard.statusLine(rel, approverName);
     }

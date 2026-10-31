@@ -23,6 +23,10 @@ public with sharing class RlyOrgController {
         @AuraEnabled public Map<Id, String> keyHints = new Map<Id, String>();
         /** @description Where releases into an org can be approved, from the hub's connections. */
         @AuraEnabled public List<ApprovalOption> approvalOptions = new List<ApprovalOption>();
+        /** @description Slack is set up, so orgs can be approved from their Slack card. */
+        @AuraEnabled public Boolean slackAvailable = false;
+        /** @description The Git provider's name (for the "also require reviewers" toggle), or null without a Git connection. */
+        @AuraEnabled public String gitProvider;
     }
 
     /** @description One choice for Approval_In__c. */
@@ -58,6 +62,8 @@ public with sharing class RlyOrgController {
             p.keyHints.put(k.Id, RlyOrgSession.keyHint(k));
         }
         p.approvalOptions = approvalOptions();
+        p.slackAvailable = RlySlack.isOn();
+        p.gitProvider = RlyGitName.labelFor(RlyReleaseStore.git());
         return p;
     }
 
@@ -124,10 +130,10 @@ public with sharing class RlyOrgController {
             Certificate__c = input.Certificate__c.trim(),
             Git_Environment__c = String.isBlank(input.Git_Environment__c) ? null : input.Git_Environment__c.trim(),
             Branch__c = String.isBlank(input.Branch__c) ? null : input.Branch__c.trim(),
-            Approval_In__c = String.isBlank(input.Approval_In__c) ? RlyApprover.IN_SALESFORCE : input.Approval_In__c,
             Slack_Channel__c = String.isBlank(input.Slack_Channel__c) ? null : input.Slack_Channel__c.trim(),
             Slack_Post__c = input.Slack_Post__c == true
         );
+        applyApproval(row, input);
         // A new key goes to the encrypted field and clears the old plain one; no key keeps what's saved.
         String key = RlyOrgValidator.submittedKey(input);
         if (key != null) {
@@ -135,6 +141,19 @@ public with sharing class RlyOrgController {
             row.Client_Id__c = null;
         }
         return row;
+    }
+
+    // The approval toggles. A page that still sends Approval_In__c (and no toggle) is read the old way.
+    private static void applyApproval(RLY_Org__c row, RLY_Org__c input) {
+        Boolean toggles = input.isSet('Approve_In_Salesforce__c') || input.isSet('Approve_In_Slack__c') || input.isSet('Require_Git_Review__c');
+        String legacy = toggles ? null : input.Approval_In__c;
+        row.Approve_In_Slack__c = toggles ? input.Approve_In_Slack__c == true : legacy == RlyApprover.IN_SLACK;
+        row.Approve_In_Salesforce__c = toggles ? input.Approve_In_Salesforce__c == true : legacy != RlyApprover.IN_SLACK;
+        row.Require_Git_Review__c = toggles ? input.Require_Git_Review__c == true : legacy == RlyApprover.IN_GIT;
+        if (!row.Approve_In_Salesforce__c && !row.Approve_In_Slack__c) {
+            row.Approve_In_Salesforce__c = true;
+        }
+        row.Approval_In__c = null;
     }
 
     private static void applyStatus(RLY_Org__c row, RLY_Org__c saved) {
@@ -192,7 +211,7 @@ public with sharing class RlyOrgController {
          */
         public List<RLY_Org__c> allOrgs() {
             return [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Username__c, Certificate__c,
-                           Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Slack_Channel__c, Slack_Post__c, Org_Id__c, Org_Type__c, Is_Sandbox__c, Api_Version__c, Source_Tracking__c,
+                           Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c, Org_Id__c, Org_Type__c, Is_Sandbox__c, Api_Version__c, Source_Tracking__c,
                            Status__c, Status_Message__c, Last_Checked__c
                     FROM RLY_Org__c WITH SYSTEM_MODE ORDER BY Role__c, Name LIMIT 200];
         }
@@ -212,7 +231,7 @@ public with sharing class RlyOrgController {
          */
         public RLY_Org__c byId(Id orgId) {
             List<RLY_Org__c> rows = [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Username__c, Consumer_Key__c, Client_Id__c,
-                                            Certificate__c, Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Slack_Channel__c, Slack_Post__c, Org_Id__c, Org_Type__c,
+                                            Certificate__c, Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c, Org_Id__c, Org_Type__c,
                                             Is_Sandbox__c, Api_Version__c, Source_Tracking__c, Status__c, Status_Message__c, Last_Checked__c
                                      FROM RLY_Org__c WHERE Id = :orgId WITH SYSTEM_MODE];
             if (rows.isEmpty()) {
@@ -228,7 +247,7 @@ public with sharing class RlyOrgController {
          */
         public RLY_Org__c view(Id orgId) {
             return [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Username__c, Certificate__c,
-                           Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Slack_Channel__c, Slack_Post__c, Org_Id__c, Org_Type__c, Is_Sandbox__c, Api_Version__c,
+                           Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c, Org_Id__c, Org_Type__c, Is_Sandbox__c, Api_Version__c,
                            Source_Tracking__c, Status__c, Status_Message__c, Last_Checked__c
                     FROM RLY_Org__c WHERE Id = :orgId WITH SYSTEM_MODE LIMIT 1];
         }

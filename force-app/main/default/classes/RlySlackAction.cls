@@ -144,7 +144,7 @@ public with sharing class RlySlackAction {
 
     // The linked approver, for a release into an org approved in Slack; otherwise null.
     private static User allowedUser(RLY_Release__c rel, String memberId) {
-        if (rel == null || RlyApprover.approvalIn(rel.Target_Org__r) != RlyApprover.IN_SLACK) {
+        if (rel == null || !RlyApprover.inSlack(rel.Target_Org__r)) {
             return null;
         }
         User u = RlySlackDirectory.approverFor(memberId);

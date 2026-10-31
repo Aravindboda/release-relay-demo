@@ -64,26 +64,54 @@ private class RlyApprovalRunsTest {
     }
 
     @IsTest
-    static void gitApprovalStartsTheMerge() {
+    static void gitReviewIsAnExtraWait() {
         System.runAs(RlyTestData.admin()) {
             RLY_Release__c rel = RlyReleaseTestData.release('Validating', 'check');
-            RlyReleaseTestData.targetSlack(rel, 'Git');
+            Id targetId = [SELECT Target_Org__c FROM RLY_Release__c WHERE Id = :rel.Id].Target_Org__c;
+            update new RLY_Org__c(Id = targetId, Approve_In_Salesforce__c = true, Require_Git_Review__c = true);
             RlyFlowScenario scenario = RlyFlowScenario.forRelease(rel);
             scenario.runMode = 'check';
             scenario.results.put('scan', RlyReleaseTestData.result('scan', '"status":"Passed","total":0,"blocking":0'));
             scenario.results.put('validate', RlyReleaseTestData.result('validate', '"status":"Passed"'));
-            RlyHttpMock mock = scenario.build();
-            Test.setMock(HttpCalloutMock.class, mock);
+            Test.setMock(HttpCalloutMock.class, scenario.build());
             Test.startTest();
             RlyReleasesController.Detail d = RlyReleasesController.refreshRelease(rel.Id);
             Test.stopTest();
             RLY_Release__c saved = RlyReleaseTestData.reload(rel.Id);
-            System.assertEquals('Deploying', saved.Status__c, 'Merge started when the checks passed: ' + saved.Error_Message__c);
-            System.assertEquals('GitHub', saved.Approved_Via__c, 'The provider approves');
-            System.assertEquals(null, saved.Approved_By__c, 'No user');
-            System.assert(mock.bodyFor('/dispatches').contains('"mode":"merge"'), mock.bodyFor('/dispatches'));
-            System.assertEquals('Waiting for approval in GitHub', d.notice, 'Notice');
-            System.assertEquals('Git', d.approvedIn, 'Approved in Git');
+            System.assertEquals('Ready for approval', saved.Status__c, 'Still approved by a person first: ' + saved.Error_Message__c);
+            System.assertEquals('Salesforce, then GitHub reviewers', d.approvedIn, 'Where and what comes after');
+            System.assert(d.approveHere, 'Approved in Salesforce');
+            RLY_Release__c deploying = new RLY_Release__c(Status__c = 'Deploying', Deploy_Status__c = 'Deploying',
+                Target_Org__r = new RLY_Org__c(Name = 'Target', Require_Git_Review__c = true));
+            System.assertEquals('Waiting for GitHub reviewers before deploying.', RlyReleasePhase.notice(deploying), 'Notice while it waits');
+            System.assert(RlySlackCard.waitingInGit(deploying), 'The Slack card says so too');
+        }
+    }
+
+    @IsTest
+    static void slackOnlyOrgsAreNotApprovedInSalesforce() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = RlyReleaseTestData.release('Ready for approval', 'hub');
+            RlyReleaseTestData.targetSlack(rel, 'Slack');
+            RlyReleaseTestData.slackOn('Ready for approval');
+            Id targetId = [SELECT Target_Org__c FROM RLY_Release__c WHERE Id = :rel.Id].Target_Org__c;
+            update new RLY_Org__c(Id = targetId, Approval_In__c = null, Approve_In_Salesforce__c = false, Approve_In_Slack__c = true);
+            Test.setMock(HttpCalloutMock.class, RlyReleaseTestData.withSlack(new RlyHttpMock()));
+            Test.startTest();
+            String refused;
+            try {
+                RlyApprovalService.approveRelease(rel.Id, null);
+            } catch (RlyReleaseException e) {
+                refused = e.getMessage();
+            }
+            Test.stopTest();
+            System.assert(refused != null && refused.contains('Slack card'), 'Refused in Salesforce: ' + refused);
+            RLY_Org__c both = new RLY_Org__c(Approve_In_Salesforce__c = true, Approve_In_Slack__c = true);
+            System.assertEquals('Salesforce or Slack', RlyApprover.approvalIn(both), 'Either is enough');
+            System.assert(RlyApprover.inSalesforce(new RLY_Org__c(Approve_In_Salesforce__c = false, Approve_In_Slack__c = false)),
+                'Never nowhere: Salesforce stays');
+            System.assert(RlyApprover.inSlack(new RLY_Org__c(Approval_In__c = 'Slack', Approve_In_Salesforce__c = true)), 'Older rows still read');
+            System.assert(RlyApprover.gitReview(new RLY_Org__c(Approval_In__c = 'Git')), 'Older Git rows: reviewers after approval');
         }
     }
 
@@ -150,8 +178,17 @@ private class RlyApprovalRunsTest {
             input.remove('Consumer_Key__c');
             input.put('Approval_In__c', null);
             RlyOrgController.saveOrg(JSON.serialize(input));
-            RLY_Org__c saved = [SELECT Approval_In__c, Slack_Channel__c, Slack_Post__c, Consumer_Key__c FROM RLY_Org__c WHERE Id = :orgId];
-            System.assertEquals('Salesforce', saved.Approval_In__c, 'Blank is Salesforce');
+            RLY_Org__c saved = [SELECT Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Slack_Channel__c, Slack_Post__c,
+                                       Consumer_Key__c FROM RLY_Org__c WHERE Id = :orgId];
+            System.assertEquals(null, saved.Approval_In__c, 'Toggles replace the old field');
+            System.assert(saved.Approve_In_Salesforce__c && !saved.Approve_In_Slack__c, 'Blank is Salesforce');
+            input.put('Approve_In_Salesforce__c', false);
+            input.put('Approve_In_Slack__c', false);
+            input.put('Require_Git_Review__c', true);
+            RlyOrgController.saveOrg(JSON.serialize(input));
+            RLY_Org__c toggled = [SELECT Approve_In_Salesforce__c, Require_Git_Review__c FROM RLY_Org__c WHERE Id = :orgId];
+            System.assert(toggled.Approve_In_Salesforce__c, 'At least one stays on');
+            System.assert(toggled.Require_Git_Review__c, 'Git reviewers required');
             System.assertEquals('#qa-releases', saved.Slack_Channel__c, 'Channel trimmed');
             System.assert(saved.Slack_Post__c, 'Posts');
             System.assertEquals(RlyTestData.CONSUMER_KEY, saved.Consumer_Key__c, 'Saved key kept');

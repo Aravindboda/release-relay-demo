@@ -15,11 +15,6 @@ import sendSlackTest from '@salesforce/apex/RlySlackController.sendSlackTest';
 import testSlack from '@salesforce/apex/RlySlackController.testSlack';
 import saveSlackMember from '@salesforce/apex/RlySlackController.saveSlackMember';
 
-const ROLE_OPTIONS = [
-    { label: 'Developer org (raises releases)', value: 'Developer' },
-    { label: 'Stage (an org on the route)', value: 'Stage' },
-    { label: 'Hub (this org, production)', value: 'Hub' }
-];
 const LOGIN_OPTIONS = [
     { label: 'Production or Developer Edition', value: 'Production' },
     { label: 'Sandbox', value: 'Sandbox' }
@@ -30,16 +25,16 @@ const STATUS_CLS = {
     Refreshed: 'rr-pill rr-pill-wait',
     'Not checked': 'rr-pill rr-pill-none'
 };
-const ROLE_ORDER = { Developer: 0, Stage: 1, Hub: 2 };
+const ROLE_ORDER = { Stage: 0, Hub: 1, Developer: 2 };
 const PROVIDERS = [
-    { label: 'GitHub', value: 'GitHub', repo: 'owner/repository', pipeLabel: 'Workflow file', pipe: 'release-relay.yml', cred: 'RLY_GitHub' },
-    { label: 'GitLab', value: 'GitLab', repo: 'group/project', pipeLabel: 'CI file', pipe: '.gitlab-ci.yml', cred: 'RLY_GitLab' },
-    { label: 'Bitbucket', value: 'Bitbucket', repo: 'workspace/repository', pipeLabel: 'Custom pipeline', pipe: 'release-relay', cred: 'RLY_Bitbucket' },
-    { label: 'Azure DevOps', value: 'AzureDevOps', repo: 'organization/project/repository', pipeLabel: 'Pipeline id', pipe: '', cred: 'RLY_AzureDevOps' }
+    { label: 'GitHub', value: 'GitHub', how: 'Actions workflow', repo: 'owner/repository', pipeLabel: 'Workflow file', pipe: 'release-relay.yml', cred: 'RLY_GitHub' },
+    { label: 'GitLab', value: 'GitLab', how: 'CI pipeline', repo: 'group/project', pipeLabel: 'CI file', pipe: '.gitlab-ci.yml', cred: 'RLY_GitLab' },
+    { label: 'Bitbucket', value: 'Bitbucket', how: 'Custom pipeline', repo: 'workspace/repository', pipeLabel: 'Custom pipeline', pipe: 'release-relay', cred: 'RLY_Bitbucket' },
+    { label: 'Azure DevOps', value: 'AzureDevOps', how: 'Azure Pipeline', repo: 'organization/project/repository', pipeLabel: 'Pipeline id', pipe: '', cred: 'RLY_AzureDevOps' }
 ];
-const DEFAULT_APPROVAL = [{ value: 'Salesforce', label: 'In Salesforce' }];
-const SLACK_FIELDS = ['Id', 'Name', 'Role__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Certificate__c', 'Git_Environment__c', 'Branch__c'];
+const ORG_FIELDS = ['Id', 'Name', 'Role__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Certificate__c', 'Git_Environment__c', 'Branch__c'];
 const GIT_STATUS_CLS = { Connected: 'rr-pill rr-pill-ok', Failed: 'rr-pill rr-pill-bad', 'Not checked': 'rr-pill rr-pill-none' };
+const APPROVE_FIELDS = ['Approve_In_Salesforce__c', 'Approve_In_Slack__c'];
 
 function errorText(e) {
     return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
@@ -49,8 +44,15 @@ function blankForm() {
     return {
         Id: null, Name: '', Role__c: 'Developer', My_Domain__c: '', Login_Type__c: 'Production',
         Username__c: '', Consumer_Key__c: '', Certificate__c: 'release_relay', Git_Environment__c: '', Branch__c: '',
-        Approval_In__c: 'Salesforce', Slack_Channel__c: '', Slack_Post__c: false
+        Approve_In_Salesforce__c: true, Approve_In_Slack__c: false, Require_Git_Review__c: false, Slack_Channel__c: '', Slack_Post__c: false
     };
+}
+
+/** The approval toggles as the org has them; an org saved before the toggles existed approves in Salesforce. */
+function approvals(o) {
+    const sf = o.Approve_In_Salesforce__c === true;
+    const slack = o.Approve_In_Slack__c === true;
+    return { sf: sf || !slack, slack, git: o.Require_Git_Review__c === true };
 }
 
 function blankGit() {
@@ -63,7 +65,6 @@ function blankGit() {
 export default class RlyPipeline extends LightningElement {
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
     get appName() { return APP_NAME; }
-    roleOptions = ROLE_OPTIONS;
     loginOptions = LOGIN_OPTIONS;
     orgs = [];
     keyHints = {};
@@ -80,7 +81,6 @@ export default class RlyPipeline extends LightningElement {
     providerOptions = PROVIDERS.map((p) => ({ label: p.label, value: p.value }));
     git;
     gitForm = blankGit();
-    editingGit = false;
     gitError;
     gitBusy = false;
     developers = [];
@@ -88,7 +88,11 @@ export default class RlyPipeline extends LightningElement {
     warnings = [];
     routeDirty = false;
     routeBusy = false;
-    approvalOptions = DEFAULT_APPROVAL;
+    gitDirty = false;
+    editingRoute = false;
+    slackAvailable = false;
+    gitProviderName;
+    bouncedId;
     slack = { isAdmin: false, events: [], allEvents: [], approvers: [] };
     slackForm = { enabled: false, signingSecret: '', events: [] };
     slackBusy = false;
@@ -114,9 +118,13 @@ export default class RlyPipeline extends LightningElement {
                 this.keyHints = h.keyHints || {};
                 this.hubDomain = h.hubDomain;
                 this.isAdmin = h.isAdmin;
-                this.approvalOptions = h.approvalOptions && h.approvalOptions.length ? h.approvalOptions : DEFAULT_APPROVAL;
+                this.slackAvailable = h.slackAvailable === true;
+                this.gitProviderName = h.gitProvider;
                 this.showSetup = this.orgs.length === 0;
                 this.applySetup(s);
+                if (this.orgs.length === 0 && this.isAdmin && !this.editing) {
+                    this.startAdd();
+                }
             })
             .catch((e) => {
                 this.error = errorText(e);
@@ -133,11 +141,11 @@ export default class RlyPipeline extends LightningElement {
 
     get cards() {
         return [...this.orgs]
-            .sort((a, b) => (ROLE_ORDER[a.Role__c] - ROLE_ORDER[b.Role__c]) || a.Name.localeCompare(b.Name))
+            .sort((a, b) => (ROLE_ORDER[a.Role__c] - ROLE_ORDER[b.Role__c]) || (this.routeIndex(a) - this.routeIndex(b)) || a.Name.localeCompare(b.Name))
             .map((o) => {
                 const isDeveloper = o.Role__c === 'Developer';
                 const isHub = o.Role__c === 'Hub';
-                const approvalIn = o.Approval_In__c || 'Salesforce';
+                const ap = approvals(o);
                 const busy = this.orgSlackBusyId === o.Id;
                 return {
                     ...o,
@@ -152,17 +160,48 @@ export default class RlyPipeline extends LightningElement {
                     checkLabel: this.checkingId === o.Id ? 'Signing in…' : 'Test sign-in',
                     isDeveloper,
                     isTarget: !isDeveloper,
-                    approvalIn,
-                    slackTitle: isDeveloper ? 'Slack for ' + o.Name + '\'s developers (optional)' : 'Approval and Slack for releases into ' + o.Name,
+                    Approve_In_Salesforce__c: ap.sf || !(this.slackAvailable && ap.slack),
+                    Approve_In_Slack__c: ap.slack,
+                    Require_Git_Review__c: ap.git,
+                    approveGroupLabel: 'Where releases into ' + o.Name + ' are approved',
+                    showApproveHelp: this.slackAvailable || this.bouncedId === o.Id,
+                    approveHelpCls: this.bouncedId === o.Id ? 'rr-msg rr-msg-wait' : 'rr-kicker',
+                    slackTitle: this.sectTitle(o, isDeveloper),
                     channelPlaceholder: '#channel-name',
                     postLabel: isDeveloper ? 'Also post here' : 'Post to Slack',
                     cantEdit: !this.isAdmin || busy,
                     cantTest: !this.isAdmin || busy || this.slackBusy || !(o.Slack_Channel__c || '').trim(),
-                    showHubNote: isHub && approvalIn !== 'Slack' && !!o.Slack_Post__c,
-                    showEvents: !isDeveloper && (!!o.Slack_Post__c || approvalIn === 'Slack'),
+                    showHubNote: !isDeveloper && !ap.slack && !!o.Slack_Post__c,
+                    showEvents: !isDeveloper && (!!o.Slack_Post__c || ap.slack),
                     showSect: !isDeveloper || this.slackSetUp
                 };
             });
+    }
+
+    /** The org's place on the route (stages in route order), so the cards follow the route. */
+    routeIndex(o) {
+        const i = this.stages.findIndex((s) => s.Id === o.Id);
+        return i >= 0 ? i : this.stages.length;
+    }
+
+    sectTitle(o, isDeveloper) {
+        if (isDeveloper) {
+            return 'Slack for ' + o.Name + '\'s developers (optional)';
+        }
+        return (this.slackSetUp || this.slackAvailable ? 'Approval and Slack for releases into ' : 'Approval for releases into ') + o.Name;
+    }
+
+    get showGitReview() { return !!(this.gitProviderName || '').trim(); }
+    get gitReviewLabel() { return 'Also require ' + (this.gitProviderName || '').trim() + ' reviewers before deploying'; }
+
+    get roleOptions() {
+        const first = this.stages.find((s) => s.Role__c !== 'Hub');
+        const into = first && first.Branch__c ? ' (raises into ' + first.Branch__c + ')' : ' (raises releases)';
+        return [
+            { label: 'Developer org' + into, value: 'Developer' },
+            { label: 'Stage (an org on the route)', value: 'Stage' },
+            { label: 'Hub (this org, production)', value: 'Hub' }
+        ];
     }
 
     /** Developer, Hub, or the stage's place on the route (Stage 1, Stage 2…). */
@@ -209,8 +248,24 @@ export default class RlyPipeline extends LightningElement {
 
     // ---------- approval and Slack per org ----------
 
-    handleOrgApproval(event) {
-        this.updateOrg(event.target.dataset.id, { Approval_In__c: event.detail.value }, true);
+    /** Approve in Salesforce / in Slack: either is enough, and the last one on can't be switched off. */
+    handleApproveToggle(event) {
+        const orgId = event.target.dataset.id;
+        const field = event.target.dataset.field;
+        const on = event.target.checked;
+        const o = this.orgs.find((x) => x.Id === orgId);
+        const ap = approvals(o);
+        const slack = this.slackAvailable && ap.slack;
+        const current = { Approve_In_Salesforce__c: ap.sf || !slack, Approve_In_Slack__c: slack };
+        const next = { ...current, [field]: on };
+        if (!APPROVE_FIELDS.some((k) => next[k])) {
+            event.target.checked = true;
+            this.bouncedId = orgId;
+            this.updateOrg(orgId, { [field]: true }, false);
+            return;
+        }
+        this.bouncedId = undefined;
+        this.updateOrg(orgId, { [field]: on }, true);
     }
 
     handleOrgChannel(event) {
@@ -235,10 +290,13 @@ export default class RlyPipeline extends LightningElement {
 
     saveOrgSlack(o) {
         const payload = {};
-        SLACK_FIELDS.forEach((k) => {
+        ORG_FIELDS.forEach((k) => {
             payload[k] = o[k] === undefined ? null : o[k];
         });
-        payload.Approval_In__c = o.Approval_In__c || 'Salesforce';
+        const ap = approvals(o);
+        payload.Approve_In_Salesforce__c = ap.sf;
+        payload.Approve_In_Slack__c = ap.slack;
+        payload.Require_Git_Review__c = ap.git;
         payload.Slack_Channel__c = (o.Slack_Channel__c || '').trim() || null;
         payload.Slack_Post__c = !!o.Slack_Post__c;
         this.orgSlackBusyId = o.Id;
@@ -268,35 +326,60 @@ export default class RlyPipeline extends LightningElement {
         this.stages = s.stages || [];
         this.warnings = s.warnings || [];
         this.routeDirty = false;
-        if (!this.git) {
-            this.gitForm = blankGit();
+        this.editingRoute = false;
+        if (!this.gitDirty) {
+            this.gitForm = this.git ? { ...blankGit(), ...this.git } : blankGit();
         }
     }
 
     // ---------- Git connection ----------
 
     get hasGit() { return !!this.git; }
-    get notEditingGit() { return !this.editingGit; }
-    get noGit() { return !this.git && !this.editingGit; }
-    get gitStatusCls() { return GIT_STATUS_CLS[(this.git && this.git.Status__c) || 'Not checked']; }
+    get gitLocked() { return !this.isAdmin || this.gitBusy; }
+    get gitCantCheck() { return this.gitBusy || this.gitDirty; }
+    get showGitSave() { return this.isAdmin && (this.gitDirty || !this.git); }
+    get gitSaveLabel() { return this.gitBusy ? 'Saving…' : 'Save and check'; }
+    get gitStatus() { return (this.git && this.git.Status__c) || 'Not checked'; }
+    /** A short one-line result goes in the pill, as on the board; anything longer stays in the message below. */
+    get gitShortMessage() {
+        const m = (this.git && this.git.Status_Message__c) || '';
+        return this.gitStatus === 'Connected' && m && m.length <= 80 && !m.includes('\n') ? m : '';
+    }
+    get gitStatusText() { return this.gitShortMessage || this.gitStatus; }
+    get gitStatusCls() { return GIT_STATUS_CLS[this.gitStatus] || GIT_STATUS_CLS['Not checked']; }
+    get gitMessage() { return this.git && !this.gitDirty && !this.gitShortMessage ? this.git.Status_Message__c : null; }
     get gitMessageCls() { return this.git && this.git.Status__c === 'Failed' ? 'rr-msg rr-msg-bad' : 'rr-msg rr-msg-info'; }
+    get providerTiles() {
+        const current = this.gitForm.Provider__c || 'GitHub';
+        return PROVIDERS.map((p) => ({
+            ...p,
+            pressed: p.value === current ? 'true' : 'false',
+            cls: p.value === current ? 'rr-prov rr-prov-on' : 'rr-prov'
+        }));
+    }
     get gitProvider() { return PROVIDERS.find((p) => p.value === (this.gitForm.Provider__c || 'GitHub')) || PROVIDERS[0]; }
     get gitProviderLabel() {
         const p = this.git && PROVIDERS.find((x) => x.value === this.git.Provider__c);
         return p ? p.label : '';
     }
-    get gitCheckLabel() { return this.gitBusy ? 'Checking…' : 'Check connection'; }
-    get scanToggleLabel() { return 'Code scan on every ' + (this.gitForm.Provider__c === 'GitLab' ? 'merge request' : 'pull request'); }
-    get scanText() { return this.git && this.git.Code_Scan__c ? 'On' : 'Off'; }
+    get gitCheckLabel() { return this.gitBusy ? 'Testing…' : 'Test connection'; }
+    get scanOnText() { return 'On for every ' + (this.gitForm.Provider__c === 'GitLab' ? 'merge request' : 'pull request'); }
 
-    startGitEdit() {
-        this.gitForm = this.git ? { ...blankGit(), ...this.git } : blankGit();
+    pickProvider(event) {
+        const value = event.currentTarget.dataset.value;
+        if (value === this.gitForm.Provider__c) {
+            return;
+        }
+        const p = PROVIDERS.find((x) => x.value === value);
+        this.gitForm = { ...this.gitForm, Provider__c: value, Named_Credential__c: p.cred, Pipeline__c: p.pipe };
+        this.gitDirty = true;
         this.gitError = undefined;
-        this.editingGit = true;
     }
 
     cancelGitEdit() {
-        this.editingGit = false;
+        this.gitDirty = false;
+        this.gitError = undefined;
+        this.gitForm = this.git ? { ...blankGit(), ...this.git } : blankGit();
     }
 
     handleGitField(event) {
@@ -305,13 +388,8 @@ export default class RlyPipeline extends LightningElement {
         if (event.target.type === 'checkbox' || event.target.type === 'toggle') {
             value = event.target.checked;
         }
-        const next = { ...this.gitForm, [field]: value };
-        if (field === 'Provider__c') {
-            const p = PROVIDERS.find((x) => x.value === value);
-            next.Named_Credential__c = p.cred;
-            next.Pipeline__c = p.pipe;
-        }
-        this.gitForm = next;
+        this.gitForm = { ...this.gitForm, [field]: value };
+        this.gitDirty = true;
         this.gitError = undefined;
     }
 
@@ -326,7 +404,7 @@ export default class RlyPipeline extends LightningElement {
         this.gitError = undefined;
         saveGit({ gitJson: JSON.stringify(payload) })
             .then(() => {
-                this.editingGit = false;
+                this.gitDirty = false;
                 return this.load().then(() => this.runGitCheck());
             })
             .catch((e) => {
@@ -372,8 +450,36 @@ export default class RlyPipeline extends LightningElement {
 
     get hasRoute() { return this.developers.length > 0 || this.stages.length > 0; }
     get hasWarnings() { return this.warnings.length > 0; }
+    get hasDevelopers() { return this.developers.length > 0; }
+    get canEditRoute() { return this.stages.filter((s) => s.Role__c !== 'Hub').length > 1; }
+    get routeCantSave() { return this.routeBusy || !this.routeDirty; }
+
+    /** The org as getOrgs has it (sandbox, approval toggles), falling back to the route's copy. */
+    orgFor(r) { return this.orgs.find((x) => x.Id === r.Id) || r; }
+
     get developerChips() {
-        return this.developers.map((d) => ({ id: d.Id, name: d.Name, branch: d.Branch__c || 'no branch' }));
+        const first = this.stages[0];
+        const into = first && first.Branch__c ? first.Branch__c : '';
+        return this.developers.map((d) => {
+            const o = this.orgFor(d);
+            const facts = [];
+            if (d.Git_Environment__c) {
+                facts.push({ key: 'e', label: ' · env ', value: d.Git_Environment__c });
+            } else if (d.Branch__c) {
+                facts.push({ key: 'b', label: ' · branch ', value: d.Branch__c });
+            }
+            if (into) {
+                facts.push({ key: 'i', label: ' → ', value: into });
+            }
+            return {
+                id: d.Id,
+                name: d.Name,
+                status: d.Status__c || 'Not checked',
+                statusCls: STATUS_CLS[d.Status__c] || STATUS_CLS['Not checked'],
+                kind: o.Is_Sandbox__c ? 'Developer sandbox' : 'Developer org',
+                facts
+            };
+        });
     }
     get stageChips() {
         const last = this.stages.length - 1;
@@ -381,13 +487,41 @@ export default class RlyPipeline extends LightningElement {
             id: s.Id,
             name: s.Name,
             branch: s.Branch__c || 'no branch',
-            isHub: s.Role__c === 'Hub',
-            label: s.Role__c === 'Hub' ? 'Production (hub)' : 'Stage ' + (i + 1),
+            status: s.Status__c || 'Not checked',
+            statusCls: STATUS_CLS[s.Status__c] || STATUS_CLS['Not checked'],
+            kind: s.Role__c === 'Hub' ? 'Production (this hub)' : 'Stage ' + (i + 1),
+            extra: this.approvalText(this.orgFor(s)),
+            arrow: i < last,
             cantUp: i === 0 || s.Role__c === 'Hub' || !this.isAdmin,
             cantDown: i >= last || s.Role__c === 'Hub' || (this.stages[i + 1] && this.stages[i + 1].Role__c === 'Hub') || !this.isAdmin,
             upLabel: 'Move ' + s.Name + ' earlier',
             downLabel: 'Move ' + s.Name + ' later'
         }));
+    }
+
+    /** Where releases into the stage are approved, for its route card. */
+    approvalText(o) {
+        const ap = approvals(o);
+        const where = [];
+        if (ap.sf) {
+            where.push('Salesforce');
+        }
+        if (ap.slack && this.slackAvailable) {
+            where.push('Slack');
+        }
+        let text = 'Approved in ' + (where.length ? where.join(' or ') : 'Salesforce');
+        if (ap.git && this.showGitReview) {
+            text += ' · ' + this.gitProviderName.trim() + ' reviewers';
+        }
+        return text;
+    }
+
+    startRouteEdit() {
+        this.editingRoute = true;
+    }
+
+    cancelRouteEdit() {
+        this.load();
     }
 
     moveStage(event) {
@@ -608,7 +742,8 @@ export default class RlyPipeline extends LightningElement {
 
     handleEdit(event) {
         const o = this.orgs.find((x) => x.Id === event.currentTarget.dataset.id);
-        this.form = { ...blankForm(), ...o };
+        const ap = approvals(o);
+        this.form = { ...blankForm(), ...o, Approve_In_Salesforce__c: ap.sf, Approve_In_Slack__c: ap.slack, Require_Git_Review__c: ap.git };
         this.formError = undefined;
         this.editing = true;
     }
@@ -629,7 +764,7 @@ export default class RlyPipeline extends LightningElement {
         this.formError = undefined;
     }
 
-    get formTitle() { return this.form.Id ? 'Edit ' + this.form.Name : 'Register an org'; }
+    get formTitle() { return this.form.Id ? '2 · Edit ' + this.form.Name : '2 · Register an org'; }
 
     /** The masked hint of the saved consumer key (the key itself never comes to the page). */
     get savedKeyHint() { return this.form.Id ? this.keyHints[this.form.Id] : null; }
@@ -638,12 +773,13 @@ export default class RlyPipeline extends LightningElement {
         const saved = this.savedKeyHint;
         return saved ? 'Saved (ends ••••' + saved.slice(-4) + '). Leave blank to keep it.' : '';
     }
-    get saveLabel() { return this.saving ? 'Saving…' : 'Save and test sign-in'; }
+    get saveLabel() { return this.saving ? 'Saving…' : 'Save org'; }
 
     handleSave() {
         // A blank consumer key isn't sent, so an edit keeps the saved one.
         const keys = ['Id', 'Name', 'Role__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Consumer_Key__c',
-            'Certificate__c', 'Git_Environment__c', 'Branch__c', 'Approval_In__c', 'Slack_Channel__c', 'Slack_Post__c'];
+            'Certificate__c', 'Git_Environment__c', 'Branch__c', 'Approve_In_Salesforce__c', 'Approve_In_Slack__c',
+            'Require_Git_Review__c', 'Slack_Channel__c', 'Slack_Post__c'];
         const payload = {};
         keys.forEach((k) => {
             if (this.form[k] !== null && this.form[k] !== undefined && this.form[k] !== '') {

@@ -173,7 +173,7 @@ public with sharing class RlyReleaseStore {
         public RLY_Release__c readRelease(Id releaseId) {
             List<RLY_Release__c> rows = [SELECT Id, Name, Title__c, Description__c, Status__c, Source_Org__c, Source_Org__r.Name,
                     Source_Org__r.Role__c, Source_Org__r.Branch__c, Source_Org__r.Slack_Channel__c, Source_Org__r.Slack_Post__c,
-                    Target_Org__c, Target_Org__r.Name, Target_Org__r.Approval_In__c, Target_Org__r.Slack_Channel__c,
+                    Target_Org__c, Target_Org__r.Name, Target_Org__r.Approval_In__c, Target_Org__r.Approve_In_Salesforce__c, Target_Org__r.Approve_In_Slack__c, Target_Org__r.Require_Git_Review__c, Target_Org__r.Slack_Channel__c,
                     Target_Org__r.Slack_Post__c, Check_Token__c, Slack_Channel_Id__c, Slack_Ts__c, Approved_Via__c,
                     Org_Label__c, Source_Branch__c, Target_Branch__c, Source_Environment__c,
                     Target_Environment__c, Retrieve_Id__c, PR_Number__c, PR_URL__c, Run_ID__c, Run_URL__c, Pending_Run__c,

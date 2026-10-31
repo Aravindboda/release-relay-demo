@@ -24,9 +24,8 @@ public with sharing class RlyReleasePhase {
             String target = rel.Target_Org__r == null ? rel.Target_Branch__c : rel.Target_Org__r.Name;
             return target + ' changed after the checks passed, so they are running again.';
         }
-        if (rel.Status__c == 'Deploying' && rel.Deploy_Status__c == 'Deploying' && rel.Approved_By__c == null
-                && RlyApprovalRuns.approvedInGit(rel) && String.isNotBlank(rel.Approved_Via__c)) {
-            return 'Waiting for approval in ' + rel.Approved_Via__c;
+        if (rel.Status__c == 'Deploying' && rel.Deploy_Status__c == 'Deploying' && RlyApprovalRuns.approvedInGit(rel)) {
+            return 'Waiting for ' + RlyGitName.reviewers() + ' reviewers before deploying.';
         }
         return null;
     }

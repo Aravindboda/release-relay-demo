@@ -9,10 +9,15 @@ const MARK = /(`[^`]+`|\*\*[^*]+\*\*)/;
 
 /**
  * Splits text with `code` and **bold** marks into pieces the template renders as spans (no HTML is injected).
- * In GitLab, a pull request is called a merge request.
+ * In GitLab, a pull request is called a merge request. "Release Relay" becomes the app's name.
  */
+function plain(text, gitlab) {
+    const value = String(text).replace(/Release Relay/g, APP_NAME);
+    return gitlab ? value.replace(/pull request/g, 'merge request').replace(/Pull request/g, 'Merge request') : value;
+}
+
 function rich(text, key, gitlab) {
-    const value = gitlab ? String(text).replace(/pull request/g, 'merge request').replace(/Pull request/g, 'Merge request') : String(text);
+    const value = plain(text, gitlab);
     return {
         key,
         segs: value.split(MARK).filter((t) => t !== '').map((t, i) => {
@@ -65,6 +70,11 @@ export default class RlyReleaseGuide extends LightningElement {
     }
 
     get isAdmin() { return !!IS_ADMIN; }
+    get adminNote() { return 'Admin sections show only to ' + APP_NAME + ' Admin'; }
+    /** The Git connection is set up: its provider's instructions show without the provider tabs. */
+    get providerKnown() { return !!this.repository && PROVIDERS.some((p) => p.value === this.provider); }
+    /** The repository's own name (the last part of owner/repository), for the files tree. */
+    get repoName() { return this.repository ? this.repository.split('/').pop() : ''; }
     get gitlab() { return this.provider === 'GitLab'; }
 
     get visibleSections() {
@@ -75,7 +85,12 @@ export default class RlyReleaseGuide extends LightningElement {
         return GROUPS.map((g) => ({
             key: g.key,
             label: g.label,
-            items: this.visibleSections.filter((s) => s.group === g.key).map((s) => ({ key: s.key, label: s.label }))
+            items: this.visibleSections.filter((s) => s.group === g.key).map((s) => ({
+                key: s.key,
+                label: s.label,
+                cls: s.key === this.section.key ? 'rr-nav-item rr-nav-on' : 'rr-nav-item',
+                current: s.key === this.section.key ? 'page' : null
+            }))
         })).filter((g) => g.items.length > 0);
     }
 
@@ -83,13 +98,25 @@ export default class RlyReleaseGuide extends LightningElement {
         return this.visibleSections.find((s) => s.key === this.current) || this.visibleSections[0];
     }
 
+    /** The section's cards, then the cards of other sections it also shows (more). */
     get cards() {
-        return this.section.cards.map((c) => ({
+        const own = this.section.cards.map((c) => this.card(c, c.blocks, c.aside));
+        const all = [];
+        this.visibleSections.forEach((s) => s.cards.forEach((c) => all.push(c)));
+        const extra = (this.section.more || []).map((m) => {
+            const c = all.find((x) => x.key === m.key);
+            return c ? this.card(c, m.only ? c.blocks.filter((b) => b.type === m.only) : c.blocks, m.noAside ? null : c.aside) : null;
+        }).filter((c) => c);
+        return own.concat(extra);
+    }
+
+    card(c, blocks, aside) {
+        return {
             key: c.key,
             title: c.title,
-            aside: c.asideFromRepo ? this.repository : c.aside,
-            blocks: c.blocks.map((b, i) => this.block(b, c.key + 'b' + i))
-        }));
+            aside: c.asideFromRepo ? this.repository : aside,
+            blocks: blocks.map((b, i) => this.block(b, c.key + 'b' + i))
+        };
     }
 
     block(b, key) {
@@ -113,10 +140,14 @@ export default class RlyReleaseGuide extends LightningElement {
         out.rows = (b.rows || []).map((r, i) => ({ key: key + 'r' + i, cells: r.map((c, j) => rich(c, key + 'r' + i + 'c' + j, g)) }));
         out.progress = (b.labels || []).map((label, i) => this.progressItem(label, i + 1, key));
         out.steps = (b.steps || []).map((s, i) => this.step(s, i + 1, key + 's' + i));
-        out.stops = (b.stops || []).map((s, i) => ({ key: key + 'st' + i, title: s.title, text: s.text, first: i === 0 }));
+        out.stops = (b.stops || []).map((s, i) => ({
+            key: key + 'st' + i, title: plain(s.title, g), text: plain(s.text, g), arrow: i > 0
+        }));
         out.shots = (b.shots || []).map((s, i) => this.shot(s, key + 'sh' + i));
         out.hasShots = out.shots.length > 0;
         out.tabs = b.type === 'repo' ? this.repoTabs(b, key) : [];
+        out.repoOne = b.type === 'repo' && this.providerKnown ? out.tabs.find((t) => t.value === this.provider) : null;
+        out.repoTabs = b.type === 'repo' && !out.repoOne;
         return out;
     }
 
@@ -132,14 +163,17 @@ export default class RlyReleaseGuide extends LightningElement {
 
     step(s, num, key) {
         const g = this.gitlab;
+        // With a known provider, its lines join the step's list (no provider tabs).
+        const lead = (s.items || []).map((t) => t.replace(/\s*Pick your provider:$/, '')).filter((t) => t);
+        const own = s.providers && this.providerKnown ? lead.concat(s.providers[this.provider] || []) : s.items;
         return {
             key,
             num: String(num),
             title: s.title,
             who: s.who,
-            where: s.where,
-            items: (s.items || []).map((t, i) => rich(t, key + 'i' + i, g)),
-            hasItems: Array.isArray(s.items),
+            where: s.where ? plain(s.where, g) : null,
+            items: (own || []).map((t, i) => rich(t, key + 'i' + i, g)),
+            hasItems: Array.isArray(own),
             paras: (s.text || []).map((t, i) => rich(t, key + 'p' + i, g)),
             tabs: s.providers ? PROVIDERS.map((p) => ({
                 key: key + p.value,
@@ -147,7 +181,7 @@ export default class RlyReleaseGuide extends LightningElement {
                 label: p.label,
                 items: (s.providers[p.value] || []).map((t, i) => rich(t, key + p.value + i, p.value === 'GitLab'))
             })) : [],
-            hasTabs: !!s.providers,
+            hasTabs: !!s.providers && !this.providerKnown,
             shot: s.shot ? this.shot(s.shot, key + 'shot') : null
         };
     }
@@ -157,7 +191,7 @@ export default class RlyReleaseGuide extends LightningElement {
             key: key + p.value,
             value: p.value,
             label: p.label,
-            tree: b.providers[p.value].tree,
+            tree: this.repoName ? b.providers[p.value].tree.replace('<repository>/', this.repoName + '/') : b.providers[p.value].tree,
             rows: b.providers[p.value].rows.map((r, i) => ({
                 key: key + p.value + 'r' + i,
                 cells: r.map((c, j) => rich(c, key + p.value + 'r' + i + 'c' + j, p.value === 'GitLab'))
@@ -171,8 +205,8 @@ export default class RlyReleaseGuide extends LightningElement {
 
     // ---------- events ----------
 
-    handleSelect(event) {
-        this.current = event.detail.name;
+    handleNav(event) {
+        this.current = event.currentTarget.dataset.name;
         this.zoom = undefined;
     }
 

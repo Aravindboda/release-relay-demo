@@ -1,25 +1,26 @@
 <template>
     <div class="rr-page">
         <section class="rr-head">
-            <span class="rr-head-icon"><lightning-icon icon-name="utility:knowledge_base" size="small" variant="inverse" alternative-text=""></lightning-icon></span>
+            <span class="rr-head-icon"><lightning-icon icon-name="utility:question" size="small" variant="inverse" alternative-text=""></lightning-icon></span>
             <div class="rr-head-text">
                 <p class="rr-kicker">{appName}</p>
                 <h1 class="rr-title">Guide</h1>
             </div>
-            <span class="rr-small rr-weak">Admin sections show only to admins</span>
+            <span class="rr-small rr-weak">{adminNote}</span>
         </section>
 
         <div class="rr-lay">
             <nav class="rr-card rr-nav" aria-label="Guide sections">
-                <lightning-vertical-navigation selected-item={current} onselect={handleSelect}>
-                    <template for:each={navGroups} for:item="g">
-                        <lightning-vertical-navigation-section key={g.key} label={g.label}>
+                <template for:each={navGroups} for:item="g">
+                    <div key={g.key}>
+                        <p class="rr-grp" id={g.key}>{g.label}</p>
+                        <ul class="rr-nav-list" aria-label={g.label}>
                             <template for:each={g.items} for:item="i">
-                                <lightning-vertical-navigation-item key={i.key} label={i.label} name={i.key}></lightning-vertical-navigation-item>
+                                <li key={i.key}><button type="button" class={i.cls} data-name={i.key} aria-current={i.current} onclick={handleNav}>{i.label}</button></li>
                             </template>
-                        </lightning-vertical-navigation-section>
-                    </template>
-                </lightning-vertical-navigation>
+                        </ul>
+                    </div>
+                </template>
             </nav>
 
             <div class="rr-main">
@@ -134,7 +135,7 @@
                                 <template lwc:if={b.isSeq}>
                                     <ol class="rr-seq" aria-label="A release, in order">
                                         <template for:each={b.stops} for:item="st">
-                                            <li key={st.key} class="rr-seq-stop"><strong>{st.title}</strong><span>{st.text}</span></li>
+                                            <li key={st.key} class="rr-seq-item"><template lwc:if={st.arrow}><span class="rr-seq-arrow" aria-hidden="true">→</span></template><span class="rr-seq-stop"><strong>{st.title}</strong><span>{st.text}</span></span></li>
                                         </template>
                                     </ol>
                                 </template>
@@ -152,14 +153,33 @@
                                 </template>
 
                                 <!-- repository files, per provider -->
-                                <template lwc:if={b.isRepo}>
+                                <template lwc:if={b.repoOne}>
+                                    <div class="rr-repo rr-pad">
+                                        <pre class="rr-tree">{b.repoOne.tree}</pre>
+                                        <div class="rr-scroll">
+                                            <table class="rr-ftable">
+                                                <thead><tr><th scope="col">File or branch</th><th scope="col">What it's for</th></tr></thead>
+                                                <tbody>
+                                                    <template for:each={b.repoOne.rows} for:item="row">
+                                                        <tr key={row.key}>
+                                                            <template for:each={row.cells} for:item="cell">
+                                                                <td key={cell.key}><template for:each={cell.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></td>
+                                                            </template>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template lwc:if={b.repoTabs}>
                                     <lightning-tabset class="rr-tabs rr-pad" variant="scoped" active-tab-value={provider}>
                                         <template for:each={b.tabs} for:item="t">
                                             <lightning-tab key={t.key} label={t.label} value={t.value}>
                                                 <div class="rr-repo">
                                                     <pre class="rr-tree">{t.tree}</pre>
                                                     <div class="rr-scroll">
-                                                        <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table">
+                                                        <table class="rr-ftable">
                                                             <thead><tr><th scope="col">File or branch</th><th scope="col">What it's for</th></tr></thead>
                                                             <tbody>
                                                                 <template for:each={t.rows} for:item="row">

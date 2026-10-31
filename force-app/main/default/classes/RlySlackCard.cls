@@ -47,7 +47,7 @@ public with sharing class RlySlackCard {
 
     private static List<Object> buttons(RLY_Release__c rel) {
         List<Object> out = new List<Object>();
-        if (rel.Status__c == 'Ready for approval' && RlyApprover.approvalIn(rel.Target_Org__r) == RlyApprover.IN_SLACK) {
+        if (rel.Status__c == 'Ready for approval' && RlyApprover.inSlack(rel.Target_Org__r)) {
             Map<String, Object> approve = button('Approve', APPROVE_ACTION, rel.Id);
             approve.put('style', 'primary');
             Map<String, Object> reject = button('Reject', REJECT_ACTION, rel.Id);
@@ -85,35 +85,31 @@ public with sharing class RlySlackCard {
             return STOPPED + ' Rejected' + byWhom(approverName) + ': “' + RlySlackMessage.esc(text(rel.Approval_Comment__c).left(300)) + '”';
         }
         if (status == 'Deploying' || status == 'Deployed') {
-            return deployLine(rel, approverName) + ' · ' + route(rel) + approvedLine(rel, approverName);
+            return deployLine(rel) + ' · ' + route(rel) + approvedLine(rel, approverName);
         }
         String emoji = STATUS_EMOJI.containsKey(status) ? STATUS_EMOJI.get(status) : WAITING;
         return emoji + ' ' + RlyReleasePhase.phase(rel) + ' · ' + route(rel) + ' · raised by ' + RlySlackMessage.esc(raisedBy(rel));
     }
 
-    private static String deployLine(RLY_Release__c rel, String approverName) {
+    private static String deployLine(RLY_Release__c rel) {
         if (rel.Status__c == 'Deployed') {
             return DONE + ' Deployed to ' + RlySlackMessage.esc(targetName(rel));
         }
-        return waitingInGit(rel, approverName) ? WAITING + ' Waiting for approval in ' + RlySlackMessage.esc(rel.Approved_Via__c)
+        return waitingInGit(rel) ? WAITING + ' Waiting for ' + RlySlackMessage.esc(RlyGitName.reviewers()) + ' reviewers before deploying'
             : ':rocket: Deploying to ' + RlySlackMessage.esc(targetName(rel));
     }
 
     private static String approvedLine(RLY_Release__c rel, String approverName) {
-        if (waitingInGit(rel, approverName)) {
-            return '';
-        }
         return ' · approved' + byWhom(approverName) + (String.isBlank(rel.Approved_Via__c) ? '' : ' in ' + RlySlackMessage.esc(rel.Approved_Via__c));
     }
 
     /**
-     * @description Whether the merge waits for the Git provider's reviewers.
+     * @description Whether the deploy waits for the Git provider's reviewers.
      * @param rel the release
-     * @param approverName who approved it, or null
      * @return true while it waits
      */
-    public static Boolean waitingInGit(RLY_Release__c rel, String approverName) {
-        return rel.Status__c == 'Deploying' && approverName == null && RlyApprovalRuns.approvedInGit(rel);
+    public static Boolean waitingInGit(RLY_Release__c rel) {
+        return rel.Status__c == 'Deploying' && RlyApprovalRuns.approvedInGit(rel);
     }
 
     /**
