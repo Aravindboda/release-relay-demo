@@ -1,0 +1,25 @@
+{
+ "request": "REL-00019",
+ "step": "deploy",
+ "status": "Deployed",
+ "sha": "faee333d8574d34a0f1e3fd32d7910139ecdb575",
+ "changed": 4,
+ "deleted": [],
+ "ok": true,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cIzbpSAC",
+ "testsRun": 1,
+ "tests": [
+  "RlyDemoHotfixTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "Quick deployed validation 0AfgL00000cIzVNSA0: its tests already passed, so none ran again.",
+ "validationId": "0AfgL00000cIzVNSA0",
+ "quick": true,
+ "quickNote": "Quick deployed validation 0AfgL00000cIzVNSA0: its tests already passed, so none ran again.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41254590010",
+ "finishedAt": "2026-10-31T23:57:39.008Z",
+ "attempt": "dbf2e7cfb31d31e16b0abfbdcb0e6e39"
+}
