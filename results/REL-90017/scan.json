@@ -1,0 +1,57 @@
+{
+ "request": "REL-90017",
+ "step": "scan",
+ "status": "Passed",
+ "total": 1,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Info": 1
+ },
+ "files": [
+  "force-app/main/default/classes/RlyApprovalRuns.cls",
+  "force-app/main/default/classes/RlyApprovalRunsTest.cls",
+  "force-app/main/default/classes/RlyApprovalService.cls",
+  "force-app/main/default/classes/RlyApprover.cls",
+  "force-app/main/default/classes/RlyGitName.cls",
+  "force-app/main/default/classes/RlyHotfixTest.cls",
+  "force-app/main/default/classes/RlyOrgController.cls",
+  "force-app/main/default/classes/RlyReleasePhase.cls",
+  "force-app/main/default/classes/RlyReleaseStore.cls",
+  "force-app/main/default/classes/RlyReleasesController.cls",
+  "force-app/main/default/classes/RlySlackAction.cls",
+  "force-app/main/default/classes/RlySlackCard.cls",
+  "force-app/main/default/classes/RlySlackReply.cls",
+  "force-app/main/default/classes/RlyStatusReader.cls",
+  "force-app/main/default/lwc/rlyMergeConflicts/rlyMergeConflicts.html",
+  "force-app/main/default/lwc/rlyMergeConflicts/rlyMergeConflicts.js",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+  "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.html",
+  "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/rlyReleaseGuide.html",
+  "force-app/main/default/lwc/rlyReleaseGuide/rlyReleaseGuide.js",
+  "force-app/main/default/lwc/rlyReleaseTracker/rlyReleaseTracker.html",
+  "force-app/main/default/lwc/rlyReleaseTracker/rlyReleaseTracker.js",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.html",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.js"
+ ],
+ "violations": [
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "NoTrailingWhitespace",
+   "engine": "regex",
+   "file": "force-app/main/default/classes/RlySlackCard.cls",
+   "line": 115,
+   "message": "Found trailing whitespace at the end of a line of code.",
+   "url": null
+  }
+ ],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41241711454",
+ "finishedAt": "2026-10-31T21:04:14.115Z"
+}
