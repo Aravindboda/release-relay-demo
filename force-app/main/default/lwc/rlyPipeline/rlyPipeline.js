@@ -1112,7 +1112,8 @@ export default class RlyPipeline extends LightningElement {
     handleEdit(event) {
         const o = this.orgs.find((x) => x.Id === event.currentTarget.dataset.id);
         const ap = approvals(o);
-        this.form = { ...blankForm(), ...o, Approve_In_Salesforce__c: ap.sf, Approve_In_Slack__c: ap.slack, Require_Git_Review__c: ap.git };
+        // An org saved before environments existed has none: show the picker empty rather than the new-org default.
+        this.form = { ...blankForm(), Environment__c: null, ...o, Approve_In_Salesforce__c: ap.sf, Approve_In_Slack__c: ap.slack, Require_Git_Review__c: ap.git };
         this.formError = undefined;
         this.editing = true;
     }
