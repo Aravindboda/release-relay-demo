@@ -1,0 +1,43 @@
+{
+ "request": "REL-00011",
+ "step": "scan",
+ "status": "Failed",
+ "total": 2,
+ "blocking": 1,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "High": 1,
+  "Low": 1
+ },
+ "files": [
+  "force-app/main/default/classes/RlyDemoSearch.cls",
+  "force-app/main/default/classes/RlyDemoSearchTest.cls"
+ ],
+ "violations": [
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "ApexSOQLInjection",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyDemoSearch.cls",
+   "line": 4,
+   "message": "Avoid untrusted/unescaped variables in DML query",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_security.html#apexsoqlinjection"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyDemoSearch.cls",
+   "line": 3,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  }
+ ],
+ "message": "1 violation(s) at High or above.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41214753187",
+ "finishedAt": "2026-10-31T15:26:46.557Z"
+}
