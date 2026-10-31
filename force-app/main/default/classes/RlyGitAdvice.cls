@@ -4,6 +4,11 @@
  */
 public with sharing class RlyGitAdvice {
 
+    /** @description GitHub's workflow folder: changing files there needs the token's Workflows permission. */
+    public static final String WORKFLOWS_FOLDER = '.github/workflows/';
+    /** @description What a refused change to the workflow folder means. */
+    public static final String WORKFLOWS_ADVICE = 'The token needs Workflows: Read and write to change files in .github/workflows.';
+
     private static final Map<Integer, String> BY_STATUS = new Map<Integer, String>{
         401 => 'The token in Named Credential {credential} was refused: check or renew it.',
         403 => 'The token lacks permission for this (or the provider rate-limited the request).',
@@ -27,6 +32,20 @@ public with sharing class RlyGitAdvice {
             ? BY_STATUS.get(code).replace('{credential}', String.valueOf(conn.Named_Credential__c)) : '';
         throw new RlyGit.GitException((action + ' failed with HTTP ' + code + '. ' + advice + ' '
             + String.valueOf(res.getBody()).left(300)).trim());
+    }
+
+    /**
+     * @description A failed pipeline files update in words: a refused commit in the workflow folder needs the token's
+     * Workflows permission; anything else is said as it is.
+     * @param raw the failure's message
+     * @return the advice
+     */
+    public static String forPipelineFiles(String raw) {
+        String m = raw == null ? '' : raw;
+        if (m.startsWith('Committing ' + WORKFLOWS_FOLDER) && (m.contains('HTTP 403') || m.containsIgnoreCase('`workflow` scope'))) {
+            return WORKFLOWS_ADVICE;
+        }
+        return m;
     }
 
     /**

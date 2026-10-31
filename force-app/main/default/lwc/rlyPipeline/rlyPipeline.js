@@ -9,6 +9,8 @@ import saveGit from '@salesforce/apex/RlyRouteController.saveGit';
 import checkGit from '@salesforce/apex/RlyRouteController.checkGit';
 import createBranches from '@salesforce/apex/RlyRouteController.createBranches';
 import saveRoute from '@salesforce/apex/RlyRouteController.saveRoute';
+import getPipelineFiles from '@salesforce/apex/RlyRouteController.getPipelineFiles';
+import updatePipelineFiles from '@salesforce/apex/RlyRouteController.updatePipelineFiles';
 import getSlack from '@salesforce/apex/RlySlackController.getSlack';
 import saveSlack from '@salesforce/apex/RlySlackController.saveSlack';
 import sendSlackTest from '@salesforce/apex/RlySlackController.sendSlackTest';
@@ -19,6 +21,14 @@ const LOGIN_OPTIONS = [
     { label: 'Production or Developer Edition', value: 'Production' },
     { label: 'Sandbox', value: 'Sandbox' }
 ];
+const ENVIRONMENT_OPTIONS = [
+    { label: 'Developer sandbox', value: 'Developer' },
+    { label: 'Developer Pro sandbox', value: 'Developer_Pro' },
+    { label: 'Partial Copy sandbox', value: 'Partial_Copy' },
+    { label: 'Full Copy sandbox', value: 'Full_Copy' },
+    { label: 'Production', value: 'Production' }
+];
+const ENVIRONMENT_LABELS = ENVIRONMENT_OPTIONS.reduce((m, o) => ({ ...m, [o.value]: o.label }), {});
 const STATUS_CLS = {
     Connected: 'rr-pill rr-pill-ok',
     Failed: 'rr-pill rr-pill-bad',
@@ -32,7 +42,7 @@ const PROVIDERS = [
     { label: 'Bitbucket', value: 'Bitbucket', how: 'Custom pipeline', repo: 'workspace/repository', pipeLabel: 'Custom pipeline', pipe: 'release-relay', cred: 'RLY_Bitbucket' },
     { label: 'Azure DevOps', value: 'AzureDevOps', how: 'Azure Pipeline', repo: 'organization/project/repository', pipeLabel: 'Pipeline id', pipe: '', cred: 'RLY_AzureDevOps' }
 ];
-const ORG_FIELDS = ['Id', 'Name', 'Role__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Certificate__c', 'Git_Environment__c', 'Branch__c'];
+const ORG_FIELDS = ['Id', 'Name', 'Role__c', 'Environment__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Certificate__c', 'Git_Environment__c', 'Branch__c'];
 const GIT_STATUS_CLS = { Connected: 'rr-pill rr-pill-ok', Failed: 'rr-pill rr-pill-bad', 'Not checked': 'rr-pill rr-pill-none' };
 const APPROVE_FIELDS = ['Approve_In_Salesforce__c', 'Approve_In_Slack__c'];
 
@@ -42,7 +52,7 @@ function errorText(e) {
 
 function blankForm() {
     return {
-        Id: null, Name: '', Role__c: 'Developer', My_Domain__c: '', Login_Type__c: 'Production',
+        Id: null, Name: '', Role__c: 'Developer', Environment__c: 'Developer', My_Domain__c: '', Login_Type__c: 'Production',
         Username__c: '', Consumer_Key__c: '', Certificate__c: 'release_relay', Git_Environment__c: '', Branch__c: '',
         Approve_In_Salesforce__c: true, Approve_In_Slack__c: false, Require_Git_Review__c: false, Slack_Channel__c: '', Slack_Post__c: false
     };
@@ -66,6 +76,7 @@ export default class RlyPipeline extends LightningElement {
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
     get appName() { return APP_NAME; }
     loginOptions = LOGIN_OPTIONS;
+    environmentOptions = ENVIRONMENT_OPTIONS;
     orgs = [];
     keyHints = {};
     hubDomain = '';
@@ -103,9 +114,29 @@ export default class RlyPipeline extends LightningElement {
     memberEdits = {};
     memberSavingId;
     orgSlackBusyId;
+    /** RlyRouteController.getPipelineFiles: the pipeline files' versions in the repository and packaged. */
+    pipeFiles;
+    pipeFilesLoading = false;
+    pipeFilesError;
+    filesOpen = false;
+    filesHow = 'pullRequest';
+    filesBusy = false;
+    filesResult;
+    filesUpdateError;
+    focusFiles = false;
 
     connectedCallback() {
         this.load();
+    }
+
+    renderedCallback() {
+        if (this.focusFiles) {
+            const close = this.template.querySelector('.rr-files-close');
+            if (close) {
+                close.focus();
+                this.focusFiles = false;
+            }
+        }
     }
 
     load() {
@@ -122,6 +153,9 @@ export default class RlyPipeline extends LightningElement {
                 this.gitProviderName = h.gitProvider;
                 this.showSetup = this.orgs.length === 0;
                 this.applySetup(s);
+                if (this.git && !this.pipeFiles && !this.pipeFilesLoading) {
+                    this.loadPipeFiles();
+                }
                 if (this.orgs.length === 0 && this.isAdmin && !this.editing) {
                     this.startAdd();
                 }
@@ -219,6 +253,9 @@ export default class RlyPipeline extends LightningElement {
     /** branch · env · source tracking or Metadata API · API version (or "this org" for the hub). */
     summary(o) {
         const parts = [];
+        if (o.Environment__c && ENVIRONMENT_LABELS[o.Environment__c]) {
+            parts.push({ key: 'v', label: ENVIRONMENT_LABELS[o.Environment__c] });
+        }
         if (o.Branch__c) {
             parts.push({ key: 'b', label: 'branch ', value: o.Branch__c });
         }
@@ -405,6 +442,8 @@ export default class RlyPipeline extends LightningElement {
         saveGit({ gitJson: JSON.stringify(payload) })
             .then(() => {
                 this.gitDirty = false;
+                // The provider or branch may have changed: read the pipeline files' versions again.
+                this.pipeFiles = undefined;
                 return this.load().then(() => this.runGitCheck());
             })
             .catch((e) => {
@@ -443,6 +482,154 @@ export default class RlyPipeline extends LightningElement {
             .catch((e) => this.toast(errorText(e), 'error'))
             .finally(() => {
                 this.gitBusy = false;
+            });
+    }
+
+    // ---------- pipeline files ----------
+
+    loadPipeFiles() {
+        this.pipeFilesLoading = true;
+        this.pipeFilesError = undefined;
+        return getPipelineFiles()
+            .then((st) => {
+                this.pipeFiles = st;
+            })
+            .catch((e) => {
+                this.pipeFilesError = errorText(e);
+            })
+            .finally(() => {
+                this.pipeFilesLoading = false;
+            });
+    }
+
+    get showFilesLine() { return this.hasGit && (this.pipeFilesLoading || !!this.pipeFiles || !!this.pipeFilesError); }
+    get filesRepoMissing() { return !!this.pipeFiles && (this.pipeFiles.repoVersion === null || this.pipeFiles.repoVersion === undefined); }
+
+    /** Pipeline files: up to date (version N) · version R in your repository · version N available · not found in your repository. */
+    get filesText() {
+        const st = this.pipeFiles;
+        if (this.pipeFilesLoading) {
+            return 'Pipeline files: checking your repository…';
+        }
+        if (!st) {
+            return 'Pipeline files: ' + (this.pipeFilesError || 'not checked');
+        }
+        if (this.filesRepoMissing) {
+            return 'Pipeline files: not found in your repository · version ' + st.packagedVersion + ' available';
+        }
+        if (st.upToDate) {
+            return 'Pipeline files: up to date (version ' + st.packagedVersion + ')';
+        }
+        return 'Pipeline files: version ' + st.repoVersion + ' in your repository · version ' + st.packagedVersion + ' available';
+    }
+    get filesPill() {
+        const st = this.pipeFiles;
+        if (!st) {
+            return this.pipeFilesLoading ? 'Checking' : 'Not checked';
+        }
+        if (st.upToDate) {
+            return 'Up to date';
+        }
+        return this.filesRepoMissing ? 'Not found' : 'Update available';
+    }
+    get filesPillCls() {
+        const st = this.pipeFiles;
+        if (!st) {
+            return this.pipeFilesError ? 'rr-pill rr-pill-bad' : 'rr-pill rr-pill-none';
+        }
+        return st.upToDate ? 'rr-pill rr-pill-ok' : 'rr-pill rr-pill-wait';
+    }
+    get filesNote() { return this.pipeFiles && this.pipeFiles.message ? this.pipeFiles.message : ''; }
+    get canUpdateFiles() { return this.isAdmin && !!this.pipeFiles && this.pipeFiles.isAdmin === true && !this.pipeFiles.upToDate; }
+    get filesGitLab() { return (this.pipeFiles && this.pipeFiles.provider) === 'GitLab'; }
+    get filesRequestWord() { return this.filesGitLab ? 'merge request' : 'pull request'; }
+    get filesBranch() { return (this.pipeFiles && this.pipeFiles.branch) || (this.git && this.git.Pipeline_Branch__c) || 'main'; }
+    get filesHowOptions() {
+        return [
+            { label: 'Open a ' + this.filesRequestWord + ' (recommended)', value: 'pullRequest' },
+            { label: 'Commit directly to ' + this.filesBranch, value: 'commit' }
+        ];
+    }
+    get filesHowHelp() {
+        return this.filesHow === 'commit'
+            ? 'The files are committed to ' + this.filesBranch + ' at once. The next release uses them.'
+            : 'A branch with the new files and a ' + this.filesRequestWord + ' into ' + this.filesBranch + '. Merge it in your Git provider to start using them.';
+    }
+    get filesTitle() { return 'Update pipeline files to version ' + ((this.pipeFiles && this.pipeFiles.packagedVersion) || ''); }
+
+    /** The files this hub's pipeline uses (its provider's file and the script), with what changes in each. */
+    get filesToChange() {
+        const st = this.pipeFiles;
+        const packaged = st && st.packagedVersion;
+        return ((st && st.files) || []).filter((f) => f.forThisHub).map((f) => {
+            let change;
+            if (f.repoVersion === null || f.repoVersion === undefined) {
+                change = 'New file · version ' + packaged;
+            } else if (f.repoVersion < packaged) {
+                change = 'Version ' + f.repoVersion + ' → ' + packaged;
+            } else {
+                change = 'Already version ' + f.repoVersion + ' · written again';
+            }
+            return { key: f.resourceName || f.repoPath, name: f.name, repoPath: f.repoPath, change };
+        });
+    }
+    get hasFilesToChange() { return this.filesToChange.length > 0; }
+    get filesDone() { return !!this.filesResult && this.filesResult.ok === true; }
+    get filesNotDone() { return !this.filesDone; }
+    get filesResultLabel() {
+        if (!this.filesResult) {
+            return '';
+        }
+        return this.filesResult.how === 'commit' ? 'Open the commit' : 'Open the ' + this.filesRequestWord;
+    }
+    get filesUpdateLabel() { return this.filesBusy ? 'Updating…' : 'Update'; }
+    get filesCantUpdate() { return this.filesBusy || !this.hasFilesToChange; }
+    get filesCancelLabel() { return this.filesDone ? 'Close' : 'Cancel'; }
+
+    openFiles() {
+        this.filesHow = 'pullRequest';
+        this.filesResult = undefined;
+        this.filesUpdateError = undefined;
+        this.filesOpen = true;
+        this.focusFiles = true;
+    }
+
+    closeFiles() {
+        if (!this.filesBusy) {
+            this.filesOpen = false;
+        }
+    }
+
+    handleFilesKey(event) {
+        if (event.key === 'Escape') {
+            this.closeFiles();
+        }
+    }
+
+    handleFilesHow(event) {
+        this.filesHow = event.detail.value;
+        this.filesUpdateError = undefined;
+    }
+
+    handleFilesUpdate() {
+        const how = this.filesHow;
+        this.filesBusy = true;
+        this.filesUpdateError = undefined;
+        updatePipelineFiles({ how })
+            .then((r) => {
+                if (r && r.ok) {
+                    this.filesResult = { ...r, how };
+                    this.toast(r.message || 'Pipeline files updated', 'success');
+                    return this.loadPipeFiles();
+                }
+                this.filesUpdateError = (r && r.message) || 'The pipeline files were not updated.';
+                return null;
+            })
+            .catch((e) => {
+                this.filesUpdateError = errorText(e);
+            })
+            .finally(() => {
+                this.filesBusy = false;
             });
     }
 
@@ -760,6 +947,10 @@ export default class RlyPipeline extends LightningElement {
         if (field === 'My_Domain__c' && /\.sandbox\.my\.salesforce\.com/i.test(value || '')) {
             next.Login_Type__c = 'Sandbox';
         }
+        // The hub is the production org.
+        if (field === 'Role__c' && value === 'Hub') {
+            next.Environment__c = 'Production';
+        }
         this.form = next;
         this.formError = undefined;
     }
@@ -777,7 +968,7 @@ export default class RlyPipeline extends LightningElement {
 
     handleSave() {
         // A blank consumer key isn't sent, so an edit keeps the saved one.
-        const keys = ['Id', 'Name', 'Role__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Consumer_Key__c',
+        const keys = ['Id', 'Name', 'Role__c', 'Environment__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Consumer_Key__c',
             'Certificate__c', 'Git_Environment__c', 'Branch__c', 'Approve_In_Salesforce__c', 'Approve_In_Slack__c',
             'Require_Git_Review__c', 'Slack_Channel__c', 'Slack_Post__c'];
         const payload = {};

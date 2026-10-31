@@ -22,39 +22,42 @@
 
             <section class="rr-card" aria-label="Source org">
                 <div class="rr-pad rr-stack">
-                    <p class="rr-label">Developer orgs</p>
                     <template lwc:if={noDevelopers}>
                         <div class="rr-empty">No developer org yet. An admin registers it on the Pipeline tab with the role Developer.</div>
                     </template>
-                    <div class="rr-src-row" role="group" aria-label="Developer orgs">
-                        <template for:each={orgCards} for:item="o">
-                            <button key={o.id} type="button" class={o.cls} data-id={o.id} aria-pressed={o.pressed} disabled={o.disabled} onclick={handleOrg}>
-                                <span class="rr-src-top">
-                                    <strong class="rr-src-name">{o.name}</strong>
-                                    <template lwc:if={o.showStatus}><span class="rr-pill rr-pill-wait">{o.status}</span></template>
-                                </span>
-                                <span class="rr-mono rr-weak">{o.branch}</span>
-                                <span class="rr-small rr-weak">{o.note}</span>
-                            </button>
+                    <div class="rr-envs">
+                        <template for:each={envGroups} for:item="g">
+                            <div key={g.key} class="rr-env" role="group" aria-label={g.label}>
+                                <div class="rr-env-head">
+                                    <p class="rr-env-name">{g.label}</p>
+                                    <p class="rr-small rr-weak">{g.hint}</p>
+                                </div>
+                                <div class="rr-src-row">
+                                    <template lwc:if={g.empty}><p class="rr-env-none">None registered</p></template>
+                                    <template for:each={g.cards} for:item="o">
+                                        <template lwc:if={o.selectable}>
+                                            <button key={o.id} type="button" class={o.cls} data-id={o.id} aria-pressed={o.pressed} disabled={o.disabled} onclick={handleOrg}>
+                                                <span class="rr-src-top">
+                                                    <strong class="rr-src-name">{o.name}</strong>
+                                                    <template lwc:if={o.hotfix}><span class="rr-pill rr-pill-wait">Hotfix</span></template>
+                                                    <template lwc:if={o.showStatus}><span class={o.statusCls}>{o.status}</span></template>
+                                                </span>
+                                                <span class="rr-mono rr-weak">{o.branch}</span>
+                                                <span class="rr-small rr-weak">{o.note}</span>
+                                            </button>
+                                        </template>
+                                        <template lwc:else>
+                                            <div key={o.id} class={o.cls}>
+                                                <span class="rr-src-top"><strong class="rr-src-name">{o.name}</strong></span>
+                                                <span class="rr-mono rr-weak">{o.branch}</span>
+                                                <span class="rr-small rr-weak">{o.note}</span>
+                                            </div>
+                                        </template>
+                                    </template>
+                                </div>
+                            </div>
                         </template>
                     </div>
-
-                    <template lwc:if={hasStageSources}>
-                        <p class="rr-label">Stage orgs (hotfix: changes made directly in the org)</p>
-                        <div class="rr-src-row" role="group" aria-label="Stage orgs">
-                            <template for:each={stageCards} for:item="o">
-                                <button key={o.id} type="button" class={o.cls} data-id={o.id} aria-pressed={o.pressed} disabled={o.disabled} onclick={handleOrg}>
-                                    <span class="rr-src-top">
-                                        <strong class="rr-src-name">{o.name}</strong>
-                                        <span class="rr-pill rr-pill-wait">Hotfix</span>
-                                        <template lwc:if={o.showStatus}><span class="rr-pill rr-pill-none">{o.status}</span></template>
-                                    </span>
-                                    <span class="rr-mono rr-weak">{o.branch}</span>
-                                    <span class="rr-small rr-weak">{o.next}</span>
-                                </button>
-                            </template>
-                        </div>
-                    </template>
 
                     <template lwc:if={isHotfix}>
                         <div class="rr-note rr-note-hotfix">

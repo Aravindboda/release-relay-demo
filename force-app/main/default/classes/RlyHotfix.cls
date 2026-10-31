@@ -20,6 +20,8 @@ public with sharing class RlyHotfix {
         @AuraEnabled public String status;
         /** @description Whether it has source tracking. */
         @AuraEnabled public String sourceTracking;
+        /** @description Its Salesforce environment (Developer, Developer_Pro, Partial_Copy, Full_Copy or Production). */
+        @AuraEnabled public String environment;
         /** @description The next stop's name. */
         @AuraEnabled public String targetName;
         /** @description The next stop's branch. */
@@ -84,6 +86,7 @@ public with sharing class RlyHotfix {
         s.branch = stage.Branch__c;
         s.status = stage.Status__c;
         s.sourceTracking = stage.Source_Tracking__c;
+        s.environment = stage.Environment__c;
         s.targetName = nextOrg.Name;
         s.targetBranch = nextOrg.Branch__c;
         s.targetEnvironment = nextOrg.Git_Environment__c;

@@ -158,9 +158,10 @@ public abstract with sharing class RlyGit {
     /**
      * @description Creates or replaces a file on a branch.
      * @param file the file and its commit
+     * @return link to the commit, or null when the provider gives none
      */
-    public virtual void putFile(RlyGitFile file) {
-        failUnsupported('Committing files');
+    public virtual String putFile(RlyGitFile file) {
+        return (String) failUnsupported('Committing files');
     }
 
     /**
@@ -215,6 +216,17 @@ public abstract with sharing class RlyGit {
      */
     public virtual void closePullRequest(Integer prNumber) {
         failUnsupported('Closing pull requests');
+    }
+
+    /**
+     * @description Opens a pull request from one branch into another.
+     * @param head the branch with the changes
+     * @param baseBranch the branch to merge into
+     * @param message the title, then (after a line break) the description, like a commit message
+     * @return the pull request's link
+     */
+    public virtual String openPullRequest(String head, String baseBranch, String message) {
+        return (String) failUnsupported('Opening pull requests');
     }
 
     protected GitException unsupported(String what) {
@@ -281,7 +293,7 @@ public abstract with sharing class RlyGit {
      * @param path the path
      * @return the encoded path
      */
-    public static String encPath(String path) {
+    protected String encPath(String path) {
         return RlyGitRequest.encodePath(path);
     }
 }

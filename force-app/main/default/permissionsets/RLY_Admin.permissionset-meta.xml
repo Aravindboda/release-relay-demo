@@ -27,6 +27,11 @@
     </externalCredentialPrincipalAccesses>
     <fieldPermissions>
         <editable>true</editable>
+        <field>RLY_Org__c.Environment__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>RLY_Org__c.Approval_In__c</field>
         <readable>true</readable>
     </fieldPermissions>

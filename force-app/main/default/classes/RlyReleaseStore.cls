@@ -141,7 +141,7 @@ public with sharing class RlyReleaseStore {
          * @return the orgs, by name
          */
         public List<RLY_Org__c> readRouteOrgs() {
-            return [SELECT Id, Name, Role__c, Branch__c, Git_Environment__c, Stage_Order__c, Status__c, Source_Tracking__c
+            return [SELECT Id, Name, Role__c, Branch__c, Git_Environment__c, Stage_Order__c, Status__c, Source_Tracking__c, Environment__c
                     FROM RLY_Org__c WHERE Role__c IN ('Stage', 'Hub') WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }
 

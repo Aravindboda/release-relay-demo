@@ -73,6 +73,15 @@
 .rr-src:hover { border-color: var(--rr-blue); }
 .rr-src-on { border: 2px solid var(--rr-blue); background: #eef4ff; padding: 9px 11px; }
 .rr-src-off { opacity: 0.6; cursor: not-allowed; }
+.rr-src-stop { cursor: default; background: #fafaf9; }
+.rr-src-stop:hover { border-color: var(--rr-line); }
+.rr-envs { display: flex; flex-direction: column; border: 1px solid var(--rr-line); border-radius: 4px; }
+.rr-env { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 12px; padding: 12px; border-top: 1px solid var(--rr-line); }
+.rr-env:first-child { border-top: 0; }
+.rr-env-head { display: flex; flex-direction: column; gap: 2px; }
+.rr-env-name { margin: 0; font-size: 13px; font-weight: 700; }
+.rr-env-none { margin: 0; align-self: center; font-size: 13px; color: var(--rr-muted); }
+@media (max-width: 600px) { .rr-env { grid-template-columns: minmax(0, 1fr); } }
 .rr-src-top { display: flex; align-items: center; gap: 6px; }
 .rr-src-name { font-size: 16px; font-weight: 700; }
 .rr-goes { margin: 0; font-size: 13px; }

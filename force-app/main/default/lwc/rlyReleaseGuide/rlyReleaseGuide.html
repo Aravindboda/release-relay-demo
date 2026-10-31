@@ -152,6 +152,42 @@
                                     </div>
                                 </template>
 
+                                <!-- pipeline files to download -->
+                                <template lwc:if={b.isFiles}>
+                                    <div class="rr-pad rr-files">
+                                        <template lwc:if={b.filesStatus}>
+                                            <div class="rr-files-status" role="status">
+                                                <span class={b.filesStatus.cls}>{b.filesStatus.pill}</span>
+                                                <span class="rr-files-text rr-grow">{b.filesStatus.text}</span>
+                                                <template lwc:if={b.filesStatus.canUpdate}>
+                                                    <lightning-button label="Update from the Pipeline tab" onclick={openPipelineTab}></lightning-button>
+                                                </template>
+                                            </div>
+                                            <template lwc:if={b.filesStatus.note}><p class="rr-small rr-weak">{b.filesStatus.note}</p></template>
+                                        </template>
+                                        <template lwc:if={b.filesError}><p class="rr-files-err" role="alert">{b.filesError}</p></template>
+                                        <div class="rr-scroll">
+                                            <table class="rr-ftable" aria-label="Pipeline files to download">
+                                                <thead><tr><th scope="col">File</th><th scope="col">Path in the repository</th><th scope="col">What it's for</th><th scope="col">Version</th><th scope="col"><span class="slds-assistive-text">Download</span></th></tr></thead>
+                                                <tbody>
+                                                    <template for:each={b.fileList} for:item="f">
+                                                        <tr key={f.key}>
+                                                            <td class="rr-nowrap"><span class="rr-mono rr-strong">{f.name}</span><span class="rr-file-prov">{f.providerLabel}</span></td>
+                                                            <td><span class="rr-mono">{f.path}</span></td>
+                                                            <td>{f.what}</td>
+                                                            <td class="rr-nowrap">{f.version}<template lwc:if={f.repoText}><span class="rr-file-repo"><span class={f.repoCls}>{f.repoText}</span></span></template></td>
+                                                            <td class="rr-nowrap"><a class="slds-button slds-button_neutral" href={f.url} download={f.name} aria-label={f.downloadLabel}>Download</a></td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <template lwc:if={b.hasOtherFiles}>
+                                            <div><lightning-button variant="base" label={b.otherFilesLabel} onclick={toggleOtherFiles}></lightning-button></div>
+                                        </template>
+                                    </div>
+                                </template>
+
                                 <!-- repository files, per provider -->
                                 <template lwc:if={b.repoOne}>
                                     <div class="rr-repo rr-pad">

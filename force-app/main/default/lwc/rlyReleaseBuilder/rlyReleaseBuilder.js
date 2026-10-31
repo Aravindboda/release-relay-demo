@@ -50,6 +50,15 @@ function words(type) {
     return type.replace(/([a-z])([A-Z])/g, '$1 $2');
 }
 
+// Salesforce's standard environments, smallest sandbox first.
+const ENVIRONMENTS = [
+    { value: 'Developer', label: 'Developer sandbox', hint: 'Metadata only · refresh every day' },
+    { value: 'Developer_Pro', label: 'Developer Pro sandbox', hint: 'Metadata, more storage · refresh every day' },
+    { value: 'Partial_Copy', label: 'Partial Copy sandbox', hint: 'Metadata and sample data · refresh every 5 days' },
+    { value: 'Full_Copy', label: 'Full Copy sandbox', hint: 'Copy of production · refresh every 29 days' },
+    { value: 'Production', label: 'Production', hint: 'The live org' }
+];
+
 export default class RlyReleaseBuilder extends LightningElement {
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
     get appName() { return APP_NAME; }
@@ -161,7 +170,7 @@ export default class RlyReleaseBuilder extends LightningElement {
     /** Stage orgs a hotfix can be raised from (only for users with the Release Relay Hotfix permission). */
     get stageSources() {
         return ((this.start && this.start.canHotfix && this.start.stageSources) || []).map((s) => ({
-            Id: s.id, Name: s.name, Branch__c: s.branch, Status__c: s.status, Source_Tracking__c: s.sourceTracking,
+            Id: s.id, Name: s.name, Branch__c: s.branch, environment: s.environment, Status__c: s.status, Source_Tracking__c: s.sourceTracking,
             isStage: true, targetName: s.targetName, targetBranch: s.targetBranch
         }));
     }
@@ -173,6 +182,7 @@ export default class RlyReleaseBuilder extends LightningElement {
             const on = s.Id === this.orgId;
             return {
                 id: s.Id,
+                environment: s.environment,
                 name: s.Name,
                 branch: s.Branch__c,
                 next: '→ ' + s.targetName + ', skips no checks',
@@ -191,6 +201,7 @@ export default class RlyReleaseBuilder extends LightningElement {
             const on = d.Id === this.orgId;
             return {
                 id: d.Id,
+                environment: d.Environment__c,
                 name: d.Name,
                 branch: d.Branch__c,
                 note: ready
@@ -203,6 +214,27 @@ export default class RlyReleaseBuilder extends LightningElement {
                 disabled: ready ? null : true
             };
         });
+    }
+
+    /** New Release groups the orgs by Salesforce environment, in Salesforce's own order. */
+    get envGroups() {
+        const cards = [
+            ...this.orgCards.map((c) => ({ ...c, selectable: true, statusCls: 'rr-pill rr-pill-wait' })),
+            ...this.stageCards.map((c) => ({ ...c, note: c.next, selectable: true, hotfix: true, statusCls: 'rr-pill rr-pill-none' }))
+        ];
+        const picked = new Set(cards.map((c) => c.id));
+        ((this.start && this.start.routeStops) || []).filter((o) => !picked.has(o.Id)).forEach((o) => {
+            cards.push({
+                id: o.Id, name: o.Name, branch: o.Branch__c, environment: o.Environment__c, selectable: false, cls: 'rr-src rr-src-stop',
+                note: o.Role__c === 'Hub' ? 'Hub · releases end here' : 'Stage' + (o.Stage_Order__c ? ' ' + o.Stage_Order__c : '') + ' · releases arrive here'
+            });
+        });
+        const groups = ENVIRONMENTS.map((e) => ({ ...e, cards: cards.filter((c) => c.environment === e.value) }));
+        const unset = cards.filter((c) => !ENVIRONMENTS.some((e) => e.value === c.environment));
+        if (unset.length) {
+            groups.push({ value: 'none', label: 'Environment not set', hint: 'An admin sets it on the Pipeline tab (Edit org).', cards: unset });
+        }
+        return groups.map((g) => ({ ...g, key: 'env-' + g.value, empty: g.cards.length === 0 }));
     }
 
     get noDevelopers() { return this.start && (this.start.developers || []).length === 0; }
