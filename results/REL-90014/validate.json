@@ -1,0 +1,44 @@
+{
+ "request": "REL-90014",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 249,
+ "deleted": [],
+ "mergedWith": "2dbe36b72fdbd6e9675fb1bdb3414d3d1ee3fccc",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cIU50SAG",
+ "testsRun": 106,
+ "tests": [
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyDeployReaderTest",
+  "RlyGitAdviceTest",
+  "RlyGitProvidersTest",
+  "RlyHotfixTest",
+  "RlyOrgControllerTest",
+  "RlyOrgSessionTest",
+  "RlyPullRequestCloseTest",
+  "RlyRaiseServiceTest",
+  "RlyRouteControllerTest",
+  "RlySlackActionsTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [
+  {
+   "name": "RlyApprovalRunsTest",
+   "method": "slackOnlyOrgsAreNotApprovedInSalesforce",
+   "message": "System.AssertException: Assertion Failed: Older rows still read"
+  }
+ ],
+ "message": "1 test failure(s)",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41241194109",
+ "finishedAt": "2026-10-31T20:58:30.319Z"
+}
