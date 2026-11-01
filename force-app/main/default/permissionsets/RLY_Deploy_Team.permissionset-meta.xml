@@ -5,6 +5,10 @@
         <visible>true</visible>
     </applicationVisibilities>
     <classAccesses>
+        <apexClass>RlyPromoteController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>RlyBuildInfo</apexClass>
         <enabled>true</enabled>
     </classAccesses>
@@ -547,6 +551,10 @@
     </tabSettings>
     <tabSettings>
         <tab>RLY_Built</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>RLY_Promote</tab>
         <visibility>Visible</visibility>
     </tabSettings>
 </PermissionSet>
