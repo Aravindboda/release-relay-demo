@@ -1,0 +1,22 @@
+{
+ "request": "REL-00023",
+ "step": "raise",
+ "status": "Failed",
+ "mode": "promote",
+ "branch": "promote/rel-00023",
+ "target": "prod",
+ "sha": null,
+ "pr": null,
+ "url": null,
+ "commits": [],
+ "conflicts": [
+  "force-app/main/default/classes/RlyDemoGreeting.cls",
+  "force-app/main/default/classes/RlyDemoGreetingTest.cls"
+ ],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "message": "9aff1d2 doesn't apply cleanly on prod (conflicts in force-app/main/default/classes/RlyDemoGreeting.cls, force-app/main/default/classes/RlyDemoGreetingTest.cls). Promote the releases it depends on first, or resolve it in a branch and raise that branch.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41321401731",
+ "finishedAt": "2026-11-01T15:28:42.608Z",
+ "attempt": "2af14198caec5f317363e353c080c629"
+}
