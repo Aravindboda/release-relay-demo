@@ -1,0 +1,394 @@
+<template>
+    <div class="rr-page slds-is-relative">
+        <!-- header -->
+        <section class="rr-card rr-head">
+            <span class="rr-head-icon"><lightning-icon icon-name="utility:info" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
+            <div class="rr-head-text">
+                <p class="rr-kicker">{kicker}</p>
+                <h1 class="rr-title">{title}</h1>
+            </div>
+            <span class="rr-pill rr-pill-info">{buildText}</span>
+            <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Read again" title="Read again"
+                onclick={reload} disabled={loading}></lightning-button-icon>
+            <ul class="rr-facts">
+                <template for:each={headFacts} for:item="f">
+                    <li key={f.key} class="rr-fact">{f.text}</li>
+                </template>
+            </ul>
+        </section>
+
+        <template lwc:if={error}><div class="rr-msg rr-msg-warn" role="status">{error}</div></template>
+
+        <!-- 1 · What it does -->
+        <section class="rr-sec" aria-label="What it does">
+            <div class={folds.what.headCls}>
+                <button type="button" class="rr-fold" aria-expanded={folds.what.expanded} aria-controls="rr-sec-what" data-key="what" onclick={handleFold}>
+                    <span class={folds.what.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                    <span class="rr-h2 rr-fold-title">{folds.what.title}</span>
+                    <span class="rr-sum">{folds.what.summary}</span>
+                </button>
+            </div>
+            <template lwc:if={folds.what.open}>
+                <div id="rr-sec-what" class="rr-sec-body rr-pad">
+                    <ul class="rr-features">
+                        <template for:each={features} for:item="f">
+                            <li key={f.key} class="rr-feature">
+                                <span class="rr-feature-icon"><lightning-icon icon-name={f.icon} size="x-small" alternative-text=""></lightning-icon></span>
+                                <div class="rr-feature-text">
+                                    <h3 class="rr-h3">{f.title}</h3>
+                                    <p class="rr-small rr-weak">{f.text}</p>
+                                </div>
+                            </li>
+                        </template>
+                    </ul>
+                    <p class="rr-cap">How it's built</p>
+                    <ul class="rr-rules">
+                        <template for:each={principles} for:item="p">
+                            <li key={p.key} class="rr-rule-item">
+                                <lightning-icon icon-name="utility:success" size="xx-small" alternative-text="" class="rr-ok-icon"></lightning-icon>
+                                <span><strong>{p.title}.</strong> <span class="rr-weak">{p.text}</span></span>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </template>
+        </section>
+
+        <!-- 2 · Apex by area -->
+        <section class="rr-sec" aria-label="Apex by area">
+            <div class={folds.apex.headCls}>
+                <button type="button" class="rr-fold" aria-expanded={folds.apex.expanded} aria-controls="rr-sec-apex" data-key="apex" onclick={handleFold}>
+                    <span class={folds.apex.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                    <span class="rr-h2 rr-fold-title">{folds.apex.title}</span>
+                    <span class="rr-sum">{folds.apex.summary}</span>
+                </button>
+            </div>
+            <template lwc:if={folds.apex.open}>
+                <div id="rr-sec-apex" class="rr-sec-body rr-pad">
+                    <div class="rr-row rr-small">
+                        <span class="rr-key"><span class="rr-swatch rr-swatch-non"></span>Code</span>
+                        <span class="rr-key"><span class="rr-swatch rr-swatch-test"></span>Tests</span>
+                        <span class="rr-weak">{scaleText}. Click a bar to see its classes.</span>
+                    </div>
+                    <div class="rr-apex-grid">
+                        <ul class="rr-chart" aria-label="Lines of Apex per area">
+                            <template for:each={areaRows} for:item="a">
+                                <li key={a.name}>
+                                    <button type="button" class={a.cls} aria-pressed={a.pressed} aria-label={a.label} data-area={a.name} onclick={pickArea}>
+                                        <span class="rr-bar-name"><strong>{a.name}</strong><span class="rr-weak rr-small">{a.countText}</span></span>
+                                        <svg class="rr-bar-svg" width="100%" height="16" aria-hidden="true">
+                                            <rect class="rr-bar-track" x="0" y="2" width="100%" height="12" rx="2"></rect>
+                                            <rect class="rr-bar-non" x="0" y="2" width={a.nonW} height="12"></rect>
+                                            <rect class="rr-bar-test" x={a.nonW} y="2" width={a.testW} height="12"></rect>
+                                        </svg>
+                                        <span class="rr-bar-num rr-small">{a.linesText}</span>
+                                    </button>
+                                </li>
+                            </template>
+                        </ul>
+                        <div class="rr-card rr-area-card">
+                            <div class="rr-card-head"><h3 class="rr-h3">{areaTitle}</h3></div>
+                            <div class="rr-scroll">
+                                <table class="slds-table slds-table_cell-buffer rr-table">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Class</th>
+                                            <th scope="col">Kind</th>
+                                            <th scope="col" class="rr-num">Lines</th>
+                                            <th scope="col">Tested by</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template for:each={areaClasses} for:item="c">
+                                            <tr key={c.name}>
+                                                <td class="rr-mono rr-break">{c.name}</td>
+                                                <td><span class={c.kindCls}>{c.kind}</span></td>
+                                                <td class="rr-num">{c.linesText}</td>
+                                                <td class="rr-small rr-break">{c.testedBy}</td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </section>
+
+        <!-- 3 · Lightning components -->
+        <section class="rr-sec" aria-label="Lightning components">
+            <div class={folds.lwc.headCls}>
+                <button type="button" class="rr-fold" aria-expanded={folds.lwc.expanded} aria-controls="rr-sec-lwc" data-key="lwc" onclick={handleFold}>
+                    <span class={folds.lwc.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                    <span class="rr-h2 rr-fold-title">{folds.lwc.title}</span>
+                    <span class="rr-sum">{folds.lwc.summary}</span>
+                </button>
+            </div>
+            <template lwc:if={folds.lwc.open}>
+                <div id="rr-sec-lwc" class="rr-sec-body rr-scroll">
+                    <table class="slds-table slds-table_cell-buffer rr-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Component</th>
+                                <th scope="col">What it does</th>
+                                <th scope="col">Used by</th>
+                                <th scope="col" class="rr-num">Lines</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template for:each={components} for:item="b">
+                                <tr key={b.name}>
+                                    <td><span class="rr-mono">{b.name}</span><span class="rr-reason">{b.label}</span></td>
+                                    <td class="rr-wide">{b.purpose}</td>
+                                    <td class="rr-small rr-break">{b.usedBy}</td>
+                                    <td class="rr-num">{b.linesText}</td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+        </section>
+
+        <!-- 4 · Tests -->
+        <section class="rr-sec" aria-label="Tests">
+            <div class={folds.tests.headCls}>
+                <button type="button" class="rr-fold" aria-expanded={folds.tests.expanded} aria-controls="rr-sec-tests" data-key="tests" onclick={handleFold}>
+                    <span class={folds.tests.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                    <span class="rr-h2 rr-fold-title">{folds.tests.title}</span>
+                    <span class="rr-sum">{folds.tests.summary}</span>
+                </button>
+            </div>
+            <template lwc:if={folds.tests.open}>
+                <div id="rr-sec-tests" class="rr-sec-body rr-pad">
+                    <ul class="rr-tiles">
+                        <li class="rr-tile"><span class="rr-tile-label">Test classes</span><span class="rr-tile-value">{testCount}</span></li>
+                        <li class="rr-tile"><span class="rr-tile-label">Test methods</span><span class="rr-tile-value">{methodCount}</span></li>
+                        <li class="rr-tile"><span class="rr-tile-label">Test helpers (no methods)</span><span class="rr-tile-value">{helperCount}</span></li>
+                    </ul>
+                    <div class="rr-row">
+                        <p class="rr-cap rr-grow">Tests to run (RunSpecifiedTests)</p>
+                        <lightning-button label="Copy" icon-name="utility:copy" onclick={copyTests}></lightning-button>
+                    </div>
+                    <pre class="rr-mono rr-codebox" aria-label="Test classes to run">{runTests}</pre>
+                    <p class="rr-small rr-weak">Helpers, run through the tests above: {helperText}</p>
+                    <ul class="rr-test-list" aria-label="Test classes">
+                        <template for:each={testRows} for:item="t">
+                            <li key={t.name} class="rr-test-item">
+                                <span class="rr-mono rr-break">{t.name}</span>
+                                <span class="rr-weak rr-small">{t.area}</span>
+                                <span class="rr-pill rr-pill-none">{t.methodsText}</span>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </template>
+        </section>
+
+        <!-- 5 · Resources -->
+        <section class="rr-sec" aria-label="Resources">
+            <div class={folds.resources.headCls}>
+                <button type="button" class="rr-fold" aria-expanded={folds.resources.expanded} aria-controls="rr-sec-resources" data-key="resources" onclick={handleFold}>
+                    <span class={folds.resources.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                    <span class="rr-h2 rr-fold-title">{folds.resources.title}</span>
+                    <span class="rr-sum">{folds.resources.summary}</span>
+                </button>
+            </div>
+            <template lwc:if={folds.resources.open}>
+                <div id="rr-sec-resources" class="rr-sec-body rr-pad slds-is-relative">
+                    <template lwc:if={loading}><lightning-spinner alternative-text="Reading this org" size="small"></lightning-spinner></template>
+                    <div class="rr-row rr-small">
+                        <span class="rr-pill rr-pill-info">{sourceText}</span>
+                        <span class="rr-weak">{codeChangedText}</span>
+                    </div>
+                    <ul class="rr-tiles">
+                        <li class="rr-tile">
+                            <span class="rr-tile-label">Apex code used</span>
+                            <span class="rr-tile-value">{apexMeter.value}</span>
+                            <span class="rr-small rr-weak">{apexMeter.of} · {apexMeter.pctText}</span>
+                            <svg class="rr-meter" width="100%" height="6" aria-hidden="true">
+                                <rect class="rr-meter-track" x="0" y="0" width="100%" height="6" rx="3"></rect>
+                                <rect class={apexMeter.fillCls} x="0" y="0" width={apexMeter.w} height="6" rx="3"></rect>
+                            </svg>
+                            <span class="rr-small rr-weak">{apexMeter.note}</span>
+                        </li>
+                        <li class="rr-tile">
+                            <span class="rr-tile-label">Release Relay records</span>
+                            <span class="rr-tile-value">{recordsTotalText}</span>
+                            <span class="rr-small rr-weak">{storageText} of data storage (about 2 KB a record)</span>
+                            <template lwc:if={storageMeter.known}>
+                                <svg class="rr-meter" width="100%" height="6" aria-hidden="true">
+                                    <rect class="rr-meter-track" x="0" y="0" width="100%" height="6" rx="3"></rect>
+                                    <rect class={storageMeter.fillCls} x="0" y="0" width={storageMeter.w} height="6" rx="3"></rect>
+                                </svg>
+                            </template>
+                            <span class="rr-small rr-weak">{storageMeter.note}</span>
+                        </li>
+                        <li class="rr-tile">
+                            <span class="rr-tile-label">API requests today</span>
+                            <span class="rr-tile-value">{apiMeter.value}</span>
+                            <span class="rr-small rr-weak">{apiMeter.of} <template lwc:if={apiMeter.known}>· {apiMeter.pctText}</template></span>
+                            <template lwc:if={apiMeter.known}>
+                                <svg class="rr-meter" width="100%" height="6" aria-hidden="true">
+                                    <rect class="rr-meter-track" x="0" y="0" width="100%" height="6" rx="3"></rect>
+                                    <rect class={apiMeter.fillCls} x="0" y="0" width={apiMeter.w} height="6" rx="3"></rect>
+                                </svg>
+                            </template>
+                            <span class="rr-small rr-weak">Release Relay's own calls are callouts out of the hub, not API requests into it.</span>
+                        </li>
+                        <li class="rr-tile">
+                            <span class="rr-tile-label">Async Apex</span>
+                            <span class="rr-tile-value">{asyncText}</span>
+                            <span class="rr-small rr-weak">{asyncNote}</span>
+                        </li>
+                        <li class="rr-tile">
+                            <span class="rr-tile-label">Static resources</span>
+                            <span class="rr-tile-value">{resourceText}</span>
+                            <span class="rr-small rr-weak">{resourceNote}</span>
+                        </li>
+                    </ul>
+
+                    <template lwc:if={hasRecords}>
+                        <p class="rr-cap">Records by object</p>
+                        <ul class="rr-counts">
+                            <template for:each={recordRows} for:item="r">
+                                <li key={r.key} class="rr-count">
+                                    <span>{r.label}</span>
+                                    <strong>{r.totalText}</strong>
+                                    <span class="rr-weak rr-small">≈ {r.sizeText}</span>
+                                </li>
+                            </template>
+                        </ul>
+                    </template>
+
+                    <div class="rr-est-grid">
+                        <div class="rr-card">
+                            <div class="rr-card-head"><h3 class="rr-h3">Callouts per step (estimates)</h3></div>
+                            <ul class="rr-est-list">
+                                <template for:each={callouts} for:item="c">
+                                    <li key={c.key} class="rr-est"><strong>{c.label}</strong><span class="rr-small rr-weak">{c.text}</span></li>
+                                </template>
+                            </ul>
+                            <p class="rr-small rr-weak rr-est-note">{calloutNote}</p>
+                        </div>
+                        <div class="rr-card">
+                            <div class="rr-card-head"><h3 class="rr-h3">Records per release (estimates)</h3></div>
+                            <ul class="rr-est-list">
+                                <template for:each={storageRows} for:item="s">
+                                    <li key={s.key} class="rr-est"><strong>{s.label}</strong><span class="rr-small rr-weak">{s.text}</span></li>
+                                </template>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </section>
+
+        <!-- 6 · Data model and access -->
+        <section class="rr-sec" aria-label="Data model and access">
+            <div class={folds.model.headCls}>
+                <button type="button" class="rr-fold" aria-expanded={folds.model.expanded} aria-controls="rr-sec-model" data-key="model" onclick={handleFold}>
+                    <span class={folds.model.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                    <span class="rr-h2 rr-fold-title">{folds.model.title}</span>
+                    <span class="rr-sum">{folds.model.summary}</span>
+                </button>
+            </div>
+            <template lwc:if={folds.model.open}>
+                <div id="rr-sec-model" class="rr-sec-body rr-pad">
+                    <p class="rr-cap">Objects</p>
+                    <div class="rr-scroll">
+                        <table class="slds-table slds-table_cell-buffer rr-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Object</th>
+                                    <th scope="col" class="rr-num">Fields</th>
+                                    <th scope="col">What it holds</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={objects} for:item="o">
+                                    <tr key={o.name}>
+                                        <td><span class="rr-mono">{o.name}</span><span class="rr-reason">{o.label}</span><span class="rr-reason">{o.inPackageAs}</span></td>
+                                        <td class="rr-num">{o.fieldsText}</td>
+                                        <td class="rr-wide">{o.purpose}<span class="rr-reason rr-mono">{o.fieldNames}</span></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="rr-small rr-weak">Already in the hub before this package (Phase 1): {phase1Text}</p>
+
+                    <p class="rr-cap">Permission sets</p>
+                    <div class="rr-scroll">
+                        <table class="slds-table slds-table_cell-buffer rr-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Permission set</th>
+                                    <th scope="col">Who gets it</th>
+                                    <th scope="col" class="rr-num">Classes</th>
+                                    <th scope="col" class="rr-num">Objects</th>
+                                    <th scope="col" class="rr-num">Fields</th>
+                                    <th scope="col" class="rr-num">Tabs</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={permissionSets} for:item="p">
+                                    <tr key={p.name}>
+                                        <td><span class="rr-mono">{p.name}</span><span class="rr-reason">{p.label}</span></td>
+                                        <td class="rr-wide rr-small">{p.description}</td>
+                                        <td class="rr-num">{p.classes}</td>
+                                        <td class="rr-num">{p.objects}</td>
+                                        <td class="rr-num">{p.fields}</td>
+                                        <td class="rr-num">{p.tabs}</td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="rr-small rr-weak">Custom permissions: {customPermissions}</p>
+
+                    <div class="rr-est-grid">
+                        <div class="rr-card">
+                            <div class="rr-card-head"><h3 class="rr-h3">Credentials</h3></div>
+                            <ul class="rr-est-list">
+                                <template for:each={credentials} for:item="c">
+                                    <li key={c.key} class="rr-est"><strong><span class="rr-mono">{c.name}</span> · {c.kind}</strong><span class="rr-small rr-weak rr-break">{c.text}</span></li>
+                                </template>
+                            </ul>
+                        </div>
+                        <div class="rr-card">
+                            <div class="rr-card-head"><h3 class="rr-h3">Static resources</h3></div>
+                            <ul class="rr-est-list">
+                                <template for:each={staticResources} for:item="s">
+                                    <li key={s.name} class="rr-est"><strong><span class="rr-mono">{s.name}</span> · {s.sizeText}</strong><span class="rr-small rr-weak">{s.description}</span></li>
+                                </template>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </section>
+
+        <!-- 7 · Not in the package -->
+        <section class="rr-sec" aria-label="Not in the package">
+            <div class={folds.manual.headCls}>
+                <button type="button" class="rr-fold" aria-expanded={folds.manual.expanded} aria-controls="rr-sec-manual" data-key="manual" onclick={handleFold}>
+                    <span class={folds.manual.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                    <span class="rr-h2 rr-fold-title">{folds.manual.title}</span>
+                    <span class="rr-sum">{folds.manual.summary}</span>
+                </button>
+            </div>
+            <template lwc:if={folds.manual.open}>
+                <div id="rr-sec-manual" class="rr-sec-body rr-pad">
+                    <p class="rr-small rr-weak">Set up by hand in the hub, each org, the Git repository and Slack. The Guide tab's Set up walks through each one.</p>
+                    <ol class="rr-ms-list">
+                        <template for:each={manualSetup} for:item="m">
+                            <li key={m.key} class="rr-ms"><span class="rr-no">{m.no}</span><span class="rr-ms-body rr-small">{m.text}</span></li>
+                        </template>
+                    </ol>
+                </div>
+            </template>
+        </section>
+    </div>
+</template>

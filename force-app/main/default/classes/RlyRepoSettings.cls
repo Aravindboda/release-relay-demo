@@ -28,6 +28,10 @@ public with sharing class RlyRepoSettings {
         @AuraEnabled public List<GateRow> gates = new List<GateRow>();
         /** @description Why the gates file couldn't be read, or null. */
         @AuraEnabled public String gatesError;
+        /** @description The values file is on the branch (false: the page offers to create it). */
+        @AuraEnabled public Boolean valuesFound = false;
+        /** @description The gates file is on the branch (false: the page offers to create it). */
+        @AuraEnabled public Boolean gatesFound = false;
     }
 
     /** @description One named value and its value per Git environment. */
@@ -68,6 +72,8 @@ public with sharing class RlyRepoSettings {
             RlyGit git = RlyGit.forConnection(conn);
             String valuesText = git.getFileRaw(VALUES_PATH, s.branch);
             String gatesText = git.getFileRaw(GATES_PATH, s.branch);
+            s.valuesFound = valuesText != null;
+            s.gatesFound = gatesText != null;
             fillValues(s, valuesText);
             fillGates(s, gatesText);
         } catch (Exception e) {

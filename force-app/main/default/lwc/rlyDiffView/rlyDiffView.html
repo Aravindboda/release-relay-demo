@@ -1,0 +1,116 @@
+<template>
+    <section class="rr-dv" aria-label={title}>
+        <!-- header: file path, +n −n, optional link, Split / Unified -->
+        <div class="rr-dvh">
+            <b class="rr-path" title={title}>{title}</b>
+            <span class="rr-cnt" aria-label={countsLabel}>
+                <template lwc:if={showAdded}><span class="rr-plus">{addedText}</span></template>
+                <template lwc:if={showRemoved}><span class="rr-minus">{removedText}</span></template>
+            </span>
+            <span class="rr-grow"></span>
+            <template lwc:if={linkUrl}><a class="rr-link" href={linkUrl} target="_blank" rel="noopener">{linkLabel}</a></template>
+            <span class="rr-seg" role="group" aria-label="View">
+                <button type="button" class={splitCls} aria-pressed={splitPressed} onclick={showSplit}>Split</button>
+                <button type="button" class={unifiedCls} aria-pressed={unifiedPressed} onclick={showUnified}>Unified</button>
+            </span>
+        </div>
+        <slot name="subheader"></slot>
+
+        <template lwc:if={tooLarge}>
+            <div class="rr-empty" role="status"><span class="rr-pill rr-pill-none">Not available</span><p>{tooLargeText}</p></div>
+        </template>
+        <template lwc:elseif={noDifferences}>
+            <div class="rr-empty" role="status"><span class="rr-pill rr-pill-none">Same</span><p>{sameText}</p></div>
+        </template>
+        <template lwc:elseif={isEmpty}>
+            <div class="rr-empty" role="status"><p>{emptyText}</p></div>
+        </template>
+        <template lwc:else>
+            <template lwc:if={isNew}>
+                <div class="rr-nf" role="status"><span class="rr-pill rr-pill-ok">New file</span><span class="rr-small rr-weak">{newText}</span></div>
+            </template>
+            <template lwc:if={isDeleted}>
+                <div class="rr-nf" role="status"><span class="rr-pill rr-pill-bad">Deleted file</span><span class="rr-small rr-weak">{deletedText}</span></div>
+            </template>
+
+            <template lwc:if={isSplit}>
+                <div class="rr-sbs">
+                    <div class="rr-sbh"><span class="rr-pill rr-pill-none">Target</span><b>{leftLabel}</b></div>
+                    <div class="rr-sbh"><span class="rr-pill rr-pill-src">Source</span><b>{rightLabel}</b></div>
+                    <!-- left: the target -->
+                    <div class="rr-scr">
+                        <table class="rr-df" aria-label={leftName}>
+                            <tbody>
+                                <template for:each={splitRowsShown} for:item="row">
+                                    <template lwc:if={row.isLine}>
+                                        <tr key={row.key} class={row.l.rowCls}>
+                                            <td class="rr-n">{row.l.no}</td>
+                                            <td class="rr-g">{row.l.sign}</td>
+                                            <td class="rr-c">{row.l.pre}<template lwc:if={row.l.mark}><mark class="rr-mk">{row.l.mark}</mark></template>{row.l.post}</td>
+                                        </tr>
+                                    </template>
+                                    <template lwc:elseif={row.isFold}>
+                                        <tr key={row.key} class="rr-fold">
+                                            <td colspan="3"><button type="button" class="rr-fold-btn" data-id={row.foldId} onclick={openFold} title="Show these lines">{row.text}</button></td>
+                                        </tr>
+                                    </template>
+                                    <template lwc:else>
+                                        <tr key={row.key} class="rr-hunk"><td colspan="3" class="rr-c rr-hunk-text">{row.text}</td></tr>
+                                    </template>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- right: the source -->
+                    <div class="rr-scr">
+                        <table class="rr-df" aria-label={rightName}>
+                            <tbody>
+                                <template for:each={splitRowsShown} for:item="row">
+                                    <template lwc:if={row.isLine}>
+                                        <tr key={row.key} class={row.r.rowCls}>
+                                            <td class="rr-n">{row.r.no}</td>
+                                            <td class="rr-g">{row.r.sign}</td>
+                                            <td class="rr-c">{row.r.pre}<template lwc:if={row.r.mark}><mark class="rr-mk">{row.r.mark}</mark></template>{row.r.post}</td>
+                                        </tr>
+                                    </template>
+                                    <template lwc:elseif={row.isFold}>
+                                        <tr key={row.key} class="rr-fold"><td colspan="3"><span class="rr-fold-btn">&nbsp;</span></td></tr>
+                                    </template>
+                                    <template lwc:else>
+                                        <tr key={row.key} class="rr-hunk"><td colspan="3" class="rr-c">&nbsp;</td></tr>
+                                    </template>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </template>
+            <template lwc:else>
+                <div class="rr-scr">
+                    <table class="rr-df rr-uni" aria-label={title}>
+                        <tbody>
+                            <template for:each={unifiedRowsShown} for:item="row">
+                                <template lwc:if={row.isLine}>
+                                    <tr key={row.key} class={row.rowCls}>
+                                        <td class="rr-n">{row.oldNo}</td>
+                                        <td class="rr-n">{row.newNo}</td>
+                                        <td class="rr-g">{row.sign}</td>
+                                        <td class="rr-c">{row.pre}<template lwc:if={row.mark}><mark class="rr-mk">{row.mark}</mark></template>{row.post}</td>
+                                    </tr>
+                                </template>
+                                <template lwc:elseif={row.isFold}>
+                                    <tr key={row.key} class="rr-fold">
+                                        <td colspan="4"><button type="button" class="rr-fold-btn" data-id={row.foldId} onclick={openFold} title="Show these lines">{row.text}</button></td>
+                                    </tr>
+                                </template>
+                                <template lwc:else>
+                                    <tr key={row.key} class="rr-hunk"><td class="rr-n"></td><td class="rr-n"></td><td colspan="2" class="rr-c rr-hunk-text">{row.text}</td></tr>
+                                </template>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+        </template>
+    </section>
+</template>

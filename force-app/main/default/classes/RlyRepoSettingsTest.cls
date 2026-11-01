@@ -50,6 +50,7 @@ private class RlyRepoSettingsTest {
             RlyRepoSettings.Settings s = readWith(valuesBody, gatesBody);
             System.assertEquals(null, s.message, 'No message: ' + s.message);
             System.assertEquals('main', s.branch, 'Pipeline branch');
+            System.assert(s.valuesFound && s.gatesFound, 'Both files are on the branch');
             System.assertNotEquals(null, s.readAt, 'Read time');
             System.assertEquals(2, s.values.size(), 'Named values, _ names and non-objects left out');
             Map<String, RlyRepoSettings.ValueRow> rows = new Map<String, RlyRepoSettings.ValueRow>();
@@ -92,6 +93,7 @@ private class RlyRepoSettingsTest {
             RlyRepoSettings.Settings s = readWith(null, null);
             System.assertEquals(null, s.message, 'A missing file is just empty');
             System.assert(s.values.isEmpty() && s.gates.isEmpty(), 'Empty cards');
+            System.assert(!s.valuesFound && !s.gatesFound, 'Neither file on the branch: the page offers to create them');
         }
     }
 
