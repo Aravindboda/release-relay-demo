@@ -26,6 +26,40 @@ private class RlyOrgControllerTest {
     }
 
     @IsTest
+    static void onlyOneHubAndItKeepsItsRole() {
+        System.runAs(RlyTestData.admin()) {
+            Map<String, Object> hub = input('PROD', 'Production');
+            hub.put('Role__c', 'Hub');
+            hub.put('Environment__c', 'Developer');
+            Id hubId = RlyOrgController.saveOrg(JSON.serialize(hub));
+            System.assertEquals('Production', [SELECT Environment__c FROM RLY_Org__c WHERE Id = :hubId].Environment__c, 'The hub is production');
+
+            Map<String, Object> second = input('PROD2', 'Production');
+            second.put('Role__c', 'Hub');
+            Boolean refused = false;
+            try {
+                RlyOrgController.saveOrg(JSON.serialize(second));
+            } catch (AuraHandledException e) {
+                refused = true;
+            }
+            System.assert(refused, 'A second hub is refused');
+            System.assertEquals(1, [SELECT COUNT() FROM RLY_Org__c WHERE Role__c = 'Hub'], 'Still one hub');
+
+            hub.put('Id', hubId);
+            hub.put('Role__c', 'Stage');
+            Boolean kept = false;
+            try {
+                RlyOrgController.saveOrg(JSON.serialize(hub));
+            } catch (AuraHandledException e) {
+                kept = true;
+            }
+            System.assert(kept, 'The hub keeps its role');
+            hub.put('Role__c', 'Hub');
+            System.assertEquals(hubId, RlyOrgController.saveOrg(JSON.serialize(hub)), 'The hub itself saves again');
+        }
+    }
+
+    @IsTest
     static void developerEditionWithoutTracking() {
         System.runAs(RlyTestData.admin()) {
             RlyOrgSession.testToken = RlyTestData.TOKEN;

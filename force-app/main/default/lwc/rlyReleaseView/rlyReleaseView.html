@@ -240,27 +240,43 @@
                                 <dt>Slack</dt><dd><template lwc:if={detail.slackChannel}><span class="rr-small">{detail.slackChannel} · </span></template><a href={detail.slackUrl} target="_blank" rel="noopener">Open</a></dd>
                             </template>
                         </dl>
-                        <div class="rr-hd rr-hd-top">
-                            <h2 class="rr-h2 rr-grow">Components</h2>
-                            <span class="rr-pill rr-pill-none">{itemCount}</span>
-                        </div>
-                        <template lwc:if={manualOnly}>
-                            <p class="rr-small rr-weak rr-pad-x">No components: this release has only manual steps.</p>
+                        <template lwc:if={hasPullRequest}>
+                            <!-- Components | Changes (board HubCompare, 4): Changes loads the pull request's files the first time it opens -->
+                            <div class="rr-tabs" role="tablist" aria-label="Components and changes">
+                                <button type="button" role="tab" class={componentsTabCls} aria-selected={componentsSelected} onclick={showComponents}>Components <em class="rr-tab-c">{itemCount}</em></button>
+                                <button type="button" role="tab" class={changesTabCls} aria-selected={changesSelected} onclick={showChanges}>Changes<template lwc:if={changesCountText}> <em class="rr-tab-c">{changesCountText}</em></template></button>
+                            </div>
                         </template>
-                        <dl class="rr-dl rr-items">
-                            <template for:each={items} for:item="i">
-                                <dt key={i.dtKey}>{i.type}</dt>
-                                <dd key={i.key} class="rr-break">{i.name}</dd>
+                        <template lwc:else>
+                            <div class="rr-hd rr-hd-top">
+                                <h2 class="rr-h2 rr-grow">Components</h2>
+                                <span class="rr-pill rr-pill-none">{itemCount}</span>
+                            </div>
+                        </template>
+                        <div class={componentsPaneCls} role={componentsPaneRole}>
+                            <template lwc:if={manualOnly}>
+                                <p class="rr-small rr-weak rr-pad-x">No components: this release has only manual steps.</p>
                             </template>
-                        </dl>
-                        <template lwc:if={hasDeletions}>
-                            <p class="rr-del-head">{deletesLabel}</p>
-                            <dl class="rr-dl rr-items rr-del-items">
-                                <template for:each={deletions} for:item="d">
-                                    <dt key={d.dtKey}>{d.type}</dt>
-                                    <dd key={d.key} class="rr-break"><span class="rr-pill rr-pill-bad">Delete</span><span class="rr-sp">{d.name}</span></dd>
+                            <dl class="rr-dl rr-items">
+                                <template for:each={items} for:item="i">
+                                    <dt key={i.dtKey}>{i.type}</dt>
+                                    <dd key={i.key} class="rr-break">{i.name}</dd>
                                 </template>
                             </dl>
+                            <template lwc:if={hasDeletions}>
+                                <p class="rr-del-head">{deletesLabel}</p>
+                                <dl class="rr-dl rr-items rr-del-items">
+                                    <template for:each={deletions} for:item="d">
+                                        <dt key={d.dtKey}>{d.type}</dt>
+                                        <dd key={d.key} class="rr-break"><span class="rr-pill rr-pill-bad">Delete</span><span class="rr-sp">{d.name}</span></dd>
+                                    </template>
+                                </dl>
+                            </template>
+                        </div>
+                        <template lwc:if={changesOpened}>
+                            <div class={changesPaneCls} role="tabpanel">
+                                <c-rly-release-changes release-id={releaseId} pr-label={prLabel} pr-url={rel.PR_URL__c} onloaded={handleChangesLoaded}></c-rly-release-changes>
+                            </div>
                         </template>
                     </section>
                 </div>
