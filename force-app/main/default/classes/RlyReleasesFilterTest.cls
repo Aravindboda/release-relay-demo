@@ -82,6 +82,8 @@ private class RlyReleasesFilterTest {
             System.assertEquals(1, mine.get('failed'), 'Failed');
             System.assertEquals(1, mine.get('closed'), 'Closed');
             System.assertEquals(5, mine.get('all'), 'All');
+            System.assertEquals(1, mine.get('checks'), 'Checks failed');
+            System.assertEquals(1, RlyReleasesController.listReleasesFor(filterJson(me.Id, 'checks', null)).size(), 'Checks failed list');
             Map<String, Integer> everyone = RlyReleasesController.countReleases('');
             System.assertEquals(3, everyone.get('open'), 'Everyone open');
             System.assertEquals(6, everyone.get('all'), 'Everyone all');

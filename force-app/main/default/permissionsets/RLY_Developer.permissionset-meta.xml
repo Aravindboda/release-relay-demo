@@ -13,6 +13,10 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
+        <apexClass>RlyHomeController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>RlyPullRequestFiles</apexClass>
         <enabled>true</enabled>
     </classAccesses>
@@ -537,6 +541,10 @@
         <object>RLY_Release_Item__c</object>
         <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
+    <tabSettings>
+        <tab>RLY_Home</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
     <tabSettings>
         <tab>RLY_My_Releases</tab>
         <visibility>Visible</visibility>
