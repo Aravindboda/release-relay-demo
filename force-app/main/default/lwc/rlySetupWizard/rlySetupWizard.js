@@ -216,7 +216,7 @@ export default class RlySetupWizard extends LightningElement {
         const domain = this.hubDomain;
         const payload = {
             Name: trimmed(f.Name), Role__c: 'Hub', Environment__c: 'Production', My_Domain__c: domain,
-            Login_Type__c: /\.sandbox\.my\.salesforce\.com/i.test(domain) ? 'Sandbox' : 'Production',
+            Login_Type__c: 'Production',
             Username__c: trimmed(f.Username__c), Consumer_Key__c: trimmed(f.Consumer_Key__c), Certificate__c: trimmed(f.Certificate__c),
             Branch__c: trimmed(f.Branch__c) || null, Git_Environment__c: trimmed(f.Git_Environment__c) || null,
             Approve_In_Salesforce__c: true, Approve_In_Slack__c: false, Require_Git_Review__c: false, Slack_Post__c: false,
