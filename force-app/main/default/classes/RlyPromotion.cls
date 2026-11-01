@@ -72,6 +72,7 @@ public with sharing class RlyPromotion {
         promotion.Deletions__c = deletions.isEmpty() ? null : String.join(deletions, ',').left(RlyDeletions.MAX_LENGTH);
         RlyPromoteStore.insertPromotion(promotion, items, new Map<Id, RLY_Release__c>(carried).keySet());
         RlyManualStepRuns.forPromotion(promotion, nextOrg);
+        RlyReleaseLog.promoted(promotion, carried, stage.Name + ' to ' + nextOrg.Name);
         return promotion.Id;
     }
 
@@ -144,6 +145,7 @@ public with sharing class RlyPromotion {
         promotion.Hotfix_Reason__c = reasons.isEmpty() ? null : String.join(reasons, '; ').left(RlyHotfix.REASON_LENGTH);
         promotion.Carried_Releases__c = String.join(ids, ',');
         promotion.Description__c = ('Promotes ' + String.join(names, ', ')).left(5000);
+        promotion.Flow_Actions__c = RlyFlowChoices.toField(RlyFlowChoices.union(carried));
     }
 
     /**

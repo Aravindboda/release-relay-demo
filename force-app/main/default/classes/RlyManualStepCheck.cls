@@ -63,10 +63,12 @@ public with sharing class RlyManualStepCheck {
             RlySlack.notifyTransition(rel, oldStatus); // callouts before any DML
         }
         RlyManualStepStore.saveRuns(new List<RLY_Manual_Step_Run__c>{ run });
+        RlyReleaseLog.manualStep(run);
         if (rel != null) {
             RlyReleaseStore.save(rel);
             RlySlack.saveResults();
         }
+        RlyReleaseLog.flush();
         return m.releaseId == null ? run.Release__c : m.releaseId;
     }
 

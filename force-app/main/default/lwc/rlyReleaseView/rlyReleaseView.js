@@ -1,11 +1,15 @@
+import APP_NAME from '@salesforce/label/c.RLY_App_Name';
 import { LightningElement, api } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import saveEvidence from '@salesforce/apex/RlyEvidenceController.saveEvidence';
 import refreshRelease from '@salesforce/apex/RlyReleasesController.refreshRelease';
 import bypassScan from '@salesforce/apex/RlyReleasesController.bypassScan';
 import checkAgain from '@salesforce/apex/RlyReleasesController.checkAgain';
 import approve from '@salesforce/apex/RlyReleasesController.approve';
 import reject from '@salesforce/apex/RlyReleasesController.reject';
 import resolveConflicts from '@salesforce/apex/RlyReleasesController.resolveConflicts';
+import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 
 const POLL_SECONDS = 30;
 const RESOLVING = 'Resolving conflicts';
@@ -37,6 +41,33 @@ const STEP_DOT = {
 const TYPE_LABEL = { Promotion: 'Promotion', Back_Promote: 'Back promote' };
 const RELEASES_TAB = 'RLY_My_Releases';
 const BRANCH_OK = 'Synced';
+/** RLY_Release_Event__c.Event_Type__c: the History card's title and icon per event (board HubApprovalFlowsEvidence 3). */
+const EVENT_LOOK = {
+    Raised: { title: 'Raised', icon: 'utility:add', cls: 'rr-tli rr-c-raise' },
+    Pull_Request: { title: 'Pull request opened', icon: 'utility:merge', cls: 'rr-tli rr-c-git' },
+    Scan: { title: 'Code scan', icon: 'utility:check', cls: 'rr-tli rr-c-scan' },
+    Validation: { title: 'Check-only deploy', icon: 'utility:check', cls: 'rr-tli rr-c-val' },
+    Approved: { title: 'Approved', icon: 'utility:approval', cls: 'rr-tli rr-c-appr' },
+    Rejected: { title: 'Rejected', icon: 'utility:close', cls: 'rr-tli rr-c-fail' },
+    Auto_Approved: { title: 'Approved automatically', icon: 'utility:settings', cls: 'rr-tli rr-c-auto' },
+    Deployed: { title: 'Deployed', icon: 'utility:upload', cls: 'rr-tli rr-c-dep' },
+    Deploy_Failed: { title: 'Deploy failed', icon: 'utility:error', cls: 'rr-tli rr-c-fail' },
+    Manual_Step: { title: 'Manual step done', icon: 'utility:task', cls: 'rr-tli rr-c-man' },
+    Flow_Activated: { title: 'Flow activated', icon: 'utility:flow', cls: 'rr-tli rr-c-flow' },
+    Merged_Back: { title: 'Merged back', icon: 'utility:merge', cls: 'rr-tli rr-c-git' },
+    Promoted: { title: 'Promoted', icon: 'utility:forward', cls: 'rr-tli rr-c-git' },
+    Back_Promoted: { title: 'Back promoted', icon: 'utility:back', cls: 'rr-tli rr-c-git' },
+    Comment: { title: 'Comment', icon: 'utility:comments', cls: 'rr-tli rr-c-git' }
+};
+/** Types whose title names the org: "Deployed to <org>", "Approved for <org>"… */
+const EVENT_ORG_WORD = { Approved: ' for ', Rejected: ' for ', Deployed: ' to ', Deploy_Failed: ' in ', Validation: ' in ', Manual_Step: ' in ', Flow_Activated: ' in ', Auto_Approved: ' for ' };
+/** Events whose outcome (passed / failed) is in their detail line. */
+const CHECK_EVENTS = ['Scan', 'Validation', 'Flow_Activated'];
+/** RLY_Release__c.Flow_Actions__c / FlowChoice.choice → the Review step's label. */
+const FLOW_CHOICE_LABEL = { Activate: 'Activate in each org', Inactive: 'Leave inactive: add a manual step to activate' };
+const FLOW_ACTIVATED = 'Activated';
+const FLOW_ALREADY = 'Already active';
+const FLOW_FAILED = 'Failed';
 const PATH = [
     { key: 'raised', label: 'Raised' },
     { key: 'pr', label: '' },
@@ -105,6 +136,14 @@ function typeLabel(type, isTest) {
     return (type || '').replace(/([a-z])([A-Z])/g, '$1 $2');
 }
 
+function dayOf(value) {
+    return value ? new Date(value).toDateString() : '';
+}
+
+function timeOnly(value) {
+    return value ? new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+}
+
 function when(value) {
     return value ? new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
 }
@@ -145,6 +184,18 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     comment = '';
     reason = '';
 
+    /**
+     * RlyHubGuard.getHubStatus: whether this org is a sandbox copy of the hub. The tab around this view shows the banner;
+     * here the actions are disabled.
+     */
+    hubStatus;
+
+    /** The app's name, from Custom Label RLY_App_Name. */
+    get appName() { return APP_NAME; }
+    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
+    /** Busy, or a sandbox copy of the hub: the release's actions are disabled. */
+    get actBusy() { return this.busy || this.hubCopy; }
+
     @api
     get releaseId() {
         return this._releaseId;
@@ -157,8 +208,23 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         }
     }
 
+    connectedCallback() {
+        this.readHubStatus();
+    }
+
     disconnectedCallback() {
         this.stop();
+    }
+
+    /** Reads the hub status once. A failed read disables nothing: the server refuses the actions anyway. */
+    readHubStatus() {
+        getHubStatus()
+            .then((status) => {
+                this.hubStatus = status;
+            })
+            .catch(() => {
+                this.hubStatus = undefined;
+            });
     }
 
     /** Stops the countdown: the bar is removed, so its animation can't end and trigger a check. */
@@ -458,6 +524,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             // The first of two approvals: the release keeps waiting for someone else.
             state = 'Running';
             text = 'Approved by ' + this.firstApprover + '. Waiting for a second approver.';
+        } else if (r.Approval_Status__c === 'Approved' && r.Approved_Via__c === 'Rule') {
+            // The target org's approval rule said no approval was needed (RlyApprovalRules).
+            return { key: 'approval', title: 'Approval', state: 'Done', label: 'Approved automatically', pill: STEP_PILL.Running, text: when(r.Approved_On__c), ...this.reasonLine };
         } else if (r.Approval_Status__c === 'Approved' || r.Approval_Status__c === 'Rejected') {
             state = r.Approval_Status__c === 'Approved' ? 'Done' : 'Failed';
             text = r.Approval_Status__c + ' by ' + (r.Approved_By__r ? r.Approved_By__r.Name : '') + this.secondApproverText + ', ' + when(r.Approved_On__c)
@@ -466,7 +535,18 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             state = 'Running';
             text = this.approveHere ? 'Waiting for an approver.' : 'Waiting for approval in ' + this.approvedInText + '.';
         }
-        return { key: 'approval', title: 'Approval', state, text };
+        return { key: 'approval', title: 'Approval', state, text, ...this.reasonLine };
+    }
+
+    /** Detail.approvalReason under the Approval step: "Needs approval: contains a Flow and a Profile", "Approved automatically: …". */
+    get approvalReason() { return (this.detail && this.detail.approvalReason) || ''; }
+    get reasonLine() {
+        const reason = this.approvalReason;
+        if (!reason) {
+            return { reason: '' };
+        }
+        const auto = this.rel.Approved_Via__c === 'Rule' || /^Approved automatically/i.test(reason);
+        return { reason, reasonCls: 'rr-msg rr-step-reason ' + (auto ? 'rr-msg-ok' : 'rr-msg-info') };
     }
 
     deployStep() {
@@ -727,10 +807,209 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         return !this.resolving && this.rel.Status__c === 'Checks failed' && this.validation.status === 'Conflict'
             && Array.isArray(this.validation.conflicts) && this.validation.conflicts.length > 0;
     }
-    get canResolve() { return !!(this.detail && this.detail.canResolve && this.rel.PR_Number__c); }
+    get canResolve() { return !!(this.detail && this.detail.canResolve && this.rel.PR_Number__c) && !this.hubCopy; }
 
     handleResolve(event) {
         this.act(resolveConflicts, { resolutionsJson: JSON.stringify({ resolutions: event.detail.resolutions }) });
+    }
+
+    // ---------- flows (Detail.flows: one FlowResult per org and flow, from Flow_Results__c) ----------
+
+    /** The After deploy choice per flow, from RLY_Release__c.Flow_Actions__c ([{name, choice}]). */
+    get flowActions() {
+        const list = parse(this.rel.Flow_Actions__c);
+        const out = {};
+        (Array.isArray(list) ? list : []).forEach((f) => {
+            if (f && f.name) {
+                out[f.name] = f.choice;
+            }
+        });
+        return out;
+    }
+    get flowResults() { return this.detail && Array.isArray(this.detail.flows) ? this.detail.flows : []; }
+
+    /** One row per flow: its choice and "SIT v9 active · PROD failed: …" (board HubApprovalFlowsEvidence 3). */
+    get flowRows() {
+        const actions = this.flowActions;
+        const byFlow = new Map();
+        Object.keys(actions).forEach((name) => byFlow.set(name, []));
+        this.flowResults.forEach((r) => {
+            const name = r.flow || r.name;
+            if (!byFlow.has(name)) {
+                byFlow.set(name, []);
+            }
+            byFlow.get(name).push(r);
+        });
+        return [...byFlow.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([name, results]) => {
+            const choice = actions[name] || (results[0] && results[0].choice) || 'Keep';
+            const parts = results.map((r, i) => {
+                const failed = r.status === FLOW_FAILED;
+                let text = r.org + (r.version ? ' v' + r.version : '') + ' ';
+                if (failed) {
+                    text = r.org + ' failed' + (r.message ? ': “' + r.message + '”' : '');
+                } else if (r.status === FLOW_ACTIVATED || r.status === FLOW_ALREADY) {
+                    text += 'active';
+                } else {
+                    text += String(r.status || '').toLowerCase() + (r.message ? ' (' + r.message + ')' : '');
+                }
+                return { key: name + i, text, cls: failed ? 'rr-flow-bad' : '', sep: i > 0 };
+            });
+            return {
+                key: name, name,
+                choiceText: FLOW_CHOICE_LABEL[choice] || 'Keep as in ' + ((this.detail && this.detail.sourceName) || 'the developer org'),
+                parts,
+                waiting: !parts.length,
+                waitText: choice === 'Activate' ? 'Activated after each deploy.' : 'Deployed as it is in ' + ((this.detail && this.detail.sourceName) || 'the developer org') + '.'
+            };
+        });
+    }
+    get hasFlows() { return this.flowRows.length > 0; }
+    get flowActivatedText() {
+        const n = this.flowResults.filter((r) => r.status === FLOW_ACTIVATED).length;
+        return n ? n + ' activated' : '';
+    }
+    get flowFailedText() {
+        const n = this.flowResults.filter((r) => r.status === FLOW_FAILED).length;
+        return n ? n + ' failed' : '';
+    }
+
+    // ---------- history (Detail.events, oldest first) ----------
+
+    get events() {
+        const list = this.detail && Array.isArray(this.detail.events) ? [...this.detail.events] : [];
+        list.sort((a, b) => new Date(a.occurredOn || 0) - new Date(b.occurredOn || 0));
+        let lastDay = '';
+        return list.map((e, i) => {
+            const look = EVENT_LOOK[e.eventType] || EVENT_LOOK.Comment;
+            const day = dayOf(e.occurredOn);
+            const whenText = day === lastDay ? timeOnly(e.occurredOn) : when(e.occurredOn);
+            lastDay = day;
+            const orgWord = EVENT_ORG_WORD[e.eventType];
+            const checked = CHECK_EVENTS.includes(e.eventType);
+            const failed = checked && /fail|error|block/i.test(e.detail || '');
+            const ref = e.reference || '';
+            return {
+                key: e.id || 'e' + i,
+                title: e.title || this.eventTitle(e, look, failed) + (orgWord && e.orgName ? orgWord + e.orgName : ''),
+                icon: look.icon,
+                cls: failed ? 'rr-tli rr-c-fail' : look.cls,
+                who: [e.actorName, e.via].filter(Boolean).join(' · '),
+                whenText,
+                detail: e.detail || '',
+                refLink: /^https?:\/\//i.test(ref) ? ref : '',
+                refText: /^https?:\/\//i.test(ref) ? '' : ref
+            };
+        });
+    }
+    /** "Code scan passed", "Check-only deploy failed", "Flow activation failed": the event's line says which. */
+    eventTitle(e, look, failed) {
+        if (e.eventType === 'Flow_Activated') {
+            return failed ? 'Flow activation failed' : look.title;
+        }
+        if (CHECK_EVENTS.includes(e.eventType)) {
+            return look.title + (failed ? ' failed' : ' passed');
+        }
+        return look.title;
+    }
+    get hasEvents() { return this.events.length > 0; }
+    get eventCountText() { const n = this.events.length; return n + (n === 1 ? ' event' : ' events'); }
+
+    // ---------- evidence: PDF in the release's Files, plain-text summary ----------
+
+    evidenceBusy = false;
+    showSummary = false;
+    get evidenceLabel() { return this.evidenceBusy ? 'Saving evidence…' : 'Download evidence (PDF)'; }
+
+    /** RlyEvidenceController.saveEvidence: saves the PDF to the release's Files and returns its download address. */
+    async downloadEvidence() {
+        this.evidenceBusy = true;
+        try {
+            const res = await saveEvidence({ releaseId: this._releaseId });
+            if (res && res.downloadUrl) {
+                this[NavigationMixin.Navigate]({ type: 'standard__webPage', attributes: { url: res.downloadUrl } });
+            }
+            this.toast('Evidence saved to the release\'s Files' + (res && res.title ? ': ' + res.title + '.pdf' : '.'), 'success');
+        } catch (e) {
+            this.toast(errorText(e), 'error');
+        } finally {
+            this.evidenceBusy = false;
+        }
+    }
+
+    get summaryLabel() { return this.showSummary ? 'Hide summary' : 'Copy summary'; }
+
+    /** A plain-text block for a change request. */
+    get summaryText() {
+        const r = this.rel;
+        const d = this.detail || {};
+        const lines = [(r.Name || '') + ' ' + (r.Title__c || '')];
+        lines.push('Route: ' + d.sourceName + ' → ' + d.targetName + ' · raised by ' + this.raisedBy + ', ' + this.raisedOn);
+        if (this.isHotfix) {
+            lines.push('Hotfix: ' + this.hotfixReason);
+        }
+        lines.push('Components: ' + this.items.length + this.componentBreakdown);
+        if (this.hasDeletions) {
+            lines.push('Deletes: ' + this.deletions.map((x) => x.name).join(', '));
+        }
+        lines.push('Scan: ' + this.scanLabel.toLowerCase() + (this.scanSummary ? ', ' + this.scanSummary : '') + ' · Tests: ' + this.testsText);
+        lines.push('Validation: ' + this.validationLabel.toLowerCase() + (this.validation.testsRun ? ', ' + this.validation.testsRun + ' tests run' : ''));
+        lines.push('Approval: ' + this.approvalSummary);
+        lines.push('Status: ' + this.phase + (r.Merge_Commit__c ? ' · merge ' + r.Merge_Commit__c.substring(0, 7) : ''));
+        this.flowRows.forEach((f) => lines.push('Flow ' + f.name + ': ' + (f.parts.length ? f.parts.map((p) => p.text).join(' · ') : f.choiceText)));
+        if (d.manualSummary) {
+            lines.push('Manual steps: ' + d.manualSummary);
+        }
+        if (r.PR_URL__c) {
+            lines.push(this.crLabel + ': ' + r.PR_URL__c);
+        }
+        return lines.join('\n');
+    }
+
+    get componentBreakdown() {
+        const counts = {};
+        this.items.forEach((i) => {
+            counts[i.type] = (counts[i.type] || 0) + 1;
+        });
+        const parts = Object.keys(counts).sort().map((t) => counts[t] + ' ' + t);
+        return parts.length ? ' (' + parts.join(', ') + ')' : '';
+    }
+
+    get approvalSummary() {
+        const r = this.rel;
+        if (r.Approved_Via__c === 'Rule') {
+            const reason = this.approvalReason.replace(/^Approved automatically:?\s*/i, '');
+            return 'approved automatically (rule)' + (reason ? ': ' + reason : '');
+        }
+        if (r.Approval_Status__c === 'Approved' || r.Approval_Status__c === 'Rejected') {
+            return r.Approval_Status__c.toLowerCase() + ' by ' + (r.Approved_By__r ? r.Approved_By__r.Name : '') + this.secondApproverText + ', '
+                + when(r.Approved_On__c) + (r.Approved_Via__c ? ' (' + r.Approved_Via__c + ')' : '') + (r.Approval_Comment__c ? ': ' + r.Approval_Comment__c : '');
+        }
+        return this.approvalReason || 'not yet';
+    }
+
+    /** Copies the summary and shows it, so it can be selected by hand where the browser blocks the clipboard. */
+    copySummary() {
+        if (this.showSummary) {
+            this.showSummary = false;
+            return;
+        }
+        this.showSummary = true;
+        const clip = typeof navigator !== 'undefined' ? navigator.clipboard : null;
+        if (!clip || !clip.writeText) {
+            this.toast('Select the summary below and copy it.', 'info');
+            return;
+        }
+        clip.writeText(this.summaryText)
+            .then(() => this.toast('Summary copied', 'success'))
+            .catch(() => this.toast('Select the summary below and copy it.', 'info'));
+    }
+
+    get lowerLeft() { return this.hasFlows || this.showSummary; }
+    get lowerCls() { return this.lowerLeft ? 'rr-cols rr-cols-even' : 'rr-one'; }
+    get showLower() { return this.lowerLeft || this.hasEvents; }
+
+    toast(message, variant) {
+        this.dispatchEvent(new ShowToastEvent({ title: (this.rel.Name || 'Release'), message, variant }));
     }
 
     // ---------- actions ----------
@@ -753,9 +1032,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     get showCheckAgain() { return this.waitingForChecks || this.canCheckAgain; }
     get showReject() { return (this.waitingForChecks && this.isApprover) || this.canReject; }
     get showApprove() { return (this.waitingForChecks && this.isApprover && this.approveHere) || this.canApprove; }
-    get checkAgainDisabled() { return this.busy || !this.canCheckAgain; }
-    get rejectDisabled() { return this.busy || !this.canReject; }
-    get approveDisabled() { return this.busy || !this.canApprove; }
+    get checkAgainDisabled() { return this.actBusy || !this.canCheckAgain; }
+    get rejectDisabled() { return this.actBusy || !this.canReject; }
+    get approveDisabled() { return this.actBusy || !this.canApprove; }
     get needsApproverNote() {
         return !this.isApprover && ['Ready for approval', 'Checks failed'].includes(this.rel.Status__c);
     }

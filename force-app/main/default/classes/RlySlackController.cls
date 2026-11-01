@@ -101,6 +101,7 @@ public with sharing class RlySlackController {
      */
     @AuraEnabled
     public static SlackSettings testSlack() {
+        RlyHubGuard.requireHub();
         requireAdmin();
         return fill(connection());
     }
@@ -112,6 +113,7 @@ public with sharing class RlySlackController {
      */
     @AuraEnabled
     public static SlackSettings sendSlackTest(String channel) {
+        RlyHubGuard.requireHub();
         requireAdmin();
         RLY_Notification__c s = RlySlack.settings();
         if (s == null) {

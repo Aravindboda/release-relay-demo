@@ -1,4 +1,6 @@
-# Release Relay pipeline files: version 10
+# Release Relay pipeline files: version 11
+# Release Relay's own metadata (the globs in .relay/exclude) is never validated, deployed or deleted;
+# options {"selfUpdate":true} (the hub updating itself, from the release-relay-hub branch) ignores the list.
 # Release Relay for Bitbucket Pipelines. Started only from Salesforce: the Release Relay hub runs the
 # custom pipeline "release-relay" on the default branch through the API, with the release as
 # variables. If you already have a bitbucket-pipelines.yml, copy the release-relay entry under

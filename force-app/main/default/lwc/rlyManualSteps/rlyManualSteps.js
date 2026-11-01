@@ -187,7 +187,7 @@ export default class RlyManualSteps extends LightningElement {
     get headCls() { return this.draft ? 'rr-hd rr-hd-flat' : 'rr-hd rr-hd-line'; }
     get orgs() { return (this.board && this.board.orgs) || []; }
     get hasOrgs() { return this.orgs.length > 0; }
-    get canEdit() { return this.draft ? !this.disabled : !!(this.board && this.board.canEdit); }
+    get canEdit() { return this.draft ? !this.disabled : !!(this.board && this.board.canEdit) && !this.disabled; }
     get canCheck() { return !!(this.board && this.board.canCheck); }
     get openCount() { return this.orgs.reduce((n, o) => n + (Number(o.open) || 0), 0); }
     get definitions() { return this.draft ? this.drafts : ((this.board && this.board.steps) || []); }
@@ -357,7 +357,9 @@ export default class RlyManualSteps extends LightningElement {
     }
     handleNote(event) { this.noteText = event.target.value; }
     cancelNote() { this.notingId = undefined; }
-    get noteMissing() { return this.busy || !(this.noteText || '').trim(); }
+    get noteMissing() { return this.actDisabled || !(this.noteText || '').trim(); }
+    /** Busy, or disabled by the parent (a sandbox copy of the hub): tick, Not needed and Reopen are off. */
+    get actDisabled() { return this.busy || this.disabled; }
 
     async saveNote() {
         const ok = await this.mark(this.notingId, NOT_NEEDED, this.noteText.trim());

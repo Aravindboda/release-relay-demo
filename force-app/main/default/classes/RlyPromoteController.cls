@@ -94,6 +94,7 @@ public with sharing class RlyPromoteController {
      */
     @AuraEnabled
     public static Id promote(String requestJson) {
+        RlyHubGuard.requireHub();
         try {
             if (!canPromote()) {
                 throw new RlyReleaseException('Only approvers can promote releases (permission set Release Relay Approver).');

@@ -11,6 +11,7 @@ import PIPE_SCRIPT from '@salesforce/resourceUrl/RLY_Pipeline_Script';
 import getSetup from '@salesforce/apex/RlyRouteController.getSetup';
 import getPipelineFiles from '@salesforce/apex/RlyRouteController.getPipelineFiles';
 import SECTIONS, { GROUPS, PROVIDERS, PIPELINE_FILES } from './guideContent';
+import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 
 const PIPELINE_TAB = 'RLY_Pipeline';
 const RESOURCE_URLS = {
@@ -64,6 +65,22 @@ function filesStatusText(st) {
 
 /** The Release Relay guide: a left navigation (Start here, Daily use, Reference) and the chosen section on the right. */
 export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
+    /** RlyHubGuard.getHubStatus: whether this org is a sandbox copy of the hub (then a banner, and the actions are off). */
+    hubStatus;
+    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
+    get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
+
+    /** Reads the hub status once. A failed read shows nothing: the server refuses the actions anyway. */
+    readHubStatus() {
+        getHubStatus()
+            .then((status) => {
+                this.hubStatus = status;
+            })
+            .catch(() => {
+                this.hubStatus = undefined;
+            });
+    }
+
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
     get appName() { return APP_NAME; }
     current = IS_ADMIN ? 'setup' : 'how';
@@ -79,6 +96,7 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
     showOtherFiles = false;
 
     connectedCallback() {
+        this.readHubStatus();
         this.loadFilesIfShown();
         // The Git connection decides which provider tab opens first (admins only: the setup sections are theirs).
         if (IS_ADMIN) {

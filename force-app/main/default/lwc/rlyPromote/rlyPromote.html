@@ -1,5 +1,11 @@
 <template>
     <div class="rr-page slds-is-relative">
+        <template lwc:if={hubCopy}>
+            <div class="slds-notify slds-notify_alert slds-alert_warning" role="alert">
+                <lightning-icon icon-name="utility:warning" size="x-small" alternative-text="Warning" class="slds-m-right_x-small"></lightning-icon>
+                <h2>{hubCopyMessage}</h2>
+            </div>
+        </template>
         <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
 
         <!-- header (board HubPromoteProd) -->

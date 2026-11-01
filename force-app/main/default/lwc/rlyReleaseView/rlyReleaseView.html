@@ -25,6 +25,8 @@
                     <template lwc:if={rel.Run_URL__c}>
                         <a class="slds-button slds-button_neutral" href={rel.Run_URL__c} target="_blank" rel="noopener">Pipeline run</a>
                     </template>
+                    <lightning-button label={summaryLabel} onclick={copySummary}></lightning-button>
+                    <lightning-button variant="brand" icon-name="utility:download" label={evidenceLabel} onclick={downloadEvidence} disabled={evidenceBusy}></lightning-button>
                 </div>
 
                 <ol class="rr-path" aria-label="Release path">
@@ -70,6 +72,7 @@
                                 <div class="rr-step-body">
                                     <p><strong>{s.title}</strong><template lwc:if={s.stateLabel}><span class={s.pillCls}>{s.stateLabel}</span></template></p>
                                     <template lwc:if={s.text}><p class="rr-small rr-weak">{s.text}</p></template>
+                                    <template lwc:if={s.reason}><p class={s.reasonCls}>{s.reason}</p></template>
                                     <template lwc:if={s.hasSync}>
                                         <ul class="rr-sync-list" aria-label={s.syncLabel}>
                                             <template for:each={s.sync} for:item="b">
@@ -130,7 +133,7 @@
                                 <div class="rr-col">
                                     <p class="rr-small"><strong>Code scan blocked this release.</strong> As an approver you can accept the findings with a reason.<template lwc:if={validationBlocks}> The validation failed too, and that can't be bypassed: fix it and raise again.</template></p>
                                     <lightning-textarea label="Why the findings are accepted" value={reason} onchange={handleReason} max-length="2000"></lightning-textarea>
-                                    <div><lightning-button label="Bypass code scan" onclick={doBypass} disabled={busy}></lightning-button></div>
+                                    <div><lightning-button label="Bypass code scan" onclick={doBypass} disabled={actBusy}></lightning-button></div>
                                 </div>
                             </template>
                             <template lwc:if={canReject}>
@@ -208,8 +211,77 @@
                 </section>
             </div>
 
+            <!-- flows, copy summary, history (board HubApprovalFlowsEvidence, 3) -->
+            <template lwc:if={showLower}>
+                <div class={lowerCls}>
+                    <template lwc:if={lowerLeft}>
+                        <div class="rr-stack">
+                            <template lwc:if={hasFlows}>
+                                <section class="rr-card" aria-label="Flows">
+                                    <div class="rr-hd rr-hd-line">
+                                        <h2 class="rr-h2 rr-grow">Flows</h2>
+                                        <template lwc:if={flowActivatedText}><span class="rr-pill rr-pill-ok">{flowActivatedText}</span></template>
+                                        <template lwc:if={flowFailedText}><span class="rr-pill rr-pill-bad">{flowFailedText}</span></template>
+                                    </div>
+                                    <ul class="rr-flows">
+                                        <template for:each={flowRows} for:item="f">
+                                            <li key={f.key} class="rr-flow">
+                                                <p><strong class="rr-break">{f.name}</strong><span class="rr-small rr-weak rr-sp">{f.choiceText}</span></p>
+                                                <p class="rr-small rr-weak">
+                                                    <template lwc:if={f.waiting}>{f.waitText}</template>
+                                                    <template for:each={f.parts} for:item="p">
+                                                        <span key={p.key}><template lwc:if={p.sep}> · </template><span class={p.cls}>{p.text}</span></span>
+                                                    </template>
+                                                </p>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </section>
+                            </template>
+                            <template lwc:if={showSummary}>
+                                <section class="rr-card" aria-label="Copy summary">
+                                    <div class="rr-hd rr-hd-line">
+                                        <h2 class="rr-h2 rr-grow">Copy summary</h2>
+                                        <span class="rr-small rr-weak">for the change request</span>
+                                    </div>
+                                    <div class="rr-pad-all rr-col">
+                                        <pre class="rr-pre">{summaryText}</pre>
+                                        <p class="rr-kicker">Plain text: paste it into the change request.</p>
+                                    </div>
+                                </section>
+                            </template>
+                        </div>
+                    </template>
+                    <section class="rr-card" aria-label="History">
+                        <div class="rr-hd rr-hd-line">
+                            <h2 class="rr-h2 rr-grow">History</h2>
+                            <span class="rr-pill rr-pill-none">{eventCountText}</span>
+                        </div>
+                        <div class="rr-pad-all rr-col">
+                            <template lwc:if={hasEvents}>
+                                <ul class="rr-tl">
+                                    <template for:each={events} for:item="e">
+                                        <li key={e.key} class="rr-tl-item">
+                                            <span class={e.cls}><lightning-icon icon-name={e.icon} size="xx-small" variant="inverse" alternative-text=""></lightning-icon></span>
+                                            <div class="rr-tlb">
+                                                <p class="rr-tl-l1"><strong>{e.title}</strong><span class="rr-small rr-weak">{e.who}</span><span class="rr-tl-when">{e.whenText}</span></p>
+                                                <template lwc:if={e.detail}><p class="rr-small rr-weak rr-break">{e.detail}</p></template>
+                                                <template lwc:if={e.refLink}><p class="rr-small rr-break"><a href={e.refLink} target="_blank" rel="noopener">{e.refLink}</a></p></template>
+                                                <template lwc:if={e.refText}><p class="rr-mono rr-break">{e.refText}</p></template>
+                                            </div>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </template>
+                            <template lwc:else><p class="rr-small rr-weak">Nothing recorded yet.</p></template>
+                            <p class="rr-kicker">Newest last. Recorded by {appName} only; nobody can edit or delete an event. The PDF holds this full list plus components, scan findings, tests, approvals, manual steps, flow results and deploy ids.</p>
+                        </div>
+                    </section>
+                </div>
+            </template>
+
             <!-- manual steps (board HubManualSteps, 2): per org checklist for the deployment team -->
-            <c-rly-manual-steps release-id={releaseId} release-name={rel.Name} status={rel.Status__c} onstepschange={handleStepsChange}></c-rly-manual-steps>
+            <c-rly-manual-steps release-id={releaseId} release-name={rel.Name} status={rel.Status__c} disabled={hubCopy} onstepschange={handleStepsChange}></c-rly-manual-steps>
 
             <!-- actions -->
             <template lwc:if={showFooter}>

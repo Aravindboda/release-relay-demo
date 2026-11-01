@@ -1,5 +1,11 @@
 <template>
     <div class="rr-page">
+        <template lwc:if={hubCopy}>
+            <div class="slds-notify slds-notify_alert slds-alert_warning" role="alert">
+                <lightning-icon icon-name="utility:warning" size="x-small" alternative-text="Warning" class="slds-m-right_x-small"></lightning-icon>
+                <h2>{hubCopyMessage}</h2>
+            </div>
+        </template>
         <section class="rr-head">
             <span class="rr-head-icon"><lightning-icon icon-name="utility:question" size="small" variant="inverse" alternative-text=""></lightning-icon></span>
             <div class="rr-head-text">
