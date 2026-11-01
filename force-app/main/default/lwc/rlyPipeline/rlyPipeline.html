@@ -326,7 +326,7 @@
         </button>
         <h2 class="rr-h2 rr-grow">{fold.values.title}</h2>
         <span class="rr-kicker">{repoReadText}</span>
-<template lwc:if={valuesFileUrl}><a class="rr-small" href={valuesFileUrl} target="_blank" rel="noopener noreferrer">Edit in .relay/values.json ↗</a></template>
+<template lwc:if={valuesFileUrl}><a class="rr-small" href={valuesFileUrl} target="_blank" rel="noopener noreferrer">{valuesLinkText}</a></template>
     </div>
 </template>
 <template lwc:else>
@@ -386,7 +386,7 @@
         </button>
         <h2 class="rr-h2 rr-grow">{fold.gates.title}</h2>
         <span class="rr-kicker">{gatesReadText}</span>
-<template lwc:if={gatesFileUrl}><a class="rr-small" href={gatesFileUrl} target="_blank" rel="noopener noreferrer">Edit in .relay/gates.json ↗</a></template>
+<template lwc:if={gatesFileUrl}><a class="rr-small" href={gatesFileUrl} target="_blank" rel="noopener noreferrer">{gatesLinkText}</a></template>
     </div>
 </template>
 <template lwc:else>
