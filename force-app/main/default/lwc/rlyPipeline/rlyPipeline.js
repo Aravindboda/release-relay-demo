@@ -36,7 +36,7 @@ const LOGIN_OPTIONS = [
 ];
 const LOGIN_LABELS = LOGIN_OPTIONS.reduce((m, o) => ({ ...m, [o.value]: o.label }), {});
 const ENVIRONMENT_OPTIONS = [
-    { label: 'Developer sandbox', value: 'Developer' },
+    { label: 'Developer sandbox or Developer Edition', value: 'Developer' },
     { label: 'Developer Pro sandbox', value: 'Developer_Pro' },
     { label: 'Partial Copy sandbox', value: 'Partial_Copy' },
     { label: 'Full Copy sandbox', value: 'Full_Copy' },
@@ -97,6 +97,12 @@ const SCAN_ORG_HINT = 'Each org can follow this or set its own.';
 /** The repository's per-org values and quality gates (read-only cards, edited in Git). */
 const VALUES_PATH = '.relay/values.json';
 const GATES_PATH = '.relay/gates.json';
+const GATES_STARTER = JSON.stringify({
+    _help: 'Checks every release must pass on top of Salesforce\'s own rules. Remove a line to switch it off.',
+    scan: { failAtPriority: 2 },
+    coverage: { minimumPerClass: 75 },
+    tests: { requireForApex: true }
+}, null, 2) + '\n';
 /** Values longer than this show the first 12 and last 4 characters (the full value on hover). */
 const VALUE_MAX = 24;
 /** An org card's sections, in order; each has its own Edit. */
@@ -138,6 +144,37 @@ function scanChoiceOf(o) {
     return SCAN_CHOICES.includes(v) ? v : SCAN_FOLLOW;
 }
 
+/**
+ * The provider's page to change a file on a branch: its editor when the file is there, else a new file with the name
+ * and a starter filled in (where the provider takes them). Null when there's no repository yet.
+ */
+function repoEditUrl(git, branch, filePath, starter) {
+    const repo = ((git && git.Repository__c) || '').trim();
+    if (!repo || !branch) {
+        return null;
+    }
+    const enc = (p) => p.split('/').map(encodeURIComponent).join('/');
+    const found = starter === null;
+    switch (git.Provider__c) {
+        case 'GitLab':
+            return found
+                ? 'https://gitlab.com/' + enc(repo) + '/-/edit/' + enc(branch) + '/' + enc(filePath)
+                : 'https://gitlab.com/' + enc(repo) + '/-/new/' + enc(branch) + '/?file_name=' + encodeURIComponent(filePath)
+                    + '&content=' + encodeURIComponent(starter);
+        case 'Bitbucket':
+            return found
+                ? 'https://bitbucket.org/' + enc(repo) + '/src/' + enc(branch) + '/' + enc(filePath) + '?mode=edit'
+                : 'https://bitbucket.org/' + enc(repo) + '/src/' + enc(branch) + '/';
+        case 'AzureDevOps':
+            return repoFileUrl(git, branch, filePath);
+        default:
+            return found
+                ? 'https://github.com/' + enc(repo) + '/edit/' + enc(branch) + '/' + enc(filePath)
+                : 'https://github.com/' + enc(repo) + '/new/' + enc(branch) + '?filename=' + encodeURIComponent(filePath)
+                    + '&value=' + encodeURIComponent(starter);
+    }
+}
+
 /** A long value as its first 12 and last 4 characters. */
 function shortValue(v) {
     return v.length > VALUE_MAX ? v.slice(0, 12) + '…' + v.slice(-4) : v;
@@ -164,6 +201,27 @@ function repoFileUrl(git, branch, filePath) {
         default:
             return 'https://github.com/' + enc(repo) + '/blob/' + enc(branch) + '/' + enc(filePath);
     }
+}
+
+/** Sandbox types: what a sandbox login can be. */
+const SANDBOX_ENVIRONMENTS = ['Developer', 'Developer_Pro', 'Partial_Copy', 'Full_Copy'];
+
+/**
+ * The sign-in fields that follow from the role and login type: the hub is production (Production login and
+ * environment); any other org with a Production login is a Developer Edition (Developer); a sandbox login is a sandbox
+ * type, never Production.
+ */
+function settleOrgKind(f) {
+    const next = { ...f };
+    if (next.Role__c === 'Hub') {
+        next.Login_Type__c = 'Production';
+        next.Environment__c = 'Production';
+    } else if (next.Login_Type__c === 'Production') {
+        next.Environment__c = 'Developer';
+    } else if (next.Login_Type__c === 'Sandbox' && !SANDBOX_ENVIRONMENTS.includes(next.Environment__c)) {
+        next.Environment__c = null;
+    }
+    return next;
 }
 
 /** Production or Sandbox, read from the My Domain when no login type was chosen. */
@@ -582,7 +640,7 @@ export default class RlyPipeline extends LightningElement {
             messageCls: o.Status__c === 'Failed' ? 'rr-msg rr-msg-bad' : 'rr-msg rr-msg-info',
             checking: this.checkingId === o.Id,
             cantCheck: this.checkingId === o.Id || this.hubCopy,
-            checkLabel: this.checkingId === o.Id ? 'Signing in…' : 'Test sign-in',
+            checkLabel: this.checkingId === o.Id ? 'Checking…' : 'Check connection',
             isDeveloper,
             isBackPromote,
             bp,
@@ -844,6 +902,14 @@ export default class RlyPipeline extends LightningElement {
     get activeTabEmpty() { return this.activeGroup.tiles.length === 0; }
     get activeTabEmptyText() { return 'No orgs in ' + this.activeGroup.name + ' yet.'; }
     get activeTabId() { return this.activeGroup.tabId; }
+    /** Production holds the hub alone: once it's registered, its tab has no Register tile. */
+    get showRegisterTile() {
+        return this.isAdmin && !(this.activeGroup.value === 'Production' && this.orgs.some((o) => o.Role__c === 'Hub'));
+    }
+    get productionNote() {
+        return this.activeGroup.value === 'Production' && this.isAdmin && !this.showRegisterTile
+            ? 'Production holds one org: the hub. Register other orgs on their sandbox tab.' : null;
+    }
     get registerTileHint() {
         const v = this.activeGroup.value;
         return v && v !== OTHER_TAB ? 'Opens with ' + this.activeGroup.name + ' chosen' : 'Choose its Salesforce environment';
@@ -1182,8 +1248,28 @@ export default class RlyPipeline extends LightningElement {
         return 'from ' + this.repoBranch + (time ? ' · read ' + time : '');
     }
     get gatesReadText() { return this.repoBranch ? 'from ' + this.repoBranch : ''; }
-    get valuesFileUrl() { return repoFileUrl(this.git, this.repoBranch, VALUES_PATH); }
-    get gatesFileUrl() { return repoFileUrl(this.git, this.repoBranch, GATES_PATH); }
+    get valuesFound() { return !!(this.repoSettings && this.repoSettings.valuesFound); }
+    get gatesFound() { return !!(this.repoSettings && this.repoSettings.gatesFound); }
+    get valuesFileUrl() {
+        return this.repoOk ? repoEditUrl(this.git, this.repoBranch, VALUES_PATH, this.valuesFound ? null : this.valuesStarter) : null;
+    }
+    get gatesFileUrl() {
+        return this.repoOk ? repoEditUrl(this.git, this.repoBranch, GATES_PATH, this.gatesFound ? null : GATES_STARTER) : null;
+    }
+    get valuesLinkText() { return (this.valuesFound ? 'Edit ' : 'Create ') + VALUES_PATH + ' ↗'; }
+    get gatesLinkText() { return (this.gatesFound ? 'Edit ' : 'Create ') + GATES_PATH + ' ↗'; }
+    /** A starter values file: one example value with a column per org's Git environment. */
+    get valuesStarter() {
+        const envs = [...new Set(this.orgs.map((o) => (o.Git_Environment__c || '').trim()).filter((e) => e))];
+        const example = {};
+        (envs.length ? envs : ['dev1', 'sit', 'prod']).forEach((e) => {
+            example[e] = 'value in ' + e;
+        });
+        return JSON.stringify({
+            _help: 'Write {{relay:NAME}} in a component; each org gets its own value when it is deployed.',
+            values: { EXAMPLE_URL: example }
+        }, null, 2) + '\n';
+    }
     get repoRead() { return !!this.repoSettings && !this.repoLoading; }
     get repoMessage() { return this.repoRead ? this.repoSettings.message : null; }
     get repoOk() { return this.repoRead && !this.repoSettings.message; }
@@ -1287,7 +1373,40 @@ export default class RlyPipeline extends LightningElement {
             { label: 'Stage (an org on the route)', value: 'Stage' },
             { label: 'Hub (this org, production)', value: 'Hub' },
             { label: 'Back promote (after production)', value: BACK_PROMOTE }
-        ];
+        ].filter((r) => r.value !== 'Hub' || !this.otherProductionOrg);
+    }
+
+    /** The registered hub when it isn't the org in the form: there's only one hub. */
+    get otherProductionOrg() {
+        return this.orgs.find((o) => o.Role__c === 'Hub' && o.Id !== this.form.Id);
+    }
+    /** The hub's role can't change (there must always be one), so its Role box is grey. */
+    get roleLocked() { return !!(this.editOrg && this.editOrg.Role__c === 'Hub'); }
+    /** The hub signs in as production: its login type is grey. */
+    get loginLocked() { return this.formIsHub || !!(this.form.My_Domain__c || '').trim(); }
+    get loginHint() {
+        if (this.formIsHub) {
+            return 'The hub signs in as production.';
+        }
+        return 'Read from the My Domain URL: a .sandbox. domain is a sandbox login, any other a production login.';
+    }
+    /** The environment follows the role and login type, except for a sandbox login (which sandbox type it is). */
+    get environmentLocked() { return this.formIsHub || this.form.Login_Type__c === 'Production'; }
+    /** A sandbox login picks a sandbox type; Production belongs to the hub alone. */
+    get formEnvironmentOptions() {
+        if (this.formIsHub) {
+            return ENVIRONMENT_OPTIONS.filter((e) => e.value === 'Production');
+        }
+        return ENVIRONMENT_OPTIONS.filter((e) => e.value !== 'Production');
+    }
+    get environmentHint() {
+        if (this.formIsHub) {
+            return 'The hub is the production org.';
+        }
+        if (this.form.Login_Type__c === 'Production') {
+            return 'A production login that isn\'t the hub is a Developer Edition org.';
+        }
+        return this.form.Login_Type__c === 'Sandbox' ? 'Which sandbox type it is. New Release groups the orgs by it.' : 'Follows the My Domain URL: enter it first.';
     }
 
     /** Developer, Hub, or the stage's place on the route (Stage 1, Stage 2…). */
@@ -1345,7 +1464,7 @@ export default class RlyPipeline extends LightningElement {
     get gitStatusCls() { return GIT_STATUS_CLS[this.gitStatus] || GIT_STATUS_CLS['Not checked']; }
     get gitMessage() { return this.git && !this.gitShortMessage ? this.git.Status_Message__c : null; }
     get gitMessageCls() { return this.git && this.git.Status__c === 'Failed' ? 'rr-msg rr-msg-bad' : 'rr-msg rr-msg-info'; }
-    get gitCheckLabel() { return this.gitBusy ? 'Testing…' : 'Test connection'; }
+    get gitCheckLabel() { return this.gitBusy ? 'Checking…' : 'Check connection'; }
 
     /** What the Git connection card shows, as text. */
     get gitFacts() {
@@ -1799,7 +1918,7 @@ export default class RlyPipeline extends LightningElement {
         }
         return this.slackStatus.startsWith('Error') ? 'rr-pill rr-pill-bad' : 'rr-pill rr-pill-none';
     }
-    get slackTestLabel() { return this.slackTesting ? 'Testing…' : 'Test'; }
+    get slackTestLabel() { return this.slackTesting ? 'Checking…' : 'Check connection'; }
     /** The secret itself never comes to the page: only a masked hint of the saved one. */
     get slackSecretText() {
         const hint = this.slack.signingSecretHint;
@@ -1834,7 +1953,7 @@ export default class RlyPipeline extends LightningElement {
         const items = [
             { key: 'app', title: 'Slack app created', text: 'You do this in Slack (Guide → Set up → Slack).', done: this.tokenSaved },
             { key: 'tok', title: 'Bot token saved', text: 'Paste it with Edit → Bot token.', done: this.tokenSaved },
-            { key: 'test', title: 'Test', text: 'Checks the token and shows your workspace name.', done: !!this.slack.connected },
+            { key: 'test', title: 'Check connection', text: 'Checks the token and shows your workspace name.', done: !!this.slack.connected },
             { key: 'ch', title: 'Pick a channel per org', text: 'Connected orgs → open the org → Edit → Slack.', done: this.anyOrgChannel }
         ];
         const next = items.findIndex((i) => !i.done);
@@ -1964,7 +2083,7 @@ export default class RlyPipeline extends LightningElement {
             return 'Save';
         }
         if (this.editingKind === 'signin') {
-            return 'Test sign-in and next';
+            return 'Check connection and next';
         }
         return this.flowIsLast ? 'Save and finish' : 'Save and next';
     }
@@ -2074,7 +2193,7 @@ export default class RlyPipeline extends LightningElement {
     /** Register an org (page header, or a tab's "+ Register an org" tile: that tab's environment comes chosen). */
     handleRegister(event) {
         const env = event && event.currentTarget && event.currentTarget.dataset ? event.currentTarget.dataset.env : undefined;
-        this.startAdd(ENVIRONMENT_LABELS[env] ? env : undefined);
+        this.startAdd(ENVIRONMENT_LABELS[env] && env !== 'Production' ? env : undefined);
     }
 
     /** Opens the Register an org window at its first step (Sign-in), empty fields with grey hints. */
@@ -2100,12 +2219,12 @@ export default class RlyPipeline extends LightningElement {
         const ap = approvals(o);
         const b = this.bpFor(o);
         this.editOrg = o;
-        this.form = {
+        this.form = settleOrgKind({
             ...blankForm(), ...o, Consumer_Key__c: '',
-            Approve_In_Salesforce__c: ap.sf || !(this.slackAvailable && ap.slack), Approve_In_Slack__c: ap.slack, Require_Git_Review__c: ap.git,
+            Approve_In_Salesforce__c: ap.sf || !ap.slack, Approve_In_Slack__c: ap.slack, Require_Git_Review__c: ap.git,
             Slack_Channel__c: o.Slack_Channel__c || '', Slack_Post__c: !!o.Slack_Post__c, Hotfix_Two_Approvers__c: o.Hotfix_Two_Approvers__c === true,
             Approval_Rule__c: ruleOf(o), approvalTypes: typesOf(o), Code_Scan__c: scanChoiceOf(o)
-        };
+        });
         this.ruleError = undefined;
         this.bpForm = { whenValue: b.whenValue || 'Manual', approval: b.approval === true };
         this.bounced = false;
@@ -2213,18 +2332,15 @@ export default class RlyPipeline extends LightningElement {
         const field = event.target.dataset.field;
         const value = event.detail && event.detail.value !== undefined ? event.detail.value : event.target.value;
         const next = { ...this.form, [field]: value };
-        // A sandbox My Domain means a sandbox login.
-        if (field === 'My_Domain__c' && /\.sandbox\.my\.salesforce\.com/i.test(value || '')) {
-            next.Login_Type__c = 'Sandbox';
+        // The My Domain says the login type: a sandbox domain is a sandbox login, any other is a production login.
+        if (field === 'My_Domain__c') {
+            next.Login_Type__c = (value || '').trim() ? loginFor(value) : null;
         }
         // The hub is the production org.
-        if (field === 'Role__c' && value === 'Hub') {
-            next.Environment__c = 'Production';
-            if (next.Approval_Rule__c === RULE_NEVER) {
-                next.Approval_Rule__c = RULE_ALWAYS;
-            }
+        if (field === 'Role__c' && value === 'Hub' && next.Approval_Rule__c === RULE_NEVER) {
+            next.Approval_Rule__c = RULE_ALWAYS;
         }
-        this.form = next;
+        this.form = ['Role__c', 'Login_Type__c', 'My_Domain__c'].includes(field) ? settleOrgKind(next) : next;
         this.editError = undefined;
     }
 
@@ -2266,6 +2382,7 @@ export default class RlyPipeline extends LightningElement {
         if (!payload.Login_Type__c) {
             payload.Login_Type__c = loginFor(payload.My_Domain__c);
         }
+        Object.assign(payload, settleOrgKind(payload));
         const key = (f.Consumer_Key__c || '').trim();
         if (key) {
             payload.Consumer_Key__c = key;
@@ -2336,7 +2453,7 @@ export default class RlyPipeline extends LightningElement {
             }
             this.beginSection(orgId, 'signin');
             this.editError = 'Saved, but the sign-in didn\'t work yet' + (o && o.Status_Message__c ? ': ' + o.Status_Message__c : '.')
-                + ' Fix the details, then Test sign-in and next.';
+                + ' Fix the details, then Check connection and next.';
         });
     }
 

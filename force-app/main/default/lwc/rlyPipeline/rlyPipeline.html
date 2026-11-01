@@ -47,7 +47,7 @@
                                 <li><strong>In the org:</strong> create an integration user with API Enabled, View Setup and Configuration, and Modify Metadata Through Metadata API Functions.</li>
                                 <li><strong>In the org:</strong> Setup &gt; External Client App Manager &gt; New External Client App. Turn on OAuth with the scopes api and refresh_token/offline_access, turn on the JWT bearer flow and upload the hub's .crt. Under policies, set Permitted Users to admin-approved users are pre-authorized and add the integration user's profile or permission set. Copy the consumer key.</li>
                                 <li><strong>In this hub:</strong> Setup &gt; Remote Site Settings &gt; New, with the org's My Domain URL, for example <span class="rr-mono">{remoteSite}</span>.</li>
-                                <li><strong>Here:</strong> Register an org, then Test sign-in and next.</li>
+                                <li><strong>Here:</strong> Register an org, then Check connection and next.</li>
                             </ol>
                             <p class="rr-weak rr-small">This hub is <span class="rr-mono">{hubDomain}</span>. Register it too, with the role Hub, so releases can be deployed to production.</p>
                         </section>
@@ -326,7 +326,7 @@
         </button>
         <h2 class="rr-h2 rr-grow">{fold.values.title}</h2>
         <span class="rr-kicker">{repoReadText}</span>
-<template lwc:if={valuesFileUrl}><a class="rr-small" href={valuesFileUrl} target="_blank" rel="noopener noreferrer">Edit in .relay/values.json ↗</a></template>
+<template lwc:if={valuesFileUrl}><a class="rr-small" href={valuesFileUrl} target="_blank" rel="noopener noreferrer">{valuesLinkText}</a></template>
     </div>
 </template>
 <template lwc:else>
@@ -386,7 +386,7 @@
         </button>
         <h2 class="rr-h2 rr-grow">{fold.gates.title}</h2>
         <span class="rr-kicker">{gatesReadText}</span>
-<template lwc:if={gatesFileUrl}><a class="rr-small" href={gatesFileUrl} target="_blank" rel="noopener noreferrer">Edit in .relay/gates.json ↗</a></template>
+<template lwc:if={gatesFileUrl}><a class="rr-small" href={gatesFileUrl} target="_blank" rel="noopener noreferrer">{gatesLinkText}</a></template>
     </div>
 </template>
 <template lwc:else>
@@ -648,7 +648,7 @@
                                                         <c-rly-org-tile tile={t} data-id={t.id} onopen={openOrgDialog}></c-rly-org-tile>
                                                     </li>
                                                 </template>
-                                                <template lwc:if={isAdmin}>
+                                                <template lwc:if={showRegisterTile}>
                                                     <li class="rr-tile-cell">
                                                         <button type="button" class="rr-addtile" data-env={activeGroup.value} onclick={handleRegister} disabled={editLocked} aria-haspopup="dialog">
                                                             <strong>+ Register an org</strong><span class="rr-small rr-weak">{registerTileHint}</span>
@@ -656,6 +656,7 @@
                                                     </li>
                                                 </template>
                                             </ul>
+                                            <template lwc:if={productionNote}><p class="rr-small rr-weak slds-m-top_x-small">{productionNote}</p></template>
                                         </div>
                                     </div>
                                 </template>
@@ -668,8 +669,8 @@
                 <template lwc:if={modalOpen}>
                     <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="rr-modal-title" class="slds-modal slds-fade-in-open slds-modal_medium rr-modal" onkeydown={handleModalKey}>
                         <div class="slds-modal__container">
-                            <button type="button" class="slds-button slds-button_icon slds-button_icon-inverse slds-modal__close rr-modal-close" title="Close" onclick={handleModalClose}>
-                                <lightning-icon icon-name="utility:close" size="small" variant="inverse" alternative-text="Close"></lightning-icon>
+                            <button type="button" class="slds-button slds-button_icon slds-modal__close rr-modal-close" title="Close" onclick={handleModalClose}>
+                                <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
                             </button>
                             <div class="slds-modal__header rr-mh">
                                 <h2 id="rr-modal-title" class="slds-modal__title slds-hyphenate rr-mh-title">{modalTitle}</h2>
@@ -761,9 +762,13 @@
                                             <template lwc:if={s.isSignin}>
                                                             <div class="rr-fields">
                                                                 <lightning-input class="rr-first" label="Org name" data-field="Name" value={form.Name} onchange={handleField} max-length="40" placeholder="e.g. UAT" required></lightning-input>
-                                                                <lightning-combobox label="Role" data-field="Role__c" value={form.Role__c} options={roleOptions} onchange={handleField} placeholder="Choose a role" required></lightning-combobox>
+                                                                <lightning-combobox label="Role" data-field="Role__c" value={form.Role__c} options={roleOptions} onchange={handleField} placeholder="Choose a role" disabled={roleLocked} required></lightning-combobox>
                                                                 <lightning-input class="rr-wide" label="My Domain URL" data-field="My_Domain__c" value={form.My_Domain__c} onchange={handleField}
                                                                     placeholder="e.g. https://your-org--uat.sandbox.my.salesforce.com" field-level-help="Setup > My Domain in that org. Add the same URL as a Remote Site Setting in this hub." required></lightning-input>
+                                                                <lightning-combobox label="Login type" data-field="Login_Type__c" value={form.Login_Type__c} options={loginOptions} onchange={handleField}
+                                                                    placeholder="Read from the My Domain" disabled={loginLocked} field-level-help={loginHint}></lightning-combobox>
+                                                                <lightning-combobox label="Salesforce environment" data-field="Environment__c" value={form.Environment__c} options={formEnvironmentOptions} onchange={handleField}
+                                                                    placeholder="Choose the sandbox type" disabled={environmentLocked} field-level-help={environmentHint}></lightning-combobox>
                                                                 <lightning-input label="Integration username" data-field="Username__c" value={form.Username__c} onchange={handleField} placeholder="e.g. relay@your-org.uat" required></lightning-input>
                                                                 <lightning-input type="password" label="Consumer key" data-field="Consumer_Key__c" value={form.Consumer_Key__c} onchange={handleField}
                                                                     placeholder={keyPlaceholder} autocomplete="off" required={keyRequired}
@@ -774,10 +779,6 @@
                                                                     field-level-help="This org's Git branch: the stage's branch, or the developer org's own branch."></lightning-input>
                                                                 <lightning-input label="Git environment" data-field="Git_Environment__c" value={form.Git_Environment__c} onchange={handleField} placeholder="e.g. uat (stages only)"
                                                                     field-level-help="The environment in your Git provider that holds this org's login for the pipeline."></lightning-input>
-                                                                <lightning-combobox label="Login type" data-field="Login_Type__c" value={form.Login_Type__c} options={loginOptions} onchange={handleField}
-                                                                    placeholder="Read from the My Domain"></lightning-combobox>
-                                                                <lightning-combobox label="Salesforce environment" data-field="Environment__c" value={form.Environment__c} options={environmentOptions} onchange={handleField}
-                                                                    placeholder="Choose the edition or sandbox type" field-level-help="The org's edition or sandbox type. New Release groups the orgs by it."></lightning-combobox>
                                                             </div>
                                             </template>
                                             <template lwc:if={s.isApproval}>

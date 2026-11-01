@@ -69,7 +69,7 @@ const TOKENS = {
 
 const LOGINS = {
     GitHub: [
-        'Settings → Environments → one environment per stage org, named as the org\'s **Git environment** on its Pipeline card.',
+        'Settings → Environments → one environment per stage org, named as the org\'s **Git environment** (Pipeline → Connected orgs → the org).',
         'Secrets: `SF_USERNAME`, `SF_CLIENT_ID`, `SF_JKS`, `SF_JKS_PASSWORD`. Variables: `SF_INSTANCE_URL`, `SF_JKS_ALIAS`.',
         'Deployment branches: the pipeline branch only (usually `main`). Add required reviewers to the production environment if you approve there.'
     ],
@@ -185,11 +185,14 @@ function next(key) {
 const SIGN_IN_PROBLEMS = [
     ['"Add … as a Remote Site Setting in the hub"', 'Setup → Remote Site Settings → New, with the org\'s My Domain URL exactly as in the org\'s Sign-in section (see B. Hub org, step 6).'],
     ['"Check Hub certificate: … must be the API name of a certificate in this hub"', 'Hub certificate on the org must be `release_relay`, the Unique Name of the certificate (B. Hub org, step 2).'],
-    ['"Check Consumer key: it must be the consumer key of the External Client App in …"', 'Copy the Consumer Key again from that org\'s External Client App (D. Each org, step 3), Open the org under Connected orgs, press Edit and paste it.'],
+    ['"Check Consumer key: it must be the consumer key of the External Client App in …"', 'Copy the Consumer Key again from that org\'s External Client App (D. Each org, step 3). Click the org\'s card under Connected orgs, press **Edit**, paste it into **Consumer key** and press **Save**.'],
     ['"Pre-authorize the integration user in …\'s External Client App"', 'Permitted Users = Admin approved users are pre-authorized, then add the integration user\'s profile or permission set (D. Each org, step 3).'],
-    ['"Check Login type: Production for production and Developer Edition orgs, Sandbox for sandboxes."', 'Open the org under Connected orgs, press Edit and pick the right Login type.'],
+    ['"Check the My Domain URL: the Login type is read from it…" or "This org is a sandbox: open it, press Edit and save…"', 'Login type is read from the My Domain URL and can\'t be picked. Check the URL: a sandbox\'s has `.sandbox.` in it (Setup → My Domain in that org). Fix the URL under **Edit**, then **Save**.'],
     ['"Check Integration username: it must be an active user in …"', 'Type the username exactly, and check the user is active in that org.'],
-    ['"The org refused the login. Check that its External Client App has the JWT bearer flow on, the hub certificate uploaded, and the user pre-authorized."', 'Check the three things in the External Client App (D. Each org, steps 2 and 3). A new app can take a few minutes before it works.']
+    ['"The org refused the login. Check that its External Client App has the JWT bearer flow on, the hub certificate uploaded, and the user pre-authorized."', 'Check the three things in the External Client App (D. Each org, steps 2 and 3). A new app can take a few minutes before it works.'],
+    ['"Saved, but the sign-in didn\'t work yet: … Fix the details, then Check connection and next."', 'The org is saved but not signed in, and the window stays on Sign-in. Fix what the message names, then press **Check connection and next** again. Cancel keeps the org as saved, with the status Failed.'],
+    ['"… is already the hub. There is only one hub: edit … instead." or "The hub keeps its role: there must always be one hub."', 'There is one hub only. Register this org with another role, or open the hub\'s card and edit it there.'],
+    ['"The Org Id changed since the last check, so this sandbox was refreshed. The new Org Id is saved."', 'Nothing to fix: a note after a sandbox refresh. Check the sandbox still has the integration user and the External Client App (see After a sandbox refresh).']
 ];
 
 /** Provider tabs for the steps that differ outside GitHub (GitHub's own steps are the numbered ones). */
@@ -218,7 +221,7 @@ const SETUP_SECTIONS = [
                             { to: 'setup-hub', label: 'B. Hub org: permissions, certificate, remote sites, Git token', who: 'Salesforce admin + Git admin', time: '30 min' },
                             { to: 'setup-git', label: 'C. Git provider: repository, pipeline files, actions, environments', who: 'Git admin', time: '30 min' },
                             { to: 'setup-orgs', label: 'D. Each org: sign-in app, register on the Pipeline tab', who: 'Salesforce admin of each org', time: '15 min per org' },
-                            { to: 'setup-slack', label: 'E. Slack (optional)', who: 'Slack admin + Salesforce admin', time: '20 min' },
+                            { to: 'setup-slack', label: 'E. Slack (optional): app, channels, and Approve in Slack with a Site', who: 'Slack admin + Salesforce admin', time: '20 min, 45 with Approve in Slack' },
                             { to: 'setup-settings', label: 'F. Settings worth knowing', who: 'Salesforce admin', time: '10 min' },
                             { to: 'setup-checklist', label: 'G. Check everything', who: 'Salesforce admin', time: '10 min' }
                         ]
@@ -417,7 +420,7 @@ const SETUP_SECTIONS = [
                                     'Press **Save**.'
                                 ],
                                 text: ['The Slack principal (`RLY_Slack - Bot`) is already in the Release Relay permission sets.'],
-                                check: 'Pipeline → Git connection → Test connection shows Connected (after step 12).',
+                                check: 'Pipeline → Git connection → Check connection shows Connected (after step 12).',
                                 problems: [['"Named Credential RLY_GitHub wasn\'t found or you can\'t use it. Check it exists, and that your permission set has its principal under External Credential Principal Access."', 'Do this step for the user who saw it, and check the Named Credential\'s name.']],
                                 shot: { ill: 'perm-principal', cap: 'External Credential Principal Access: enable RLY_GitHub - GitHub.', alt: 'Drawing of the External Credential Principal Access edit page with callouts 1 RLY_GitHub - GitHub in Enabled, 2 Save.' }
                             },
@@ -433,10 +436,15 @@ const SETUP_SECTIONS = [
                                     'Pipeline branch: `main` (where the pipeline files live).',
                                     'Named Credential (token): `RLY_GitHub`.',
                                     'Source path: `force-app/main/default`.',
-                                    'Press **Save**: it tests the connection.'
+                                    '**Code scan on every pull request**: on (the default) or off. Each org can follow it or set its own (D. Each org).',
+                                    'Press **Save**: it tests the connection. **Check connection** on the card tests it again later.'
                                 ],
+                                text: ['First time in a new hub? The Pipeline tab opens **Set up Release Relay**, a short walk-through: 1 This org is the hub, 2 Git connection, 3 Pipeline files, 4 Add orgs, 5 Slack (optional). Each step is checked before **Check and continue** goes on; **Do this later** hides it, and the header button **Set up Release Relay** opens it again. It fills in the same records as this step and the next one.'],
                                 check: 'The card shows Connected and lists what it checked.',
-                                problems: [['Git connection: check failed', 'Read the list on the card: a token permission, the repository name, or the pipeline files missing on the pipeline branch (C. Git provider, step 2).']],
+                                problems: [
+                                    ['Git connection: check failed', 'Read the list on the card: a token permission, the repository name, or the pipeline files missing on the pipeline branch (C. Git provider, step 2).'],
+                                    ['"No Git connection yet. Press Edit to choose the provider and repository."', 'Nothing is saved yet: press **Edit**.']
+                                ],
                                 shot: { ill: 'pipeline-git', cap: 'Edit Git connection: provider, repository, workflow file, branch, credential, path, Save.', alt: 'Drawing of the Edit Git connection window with callouts 1 Provider, 2 Repository, 3 Workflow file, 4 Pipeline branch, 5 Named Credential RLY_GitHub, 6 Source path, 7 Save.' }
                             },
                             {
@@ -446,11 +454,13 @@ const SETUP_SECTIONS = [
                                 goal: 'Releases deploy to production through the hub\'s own record, and the hub knows which org is the real hub (sandbox copies are refused).',
                                 items: [
                                     'Org name: for example `PROD`.',
-                                    'Role: **Hub (this org, production)**. Salesforce environment: Production.',
-                                    'My Domain URL: the hub\'s own. Login type: Production or Developer Edition.',
-                                    'Branch `prod` and Git environment `prod` (examples). Fill the sign-in fields as in D. Each org: the hub needs its own External Client App too.'
+                                    'Role: **Hub (this org, production)**. There is one hub only: once it is registered, Hub is no longer offered for other orgs, and the hub\'s own Role box is grey (it keeps its role).',
+                                    'My Domain URL: the hub\'s own. **Login type** and **Salesforce environment** then turn grey: the hub signs in as production, and its environment is Production.',
+                                    'Branch `prod` and Git environment `prod` (examples). Fill the sign-in fields as in D. Each org: the hub needs its own External Client App too.',
+                                    'Press **Check connection and next**, then set the hub\'s Approval (Never isn\'t offered for production).'
                                 ],
-                                check: 'The PROD card shows Connected with the role Hub.',
+                                text: ['In Set up Release Relay, step 1 does the same: it reads the hub\'s My Domain and Org Id itself, and asks for the org name, integration username, consumer key, certificate, branch and Git environment.'],
+                                check: 'Connected orgs → Production: the PROD card shows Connected with the role Hub, and the tab says "Production holds one org: the hub."',
                                 links: [{ label: 'D. Each org: the sign-in app', to: 'setup-orgs' }],
                                 shot: { ill: 'hub-register', cap: 'Register the hub: role Hub, its own My Domain, branch prod.', alt: 'Drawing of Register an org for the hub with callouts 1 Org name PROD, 2 Role Hub, 3 My Domain URL, 4 Branch and Git environment prod.' }
                             }
@@ -523,7 +533,7 @@ const SETUP_SECTIONS = [
                                 goal: 'Each org has its own branch: stages (for example `sit`, `prod`) and each developer org (for example `dev1`).',
                                 items: [
                                     'Register the orgs first (D. Each org), each with its branch.',
-                                    'Press **Create missing branches**: every route branch your repository doesn\'t have yet is made from the pipeline branch.',
+                                    'Open **2 · Route** (it starts closed: press its arrow or title) and press **Create missing branches**: every route branch your repository doesn\'t have yet is made from the pipeline branch. The button shows once the Git connection is saved.',
                                     '`release-relay-results` (the step results) is created by the pipeline on its first run. Don\'t protect it.',
                                     'Only if you update Release Relay itself through the pipeline: a branch `release-relay-hub`, made from `main`, for the hub\'s own updates.'
                                 ],
@@ -535,7 +545,7 @@ const SETUP_SECTIONS = [
                                 where: 'Repository → Settings → Environments → New environment',
                                 goal: 'An environment holds one org\'s login for the pipeline. The pipeline picks it by the org\'s Git environment name.',
                                 items: [
-                                    'Name: the org\'s **Git environment** from its Pipeline card, for example `sit` or `prod`. Press Configure environment.',
+                                    'Name: the org\'s **Git environment** (Pipeline → Connected orgs → the org), for example `sit` or `prod`. Press Configure environment.',
                                     'Required reviewers: optional. **Recommended on `prod` for real use**: GitHub then waits for a reviewer before each job in prod (the check-only deploy too).',
                                     'Deployment branches and tags: **Selected branches** → add `main`.',
                                     'Add the four secrets (step 7).',
@@ -674,27 +684,39 @@ const SETUP_SECTIONS = [
                                 goal: 'The hub saves how to reach the org and where it sits on the route.',
                                 items: [
                                     'Org name: a short name people know, for example `SIT` or `DEV1` (examples).',
-                                    'Role: **Developer org** (people build here), **Stage (an org on the route)**, **Hub (this org, production)** or **Back promote (after production)**.',
-                                    'Salesforce environment: the edition or sandbox type (Developer sandbox, Developer Pro sandbox, Partial Copy sandbox, Full Copy sandbox, Production). New Release groups orgs by it.',
+                                    'Role: **Developer org** (people build here; the label says which branch it raises into), **Stage (an org on the route)** or **Back promote (after production)**. **Hub (this org, production)** is offered only until the hub is registered (B. Hub org).',
                                     'My Domain URL: the org\'s, with `https://`.',
-                                    'Login type: **Sandbox** for sandboxes; **Production or Developer Edition** for production and Developer Edition orgs.',
+                                    'Login type: read from the My Domain URL and grey. A URL with `.sandbox.` is **Sandbox**; any other is **Production or Developer Edition**.',
+                                    'Salesforce environment: follows the login type. A sandbox login: pick the sandbox type (**Developer sandbox or Developer Edition**, **Developer Pro sandbox**, **Partial Copy sandbox**, **Full Copy sandbox**). A production login that isn\'t the hub is a Developer Edition org, so it is set to **Developer sandbox or Developer Edition** and grey. Production belongs to the hub alone. New Release and Connected orgs group the orgs by it.',
                                     'Integration username: from step 1.',
-                                    'Connected app consumer key: from step 3. It is saved encrypted and never shown again.',
+                                    'Consumer key: from step 3. It is saved encrypted and never shown again.',
                                     'Hub certificate: `release_relay`.',
                                     'Branch: the org\'s branch, for example `sit` or `dev1`.',
                                     'Git environment: the environment holding its login (C. Git provider, step 5), usually the same as the branch.',
-                                    'Press **Test sign-in and next**: it saves, signs in and reads the Org Id, sandbox name and Metadata API version. The window then walks you through Approval and Slack (Skip leaves the defaults).'
+                                    'The fields start empty: the grey text in each is an example only. Press **Check connection and next**: it saves, signs in and reads the Org Id, sandbox name and Metadata API version.',
+                                    'The window then shows the org\'s next steps one at a time: **Approval** (stages and the hub), **Back promote** (back promote orgs) and **Slack** (once Slack is set up), each with **Save and next** or **Save and finish**. **Skip** goes on without changing that step (approval Always, approved in Salesforce, no Slack channel).'
                                 ],
-                                check: 'Connected orgs → the org\'s environment tab: its card shows Connected.',
+                                check: 'The window closes, Connected orgs shows the org\'s environment tab and its card lights up, Connected.',
                                 problems: SIGN_IN_PROBLEMS,
-                                shot: { ill: 'register-org', cap: 'Register an org: the eleven things to fill in, then Save.', alt: 'Drawing of the Register an org window with callouts 1 Org name, 2 Role, 3 Salesforce environment, 4 My Domain URL, 5 Login type, 6 Integration username, 7 Connected app consumer key, 8 Hub certificate, 9 Branch, 10 Git environment, 11 Save.' }
+                                shot: { ill: 'register-org', cap: 'Register an org: the things to fill in, then Check connection and next.', alt: 'Drawing of the Register an org window with callouts 1 Org name, 2 Role, 3 Salesforce environment, 4 My Domain URL, 5 Login type, 6 Integration username, 7 Consumer key, 8 Hub certificate, 9 Branch, 10 Git environment, 11 Check connection and next.' }
                             },
                             {
-                                title: 'Test sign-in any time',
+                                title: 'Choose its code scan',
                                 who: 'Release Relay admin',
-                                where: 'Release Relay → Pipeline → Connected orgs → click the org → Test sign-in',
+                                where: 'Release Relay → Pipeline → Connected orgs → click the org → Edit → Approval',
+                                goal: 'Stages and the hub can scan more, or less, than the Git connection does.',
+                                items: [
+                                    '**Code scan for releases into** the org: **Follow the Git connection** (the default; it says whether that is on or off now), **Always scan**, or **Don\'t scan** (to move faster).',
+                                    'Press **Save**. The org\'s card shows it, for example **Always · Code scan: Follows Git (on)**.'
+                                ],
+                                text: ['Developer orgs and back promote orgs have no Approval step, so no code scan choice: releases are scanned on the way into a stage.']
+                            },
+                            {
+                                title: 'Check connection any time',
+                                who: 'Release Relay admin',
+                                where: 'Release Relay → Pipeline → Connected orgs → click the org → Check connection',
                                 goal: 'Proves the hub can still sign in (after a sandbox refresh, a new certificate or a changed user).',
-                                items: ['Click the org\'s card and press **Test sign-in** in its window. On a failure the Sign-in section names the fix (table above).'],
+                                items: ['Click the org\'s card and press **Check connection** in its window. On a failure the Sign-in section names the fix (table above).'],
                                 check: 'Connected, with the time it was checked.',
                                 shot: { name: 'register', cap: 'Example: Register an org. The consumer key is saved encrypted and shown as ••••.' }
                             },
@@ -705,7 +727,7 @@ const SETUP_SECTIONS = [
                                 goal: 'A refresh copies production\'s setup, so the sandbox\'s app and user may change.',
                                 items: [
                                     'Check the integration user is active in the sandbox, and the External Client App is there with the hub certificate.',
-                                    'If the consumer key changed: Pipeline → the org\'s card → Edit → paste it → Save. Then Test sign-in.'
+                                    'If the consumer key changed: Pipeline → Connected orgs → click the org → **Edit** → paste it into **Consumer key** → **Save** (a changed sign-in is checked again). The next check notes the new Org Id by itself.'
                                 ]
                             }
                         ]
@@ -728,7 +750,11 @@ const SETUP_SECTIONS = [
                 title: 'E. Slack (optional)',
                 aside: 'Skip this if you don\'t use Slack: everything works without it',
                 blocks: [
-                    { type: 'text', paras: ['With Slack each release posts one card in its target org\'s channel and updates it as it moves. Approving in Slack is a further, optional part (steps 7 to 13).', 'The card always shows the release\'s current state (approved, waiting for manual steps, deploying, deployed, failed, rejected); the events you tick only choose the extra messages (thread replies and new posts). There is no background job: the hub notices a deploy finishing when someone has Release Relay open (its pages keep checking), and then updates the card.'] },
+                    { type: 'text', paras: [
+                        'With Slack each release posts **one card** in its target org\'s channel: a header with the release number and title, the card, and a divider under it, so each release stands on its own. The card is edited as the release moves, and each step (pull request, checks, approval, deploy) is a reply in the card\'s **thread**. Steps 1 to 6 set this up.',
+                        'Approving from the card is a further, optional part (steps 7 to 15). Slack sends each Approve or Reject press to a public **Salesforce Site** in the hub, so it needs a Site, its guest user\'s access, and Slack\'s Interactivity pointed at it. Do those steps in order.',
+                        'The card always shows the release\'s current state (approved, waiting for manual steps, deploying, deployed, failed, rejected); the events you tick only choose the extra messages (thread replies and new posts). There is no background job: the hub notices a deploy finishing when someone has Release Relay open (its pages keep checking), and then updates the card.'
+                    ] },
                     {
                         type: 'steps',
                         steps: [
@@ -737,7 +763,7 @@ const SETUP_SECTIONS = [
                                 who: 'Slack admin',
                                 where: 'Slack app settings (api.slack.com/apps) → Create New App → From scratch',
                                 goal: 'One app for the whole hub; it posts as itself.',
-                                items: ['App Name: for example `Release Relay`. Pick your workspace. Press Create App.']
+                                items: ['App Name: for example `Release Relay`. Pick your workspace. Press **Create App**.']
                             },
                             {
                                 title: 'Give it the bot scope and install it',
@@ -753,28 +779,39 @@ const SETUP_SECTIONS = [
                                 shot: { ill: 'slack-scopes', cap: 'OAuth & Permissions: chat:write, install, copy the bot token.', alt: 'Drawing of the Slack app OAuth and Permissions page with callouts 1 bot token scope chat:write, 2 Install to Workspace, 3 copy Bot User OAuth Token.' }
                             },
                             {
-                                title: 'Put the bot token in the hub',
-                                who: 'Salesforce admin',
-                                where: 'Setup → Named Credentials → External Credentials tab → RLY Slack → Principals',
-                                goal: 'The Named Credential `RLY_Slack` (installed with Release Relay) sends this token to Slack.',
-                                items: [
-                                    'On the principal **Bot** open Actions ▾ → **Edit**.',
-                                    'Authentication Parameters → Add: Name `Token`.',
-                                    'Value: the bot token `xoxb-…`.',
-                                    'Press **Save**.'
-                                ],
-                                text: ['Access to this principal is already in `RLY_Developer`, `RLY_Approver`, `RLY_Deploy_Team` and `RLY_Slack_Site`. If people use other permission sets, add `RLY_Slack - Bot` under External Credential Principal Access there.'],
-                                check: 'The Bot principal lists the parameter Token.',
-                                problems: [['Slack: Not set up or Error', 'The parameter must be called `Token` exactly, on the principal Bot of RLY_Slack.']],
-                                shot: { ill: 'ext-cred-slack', cap: 'RLY_Slack: principal Bot → parameter Token = the bot token.', alt: 'Drawing of the RLY Slack external credential with callouts 1 Edit on principal Bot, 2 parameter name Token, 3 value xoxb placeholder, 4 Save.' }
-                            },
-                            {
-                                title: 'Switch Slack on in Release Relay',
+                                title: 'Switch Slack on and save the bot token',
                                 who: 'Release Relay admin',
                                 where: 'Release Relay → Pipeline → Slack connection → Edit',
-                                goal: 'Choose what Slack hears about.',
-                                items: ['Switch **Slack** on, tick the events under **Send a message when a release is**, press Save, then **Test**.'],
-                                check: 'The card shows the workspace name.'
+                                goal: 'The hub posts through the Named Credential `RLY_Slack` (installed with Release Relay); the token goes into its credential store.',
+                                items: [
+                                    'Open **Slack connection** (it starts closed) and press **Edit**.',
+                                    'Switch **Slack** on. Off stops every message; nothing else changes.',
+                                    '**Bot token (starts with xoxb-)**: paste the bot token. It is never shown again.',
+                                    'Under **Send a message when a release is**, tick the events: Ready for approval, Checks failed, Deployed, Deploy failed, Rejected, Raised.',
+                                    'Press **Save and test**: it saves, then checks the token and shows your workspace name.'
+                                ],
+                                text: ['Until Slack answers, the card shows a checklist: Slack app created, Bot token saved, Check connection, Pick a channel per org. **Check connection** on the card checks again at any time.'],
+                                check: 'The Slack connection shows Connected and the workspace name.',
+                                problems: [
+                                    ['"A bot token starts with xoxb- and has no spaces: copy the Bot User OAuth Token again (Slack app → OAuth & Permissions)."', 'Copy the Bot User OAuth Token again, not the signing secret or the client secret.'],
+                                    ['"Slack settings saved. The bot token goes in Setup: see the Slack connection card."', 'This org doesn\'t let the page keep the token: do the next step.'],
+                                    ['Slack: Not set up or Error', 'The token is missing or wrong: paste it again (or do the next step).']
+                                ]
+                            },
+                            {
+                                title: 'Only if asked: put the bot token in Setup',
+                                who: 'Salesforce admin',
+                                where: 'Setup → Named Credentials → External Credentials tab → RLY Slack → Principals',
+                                goal: 'The same token, saved by hand when the Slack connection card says "Put the bot token in Setup → Named Credentials → External Credentials → RLY_Slack → Principals → Bot → Token."',
+                                items: [
+                                    'Press **Open Named Credentials** on the card, or go there in Setup.',
+                                    'On the principal **Bot** open Actions ▾ → **Edit**.',
+                                    'Authentication Parameters → Add: Name `Token` (exactly), Value: the bot token `xoxb-…`.',
+                                    'Press **Save**. Then on the Pipeline tab press **Check connection** on the Slack connection.'
+                                ],
+                                text: ['Access to this principal is already in `RLY_Admin`, `RLY_Developer`, `RLY_Approver`, `RLY_Deploy_Team` and `RLY_Slack_Site`. If people use other permission sets, add `RLY_Slack - Bot` under External Credential Principal Access there.'],
+                                check: 'The Bot principal lists the parameter Token, and the Slack connection shows Connected.',
+                                shot: { ill: 'ext-cred-slack', cap: 'RLY_Slack: principal Bot → parameter Token = the bot token.', alt: 'Drawing of the RLY Slack external credential with callouts 1 Edit on principal Bot, 2 parameter name Token, 3 value xoxb placeholder, 4 Save.' }
                             },
                             {
                                 title: 'Create a channel per org and invite the app',
@@ -785,119 +822,146 @@ const SETUP_SECTIONS = [
                                     'Create one channel per org, for example `#rr-sit` and `#rr-prod` (examples). In each, type `/invite @Release Relay` (your app\'s name) and press Enter.',
                                     'Slack confirms the app was added.'
                                 ],
-                                problems: [['Slack test message fails with not_in_channel', 'Invite the app to that channel.']],
+                                problems: [['Send test message fails with not_in_channel', 'Invite the app to that channel.']],
                                 shot: { ill: 'slack-invite', cap: 'In each channel: /invite @your app.', alt: 'Drawing of a Slack channel with callouts 1 the message box with /invite @Release Relay, 2 the confirmation that the app was added.' }
                             },
                             {
-                                title: 'Set the channel on each org card',
+                                title: 'Set the channel on each org',
                                 who: 'Release Relay admin',
                                 where: 'Release Relay → Pipeline → Connected orgs → click the org → Edit → Slack',
-                                goal: 'Each org posts in its own channel.',
+                                goal: 'Releases into each org post in that org\'s own channel.',
                                 items: [
-                                    'Slack channel: `#channel-name` or the channel ID.',
-                                    'Turn on **Post to Slack** (on a developer org: **Also post here**, so its people see their own releases).',
-                                    'Save, then press **Send test message** in the org\'s Slack section.'
+                                    '**Channel**: `#channel-name` or the channel ID.',
+                                    'Turn on **Post to Slack** (on a developer org the switch is **Also post here**: its people get a one-line copy of their own releases).',
+                                    'Press **Save**. Back in the org\'s window (read mode), press **Send test message** in its Slack section. The button is grey until the org has a channel.'
                                 ],
+                                text: ['The Slack section shows only once Slack is set up. An org approved in Salesforce only gets the card with **Open in Release Relay** instead of Approve and Reject.'],
                                 check: 'The test message appears in the channel.',
+                                problems: [['"Slack channel must be a channel name such as #channel-name, or a channel ID"', 'Type the channel with `#`, or paste its ID (channel details → bottom of the About tab).']],
                                 links: [{ label: 'How to use: Pipeline tab', to: 'pipelinetab' }]
                             },
                             {
-                                title: 'Approve in Slack: copy the signing secret into the hub',
+                                title: 'Approve in Slack: save the signing secret',
                                 who: 'Slack admin + Release Relay admin',
-                                where: 'Slack app settings (api.slack.com/apps) → your app → Basic Information → App Credentials',
-                                goal: 'Proves that an Approve or Reject press really comes from your Slack app.',
+                                where: 'Slack app settings → your app → Basic Information → App Credentials; then Release Relay → Pipeline → Slack connection → Edit',
+                                goal: 'Proves that an Approve or Reject press really comes from your Slack app. Without it the hub refuses every press.',
                                 items: [
-                                    'Under **App Credentials**, find **Signing Secret** and press **Show**. Copy it (not the Client Secret, not the token).',
-                                    'In Salesforce: Release Relay → **Pipeline** → **Slack connection** → **Edit**.',
-                                    'Open **Approve in Slack** → paste it into **Signing secret**.',
-                                    'Press **Save and test**. It is saved encrypted and never shown again; leave the box blank later to keep it.'
+                                    'In Slack: under **App Credentials** find **Signing Secret** and press **Show**. Copy it (not the Client Secret, not the token).',
+                                    'In Release Relay: Pipeline → **Slack connection** → **Edit** → open **Approve in Slack (optional, advanced)**.',
+                                    'Paste it into **Signing secret**.',
+                                    'Press **Save and test**. It is saved encrypted and never shown again; later, leave the box blank to keep it.'
                                 ],
-                                check: 'The Slack connection shows the signing secret as saved.',
+                                check: 'The Slack connection shows "Signing secret saved" under Approve in Slack.',
                                 problems: [['"The signing secret has no spaces: copy it again from the Slack app (Basic Information)."', 'Copy the Signing Secret again from Basic Information → App Credentials, not the Client Secret or the bot token.']]
                             },
                             {
-                                title: 'Approve in Slack: a Site that Slack can reach',
+                                title: 'Approve in Slack: create a Site',
                                 who: 'Salesforce admin',
-                                where: 'Setup → Quick Find: Sites → Sites',
-                                goal: 'Slack sends each button press to the hub through a public Salesforce Site. The Site only accepts requests signed with your signing secret.',
+                                where: 'Hub: Setup → Quick Find: Sites → Sites',
+                                goal: 'Slack sends each press to the hub through this public Site. It answers only requests signed with your signing secret, from linked approvers.',
                                 items: [
-                                    'If the page asks you to register a Site domain first (no Sites yet): type a domain name, press **Check Availability**, tick the terms, press **Register My Salesforce Site Domain**.',
+                                    'No Sites yet? The page first asks for a Site domain: type a domain name, press **Check Availability**, tick the terms, press **Register My Salesforce Site Domain**.',
                                     'Press **New**. Site Label: for example `Release Relay Slack` (Site Name fills in by itself).',
                                     'Tick **Active**.',
-                                    'Active Site Home Page: press the lookup and pick any page, for example `InMaintenance`. Press **Save**.',
-                                    'On the Site\'s page press **Public Access Settings** → **Assigned Users** → open the site guest user (for example "Release Relay Slack Site Guest User").',
-                                    'On the guest user: **Permission Set Assignments** → **Edit Assignments** → add `RLY_Slack_Site` → **Save**.',
-                                    'Back on Setup → Sites, copy the Site\'s **Site URL** (for example `https://your-domain.my.salesforce-sites.com/` — your own URL; a site with a path ends with that path).'
+                                    'Active Site Home Page: press the lookup and pick any page, for example `InMaintenance`.',
+                                    'Press **Save**.'
                                 ],
-                                check: 'The Site shows Active and its guest user has the permission set RLY_Slack_Site.',
+                                check: 'Setup → Sites lists the Site as Active.',
                                 shot: { ill: 'slack-site', cap: 'A Site, active, with RLY_Slack_Site on its guest user.', alt: 'Drawing of the Site Edit page with callouts 1 Site Label, 2 Active, 3 Active Site Home Page, 4 RLY_Slack_Site permission set on the guest user.' }
                             },
                             {
-                                title: 'Approve in Slack: turn on Interactivity',
-                                who: 'Slack admin',
-                                where: 'Slack app settings (api.slack.com/apps) → your app → Interactivity & Shortcuts',
-                                goal: 'Tells Slack where to send Approve and Reject.',
+                                title: 'Approve in Slack: give the guest user RLY_Slack_Site',
+                                who: 'Salesforce admin',
+                                where: 'Setup → Sites → your Site → Public Access Settings → Assigned Users',
+                                goal: 'The Slack callback runs as the Site\'s guest user. This permission set lets it run Release Relay\'s Slack class and answer through the Slack credential, nothing else.',
                                 items: [
-                                    'First open **Socket Mode** (left menu) and make sure **Enable Socket Mode** is Off. While it is on, Slack sends button presses over its own connection, never to Salesforce, and the Request URL box is hidden.',
-                                    'Switch **Interactivity** to On.',
-                                    'Request URL: the Site URL you copied, followed by `/services/apexrest/rly/slack/actions`. For example `https://your-domain.my.salesforce-sites.com/services/apexrest/rly/slack/actions` (no double slash; keep the site\'s path if it has one). Pipeline → Slack connection shows the same URL with a Copy button.',
-                                    'Press **Save Changes** at the bottom.',
-                                    'If Slack shows a yellow banner asking to reinstall the app, press **reinstall your app** → Allow.',
-                                    'If Save Changes stays grey, open **App Manifest** instead, add `"interactivity": { "is_enabled": true, "request_url": "<your URL>" }` inside `"settings"`, and press Save Changes there.'
+                                    'On the Site\'s page press **Public Access Settings** → **Assigned Users** → open the site guest user (for example "Release Relay Slack Site Guest User").',
+                                    '**Permission Set Assignments** → **Edit Assignments** → add **Release Relay Slack Site** (`RLY_Slack_Site`) → **Save**.'
                                 ],
+                                text: ['Release Relay finds the Site by this assignment: the first active Site whose guest user has `RLY_Slack_Site`. Give it to one Site only.'],
+                                check: 'The guest user\'s Permission Set Assignments list RLY_Slack_Site.'
+                            },
+                            {
+                                title: 'Approve in Slack: let the guest user start the deploy',
+                                who: 'Salesforce admin',
+                                where: 'Setup → Sites → your Site → Public Access Settings (the guest profile); then Setup → Permission Sets → Release Relay Slack Site',
+                                goal: 'Approve starts the deploy through your Git credential as the guest user, so it needs that credential too. Without it pressing Approve does nothing at all. Apex checks Slack\'s signature and the linked approver before either credential is used.',
+                                items: [
+                                    'Guest profile: on the Site press **Public Access Settings** → **Edit**. Under Standard Object Permissions find **User External Credentials** and tick **Read** → **Save**. (The permission set doesn\'t offer this object for guest users.)',
+                                    'Permission set **Release Relay Slack Site** → **External Credential Principal Access** → **Edit** → move your Git credential\'s principal (`RLY_GitHub - GitHub`, or your provider\'s) to Enabled → **Save**.',
+                                    'In the same list check `RLY_Slack - Bot` is Enabled (it comes with `RLY_Slack_Site`; add it again if someone removed it).'
+                                ],
+                                check: 'The permission set lists both principals, and the guest profile has Read on User External Credentials.'
+                            },
+                            {
+                                title: 'Approve in Slack: copy the Interactivity URL',
+                                who: 'Release Relay admin',
+                                where: 'Release Relay → Pipeline → Slack connection → Edit → Approve in Slack (optional, advanced)',
+                                goal: 'The address Slack sends the presses to: the Site\'s URL followed by `/services/apexrest/rly/slack/actions`.',
+                                items: [
+                                    '**Interactivity URL to paste in Slack** shows the full URL. Press **Copy**.',
+                                    'Press **Cancel** (nothing changed) or **Save and test**.'
+                                ],
+                                text: ['The URL shows only once an active Site\'s guest user has `RLY_Slack_Site`. Until then the window says "Interactivity URL: set up a Salesforce Site first (Guide → Set up → Slack)": check steps 8 and 9, and that the Site is Active.'],
+                                check: 'The URL starts with your Site\'s address (for example `https://your-domain.my.salesforce-sites.com`, an example) and ends with /services/apexrest/rly/slack/actions.',
+                                problems: [['"Select the URL and copy it."', 'The browser blocked copying: select the URL in the box and copy it yourself.']]
+                            },
+                            {
+                                title: 'Approve in Slack: set the Request URL in the App Manifest',
+                                who: 'Slack admin',
+                                where: 'Slack app settings (api.slack.com/apps) → your app → App Manifest',
+                                goal: 'Tells Slack where to send Approve and Reject. Socket Mode must stay off: while it is on, Slack sends presses over its own connection and never to Salesforce.',
+                                items: [
+                                    'Open **App Manifest** (left menu, under Features).',
+                                    'Inside `"settings"` set `"interactivity": { "is_enabled": true, "request_url": "<the URL you copied>" }` and `"socket_mode_enabled": false`.',
+                                    'Press **Save Changes**. If Slack asks to verify the URL or shows a yellow banner, press **reinstall your app** → Allow.',
+                                    'Check **Interactivity & Shortcuts** (left menu): Interactivity is On with your Request URL. Check **Socket Mode**: Enable Socket Mode is Off.'
+                                ],
+                                text: ['You can also switch Interactivity on and paste the Request URL on the Interactivity & Shortcuts page; the App Manifest works even when that page\'s Save Changes stays grey. If the Request URL box is missing there, Socket Mode is on: switch it off.'],
                                 check: 'Socket Mode is Off; Interactivity shows On with your Request URL.',
                                 shot: { ill: 'slack-interactivity', cap: 'Interactivity on, Request URL = Site URL + /services/apexrest/rly/slack/actions, Save Changes.', alt: 'Drawing of Slack app settings with callouts 1 Interactivity on, 2 Request URL ending in services/apexrest/rly/slack/actions, 3 Save Changes, 4 Signing Secret Show.' }
                             },
                             {
                                 title: 'Approve in Slack: link each approver',
                                 who: 'Each approver + Release Relay admin',
-                                where: 'Slack → the approver\'s profile; then Release Relay → Pipeline → Slack connection → Edit → Approve in Slack → Approvers',
+                                where: 'Slack → the approver\'s profile; then Release Relay → Pipeline → Slack connection → Edit → Approve in Slack (optional, advanced)',
                                 goal: 'Only approvers linked to a Slack member may press Approve or Reject.',
                                 items: [
                                     'Each approver, in Slack: click their own name or picture → **Profile** → **⋮** (More) → **Copy member ID**. It looks like `U0…`.',
-                                    'In Release Relay: Pipeline → **Slack connection** → **Edit** → **Approve in Slack** → **Approvers**: paste each member ID next to that person\'s name → **Save**.'
+                                    'In Release Relay: **Approvers linked** → **Link Slack member IDs**: paste each member ID next to that person\'s name (blank unlinks) → **Save and test**.',
+                                    'The list holds everyone with `RLY_Approver` or `RLY_Admin`. Empty? It says "No approvers yet: assign the RLY_Approver permission set."'
                                 ],
-                                check: 'Each approver shows Linked.',
-                                problems: [['Approve in Slack says you can\'t approve', 'Link that person\'s member ID, and check they have the permission set `RLY_Approver`.']]
+                                check: 'Show approvers on the Slack connection lists each approver as Linked.',
+                                problems: [['Slack says "You can\'t approve REL-… Ask an admin to link your Slack account in Release Relay → Pipeline."', 'Link that person\'s member ID, check they have `RLY_Approver` or `RLY_Admin`, and that the release\'s target org has Approve in Slack on.']]
                             },
                             {
                                 title: 'Approve in Slack: turn it on per org',
                                 who: 'Release Relay admin',
-                                where: 'Release Relay → Pipeline → the org\'s card → Approval → Edit',
+                                where: 'Release Relay → Pipeline → Connected orgs → click the org → Edit → Approval',
                                 goal: 'Each org decides where its releases are approved.',
                                 items: [
-                                    'In the org\'s **Approval** section choose **Approve in Slack** (Approve in Salesforce may stay on too: either is enough) → **Save**.',
-                                    'Do this on every org whose releases should be approved from Slack (the hub too, if you want).'
+                                    'Under **Where releases into** the org **are approved**, switch on **Approve in Slack**. **Approve in Salesforce** may stay on too: either is enough, and at least one stays on.',
+                                    'Press **Save**. Do this on every stage (and the hub, if you want) whose releases should be approved from Slack.'
                                 ],
+                                text: ['The **Approve in Slack** switch shows only while Slack is on and Check connection answers. With Approve in Salesforce off, the release page has no Approve and deploy button: it says "Approved from the Slack card."'],
                                 links: [{ label: 'Approval rules', to: 'approvalrules' }]
                             },
                             {
                                 title: 'Approve in Slack: check it',
                                 who: 'Release Relay admin',
                                 where: 'Slack → the org\'s channel',
-                                goal: 'See the buttons before you rely on them.',
+                                goal: 'See the buttons work before you rely on them.',
                                 items: [
+                                    'The Slack connection shows **Approve in Slack: Set up** (signing secret saved and the Site found).',
                                     'Raise a small release (or use one already waiting) so that it is **Ready for approval** in an org with Approve in Slack on.',
-                                    'Its card in that org\'s channel shows **Approve** and **Reject** under the status line.',
-                                    'A linked approver presses **Approve**: the card updates to Deploying, and the release page shows "approved in Slack".'
+                                    'Its card in that org\'s channel shows **Approve** and **Reject**. A linked approver presses **Approve**: the card updates to Deploying, and the release page says it was approved in Slack. **Reject** opens a form, **Why are you rejecting?**, then **Reject release**.'
                                 ],
-                                check: 'The card shows Approve and Reject, and pressing Approve moves the release on.'
-                            },
-                            {
-                                title: 'Approve in Slack: give the Site guest user its credentials',
-                                who: 'Salesforce admin',
-                                where: 'Setup → Permission Sets → Release Relay Slack Site',
-                                goal: 'The Slack callback runs as the Site guest user. It starts the deploy through your Git credential and answers in Slack through the Slack credential, so it needs both. Without them pressing Approve does nothing at all. Apex checks Slack\'s signature and the linked approver before either is used.',
-                                items: [
-                                    'The guest **profile** (Setup → Sites → your Site → **Public Access Settings** → **Edit**): under Standard Object Permissions find **User External Credentials** and tick **Read** → **Save**. The permission set doesn\'t offer this object for guest users.',
-                                    '**External Credential Principal Access** → **Edit** → move your Git credential\'s principal (the one starting `RLY_GitHub - `, or your provider\'s credential) to Enabled → **Save**.',
-                                    'Check `RLY_Slack - Bot` is in the same list (it is already in `RLY_Slack_Site`; add it if someone removed it).',
-                                    'Check the Request URL in the Slack app ends with `/services/apexrest/rly/slack/actions` and starts with your Site URL, and that the signing secret was saved (step 7).'
-                                ],
+                                check: 'The card shows Approve and Reject, and pressing Approve moves the release on.',
                                 problems: [
-                                    ['Slack shows "This app responded with status code 404" or similar', 'The Request URL is wrong or the Site isn\'t Active: copy it again from Pipeline → Slack connection.'],
-                                    ['Slack shows an error after a few seconds and the card doesn\'t change', 'Give the guest user Read and View All on User External Credentials (above), and check the RLY_Slack - Bot principal access.'],
-                                    ['Pressing Approve does nothing and the release stays Ready for approval', 'The guest user can\'t use the Git credential or read User External Credentials: do both items above. To see it for yourself, add a debug log for the Site guest user (Setup → Debug Logs) and press Approve again.']
+                                    ['Slack shows "This app responded with status code 404" or similar', 'The Request URL is wrong or the Site isn\'t Active: copy it again from Pipeline → Slack connection (step 11).'],
+                                    ['Slack shows an error after a few seconds and the card doesn\'t change', 'The signing secret is missing or wrong (step 7), or Slack is off on the Slack connection. The hub refuses unsigned presses.'],
+                                    ['Pressing Approve does nothing and the release stays Ready for approval', 'The guest user can\'t use the Git credential or read User External Credentials (step 10). To see it for yourself, add a debug log for the Site guest user (Setup → Debug Logs) and press Approve again.'],
+                                    ['The card shows Open in Release Relay instead of Approve', 'The org has Approve in Slack off (step 14), or the release isn\'t waiting for an approver.']
                                 ]
                             }
                         ]
@@ -925,11 +989,11 @@ const SETUP_SECTIONS = [
                             {
                                 title: 'Choose each org\'s approval rule',
                                 who: 'Release Relay admin',
-                                where: 'Release Relay → Pipeline → the org\'s card → Edit → Approval',
+                                where: 'Release Relay → Pipeline → Connected orgs → click the org → Edit → Approval',
                                 goal: 'Decide when a release into the org waits for a person.',
                                 items: [
-                                    'Always (the default), Only when the release contains…, or Never (not for production). Optionally: hotfixes need 2 approvers.',
-                                    'Each org can follow the Git connection\'s code scan or set its own (Pipeline → org → Approval).'
+                                    'Always (the default), Only when it contains…, or Never (not offered for production). Optionally: hotfixes need 2 approvers.',
+                                    'In the same section: the org\'s code scan (Follow the Git connection, Always scan or Don\'t scan) and where it is approved (Approve in Salesforce, Approve in Slack).'
                                 ],
                                 links: [{ label: 'Approval rules', to: 'approvalrules' }]
                             },
@@ -1018,8 +1082,8 @@ const SETUP_SECTIONS = [
                             ['Integration user + External Client App per org', 'Each org: Setup', 'JWT on, hub .crt, user pre-authorized'],
                             ['Each org registered (the hub as Hub)', 'Pipeline → Connected orgs', 'Every card Connected'],
                             ['Route branches', 'Pipeline → 2 · Route → Create missing branches', 'Every route branch already exists'],
-                            ['Slack (optional): token, channels, test', 'RLY_Slack · Pipeline → Slack connection', 'Test message arrives'],
-                            ['Approve in Slack (optional)', 'Site + Interactivity + signing secret + linked approvers', 'Approve works from the card'],
+                            ['Slack (optional): token, channels, test', 'Pipeline → Slack connection · each org → Edit → Slack', 'Connected; test message arrives'],
+                            ['Approve in Slack (optional)', 'Signing secret · Site with RLY_Slack_Site on its guest user · guest Read on User External Credentials and the Git principal · Request URL in the App Manifest, Socket Mode off · linked approvers · Approve in Slack per org', 'Slack connection says Approve in Slack: Set up; Approve works from the card'],
                             ['Approval rules, deployment team', 'Pipeline → Connected orgs · RLY_Deploy_Team', 'Set as your process needs'],
                             ['Caching on, prod reviewers on', 'Session Settings · Environments → prod', 'Before real users start'],
                             ['First release', 'New Release', 'Deployed to the first stage']
@@ -1049,7 +1113,7 @@ const START_SECTIONS = [
                             '**Hub**: this org. It holds the releases, approvals and history, and signs in to every registered org itself.',
                             '**Git provider**: one repository (GitHub, GitLab, Bitbucket or Azure DevOps). Each org has a branch; every release is a pull request into the next stage\'s branch.',
                             '**Pipeline**: your provider\'s pipeline runs the code scan and a check-only deploy with your tests, and later merges and deploys.',
-                            '**Route**: developer orgs → stages in order → production (the hub). Pipeline → Route shows yours.',
+                            '**Route**: developer orgs → stages in order → production (the hub). Pipeline → Route shows yours. Releases, hotfixes too, are raised from developer orgs only.',
                             '**Promote**: what is deployed to a stage moves on to the next stop from the Promote tab, hotfixes first.'
                         ]
                     },
@@ -1095,7 +1159,10 @@ const USE_SECTIONS = [
                 title: 'Raise a release',
                 aside: SHOT_NOTE,
                 blocks: [
-                    { type: 'text', paras: ['You build in your developer org and raise releases from it. You need the `RLY_Developer` permission set. New Release has five steps.'] },
+                    { type: 'text', paras: [
+                        'You build in your developer org and raise releases from it. You need the `RLY_Developer` permission set. New Release has five steps: **Where**, **Org**, **Select**, **Review**, **Raise**.',
+                        'Releases always come from a **developer org**. Stage orgs (for example SIT) and production are never offered as sources: a hotfix is raised from the developer org that has the fix, and what is in a stage moves on with **Promote** (for example SIT → PROD).'
+                    ] },
                     {
                         type: 'steps',
                         steps: [
@@ -1104,20 +1171,35 @@ const USE_SECTIONS = [
                                 who: 'Developer',
                                 where: 'New Release → Where should the changes come from?',
                                 goal: 'Orgs are grouped by their Salesforce environment, so you find yours fast.',
-                                items: ['Press the tile of your org\'s type (for example Developer sandbox). Each tile counts its orgs. Production isn\'t offered: the hub is production.'],
+                                items: [
+                                    'Press the tile of your org\'s type: **Developer sandbox or Developer Edition**, **Developer Pro sandbox**, **Partial Copy sandbox** or **Full Copy sandbox**. **Other orgs** shows when an org has no sandbox type yet.',
+                                    'Each tile counts the developer orgs in it. A stage of that type is named with "releases arrive here" and can\'t be picked; a tile with no developer org is grey ("None registered").',
+                                    'When only one tile has orgs it is chosen for you. Press **Next: pick the org**.'
+                                ],
                                 check: 'The next step lists the orgs of that type.',
+                                problems: [
+                                    ['A red line such as "The Git connection isn\'t set up and checked yet (Pipeline tab).", "No stage to release into yet: register the first stage org with its branch (Pipeline tab)." or "No developer org registered yet (Pipeline tab)."', 'An admin fixes it on the Pipeline tab. Until then Next: pick the org stays grey.'],
+                                    ['"No developer org yet. An admin registers it on the Pipeline tab with the role Developer."', 'Ask an admin to register your org.']
+                                ],
                                 shot: { name: 'source', cap: 'Example: Source, with Goes to under the org cards.' }
                             },
                             {
-                                title: 'Pick your org',
+                                title: 'Pick your org and how far back to look',
                                 who: 'Developer',
-                                where: 'New Release → Which org?',
+                                where: 'New Release → Which … org?',
                                 goal: 'The release is read from this org and goes to the first stage of its route.',
                                 items: [
-                                    'Search and pick your developer org. Under it the page shows where the release **goes to**.',
-                                    'Press **Next: find changes**.'
+                                    'Pick your developer org (with more than 6 there is a search by name or branch). Each org shows its branch and how changes are listed: **Fast: source tracking** or **Metadata API**.',
+                                    'Under the list, **Goes to →** names the first stage and its branch.',
+                                    '**Changed**: **Last 7 days** (the default), **Last 30 days**, **Any time** or **Since a date…** (pick today or an earlier date). **Changed by**: **Me** (the default) or **Anyone**.',
+                                    'Not finding something later? Come back here with **Any time** and **Anyone**: that lists every component in the org, including ones you didn\'t change but the release needs.',
+                                    'Press **Next: find changes**. **Back** returns to the tiles.'
                                 ],
-                                problems: [['Your org isn\'t listed', 'An admin registers it on the Pipeline tab (role Developer org).'], ['A sign-in error on the org', 'An admin presses Test sign-in on its card; the message names the fix.']]
+                                problems: [
+                                    ['Your org isn\'t listed', 'An admin registers it on the Pipeline tab (role Developer org) with its sandbox type.'],
+                                    ['Your org is grey: "Not connected: check it on the Pipeline tab"', 'An admin presses Check connection on its card; the message names the fix.'],
+                                    ['Next: find changes stays grey', 'Pick an org, and with Since a date… pick a date that isn\'t in the future.']
+                                ]
                             },
                             {
                                 title: 'Select the components',
@@ -1125,40 +1207,54 @@ const USE_SECTIONS = [
                                 where: 'New Release → Select',
                                 goal: 'Pick exactly what goes, and the tests that cover your Apex.',
                                 items: [
-                                    'Types are on the left with counts; changes on the right. Filter custom, standard or both, and search by name.',
-                                    'Not in the list? Set **Changed** to **Any time** and **Changed by** to **Anyone**: that lists every component in the org, including ones you didn\'t change but the release needs.',
+                                    'Types are on the left with counts (Code, Automation, Data model, Access and UI, Other); changes on the right. **Show** custom, standard or both, and search by name or type. The ↻ button reads the org again.',
                                     'Deleted something? Orgs with source tracking list it with a red **Delete** pill. Otherwise press **Find deleted components** and tick only what you deleted (see Deleting components).',
-                                    'The bar at the bottom counts your Apex and test classes. Red means Apex without a test class: tick the suggested test or add it.',
-                                    'Press **Next: review**.'
+                                    'The bar at the bottom counts what you picked. Red means Apex without a test class: "Apex selected without a test class." Press the suggested **+ test class**, or tick it.',
+                                    '**Show selection** lists what you picked, with × to remove one; **Clear all** empties it.',
+                                    'Press **Next: review**. It stays grey while nothing is picked, while the org is read, or while Apex has no test.'
                                 ],
-                                check: 'The bar is not red, and Components in this release lists what you picked.',
-                                problems: [['A test class doesn\'t show as a test', 'It must contain @IsTest. If it isn\'t in the list, set Changed to Any time and Changed by to Anyone.']],
+                                check: 'The bar is not red.',
+                                problems: [
+                                    ['"No changes found in … for this period. Try Any time, or add a component by name."', 'Press **Back**, set **Changed** to **Any time**, and press Next: find changes again.'],
+                                    ['"Nothing here changed by you. Switch Changed by to Anyone."', 'Press **Back** and set **Changed by** to **Anyone**.'],
+                                    ['A test class doesn\'t show as a test', 'It must contain @IsTest. If it isn\'t in the list, go Back and use Any time and Anyone.'],
+                                    ['"<Type> <Name> is both added and deleted."', 'Untick one of the two.']
+                                ],
                                 links: [{ label: 'Deleting components', to: 'deletions' }],
                                 shot: { name: 'select', cap: 'Example: Select, with the test rule in the bar.' }
                             },
                             {
                                 title: 'Review: title, hotfix, flows, manual steps',
                                 who: 'Developer',
-                                where: 'New Release → Review',
+                                where: 'New Release → Review before raising',
                                 goal: 'Check what goes and tell the people after you what they need to know.',
                                 items: [
-                                    'Check the list and remove anything that shouldn\'t go. Give the release a **Title** (and a description if useful).',
+                                    '**In this release** lists each component with **Compare** and × (remove it). **Compare all** compares them all (see Compare and changes).',
+                                    'The box under Source → Target says which tests run, for example "Runs … (RunSpecifiedTests) in every org it deploys to", or "No Apex in this release: deploys run without tests (NoTestRun)."',
+                                    'Give the release a **Title** (required) and a **Description (optional)**.',
                                     'Urgent fix? With the Hotfix permission tick **This is a hotfix** and answer **Why is this a hotfix?** (see Hotfix).',
                                     'Flows: each shows its version in your org; choose **After deploy** per flow (see Flows).',
                                     'Anything that can\'t be deployed (access, data, setup)? **Add a manual step** (see Manual steps).',
-                                    'Above the button the page says whether the first stage will ask for approval.'
+                                    'A blue box says whether the first stage asks for approval, for example "Approval in SIT: Always needs approval in SIT." (an example).'
                                 ],
-                                links: [{ label: 'Flows', to: 'flows' }, { label: 'Manual steps', to: 'manual' }, { label: 'Hotfix', to: 'hotfix' }],
+                                links: [{ label: 'Compare and changes', to: 'compare' }, { label: 'Flows', to: 'flows' }, { label: 'Manual steps', to: 'manual' }, { label: 'Hotfix', to: 'hotfix' }],
                                 shot: { name: 'review', cap: 'Example: Review, what goes in and which tests run.' }
                             },
                             {
                                 title: 'Raise it',
                                 who: 'Developer',
-                                where: 'New Release → Review → Raise release (or Raise hotfix)',
-                                goal: 'The hub retrieves the components and the pipeline opens the pull request.',
-                                items: ['Press **Raise release**. The release page opens and follows it step by step. (Only manual steps? See the next step.)'],
-                                check: 'The release page shows Retrieving, then Workflow running, then Validating.',
-                                problems: [['Failed: a component wasn\'t found', 'Read the reason, fix the selection and raise again.']],
+                                where: 'New Release → Review → Raise pull request (or Raise hotfix)',
+                                goal: 'The hub retrieves the components and the pipeline opens the pull request into the first stage\'s branch.',
+                                items: [
+                                    'Press **Raise pull request** (**Raise hotfix** for a hotfix). It is grey until there is a title (and a reason for a hotfix) and the test rule is met.',
+                                    'The release then shows on the same page and follows itself step by step. **Raise another release** starts again. (Only manual steps? See the next step.)'
+                                ],
+                                check: 'The release shows Retrieving, then Workflow running, then Validating.',
+                                problems: [
+                                    ['Failed: "… already matches … for these components. Nothing to commit."', 'The target branch already has these components exactly as your org has them, so there is nothing to release (often: already promoted or merged in). Check the selection, or raise only what differs.'],
+                                    ['Failed: "Some components couldn\'t be retrieved from …"', 'Read the reason (a component wasn\'t found or was renamed), fix the selection and raise again.'],
+                                    ['"Hotfixes are raised from a developer org now. Pick the developer org that has the fix."', 'Pick the developer org that has the fix.']
+                                ],
                                 links: [{ label: 'Follow a release', to: 'follow' }]
                             },
                             {
@@ -1168,7 +1264,7 @@ const USE_SECTIONS = [
                                 goal: 'A change done by hand (for example profile access) is still tracked, approved, done in order in every org and promoted, without any components.',
                                 items: [
                                     'Pick your org as usual. On **Select**, switch on **No metadata — only manual steps** in the bar at the bottom (it clears any ticked components), then press **Next: review**.',
-                                    'On Review give it a **Title** and **Add a manual step** for each thing to do (at least one), in order, with Before deploy or After deploy.',
+                                    'On Review give it a **Title** and **Add a manual step** for each thing to do (at least one: until then the page says "Manual steps only: add at least one manual step below to raise it."), in order, with Before deploy or After deploy.',
                                     'Press **Raise manual steps**.',
                                     'There is no retrieve, Git branch, pull request, pipeline run, code scan or validation: the release page shows them as "Not needed: manual steps only".',
                                     'It goes straight to approval in the first stage (that org\'s approval rule decides; production always needs an approver). After approval the deployment team checks the steps off; when all of them are Done or Not needed it shows **Deployed** in that org.',
@@ -1200,36 +1296,99 @@ const USE_SECTIONS = [
                                 where: 'Releases tab',
                                 goal: 'See your releases and where each one is.',
                                 items: [
-                                    '**Raised by**: leave it blank for everyone, or pick a person (yourself).',
-                                    'Status: **Open** (running, checks failed or waiting for approval), **Deployed**, **Failed**, **Rejected** or **All**. Each shows a count.',
-                                    '**Search releases** by number or title.',
-                                    '**Export CSV** exports what matches the filters (see History and evidence).',
-                                    '**Live status**: while something runs the list checks every 30 seconds; **Check now** checks at once.'
+                                    '**Raised by**: leave it blank for everyone, or pick a person. Pick yourself and the title reads **My Releases**.',
+                                    'Status: **Open** (running, checks failed or waiting for approval; the default), **Deployed**, **Rolled back**, **Failed**, **Rejected** (rejected or closed) or **All**. Each shows a count.',
+                                    '**Search releases** by number or title, then press Enter.',
+                                    '**Export CSV** exports what matches the filters (see History and evidence). **New release** opens New Release.',
+                                    '**Live status**: while something runs the list checks every 30 seconds, with a bar counting down; **Check now** checks at once.',
+                                    'Each card shows pills (Hotfix, Promotion, Back promote, Manual steps only), the status, the progress bar and the route; a failed one says which step failed and why. Click it to open it on the right; the link button copies a link to it, the arrows widen it.'
                                 ],
+                                problems: [['"No open releases." (or another chip\'s empty line)', 'Nothing matches: try another status chip, clear Raised by, or clear the search.']],
                                 shot: { ill: 'releases-filters', cap: 'Releases tab: Raised by, status, search, Export CSV, live status.', alt: 'Drawing of the Releases tab with callouts 1 Raised by user picker, 2 status filters Open Deployed Failed Rejected All, 3 search, 4 Export CSV, 5 Live status with Check now.' }
                             },
                             {
-                                title: 'Open the release page',
+                                title: 'Read the release page',
                                 where: 'Releases tab → a release',
                                 goal: 'Everything about one release on one page.',
                                 items: [
-                                    'The path at the top shows Raised → Pull request → Checks → Approval → Deploy.',
-                                    'Code scan findings and deployment errors are listed under the progress. Fix them in your org and raise again, or ask an approver to bypass a blocking code scan.',
-                                    'Below: components, Flows, Manual steps, **History** (newest first), and after a deploy the merge back into the other branches.',
-                                    'Admins and the deployment team see **Open org ▾** in the header: each **Log in to <org>** opens that org\'s login page (its My Domain, or single sign-on) in a new window. It lists the orgs on the release\'s route except production (the hub), where you already are.'
+                                    'The path at the top shows **Raised → Pull request → Checks → Approval → Deploy** (Raised → Approval → Deploy for manual steps only). Under it: Route, Raised by, Raised, Tests and Approved in.',
+                                    'Header buttons, when they apply: **Open in Slack** (its card), **Pull request #n**, **Pipeline run**, **Open org ▾**, **Add changes from** the developer org, **Copy summary**, **Roll back**, **Download evidence (PDF)**.',
+                                    '**Progress** lists each step with its state and refreshes itself while something runs (Last checked … · next check in, and **Check now**). A red or amber box above the steps gives the reason when something stopped.',
+                                    'Under the steps: **Quality gates failed**, **Code scan findings** (priority, rule, where, finding) and **Deployment errors**. Fix them in your org and add the fix (Add changes), or raise again, or ask an approver to bypass a blocking code scan.',
+                                    '**Details**: status, code scan, validation, branch, why it is a hotfix, what a promotion carries, deletions, manual steps, Promoted in and the Slack card. Then **Components** and **Changes** (see Compare and changes), **Flows**, **History** (newest first) and **Manual steps**.',
+                                    'Admins and the deployment team see **Open org ▾**: each **Log in to <org>** opens that org\'s login page (its My Domain, or single sign-on) in a new window. It lists the orgs on the release\'s route except production (the hub), where you already are.'
                                 ],
-                                check: 'A Deployed release shows the deploy id and the merge back per branch.'
+                                check: 'A Deployed release shows the deploy id and how each branch was updated.'
+                            },
+                            {
+                                title: 'The buttons at the bottom',
+                                where: 'The release page → the bar at the bottom',
+                                goal: 'What you can do now, and why a button is grey.',
+                                items: [
+                                    'While the checks run the buttons are grey: "Actions show when the checks finish."',
+                                    '**Check again** runs the code scan and check-only deploy again on the open pull request (Checks failed or Ready for approval), for example after a quality gate or the target changed.',
+                                    '**Reject** and **Approve and deploy** are for approvers (see Approve or reject). Others read "An approver approves or rejects it on the Approvals tab."',
+                                    'An org approved in Slack only has no Approve button here: "Approved from the Slack card."'
+                                ],
+                                problems: [['"Checks can run again on an open pull request that isn\'t approved yet."', 'The release is approved, deploying or closed: nothing to check again.']]
                             },
                             {
                                 title: 'Resolve a conflict',
-                                where: 'The release page → Conflicts',
+                                where: 'The release page → Progress → Conflict with <target>',
                                 goal: 'Two releases changed the same lines; you decide which lines stay.',
                                 items: [
-                                    'For each file choose **Keep mine**, **Keep the target\'s**, or edit the merged lines, then resolve.',
-                                    'The page shows Conflicts · Resolving while the pipeline merges and runs the checks again.'
+                                    'Press **Resolve conflicts**. The window shows your version and the target\'s side by side.',
+                                    'For each file choose **Keep mine**, **Keep <target>\'s** (for example Keep SIT\'s) or **Edit** (keep the lines you want and remove the conflict markers). **Next file** goes on.',
+                                    'When every file has a choice, press **Resolve and check again**. The page shows Conflicts · Resolving while the pipeline merges and runs the checks again.',
+                                    'Only the developer who raised it, or an approver, resolves; everyone else sees **Review the conflicts** (read only).'
                                 ],
+                                problems: [['"Remove the conflict markers (…) and keep the lines you want." or "The edited file is empty."', 'Finish editing that file, or choose Keep mine or Keep <target>\'s.']],
                                 links: [{ label: 'Conflicts between orgs', to: 'conflicts' }],
                                 shot: { name: 'conflict', cap: 'Example: your version and the target\'s side by side.' }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'compare',
+        group: 'daily',
+        label: 'Compare and changes',
+        cards: [
+            {
+                key: 'cmp-main',
+                title: 'Compare and changes',
+                blocks: [
+                    { type: 'text', paras: ['See what a release changes, line by line: before you raise it (**Compare**, your developer org against the target branch) and after (**Changes**, the pull request\'s files). Looking changes nothing.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Compare before raising',
+                                where: 'New Release → Review',
+                                goal: 'What your developer org has now against what the target branch has.',
+                                items: [
+                                    'Press **Compare** on a component under **In this release** (or on a flow), or **Compare all** above the list. The window is called **Compare with** the target.',
+                                    'The hub gets your org\'s copy and reads the target branch (usually under a minute), then marks each component **Changed**, **New in this release**, **Same**, **Deleted** or **Not available** (**Checking…** while it reads).',
+                                    'Left is the target branch (Target, what is there now), right is your org (Source, what the release brings). Switch **Split** / **Unified**; click **⋯ unchanged lines** to open them. A component with several files has a file picker.',
+                                    'Compared: Apex classes and triggers, Visualforce pages and components, flows, layouts, permission sets, Lightning web components and Aura components. Objects, fields, record types, profiles and other types show **Not available** ("Compare isn\'t available for … yet"): see them under **Changes** after raising. Static resources and other binary files aren\'t compared either.',
+                                    'Up to 25 components at a time: with more, the window says so and shows the first 25. A very large file says **Too large to compare here**.',
+                                    'A flow shows its versions on both sides, for example Version 8 · Draft against Version 7 · Active (an example). When your org has an active version and a newer draft, the copy compared is the active one, and the window says the newer version isn\'t compared.'
+                                ],
+                                check: 'Close and press Compare again to read a fresh copy.'
+                            },
+                            {
+                                title: 'See the changes after raising',
+                                where: 'The release page → Details → Changes',
+                                goal: 'The pull request\'s files as GitHub shows them, for releases and promotions.',
+                                items: [
+                                    'The **Changes** tab is next to **Components** once the release has a pull request. Its files load the first time you open it ("Reading the pull request\'s files…"), each with its lines added and removed.',
+                                    'Click a file to see its diff in a wide window; ↑ and ↓ (or the file list) step through the files. **Open in GitHub ↗** opens the pull request\'s files.',
+                                    'A binary or very large file says **No preview: open in GitHub.** Up to 300 files are listed ("Showing 300 of … files"); the pull request has the rest.',
+                                    'With GitLab, Bitbucket or Azure DevOps the tab says "Changes are shown for GitHub only; open the pull request." If reading fails, the tab says why and has **Try again**.'
+                                ]
                             }
                         ]
                     }
@@ -1256,26 +1415,33 @@ const USE_SECTIONS = [
                                 where: 'The release page',
                                 goal: 'A release raised from a developer org, with an open pull request, whose checks failed or that waits for approval, not approved yet, with nothing running.',
                                 items: [
-                                    'Press **Add changes from** the release\'s developer org.',
-                                    'New Release opens at **Select** for that org and the release\'s target: Where and Org are skipped.'
+                                    'Press **Add changes from** the release\'s developer org (header of the release page). The button shows only when all of the above is true; it is grey while a step runs.',
+                                    'New Release opens at **Select**, titled **Add changes to** the release, for that org and the release\'s target: Where and Org are skipped.'
+                                ],
+                                problems: [
+                                    ['"Changes can be added to an open release whose checks failed or that waits for approval, before it\'s approved."', 'The release is approved, deploying or closed: raise a new release instead.'],
+                                    ['"Only the person who raised … or an admin can add changes to it."', 'Ask them, or raise your own release.'],
+                                    ['"Changes can be added only to a release raised from a developer org."', 'Promotions and back promote syncs take no added changes.']
                                 ]
                             },
                             {
                                 title: 'Pick what to add',
                                 where: 'New Release → Select',
                                 items: [
-                                    'What is in the release already shows ticked and greyed, **In** the release: it can\'t be unticked.',
+                                    '**Changed**: Last 7 days, Last 30 days or Any time, above the list. The route is fixed to the release\'s.',
+                                    'What is in the release already shows ticked and greyed, with **In** and the release number: it can\'t be unticked.',
                                     'Tick the new components (or deletions). Apex needs a test class: one you tick now, or one the release runs already.',
-                                    '**Show selection** lists what is **Already in** the release and what you are **Adding**.'
+                                    '**Show selection** lists what is **Already in** the release and what you are **Adding**. The bar says "Nothing added yet" until you tick something. **Cancel** goes back to the release.'
                                 ]
                             },
                             {
                                 title: 'Review and add',
                                 where: 'New Release → Review',
                                 items: [
-                                    'Review says what is added, for example **Adds 1 component to** the release, and that the checks run again.',
+                                    'Review says what is added, for example **Adds 1 component to** the release **· the checks run again**. Compare works as for a new release.',
                                     'Press **Add to** the release. The page shows the release again: the changes are committed to its branch, its pull request updates, then the code scan and check-only deploy run again (with the release\'s tests and the new ones).'
                                 ],
+                                problems: [['"… already matches … for these components. Nothing to add."', 'The release\'s branch already has these components as your org has them: pick what actually changed.']],
                                 check: 'The History shows **Added 1 component from** the developer org, and any approval given before is cleared.'
                             }
                         ]
@@ -1346,9 +1512,11 @@ const USE_SECTIONS = [
                                 where: 'Approvals tab',
                                 goal: 'Only releases whose checks finished are listed.',
                                 items: [
-                                    'Ready for approval, or Checks failed. Hotfixes come first, with a red **Hotfix** pill and the reason; promotions show a **Promotion** pill; **n manual steps** shows open manual steps.',
-                                    'Open one to see its progress, code scan findings, deployment errors and components.'
+                                    '**Ready for approval**, or **Checks failed**. Hotfixes come first, with a red **Hotfix** pill and the reason, then the oldest first. Other pills: **Promotion**, **Manual steps only**, **Deletes n**, **n manual steps** (open manual steps).',
+                                    '**All** or **Mine** (raised by you), each with a count. Search by release number, title or org.',
+                                    'Open one to see its progress, code scan findings, deployment errors and components on the right.'
                                 ],
+                                problems: [['"Nothing waiting for approval."', 'Nothing has finished its checks. Running releases are on the Releases tab.']],
                                 shot: { name: 'approvals', cap: 'Example: the Approvals tab.' }
                             },
                             {
@@ -1356,28 +1524,48 @@ const USE_SECTIONS = [
                                 who: 'Approver',
                                 where: 'The release page → Approval',
                                 goal: 'Merges the pull request and deploys to the target org with the release\'s tests.',
-                                items: ['Add an **Approval comment** if useful and press **Approve and deploy**. If the target\'s branch changed after the checks passed, it first checks again against the newest branch.'],
+                                items: [
+                                    'Add an **Approval comment** if useful and press **Approve and deploy** in the bar at the bottom.',
+                                    'If the target\'s branch changed after the checks passed, the checks run again first: "… changed after the checks passed, so they are running again." Approve again when they pass.',
+                                    'The button shows only when the target org is approved in Salesforce. With Approve in Salesforce off the page says "Approved from the Slack card." and the Approval step "Waiting for approval in Slack."'
+                                ],
                                 check: 'The release shows Deploying, then Deployed (or Deploy failed with the reason).',
+                                problems: [
+                                    ['Approve and deploy is grey', 'The checks are still running, or another action is in progress.'],
+                                    ['"Only approvers can do this (permission set Release Relay Approver)."', 'Ask an admin for `RLY_Approver`.']
+                                ],
                                 shot: { name: 'approval', cap: 'Example: a release ready for approval.' }
                             },
                             {
                                 title: 'Bypass a blocking code scan',
                                 who: 'Approver',
                                 where: 'The release page → Bypass code scan',
-                                items: ['If only the code scan blocks, accept the findings and say **Why the findings are accepted**. Your name and the reason are kept on the release. A failed validation can\'t be bypassed.']
+                                items: [
+                                    'On a release with **Checks failed** because of the code scan, the page says **Code scan blocked this release.** Write **Why the findings are accepted** (at least 10 characters) and press **Bypass code scan**.',
+                                    'Your name and the reason are kept on the release, which then waits for approval as usual.',
+                                    'A failed validation, a conflict, coverage or missing tests can\'t be bypassed: "The validation failed too, and that can\'t be bypassed: fix it and raise again."'
+                                ],
+                                problems: [['"Say why the findings are accepted (at least 10 characters)."', 'Write a longer reason.']]
                             },
                             {
                                 title: 'Reject',
                                 who: 'Approver',
                                 where: 'The release page → Reject',
-                                items: ['Reject needs a comment. The pull request is closed with your comment, so the developer sees why.'],
+                                items: ['Write the **Approval comment** (required to reject) and press **Reject**. It works on Ready for approval and Checks failed. The pull request is closed with your comment, so the developer sees why.'],
                                 problems: [['"couldn\'t close the pull request"', 'The Git token needs Pull requests: Read and write (Set up → B. Hub org).']]
                             },
                             {
                                 title: 'Hotfixes that need 2 approvers',
                                 who: 'Approver',
                                 where: 'The release page',
-                                items: ['If the org card says **Hotfixes into <org> need 2 approvers**, a hotfix needs two different approvers, and the person who raised it can\'t approve it. After the first approval the page shows who approved and waits for the second.']
+                                items: [
+                                    'If the org\'s Approval section has **Hotfixes into <org> need 2 approvers** on, a hotfix needs two different approvers, and the person who raised it can\'t approve it.',
+                                    'After the first approval the page says "Approved by … Waiting for a second approver: someone else, not the person who raised it."'
+                                ],
+                                problems: [
+                                    ['"You raised this hotfix, so two other people approve it."', 'Ask two other approvers.'],
+                                    ['"You already approved it. A second approver is needed."', 'Ask another approver.']
+                                ]
                             },
                             {
                                 title: 'Approved automatically: why',
@@ -1390,7 +1578,7 @@ const USE_SECTIONS = [
                                 where: 'The org\'s Slack channel · your Git provider',
                                 items: [
                                     '**In Slack**: the release card shows Approve and Reject to linked approvers (see Slack in daily use).',
-                                    '**Git reviewers**: with **Also require <provider> reviewers before deploying**, the provider\'s own reviewers approve the deploy there as well.'
+                                    '**Git reviewers**: with **Also require <provider> reviewers before deploying**, the provider\'s own reviewers approve the deploy there as well. Until they do the release says "Waiting for <provider> reviewers before deploying."'
                                 ],
                                 links: [{ label: 'Slack in daily use', to: 'slack' }]
                             },
@@ -1423,16 +1611,17 @@ const USE_SECTIONS = [
                             {
                                 title: 'Set the rule',
                                 who: 'Admin',
-                                where: 'Pipeline → the org\'s card → Edit → Approval',
+                                where: 'Pipeline → Connected orgs → click the org → Edit → Approval',
                                 goal: 'Decide per org when a person must look.',
                                 items: [
-                                    'Approval rule: **Always**, **Only when the release contains…** or **Never: deploy when the checks pass** (not for production).',
-                                    'With Only when…: tick the **kinds of change that need approval** (table below).',
-                                    'Optional: **Hotfixes into <org> need 2 approvers**.',
-                                    'Where it is approved: **Approve in Salesforce** and/or **Approve in Slack** (either is enough; at least one stays on).',
-                                    'Optional: **Also require <provider> reviewers before deploying**. Then Save.'
+                                    '**Approval rule for releases into** the org: **Always**, **Only when it contains…** or **Never** (deploy when the scan, check-only deploy and tests pass). Never is grey for production: "Production always needs approval."',
+                                    'With Only when it contains…: tick the **Kinds of change that need approval** (table below). At least one: "Pick at least one kind of change."',
+                                    '**Code scan for releases into** the org: Follow the Git connection, Always scan or Don\'t scan.',
+                                    'Where it is approved: **Approve in Salesforce** and/or **Approve in Slack** (Slack only once it is set up). Either is enough; the last one on can\'t be switched off.',
+                                    'Optional: **Also require <provider> reviewers before deploying** and **Hotfixes into <org> need 2 approvers**. Then **Save**.'
                                 ],
-                                check: 'The org card shows the rule.',
+                                text: ['Only stages and the hub have an Approval section. Developer orgs raise releases and back promote orgs have their own Back promote section.'],
+                                check: 'The org\'s card shows the rule, for example Always · Code scan: Follows Git (on); its window spells it out, for example "Only when the release contains: Flows, Deletions".',
                                 shot: { ill: 'approval-rule', cap: 'The Approval part of an org\'s Edit window.', alt: 'Drawing of the Approval section with callouts 1 approval rule Always, Only when, Never, 2 kinds of change, 3 hotfixes need 2 approvers, 4 Approve in Salesforce and Approve in Slack, 5 also require Git reviewers.' }
                             }
                         ]
@@ -1442,8 +1631,8 @@ const USE_SECTIONS = [
                         cols: ['Approval rule', 'What happens when the checks pass'],
                         rows: [
                             ['**Always** (the default)', 'The release waits for an approver.'],
-                            ['**Only when the release contains…**', 'It waits for an approver only if it has one of the ticked kinds of change. Otherwise it is approved automatically and deploys.'],
-                            ['**Never: deploy when the checks pass**', 'Approved automatically and deployed. Not allowed for production (the hub org): pick Always or Only when….']
+                            ['**Only when it contains…**', 'It waits for an approver only if it has one of the ticked kinds of change. Otherwise it is approved automatically and deploys.'],
+                            ['**Never**', 'Approved automatically and deployed. Not allowed for production (the hub org): pick Always or Only when it contains….']
                         ]
                     },
                     {
@@ -1635,16 +1824,20 @@ const USE_SECTIONS = [
                                 title: 'Open the release and press Roll back',
                                 who: 'Release Relay admin or deployment team (`RLY_Admin`, `RLY_Deploy_Team`)',
                                 where: 'Releases tab → the release → Roll back',
-                                items: ['The button shows only to admins and the deployment team, on a deployed release. It is disabled while a deploy or rollback runs.']
+                                items: ['The button shows only to admins and the deployment team, on a deployed release. It is grey while a deploy or rollback runs ("A deploy or rollback is running").']
                             },
                             {
                                 title: 'Pick the org, read what will be restored and removed, and write why',
                                 where: 'Roll back dialog',
                                 items: [
-                                    '**Org to roll back**: one chip per org the release (or the promotion that carried it) was deployed to. An org without a snapshot shows **No snapshot** and can\'t be picked.',
+                                    '**Org to roll back**: one chip per org the release (or the promotion that carried it) was deployed to, with when. An org without a snapshot shows **No snapshot** (or **No Git environment**) and can\'t be picked.',
                                     '**What will happen**: the components restored to how they were, the components the release added that are removed, and a warning when a later release deployed the same component to the same org (rolling back undoes that change too).',
                                     '**Tests in production**: this release\'s tests (the default) or all local tests. No tests run in a sandbox rollback.',
-                                    '**Why roll back** is required; it goes into the history, the evidence PDF and the Slack card.'
+                                    '**Why roll back** is required; it goes into the history, the evidence PDF and the Slack card. **Roll back** stays grey until an org and a reason are given; **Cancel** changes nothing.'
+                                ],
+                                problems: [
+                                    ['"This release hasn\'t been deployed to an org that can be rolled back."', 'No org has a snapshot of this release: fix it with a new release instead.'],
+                                    ['"A rollback of this release is running. Wait for it to finish."', 'Wait for the page to show Rolled back or Rollback failed.']
                                 ]
                             },
                             {
@@ -1681,11 +1874,14 @@ const USE_SECTIONS = [
                             {
                                 title: 'Add the value per org',
                                 who: 'Developer or Git admin',
-                                where: 'Repository → main (the pipeline branch) → `.relay/values.json`',
+                                where: 'Pipeline → Per-org values → Edit .relay/values.json ↗ (or Create .relay/values.json ↗)',
                                 items: [
+                                    'Open **Per-org values** on the Pipeline tab (it starts closed) and press the link beside its title. It opens your Git provider\'s editor for `.relay/values.json` on the pipeline branch. When the file isn\'t there yet the link reads **Create .relay/values.json ↗** and opens a new file with a starter: one example value with a column per org\'s Git environment.',
                                     'Add a name with a value per org, keyed by each org\'s **Git environment**. Example: `{ "values": { "PAYMENT_URL": { "dev1": "https://dev.pay.example", "sit": "https://sit.pay.example", "prod": "https://pay.example" } } }`.',
-                                    'Names use capital letters, digits and `_` (up to 60). Keys starting with `_` are ignored.'
-                                ]
+                                    'Names use capital letters, digits and `_` (up to 60). Keys starting with `_` (such as the starter\'s `_help`) are ignored.',
+                                    'Commit the change in your Git provider, then reload the Pipeline tab: the table shows the names, a column per org in route order, and "— no value" where one is missing.'
+                                ],
+                                text: ['No Pipeline tab (it is for admins)? Open `.relay/values.json` on the pipeline branch in your Git provider and edit it there.']
                             },
                             {
                                 title: 'Write the placeholder where the value goes',
@@ -1700,7 +1896,7 @@ const USE_SECTIONS = [
                             }
                         ]
                     },
-                    { type: 'note', text: 'Every org on the route needs a value, or the check fails and says which (for example "PAYMENT_URL has no value for sit in .relay/values.json"). Values shorter than 6 characters aren\'t turned back into placeholders on retrieve. Values are in Git, so never put passwords there. The Pipeline tab shows them read-only (**Per-org values**).' }
+                    { type: 'note', text: 'Every org on the route needs a value, or the check fails and says which (for example "PAYMENT_URL has no value for sit in .relay/values.json"); the closed Per-org values section shows a pill such as **1 missing value**. Values shorter than 6 characters aren\'t turned back into placeholders on retrieve. Values are in Git, so never put passwords there. The Pipeline tab only shows them: you change them in Git. If the file isn\'t valid JSON the section says ".relay/values.json isn\'t a valid JSON object, so the values can\'t be shown."' }
                 ]
             }
         ]
@@ -1715,7 +1911,10 @@ const USE_SECTIONS = [
                 title: 'Quality gates',
                 aside: 'Git admins',
                 blocks: [
-                    { type: 'text', paras: ['Quality gates are rules every release must pass before it can be approved. They live in the repository in `.relay/gates.json` on main (the pipeline branch); all of them are optional. The Pipeline tab shows them read-only (**Quality gates**).'] },
+                    { type: 'text', paras: [
+                        'Quality gates are rules every release must pass before it can be approved. They live in the repository in `.relay/gates.json` on main (the pipeline branch); all of them are optional.',
+                        'The Pipeline tab shows them under **Quality gates** (it starts closed), one line each, set or not. The link beside the title opens your Git provider\'s editor: **Edit .relay/gates.json ↗**, or **Create .relay/gates.json ↗** when the file isn\'t there yet (a new file with a starter: scan at priority 2, 75% per class, tests for Apex). Commit it in your Git provider; the next release uses it.'
+                    ] },
                     {
                         type: 'table',
                         cols: ['Gate', 'In .relay/gates.json', 'What it does'],
@@ -1739,7 +1938,7 @@ const USE_SECTIONS = [
                             }
                         ]
                     },
-                    { type: 'note', text: 'Without `.relay/gates.json` Salesforce\'s own rules still apply (for example 75% coverage in production).' }
+                    { type: 'note', text: 'Without `.relay/gates.json` Salesforce\'s own rules still apply (for example 75% coverage in production): the section says "No quality gates yet — add them in .relay/gates.json." A file that isn\'t valid JSON shows ".relay/gates.json isn\'t a valid JSON object, so the gates can\'t be shown."' }
                 ]
             }
         ]
@@ -1761,29 +1960,40 @@ const USE_SECTIONS = [
                                 title: 'Pick what goes',
                                 who: 'Approver or admin',
                                 where: 'Promote tab',
-                                goal: 'One block per stage: the releases deployed there and not promoted yet.',
+                                goal: 'One block per stage, for example SIT → PROD · prod: the releases deployed there and not yet in the next stop.',
                                 items: [
-                                    'Tick the releases to promote: nothing is ticked when the tab opens. Hotfixes are first, then the oldest deploy first. Unticked ones stay in the stage for later. A hotfix can go on its own.',
+                                    'Tick the releases to promote: nothing is ticked when the tab opens. Hotfixes are first, then the oldest deploy first ("Changes are promoted in that order"). Unticked ones show **Stays in** the stage, for later. A hotfix can go on its own.',
                                     'An older release that changed the same component as one you ticked goes too: it shows a dashed box and **Goes with** the release, and the panel lists it under **Also goes**. It is marked promoted with the others and leaves the list.',
-                                    'A newer release that changed the same component blocks the promotion: the panel says which one, and **+ Add** it ticks it. Or wait and promote them together later.',
-                                    'The panel on the right counts the releases and components and lists the test classes that run in the next stop (RunSpecifiedTests).',
-                                    'Give the promotion a **Title**.',
+                                    'A newer release that changed the same component blocks the promotion, in red: "… changed … after …: add it, or wait and promote them together." Press **+ Add** and its number to tick it. The Promote button stays grey until then.',
+                                    'The panel on the right (**Bundle into one** next stop **release**, or **Promote the hotfix alone**) counts the releases, components and deletions, lists the test classes that run in the next stop (RunSpecifiedTests, 75% each) and the manual steps it carries, in order.',
+                                    '**Title**: suggested for you ("Promote 2 releases to PROD", or the hotfix\'s own title; an example); change it if you like. It is required.',
                                     'Press **Promote <n> releases to** the next stop (or **Promote hotfix to** it).'
                                 ],
-                                check: 'A release of type Promotion opens on the branch `promote/rel-xxxxx` and runs the scan, check-only deploy and tests.',
+                                check: 'The new release of type Promotion shows on the tab, on the branch `promote/rel-xxxxx`, and runs the scan, check-only deploy and tests. **Promote more** goes back to the list.',
+                                problems: [
+                                    ['"You can see what is waiting. Approvers and admins promote it."', 'You can\'t promote: ask for `RLY_Approver`.'],
+                                    ['"No stage on the route yet. An admin sets up the route on the Pipeline tab."', 'An admin registers the stages (Pipeline tab).'],
+                                    ['"Nothing deployed to … is waiting to be promoted."', 'Nothing to do for that stage: everything deployed there is already in the next stop.'],
+                                    ['"Some of these releases aren\'t waiting in … any more. Reload the list."', 'Someone promoted them meanwhile: press ↻ (Read again) and pick again.'],
+                                    ['"The Git connection isn\'t set up and checked yet (Pipeline tab)."', 'An admin presses Check connection on 1 · Where the code lives.']
+                                ],
                                 shot: { ill: 'promote', cap: 'Promote: tick the releases, check the tests, title, Promote.', alt: 'Drawing of the Promote tab with callouts 1 the releases to tick with the hotfix first, 2 the count and the tests that run, 3 Title, 4 the Promote button.' }
                             },
                             {
                                 title: 'Approve and follow it',
                                 where: 'The release page',
-                                text: ['The promotion lists what it **Carries**; each carried release shows **Promoted in** with a link. It carries their manual steps and flow choices too. Whether it waits for an approver follows the next stop\'s approval rule. If it is rejected or fails, the releases it carried are ready to promote again.']
+                                text: [
+                                    'The promotion lists what it **Carries**; each carried release shows **Promoted in** with a link. It carries their manual steps and flow choices too. Whether it waits for an approver follows the next stop\'s approval rule (a hotfix may need 2 approvers there).',
+                                    'Only releases with manual steps only? No pipeline run: it goes straight to approval in the next stop. Mixed with other releases, only their changes are picked and every manual step goes along in order.',
+                                    'If it is rejected or fails, the releases it carried are ready to promote again.'
+                                ]
                             },
                             {
                                 title: 'If it fails with files that clash',
-                                where: 'The promotion\'s page',
+                                where: 'The promotion\'s page → Progress',
                                 goal: 'The next stop has a change to a file that the stage doesn\'t have, for example a hotfix that wasn\'t merged back down.',
                                 items: [
-                                    'The page shows the message and lists the **Files that clash**.',
+                                    'The page says, for example, "prod has a change to … that sit doesn\'t have (a hotfix not merged back down?). Merge prod into sit first, then promote again." (branch names are examples) and lists the **Files that clash**.',
                                     'Merge the next stop\'s branch into the stage\'s branch first (in your Git provider), then promote again.'
                                 ]
                             }
@@ -1816,22 +2026,26 @@ const USE_SECTIONS = [
                                 title: 'Switch it on',
                                 who: 'Admin',
                                 where: 'Pipeline → Back promote (next to 1 · Where the code lives) → Edit',
-                                text: ['Turn on **Send production\'s changes to other orgs after a deploy**.']
+                                text: ['Press **Edit** on the small Back promote card beside the Git connection, turn on **Send <hub>\'s changes to other orgs after a deploy** (your hub\'s name, for example PROD), and press **Save**. The card then shows **On**; while it is off it shows **Off by default**.']
                             },
                             {
                                 title: 'Choose when, and whether to approve',
                                 who: 'Admin',
                                 where: 'Pipeline → Connected orgs → click the org → Edit → Back promote',
                                 items: [
-                                    '**When**: After every production deploy, or When an admin clicks Sync now (the default).',
-                                    '**Approve before syncing**: off by default, so production\'s approval is enough. On: each sync waits for an approver.'
+                                    '**When** the org gets the hub\'s changes: **After every <hub> deploy**, or **When an admin clicks Sync now** (the default).',
+                                    '**Approve before syncing**: off by default, so production\'s approval is enough. On: each sync waits for an approver.',
+                                    'Press **Save**.'
                                 ]
                             },
                             {
                                 title: 'Sync now',
                                 who: 'Admin',
-                                where: 'Pipeline → the org\'s card → Sync now',
-                                items: ['Brings the org up to date with production at once. The card shows the releases it is behind and the last sync.'],
+                                where: 'Pipeline → Connected orgs → click the org → Back promote → Sync now',
+                                items: [
+                                    'Brings the org up to date with production at once. The section shows how many releases it is behind (or **Matches** the hub), which ones, and the last sync with its result.',
+                                    '**Sync now** is grey while back promote is off: "Back promote is off. Switch it on under Back promote, next to the Git connection, to sync this org."'
+                                ],
                                 text: ['A sync merges production\'s branch into the org\'s branch, deploys what changed, and only then pushes the branch. A conflict or a failed deploy stops it, and nothing is pushed.']
                             }
                         ]
@@ -1858,8 +2072,8 @@ const USE_SECTIONS = [
                                 where: 'The release page → header',
                                 goal: 'Everything an auditor or change board asks for, in one file.',
                                 items: [
-                                    '**Download evidence (PDF)**: the release and its route, components and deletions, the pull request, scan and validation, approvals, manual steps, flows, deploys, merge back and the full history (oldest first). It downloads and is saved to the release\'s **Files**.',
-                                    '**Copy summary**: a short plain-text summary to paste into a change request. It also shows on the page, in case the browser blocks copying.',
+                                    '**Download evidence (PDF)**: the release and its route, components and deletions, the pull request, scan and validation, approvals, manual steps, flows, deploys, rollbacks, merge back and the full history (oldest first). It downloads and is saved to the release\'s **Files** ("Evidence saved to the release\'s Files").',
+                                    '**Copy summary**: copies a short plain-text summary to paste into a change request, and shows it on the page in a **Copy summary** card (the button then reads **Hide summary**). If the browser blocks copying: "Select the summary below and copy it."',
                                     '**History**: a vertical path, newest first, read top down as "this happened after that": a coloured dot per event (green done, red failed, amber rolled back or waiting, blue other) with who did what, when, and how (Salesforce, Slack, Git, Rule or Pipeline), with deploy ids and links. The PDF lists the full history oldest first, as an audit document reads.',
                                     '**Files**: each PDF is kept (for example `REL-00034 evidence 2026-10-31 16:05.pdf`, an example only). Press it again later for a newer copy; the older ones stay.'
                                 ],
@@ -1904,7 +2118,7 @@ const USE_SECTIONS = [
                                 title: 'Resolve it',
                                 where: 'The release page',
                                 text: [
-                                    'For each file choose **Keep mine**, **Keep the target\'s**, or edit the merged lines, then resolve. Your choice is committed to the release branch.',
+                                    'Press **Resolve conflicts**. For each file choose **Keep mine**, **Keep <target>\'s** or **Edit**, then **Resolve and check again**. Your choices are committed to the release branch.',
                                     'The page then shows Conflicts · Resolving while the pipeline merges the target and runs the checks again.'
                                 ],
                                 shot: { name: 'conflict', cap: 'Example: your version and the target\'s side by side.' }
@@ -1933,12 +2147,16 @@ const USE_SECTIONS = [
                                 where: 'The target org\'s Slack channel',
                                 goal: 'Everyone sees a release move without opening Salesforce.',
                                 items: [
-                                    'If the org is approved in Slack and your member ID is linked: **Approve** and **Reject** on the card (Reject asks for a comment).',
-                                    'Otherwise **Open in Release Relay** opens the release page.',
-                                    'The card updates as the release moves; every step (pull request, checks, approval, deploy) goes into its **thread**.'
+                                    'Each release is one card: a header with its number and title, its steps (pull request, checks, approval, deploy) with their state, the buttons, and a divider under it.',
+                                    'While it waits for an approver in an org approved in Slack: **Approve** and **Reject**. Reject opens a form, **Why are you rejecting?**, then **Reject release**. Only linked approvers can use them; anyone else gets a private message.',
+                                    '**Open in Release Relay** opens the release page.',
+                                    'The card is edited as the release moves; each event you chose (Raised, Checks failed, Ready for approval, Deployed, Deploy failed, Rejected, and every approval) is a reply in its **thread**, so the channel keeps one card per release.'
                                 ],
-                                text: ['A developer org with **Also post here** gets a copy, so its people see their own releases. Hotfix cards start with **Hotfix:** and show **Why:**.'],
-                                problems: [['Approve in Slack says you can\'t approve', 'An admin links your Slack member ID (Slack connection → Approvers linked), and you need `RLY_Approver`.']],
+                                text: ['A developer org with **Also post here** gets a one-line copy, so its people see their own releases. Hotfix cards start with **Hotfix:** and show **Why:**; promotion cards say what they promote. The release page has **Open in Slack** to jump to the card.'],
+                                problems: [
+                                    ['A private message "You can\'t approve REL-… Ask an admin to link your Slack account in Release Relay → Pipeline."', 'An admin links your Slack member ID (Slack connection → Edit → Approve in Slack → Link Slack member IDs), and you need `RLY_Approver`. The release\'s org must have Approve in Slack on.'],
+                                    ['No Approve button, only Open in Release Relay', 'The org is approved in Salesforce only, or the release isn\'t waiting for an approver.']
+                                ],
                                 links: [{ label: 'Set up: E. Slack', to: 'setup-slack' }],
                                 shot: { ill: 'slack-card', cap: 'A release card: Approve and Reject, Open in Release Relay, the thread.', alt: 'Drawing of a Slack channel with a release card, callouts 1 Approve and Reject, 2 Open in Release Relay, 3 the thread of updates.' }
                             }
@@ -1960,9 +2178,10 @@ const USE_SECTIONS = [
                 aside: SHOT_NOTE,
                 blocks: [
                     { type: 'text', paras: [
-                        'The Pipeline tab holds the setup, in sections: **1 · Where the code lives** (the Git connection) with **Back promote** next to it, **2 · Route**, **Per-org values**, **Quality gates**, **Slack connection** and **Connected orgs**.',
-                        'Every section folds: press the arrow (or the title) to open or close it. A closed section shows one grey line with what it holds, for example the provider, repository and status. Section 1 and Connected orgs start open; the tab remembers what you open or close in this browser. A section with a problem (a failed check, missing pipeline files, route warnings) opens by itself.',
-                        'Everything is read-only until you press **Edit**, and nothing changes until you press Save.'
+                        'The Pipeline tab holds the setup, in sections: **1 · Where the code lives** (the Git connection) with **Back promote** beside it, **2 · Route**, **Per-org values** and **Quality gates** (once the Git connection is saved), **Slack connection** and **Connected orgs**.',
+                        'Every section folds: press the arrow (or the title) to open or close it. A closed section shows one grey line with what it holds, for example the provider, repository and status, and a pill when something needs you. Section 1 and Connected orgs start open; the tab remembers what you open or close in this browser. A section with a problem (a failed check, missing pipeline files, route warnings, a file that can\'t be read, a Slack error) opens by itself. A section being edited stays open until you Save or Cancel.',
+                        'Everything is read-only until you press **Edit**, and nothing changes until you press Save. One thing is edited at a time: the other Edit buttons and Register an org are grey meanwhile.',
+                        'In the header: **Setup steps for a new org** shows what each org needs before you register it (**Hide setup steps** closes it), **Set up Release Relay** opens the first-run walk-through (B. Hub org), and **Register an org**.'
                     ] },
                     {
                         type: 'steps',
@@ -1971,11 +2190,11 @@ const USE_SECTIONS = [
                                 title: 'Register an org',
                                 who: 'Admin',
                                 where: 'Pipeline → Register an org (page header, or the + Register an org card on a Connected orgs tab)',
-                                goal: 'Add a developer org, a stage, the hub or a back promote org.',
+                                goal: 'Add a developer org, a stage, a back promote org, or (once) the hub.',
                                 items: [
-                                    '**Register an org** opens a window. From a tab\'s **+ Register an org** card, that tab\'s Salesforce environment comes chosen.',
-                                    'Step 1 Sign-in: fill in the fields (the grey text shows examples) and press **Test sign-in and next**. If the sign-in fails, the window says why and stays on Sign-in.',
-                                    'Next steps: Approval (stages and the hub), Back promote (back promote orgs), Slack (once Slack is set up). **Skip** keeps the defaults.',
+                                    '**Register an org** opens a window. From a tab\'s **+ Register an org** card, that tab\'s Salesforce environment comes chosen ("Opens with … chosen").',
+                                    'Step 1 Sign-in: fill in the fields (they start empty; the grey text shows examples). Login type is read from the My Domain URL; the Salesforce environment follows it (see D. Each org). Press **Check connection and next**. If the sign-in fails, the window says why and stays on Sign-in.',
+                                    'Next steps: Approval (stages and the hub), Back promote (back promote orgs), Slack (once Slack is set up), each with **Save and next** or **Save and finish**. **Skip** goes on without changing that step.',
                                     'When it is done, the window closes and Connected orgs shows the new org\'s tab, with its card lit up.'
                                 ],
                                 problems: SIGN_IN_PROBLEMS
@@ -1986,33 +2205,75 @@ const USE_SECTIONS = [
                                 where: 'Pipeline → Connected orgs → the org\'s environment tab → its card',
                                 goal: 'Keep each org\'s sign-in, approval and Slack settings right.',
                                 items: [
-                                    'Connected orgs has one tab per Salesforce environment (Developer sandbox, Developer Pro sandbox, Partial Copy sandbox, Full Copy sandbox, Production), each with how many orgs it has. An org with no environment is under **Not set**. Arrow keys move between the tabs.',
-                                    'Each card shows the org\'s name, role (Developer, Stage 1, Hub, Back promote), sign-in status, branch, approval rule and code scan, and when it was last checked.',
-                                    'Click a card (or press Enter on it) to open the org\'s window: Sign-in, Approval (with code scan and the two-approver rule), Back promote for those orgs, and Slack.',
-                                    '**Test sign-in** checks the hub can still sign in. **Send test message** posts to the org\'s Slack channel.',
-                                    '**Edit** turns every section of the window into a form at once. Connected app consumer key: leave it blank to keep the saved key.',
-                                    'Press **Save** (all sections are saved together; a changed sign-in is tested again) or **Cancel**. Escape asks before it drops changes. **Close** goes back to the cards.'
+                                    'Connected orgs has one tab per Salesforce environment (Developer sandbox or Developer Edition, Developer Pro sandbox, Partial Copy sandbox, Full Copy sandbox, Production), each with how many orgs it has. An org with no environment is under **Not set**. Arrow keys move between the tabs; the tab you pick is remembered.',
+                                    '**Production** holds one org: the hub. Once the hub is registered that tab has no + Register an org card: "Production holds one org: the hub. Register other orgs on their sandbox tab." An empty tab says "No orgs in … yet."',
+                                    'Each card shows the org\'s name, role (Developer, Stage 1, Hub, Back promote), sign-in status, branch, a line about approval (for example **Always · Code scan: Follows Git (on)**, or **Raises into sit** for a developer org), and when it was last checked.',
+                                    'Click a card (or press Enter on it) to open the org\'s window: Sign-in, Approval (with code scan, where it is approved, Git reviewers and the two-approver rule), Back promote for those orgs, and Slack (once Slack is set up). The line under the name says its environment, branch and last check.',
+                                    '**Check connection** (window header) checks the hub can still sign in. **Send test message** posts to the org\'s Slack channel (grey without a channel).',
+                                    '**Edit** turns every section of the window into a form at once (**Edit** and the org\'s name, "saved values shown"). Consumer key: leave it blank to keep the saved key. The hub\'s Role, Login type and Salesforce environment stay grey.',
+                                    'Press **Save** ("Saves all sections together. Changing Sign-in tests it again.") or **Cancel** (drops the changes). Escape or × with changes asks **Discard changes?** first. **Close** goes back to the cards.'
                                 ],
                                 problems: SIGN_IN_PROBLEMS,
-                                shot: { ill: 'org-edit', cap: 'An org\'s window (read-only) and the same window after Edit.', alt: 'Drawing of an org card and its Edit window with callouts 1 Test sign-in, 2 Edit, 3 consumer key left blank, 4 Slack channel, 5 Post to Slack, 6 Save.' }
+                                shot: { ill: 'org-edit', cap: 'An org\'s window (read-only) and the same window after Edit.', alt: 'Drawing of an org card and its Edit window with callouts 1 Check connection, 2 Edit, 3 consumer key left blank, 4 Slack channel, 5 Post to Slack, 6 Save.' }
+                            },
+                            {
+                                title: 'Where the code lives',
+                                who: 'Admin',
+                                where: 'Pipeline → 1 · Where the code lives',
+                                items: [
+                                    'Shows the provider, repository, Named Credential (token), workflow file, pipeline branch, source path and **Code scan** (on or off for every pull request; each org can follow it or set its own).',
+                                    '**Check connection** tests it again; **Edit** changes it ("Save tests the connection.").',
+                                    'A line under it says whether the pipeline files are up to date (see Update the pipeline files).'
+                                ],
+                                problems: [['Git connection: check failed', 'Read the list on the card: a token permission, the repository name, or the pipeline files missing on the pipeline branch (Set up → B and C).']]
                             },
                             {
                                 title: 'Back promote',
                                 who: 'Admin',
-                                where: 'Pipeline → Back promote (next to 1 · Where the code lives)',
-                                items: ['The small Back promote card beside the Git connection shows whether it is on, when the back promote orgs get production\'s changes and how many there are. **Edit** switches it on or off. Each back promote org\'s own When and Sync now are in its window under Connected orgs.']
+                                where: 'Pipeline → Back promote (beside 1 · Where the code lives)',
+                                items: ['The small Back promote card beside the Git connection shows whether it is on (**On**, or **Off by default**), when the back promote orgs get the hub\'s changes and how many there are. **Edit** switches it on or off in place. Each back promote org\'s own When and Sync now are in its window under Connected orgs. Folding section 1 folds this card too.'],
+                                links: [{ label: 'Back promote', to: 'backpromote' }]
                             },
                             {
                                 title: 'Check the route',
                                 who: 'Admin',
-                                where: 'Pipeline → 2 · Route → Edit route',
-                                items: ['Developer orgs → stages in order → production. Use the arrows to reorder stages and **Save route**. **Create missing branches** makes any branch your Git provider doesn\'t have yet.']
+                                where: 'Pipeline → 2 · Route',
+                                items: [
+                                    'Developer orgs → stages in order → production, with each stop\'s branch and status. Back promote orgs show dashed after production, with how many releases they are behind.',
+                                    'Reorder stages: press **Edit** (shown when there are two or more stages besides the hub), move them with the arrows, then **Save** (or **Cancel**).',
+                                    '**Create missing branches** makes any route branch your Git provider doesn\'t have yet ("Every route branch already exists." when there is none).',
+                                    'Warnings under the route name what is missing, for example "Register at least one developer org to raise releases from." or "Register this hub with the role Hub, so releases can be promoted to production."'
+                                ]
+                            },
+                            {
+                                title: 'Per-org values and Quality gates',
+                                who: 'Admin',
+                                where: 'Pipeline → Per-org values · Quality gates',
+                                items: [
+                                    'Both are read from the pipeline branch (the line beside the title says from which branch and when) and only shown here. You change them in Git.',
+                                    'The link beside each title, **Edit .relay/values.json ↗** or **Edit .relay/gates.json ↗**, opens the file in your Git provider\'s editor. When the file isn\'t there yet it reads **Create … ↗** and opens a new file with a starter.'
+                                ],
+                                links: [{ label: 'Per-org values', to: 'values' }, { label: 'Quality gates', to: 'gates' }]
+                            },
+                            {
+                                title: 'Slack connection',
+                                who: 'Admin',
+                                where: 'Pipeline → Slack connection',
+                                items: [
+                                    'Until Slack answers it shows a checklist: Slack app created, Bot token saved, Check connection, Pick a channel per org.',
+                                    'Once connected: workspace, bot token (saved, never shown), the events, Approve in Slack (Set up, or Not set up (optional)) and approvers linked. **Show approvers** lists them; **Check connection** checks Slack again; the last message and its result are under it.',
+                                    '**Edit**: Slack on or off, bot token, events, and **Approve in Slack (optional, advanced)** with the signing secret, the Interactivity URL to paste in Slack and the approvers\' Slack member IDs. **Save and test** saves and checks.'
+                                ],
+                                links: [{ label: 'Set up: E. Slack', to: 'setup-slack' }]
                             },
                             {
                                 title: 'Update the pipeline files',
                                 who: 'Admin',
                                 where: 'Pipeline → 1 · Where the code lives → Update pipeline files',
-                                items: ['When a new version of Release Relay brings new pipeline files, the card says so. **Update pipeline files** shows the **Files that will change** and opens a pull request with them (recommended) or commits them directly.'],
+                                items: [
+                                    'The line under the Git connection says **Pipeline files: up to date**, an older version in your repository, or **not found in your repository**, with a pill (Update available, Not found).',
+                                    '**Update pipeline files** opens **Update pipeline files to version** n: **Files that will change**, and **How**: **Open a pull request (recommended)** or **Commit directly to** the pipeline branch. Press **Update**; then open the pull request (or the commit) from the link.'
+                                ],
                                 problems: [['"The token needs Workflows: Read and write to change files in .github/workflows."', 'Edit the Git token: Workflows → Read and write.']],
                                 shot: { name: 'pipeline', cap: 'Example: Git connection shows Connected and lists what it checked.' }
                             }
@@ -2035,18 +2296,19 @@ const USE_SECTIONS = [
                         type: 'table',
                         cols: ['Status', 'Meaning', 'What to do'],
                         rows: [
+                            ['Submitted', 'A promotion or back promote sync is queued: "Starting the pipeline run." (manual steps only: "Going to approval.").', 'Wait.'],
                             ['Retrieving', 'The hub is reading the components from the source org.', 'Wait. Usually under a minute.'],
                             ['Workflow running', 'The pipeline is converting the files and opening the pull request.', 'Wait.'],
                             ['Validating', 'Code scan and check-only deploy are running.', 'Wait, or Check now.'],
                             ['Resolving conflicts', 'Your conflict choices were committed; the pipeline merges the target and checks again.', 'Wait.'],
-                            ['Checks failed', 'The code scan blocked it, the validation failed, or it conflicts with the target.', 'Fix and raise again, resolve the conflict, or ask an approver to bypass the scan.'],
+                            ['Checks failed', 'The code scan blocked it, the validation failed, a quality gate failed, or it conflicts with the target.', 'Add the fix (Add changes from …), resolve the conflict, ask an approver to bypass the scan, or Check again.'],
                             ['Ready for approval', 'All checks passed (or the scan was bypassed) and the target org\'s approval rule asks for an approver.', 'An approver approves or rejects, in Salesforce or Slack. When the rule needs no approver, the release is approved automatically and deploys.'],
                             ['Deploying', 'Merging the pull request and deploying.', 'Wait.'],
                             ['Deployed', 'In the target org; developer branches updated; flows set to Activate activated.', 'Nothing. Download evidence (PDF) if the change request needs it.'],
                             ['Deploy failed', 'The merge or the deploy failed.', 'Read the reason; raise a new release.'],
                             ['Rejected', 'An approver rejected it; the pull request was closed.', 'Read the comment; raise again.'],
                             ['Closed', 'The pull request was closed in the Git provider.', 'Raise again if still needed.'],
-                            ['Failed', 'The release couldn\'t be raised (for example a component wasn\'t found).', 'Read the reason; raise again.']
+                            ['Failed', 'The release couldn\'t be raised (for example a component wasn\'t found, or "Nothing to commit": the target branch already matches).', 'Read the reason; raise again.']
                         ]
                     },
                     {
@@ -2110,10 +2372,10 @@ const REF_SECTIONS = [
                         cols: ['Permission set', 'Gives'],
                         rows: [
                             ['`RLY_Developer`', 'New Release, Releases and Guide tabs: raise and follow releases, read their history, download evidence and export CSV.'],
-                            ['`RLY_Approver`', 'Approvals and Promote tabs: approve, reject, bypass a code scan, promote what is deployed to a stage.'],
-                            ['`RLY_Deploy_Team`', 'Release Relay Deployment Team: tick manual steps done or not needed in each org, and roll a deployed release back.'],
+                            ['`RLY_Approver`', 'Approvals and Promote tabs: approve, reject, bypass a code scan, resolve conflicts, promote what is deployed to a stage. Linked to a Slack member ID, approve from the Slack card.'],
+                            ['`RLY_Deploy_Team`', 'Release Relay Deployment Team: Approvals and Releases tabs; tick manual steps done or not needed in each org, **Open org ▾** / **Log in to <org>**, and roll a deployed release back.'],
                             ['`RLY_Admin`', 'Pipeline tab: Git connection, orgs, route, approval rules, Slack, linked approvers, back promote. Promote tab. Includes Hotfix and the deployment team (so admins can roll back too). Shows the Set up sections of this Guide.'],
-                            ['`RLY_Slack_Site`', 'For the Site guest user only, so Approve in Slack can reach the hub. Needed only when an org is approved in Slack.'],
+                            ['`RLY_Slack_Site`', 'For the Site guest user only, so Approve in Slack can reach the hub (with your Git credential\'s principal added, and Read on User External Credentials on the guest profile: Set up → E). Needed only when an org is approved in Slack.'],
                             ['Your Git access permission set', 'External Credential Principal Access to `RLY_GitHub` (or your provider\'s credential), for everyone who uses Release Relay. See Set up → B. Hub org.']
                         ]
                     }
@@ -2138,7 +2400,7 @@ const REF_SECTIONS = [
                                 title: 'What happens in a sandbox',
                                 where: 'Every Release Relay tab',
                                 items: [
-                                    'In a copy of the hub (refreshed from production) and in any other sandbox, each tab shows only a notice: this is a sandbox copy of the hub, or this org is a sandbox. The Guide shows only Set up and this page.',
+                                    'In a copy of the hub (refreshed from production) each tab shows only the notice **This is a sandbox copy of the Release Relay hub**; in any other sandbox **This org is a sandbox** ("Release Relay runs only in production, which becomes the hub…"). Each has **Open the Guide**. The Guide shows only Set up and this page.',
                                     'Raise, approve, reject, check again, resolve conflicts, promote, sync now, manual step check-offs and the Pipeline tab\'s edits and tests are refused (also from Slack).',
                                     'If the post-copy class wasn\'t picked during the refresh, nothing runs anyway: Release Relay detects the sandbox by itself. Turning it on in the sandbox switches Slack and Git off first.'
                                 ]
@@ -2148,10 +2410,19 @@ const REF_SECTIONS = [
                                 who: 'Admin',
                                 where: 'Pipeline tab in the sandbox',
                                 items: [
-                                    'To try Release Relay in a sandbox (for example a new route), an admin turns on **Turn Release Relay on in this sandbox** on the Pipeline tab\'s notice, for 1 to 90 days (30 if left blank). It first switches Slack off and sets the Git connection to Not checked; they stay off until an admin reconnects them. Every tab then says until when it is on and who turned it on, and Pipeline has **Turn off**.',
+                                    'To try Release Relay in a sandbox (for example a new route), an admin switches on **Turn Release Relay on in this sandbox** on the Pipeline tab\'s notice, types **Days (1 to 90)** (30 if left blank) and presses **Turn on**. It first switches Slack off and sets the Git connection to Not checked; they stay off until an admin reconnects them. Every tab then says "Release Relay is on in this sandbox until …, turned on by …", and Pipeline has **Turn off**.',
                                     'A refresh resets it: the sandbox gets a new Org Id, so the setting stops counting.',
                                     'Reconnect Git and Slack to the sandbox\'s own repository or branches and channels. Never point a sandbox at production\'s repository or orgs.'
                                 ]
+                            },
+                            {
+                                title: 'In production, before Set up is done',
+                                where: 'Every Release Relay tab',
+                                items: [
+                                    'Until the hub is registered and the Git connection saved, each tab shows **Release Relay isn\'t set up yet** ("An admin finishes Set up on the Pipeline tab first: this org as the hub, the Git connection, pipeline files, orgs, Slack (optional).") with **Open setup** and **Open the Guide**.',
+                                    'The Pipeline tab opens **Set up Release Relay** for admins, and the Guide opens at Set up.'
+                                ],
+                                links: [{ label: 'B. Hub org', to: 'setup-hub' }]
                             },
                             {
                                 title: 'Optional: switch things off at refresh',
@@ -2181,15 +2452,19 @@ const REF_SECTIONS = [
                         cols: ['You see', 'Do this'],
                         rows: [
                             ['"No COMPONENT named …" after an update', 'Reload the page without cache (Ctrl+Shift+R), or log out and in. While building, turn browser caching off (Set up → F).'],
-                            ['A sign-in error on an org', 'The message names the fix (Remote Site, certificate, consumer key, pre-authorized user, login type, username). See Set up → D. Each org; an admin uses Test sign-in on the Pipeline tab.'],
+                            ['A sign-in error on an org', 'The message names the fix (Remote Site, certificate, consumer key, pre-authorized user, login type, username). See Set up → D. Each org; an admin uses Check connection on the Pipeline tab.'],
                             ['Git connection: check failed', 'The token is missing a permission or expired, the repository name is wrong, or the pipeline files aren\'t on the pipeline branch (Set up → B and C).'],
                             ['"Named Credential … wasn\'t found or you can\'t use it"', 'Give the user\'s permission set the credential\'s principal under External Credential Principal Access (Set up → B).'],
                             ['"couldn\'t close the pull request"', 'The Git token needs pull request (merge request) write access.'],
                             ['The pipeline can\'t save a result to release-relay-results', 'Settings → Actions → General: Read and write permissions, and no branch protection on release-relay-results (Set up → C).'],
                             ['A test class doesn\'t show as a test', 'It must contain @IsTest. If it isn\'t in the list, set Changed to Any time and Changed by to Anyone.'],
-                            ['Slack: Not set up or Error', 'Check the External Credential `RLY_Slack` → principal Bot → parameter Token holds the bot token, then Test on the Slack connection card.'],
-                            ['Slack test message fails with not_in_channel', 'Invite the Slack app to that channel.'],
-                            ['Approve in Slack says you can\'t approve', 'An admin links your Slack member ID (Slack connection → Approvers linked), and you need `RLY_Approver`.'],
+                            ['Slack: Not set up or Error', 'Paste the bot token again (Pipeline → Slack connection → Edit), or check the External Credential `RLY_Slack` → principal Bot → parameter Token, then **Check connection** on the Slack connection.'],
+                            ['Send test message fails with not_in_channel', 'Invite the Slack app to that channel.'],
+                            ['Slack: "You can\'t approve REL-… Ask an admin to link your Slack account…"', 'An admin links your Slack member ID (Slack connection → Edit → Approve in Slack → Link Slack member IDs), you need `RLY_Approver`, and the org needs Approve in Slack on.'],
+                            ['"Interactivity URL: set up a Salesforce Site first (Guide → Set up → Slack)."', 'No active Site\'s guest user has `RLY_Slack_Site` yet: Set up → E, steps 8 and 9.'],
+                            ['Approve in Slack does nothing, or Slack shows an error', 'Check the signing secret, the Request URL (App Manifest, Socket Mode off), and the Site guest user\'s access: Set up → E, steps 7 to 12 and the last step\'s table.'],
+                            ['Raise fails: "… already matches … for these components. Nothing to commit."', 'The target branch already has these components as your org has them. Check the selection.'],
+                            ['Every tab says "Release Relay isn\'t set up yet"', 'An admin finishes Set up on the Pipeline tab: the hub registered and the Git connection saved (Set up → B).'],
                             ['A flow: activation failed', 'The org\'s integration user needs the **Manage Flow** permission, or the flow version has errors in that org. Activate it in Setup → Flows, or raise again.'],
                             ['Approved automatically, but you expected an approver', 'Check the target org\'s approval rule on the Pipeline tab: Always, or tick the kind of change under Only when the release contains….'],
                             ['Download evidence (PDF) fails', 'The message says why. Try again later; Copy summary and the History card still work meanwhile.'],

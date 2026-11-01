@@ -39,7 +39,7 @@ function trimmed(v) {
 
 /**
  * First-run setup on the Pipeline tab: This org is the hub → Git connection → Pipeline files → Add orgs → Slack.
- * Each step is checked before going on ("Test and continue"); the admin can leave ("Do this later") and come back.
+ * Each step is checked before going on ("Check and continue"); the admin can leave ("Do this later") and come back.
  * Events: changed (something was saved: the page reloads), registerorg, editslack, close.
  */
 export default class RlySetupWizard extends LightningElement {
@@ -137,7 +137,7 @@ export default class RlySetupWizard extends LightningElement {
         if (this.busy) {
             return 'Checking…';
         }
-        return this.isSlackStep ? 'Finish' : 'Test and continue';
+        return this.isSlackStep ? 'Finish' : 'Check and continue';
     }
 
     goTo(n) {
@@ -243,7 +243,7 @@ export default class RlySetupWizard extends LightningElement {
                 if (o.Status__c === 'Connected') {
                     this.goTo(2);
                 } else {
-                    this.error = 'Sign-in failed: ' + (o.Status_Message__c || 'check the integration user and the consumer key.') + ' Fix it on the hub\'s card (Sign-in → Edit), then Test and continue.';
+                    this.error = 'Sign-in failed: ' + (o.Status_Message__c || 'check the integration user and the consumer key.') + ' Fix it in the hub org window (Connected orgs → the hub → Edit), then Check and continue.';
                 }
             })
             .catch((e) => {
@@ -442,7 +442,7 @@ export default class RlySetupWizard extends LightningElement {
                 if ((this.status.orgCount || 0) >= 1) {
                     this.goTo(5);
                 } else {
-                    this.error = 'Register at least one developer org or stage besides the hub, then Test and continue.';
+                    this.error = 'Register at least one developer org or stage besides the hub, then Check and continue.';
                 }
             })
             .catch((e) => {

@@ -1,0 +1,110 @@
+<template>
+    <div class="rr-changes">
+        <template lwc:if={loading}>
+            <div class="rr-loading" role="status"><span class="rr-spin" aria-hidden="true"></span><b>Reading the pull request's files…</b></div>
+        </template>
+        <template lwc:elseif={error}>
+            <div class="rr-pd"><div class="rr-msg rr-msg-bad" role="alert">{error}</div><lightning-button label="Try again" onclick={load}></lightning-button></div>
+        </template>
+        <template lwc:elseif={unavailableText}>
+            <div class="rr-pd">
+                <div class="rr-msg rr-msg-info" role="status">{unavailableText}</div>
+                <template lwc:if={prUrl}><a class="slds-button slds-button_neutral rr-btn-s" href={prUrl} target="_blank" rel="noopener">{prLabel}</a></template>
+            </div>
+        </template>
+        <template lwc:elseif={available}>
+            <div class="rr-chsum">
+                <span class="rr-small"><b>{changedText}</b> · <span class="rr-plus">{addedText}</span> <span class="rr-minus">{removedText}</span> · {intoText}</span>
+                <span class="rr-grow"></span>
+                <template lwc:if={filesUrl}><a class="rr-link" href={filesUrl} target="_blank" rel="noopener">{openLabel}</a></template>
+            </div>
+            <template lwc:if={truncatedText}>
+                <p class="rr-trunc rr-small">{truncatedText} · <a class="rr-link" href={filesUrl} target="_blank" rel="noopener">{openLabel}</a></p>
+            </template>
+            <template lwc:if={hasFiles}>
+                <ul class="rr-prl" aria-label="Files in the pull request">
+                    <template for:each={rows} for:item="r">
+                        <li key={r.key}>
+                            <button type="button" class={r.rowCls} data-index={r.index} onclick={openFile} title="Show the changes">
+                                <span class={r.statusCls}>{r.status}</span>
+                                <span class="rr-pn">
+                                    <b class="rr-mono">{r.name}</b>
+                                    <span class="rr-xs rr-weak">{r.folder}</span>
+                                    <template lwc:if={r.fromText}><span class="rr-xs rr-weak">{r.fromText}</span></template>
+                                </span>
+                                <span class="rr-cnt" aria-label={r.countsLabel}>
+                                    <template lwc:if={r.added}><span class="rr-plus">{r.added}</span></template>
+                                    <template lwc:if={r.removed}><span class="rr-minus rr-sp">{r.removed}</span></template>
+                                </span>
+                                <span class="rr-bar" aria-hidden="true">
+                                    <template for:each={r.blocks} for:item="b"><i key={b.key} class={b.cls}></i></template>
+                                </span>
+                            </button>
+                        </li>
+                    </template>
+                </ul>
+            </template>
+            <template lwc:else>
+                <p class="rr-pd rr-small rr-weak">The pull request has no changed files.</p>
+            </template>
+        </template>
+    </div>
+
+    <!-- one file's diff, in the wide dialog (board HubCompare, 5) -->
+    <template lwc:if={isOpen}>
+        <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="rr-ch-title" class="slds-modal slds-fade-in-open slds-modal_large rr-modal" onkeydown={handleKeydown}>
+            <div class="slds-modal__container rr-modal-container">
+                <div class="slds-modal__header rr-mh">
+                    <h1 id="rr-ch-title" class="rr-mh-title">{modalTitle}</h1>
+                    <span class="rr-grow"></span>
+                    <template lwc:if={filesUrl}><a class="rr-link" href={filesUrl} target="_blank" rel="noopener">{openLabel}</a></template>
+                    <p class="rr-mk">{modalSub}</p>
+                </div>
+                <div class="slds-modal__content rr-mb">
+                    <div class="rr-cmp">
+                        <nav class="rr-clist" aria-label="Files">
+                            <p class="rr-clh">{listHead}</p>
+                            <ul>
+                                <template for:each={rows} for:item="r">
+                                    <li key={r.key}>
+                                        <button type="button" class={r.itemCls} data-index={r.index} onclick={pickFile} aria-current={r.current}>
+                                            <b class="rr-fnm">{r.name}</b>
+                                            <span class="rr-l2"><span class={r.statusCls}>{r.status}</span><span class="rr-small"><template lwc:if={r.added}><span class="rr-plus">{r.added}</span></template><template lwc:if={r.removed}><span class="rr-minus rr-sp">{r.removed}</span></template></span></span>
+                                        </button>
+                                    </li>
+                                </template>
+                            </ul>
+                        </nav>
+                        <div class="rr-pick slds-select_container">
+                            <select class="slds-select" aria-label="File" onchange={pickFromSelect}>
+                                <template for:each={options} for:item="o">
+                                    <option key={o.key} value={o.value} selected={o.selected}>{o.label}</option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="rr-pane">
+                            <template lwc:if={hasPatch}>
+                                <c-rly-diff-view title={current.filename} left-label={leftLabel} right-label={rightLabel} patch={current.patch}
+                                    mode="unified" link-url={current.url} link-label={openLabel}></c-rly-diff-view>
+                            </template>
+                            <template lwc:else>
+                                <section class="rr-dv" aria-label={current.filename}>
+                                    <div class="rr-dvh"><b class="rr-mono rr-ell">{current.filename}</b></div>
+                                    <div class="rr-empty">
+                                        <span class="rr-pill rr-pill-none">No preview</span>
+                                        <p>{noteText}</p>
+                                        <template lwc:if={current.url}><a class="rr-link" href={current.url} target="_blank" rel="noopener">{openLabel}</a></template>
+                                    </div>
+                                </section>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <div class="slds-modal__footer rr-mf">
+                    <button type="button" class="slds-button slds-button_neutral rr-close" onclick={close}>Close</button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+    </template>
+</template>

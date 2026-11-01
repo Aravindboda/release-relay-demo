@@ -50,7 +50,7 @@ public with sharing class RlyOrgCheck {
             notes.add(out.Is_Sandbox__c ? TRACKING_HINT_SANDBOX : TRACKING_HINT_NONE);
         }
         if (org.Login_Type__c == 'Production' && out.Is_Sandbox__c) {
-            notes.add('This org is a sandbox: set Login type to Sandbox.');
+            notes.add('This org is a sandbox: open it, press Edit and save so its Login type is read from the My Domain URL.');
         }
     }
 

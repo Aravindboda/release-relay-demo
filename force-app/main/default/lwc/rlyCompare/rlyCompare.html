@@ -1,0 +1,126 @@
+<template>
+    <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="rr-cmp-title" aria-describedby="rr-cmp-intro"
+        class="slds-modal slds-fade-in-open slds-modal_large rr-modal" onkeydown={handleKeydown}>
+        <div class="slds-modal__container rr-modal-container">
+            <button type="button" class="slds-button slds-button_icon slds-modal__close rr-close" title="Close" onclick={close}>
+                <lightning-icon icon-name="utility:close" size="small" variant="inverse" alternative-text="Close"></lightning-icon>
+            </button>
+            <div class="slds-modal__header rr-modal-head">
+                <h1 id="rr-cmp-title" class="slds-modal__title rr-title">{heading}</h1>
+                <p id="rr-cmp-intro" class="rr-small rr-weak">{intro}</p>
+            </div>
+            <div class="slds-modal__content rr-modal-body">
+                <template lwc:if={overCap}><div class="rr-msg rr-msg-info" role="status">{overCapText}</div></template>
+                <template lwc:if={waiting}>
+                    <span class="rr-tick" aria-hidden="true">
+                        <template for:each={cycles} for:item="c">
+                            <span key={c.key} class="rr-tick-run" onanimationend={handleTick}></span>
+                        </template>
+                    </span>
+                </template>
+                <div class="rr-cmp">
+                    <!-- below 900px the list becomes a choice above the diff -->
+                    <div class="rr-c-pick">
+                        <lightning-combobox label="Component" value={selectedKey} options={pickOptions} onchange={handlePickChange}></lightning-combobox>
+                    </div>
+                    <nav class="rr-c-list" aria-label="Components compared">
+                        <p class="rr-c-head">{countText}</p>
+                        <ul>
+                            <template for:each={rows} for:item="r">
+                                <li key={r.key}>
+                                    <button type="button" class={r.cls} aria-current={r.current} data-key={r.key} onclick={pickComponent}>
+                                        <span class="rr-c-l1"><strong class="rr-c-name">{r.name}</strong><span class={r.chipCls}>{r.chipLabel}</span></span>
+                                        <span class="rr-small rr-weak">{r.sub}</span>
+                                        <template lwc:if={r.why}><span class="rr-c-why">{r.why}</span></template>
+                                    </button>
+                                </li>
+                            </template>
+                        </ul>
+                    </nav>
+
+                    <div class="rr-c-pane">
+                        <template lwc:if={error}>
+                            <div class="rr-msg rr-msg-bad" role="alert">{error}</div>
+                        </template>
+                        <template lwc:elseif={loading}>
+                            <div class="rr-c-wait" role="status">
+                                <div class="rr-c-spin"><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></div>
+                                <strong>{loadingTitle}</strong>
+                                <span class="rr-small rr-weak">{loadingText}</span>
+                            </div>
+                        </template>
+                        <template lwc:elseif={showUnavailable}>
+                            <div class="rr-c-card">
+                                <div class="rr-c-cardh"><strong class="rr-mono">{unavailableName}</strong></div>
+                                <div class="rr-c-empty">
+                                    <span class="rr-pill rr-pill-none">Not available</span>
+                                    <p>{unavailableReason}</p>
+                                    <p class="rr-small rr-weak">After raising, open the release and look at Changes: it shows the file as it lands on the branch.</p>
+                                </div>
+                            </div>
+                        </template>
+                        <template lwc:elseif={showFile}>
+                            <template lwc:if={fileDiff}>
+                                <c-rly-diff-view title={diffTitle} left-label={leftLabel} right-label={rightLabel} left={leftText} right={rightText}>
+                                    <template lwc:if={hasSubheader}>
+                                        <div slot="subheader">
+                                            <template lwc:if={hasPicker}>
+                                                <div class="rr-fpick" role="group" aria-label="Files">
+                                                    <template for:each={pickerFiles} for:item="f">
+                                                        <button key={f.path} type="button" class={f.cls} aria-pressed={f.pressed} data-path={f.path} onclick={pickFile}>{f.label}</button>
+                                                    </template>
+                                                    <span class={fileChipCls}>{fileChipLabel}</span>
+                                                </div>
+                                            </template>
+                                            <template lwc:if={flowLine}>
+                                                <div class="rr-fver">
+                                                    <span class={flowLine.sourceCls}>{flowLine.source}</span><span class="rr-small rr-weak">{flowLine.sourceWhere}</span>
+                                                    <template lwc:if={flowLine.hasTarget}>
+                                                        <span class="rr-vs">vs</span>
+                                                        <span class={flowLine.targetCls}>{flowLine.target}</span><span class="rr-small rr-weak">{flowLine.targetWhere}</span>
+                                                    </template>
+                                                    <template lwc:if={flowLine.note}><span class="rr-fver-note">{flowLine.note}</span></template>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </c-rly-diff-view>
+                            </template>
+                            <template lwc:else>
+                                <div class="rr-c-card">
+                                    <div class="rr-c-cardh"><strong class="rr-mono">{diffTitle}</strong></div>
+                                    <template lwc:if={hasPicker}>
+                                        <div class="rr-fpick" role="group" aria-label="Files">
+                                            <template for:each={pickerFiles} for:item="f">
+                                                <button key={f.path} type="button" class={f.cls} aria-pressed={f.pressed} data-path={f.path} onclick={pickFile}>{f.label}</button>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template lwc:if={filePending}>
+                                        <div class="rr-c-wait rr-c-wait-sm" role="status">
+                                            <div class="rr-c-spin"><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></div>
+                                            <span class="rr-small rr-weak">{fileReadingText}</span>
+                                        </div>
+                                    </template>
+                                    <template lwc:else>
+                                        <div class="rr-c-empty">
+                                            <span class={fileChipCls}>{fileChipLabel}</span>
+                                            <p>{fileReason}</p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            <div class="slds-modal__footer rr-modal-foot">
+                <span class="rr-grow rr-small rr-weak">
+                    <template lwc:if={readAt}>{readLabel} <lightning-formatted-date-time value={readAt} month="short" day="numeric" hour="numeric" minute="2-digit"></lightning-formatted-date-time></template>
+                </span>
+                <lightning-button label="Close" onclick={close}></lightning-button>
+            </div>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+</template>

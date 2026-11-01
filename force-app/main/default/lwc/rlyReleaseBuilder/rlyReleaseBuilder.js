@@ -100,7 +100,7 @@ function marked(c) {
 const ORG_LIMIT = 50;
 // Salesforce's sandbox types, smallest first. Production is the hub, where releases end, so it isn't a source.
 const ENVIRONMENTS = [
-    { value: 'Developer', label: 'Developer sandbox', hint: 'Metadata only · refresh every day' },
+    { value: 'Developer', label: 'Developer sandbox or Developer Edition', hint: 'Metadata only' },
     { value: 'Developer_Pro', label: 'Developer Pro sandbox', hint: 'Metadata, more storage · refresh every day' },
     { value: 'Partial_Copy', label: 'Partial Copy sandbox', hint: 'Metadata and sample data · refresh every 5 days' },
     { value: 'Full_Copy', label: 'Full Copy sandbox', hint: 'Copy of production · refresh every 29 days' }
@@ -986,7 +986,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
                 return {
                     key: c.key, name: c.name, typeLabel: isTest ? 'Apex test class' : words(c.type),
                     kind: c.standard ? 'Standard' : 'Custom', kindCls: 'rr-pill ' + (c.standard ? 'rr-pill-std' : 'rr-pill-custom'),
-                    removeLabel: 'Remove ' + c.name,
+                    removeLabel: 'Remove ' + c.name, compareLabel: 'Compare ' + c.name,
                     subText: (isTest ? 'Apex test class' : words(c.type)) + ' · ' + (c.standard ? 'Standard' : 'Custom')
                 };
             })
@@ -996,7 +996,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     get hasAdded() { return this.addedItems.length > 0; }
     get reviewDeletions() {
         return this.deletionItems
-            .map((c) => ({ key: c.key, name: c.name, subText: words(c.type) + ' · ' + this.deleteFromText, removeLabel: 'Don\'t delete ' + c.name }))
+            .map((c) => ({ key: c.key, name: c.name, subText: words(c.type) + ' · ' + this.deleteFromText, removeLabel: 'Don\'t delete ' + c.name, compareLabel: 'Compare ' + c.name }))
             .sort((a, b) => (a.subText + a.name).localeCompare(b.subText + b.name));
     }
 
@@ -1141,6 +1141,45 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         return 'Runs ' + this.testItems.map((t) => t.name).join(', ') + ' (RunSpecifiedTests) in every org it deploys to. Each Apex class and trigger needs 75% coverage.';
     }
 
+    // ---------- compare before raising (board HubCompare): DEV1 now against the target branch ----------
+
+    compareOpen = false;
+    /** Type:Name of the component the compare dialog opens on. */
+    compareKey;
+
+    get canCompare() { return !this.manualOnly && (this.hasAdded || this.hasDeletions); }
+    get compareTargetName() {
+        return (this.isAppend ? this.appendInfo && this.appendInfo.targetName : this.start && this.start.targetName) || 'the target';
+    }
+    get compareTargetBranch() {
+        return (this.isAppend ? this.appendInfo && this.appendInfo.targetBranch : this.start && this.start.targetBranch) || '';
+    }
+    get compareNote() {
+        return 'Compare reads the components from ' + this.sourceName + ' now and the files on the ' + this.compareTargetBranch + ' branch.';
+    }
+    /** What the dialog compares, in the list's order: what the release brings, then what it deletes. */
+    get compareItems() {
+        const byKey = new Map(this.selectedItems.map((c) => [c.key, c]));
+        return [...this.reviewRows, ...this.reviewDeletions]
+            .map((r) => byKey.get(r.key))
+            .filter(Boolean)
+            .map((c) => ({ type: c.type, name: c.name, deleted: !!c.deleted, typeLabel: words(c.type) }));
+    }
+    /** Compare on a row (selection key) or on a flow (Type:Name). */
+    openCompare(event) {
+        const key = event.currentTarget.dataset.key;
+        const c = this.selectedItems.find((x) => x.key === key);
+        this.compareKey = c ? c.type + ':' + c.name : key;
+        this.compareOpen = true;
+    }
+    openCompareAll() {
+        this.compareKey = undefined;
+        this.compareOpen = true;
+    }
+    closeCompare() {
+        this.compareOpen = false;
+    }
+
     // ---------- flows: versions and the After deploy choice (board HubApprovalFlowsEvidence 2) ----------
 
     /** RlyChangesController.flowVersions: FlowInfo by flow name, read from the source org when Review opens. */
@@ -1232,7 +1271,9 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
                 stepText: choice === FLOW_INACTIVE
                     ? 'Adds manual step “Activate flow ' + name + '” · Setup · After deploy · every org. It shows on the release\'s Manual steps once raised.'
                     : '',
-                groupLabel: 'After deploy: ' + name
+                groupLabel: 'After deploy: ' + name,
+                compareKey: 'Flow:' + name,
+                compareLabel: 'Compare ' + name
             };
         });
     }
