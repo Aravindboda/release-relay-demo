@@ -32,8 +32,13 @@
                         </template>
                         <template lwc:if={gateText}><div class="rr-msg rr-msg-warn" role="status">{gateText}</div></template>
                         <template lwc:if={hasRuns}>
+                            <template lwc:if={showSearch}>
+                                <c-rly-search-box label="Search manual steps" placeholder="Search by step, category or person" shown={shownCount} total={runCount}
+                                    onsearch={handleSearch}></c-rly-search-box>
+                            </template>
+                            <div class="rr-scroll">
                             <ol class="rr-ms-list">
-                                <template for:each={runs} for:item="r">
+                                <template for:each={shownRuns} for:item="r">
                                     <li key={r.key} class="rr-ms">
                                         <template lwc:if={r.tickable}>
                                             <lightning-input type="checkbox" label={r.tickLabel} variant="label-hidden" checked={r.isDone} data-id={r.id}
@@ -44,7 +49,7 @@
                                         </template>
                                         <span class="rr-no" aria-hidden="true">{r.no}</span>
                                         <div class="rr-ms-body">
-                                            <p class="rr-row"><strong>{r.title}</strong><span class={r.timingCls}>{r.timingLabel}</span><span class="rr-pill rr-pill-cat">{r.categoryLabel}</span>
+                                            <p class="rr-row"><strong><template for:each={r.titleParts} for:item="u"><template lwc:if={u.hit}><mark key={u.key}>{u.text}</mark></template><template lwc:else><span key={u.key}>{u.text}</span></template></template></strong><span class={r.timingCls}>{r.timingLabel}</span><span class="rr-pill rr-pill-cat">{r.categoryLabel}</span>
                                                 <template lwc:if={r.statusLabel}><span class={r.statusCls}>{r.statusLabel}</span></template></p>
                                             <template lwc:if={r.expanded}><div class="rr-instr">{r.instructions}</div></template>
                                             <p class="rr-small rr-weak rr-meta">
@@ -76,6 +81,10 @@
                                     </li>
                                 </template>
                             </ol>
+                            <template lwc:if={noMatch}>
+                                <p class="rr-nomatch-p">{noMatchText} <button type="button" class="rr-linkbtn" onclick={clearSearch}>Clear search</button></p>
+                            </template>
+                            </div>
                         </template>
                         <template lwc:else><p class="rr-small rr-weak">{noRunsText}</p></template>
                         <p class="rr-small rr-weak">{checkNote}</p>
@@ -87,7 +96,7 @@
                     <div class="rr-defs">
                         <template lwc:if={definitionsTitle}><p class="rr-label">{definitionsTitle}</p></template>
                         <template lwc:if={hasStepRows}>
-                            <ol class="rr-ms-list">
+                            <ol class="rr-ms-list rr-scroll">
                                 <template for:each={stepRows} for:item="s">
                                     <li key={s.key} class="rr-ms">
                                         <span class="rr-no" aria-hidden="true">{s.no}</span>

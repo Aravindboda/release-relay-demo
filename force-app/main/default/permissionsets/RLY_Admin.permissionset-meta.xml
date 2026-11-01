@@ -5,6 +5,10 @@
         <visible>true</visible>
     </applicationVisibilities>
     <classAccesses>
+        <apexClass>RlyHomeController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>RlySlackSiteCheck</apexClass>
         <enabled>true</enabled>
     </classAccesses>
@@ -866,6 +870,10 @@
         <object>RLY_Release_Item__c</object>
         <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
+    <tabSettings>
+        <tab>RLY_Home</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
     <tabSettings>
         <tab>RLY_Pipeline</tab>
         <visibility>Visible</visibility>

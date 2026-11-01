@@ -1,0 +1,281 @@
+<template>
+    <template lwc:if={statusRead}>
+        <c-rly-org-gate status={hubStatus}></c-rly-org-gate>
+        <template lwc:if={showPage}>
+            <div class="rr-page slds-is-relative">
+                <template lwc:if={hubCopy}>
+                    <div class="slds-notify slds-notify_alert slds-alert_warning" role="alert">
+                        <lightning-icon icon-name="utility:warning" size="x-small" alternative-text="Warning" class="slds-m-right_x-small"></lightning-icon>
+                        <h2>{hubCopyMessage}</h2>
+                    </div>
+                </template>
+                <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+
+                <!-- header -->
+                <section class="rr-card rr-head">
+                    <span class="rr-head-icon"><lightning-icon icon-name="utility:home" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
+                    <div class="rr-head-text">
+                        <p class="rr-kicker">{kicker}</p>
+                        <h1 class="rr-title">Home</h1>
+                        <template lwc:if={hasHome}>
+                            <p class="rr-greet">
+                                <template lwc:if={narrow}><b class="rr-greet-need">{greetNeeds}</b></template>
+                                <template lwc:else>{greeting} <template lwc:if={needsSomething}><b class="rr-greet-need">{greetNeeds}</b>{greetDetail}</template><template lwc:else>{greetNeeds}</template></template>
+                            </p>
+                        </template>
+                    </div>
+                    <div class="rr-head-actions">
+                        <lightning-button label="Refresh" onclick={reload} disabled={loading} class="rr-hide-narrow"></lightning-button>
+                        <lightning-button variant="brand" label="New release" onclick={openNewRelease} class="rr-new"></lightning-button>
+                    </div>
+                </section>
+
+                <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+
+                <template lwc:if={hasHome}>
+                    <!-- health line (saved checks only) -->
+                    <section class="rr-card rr-hs" aria-label="Health">
+                        <span class="rr-hs-title">Health</span>
+                        <template lwc:if={healthOk}>
+                            <span class="rr-hs-item"><span class="rr-dot rr-dot-ok"></span>All connections OK</span>
+                        </template>
+                        <template lwc:else>
+                            <span class="rr-hs-full">
+                                <template for:each={healthItems} for:item="hi">
+                                    <span key={hi.key} class={hi.cls} title={hi.title}><span class={hi.dot}></span>{hi.text}</span>
+                                </template>
+                            </span>
+                            <span class="rr-hs-short"><span class={healthSummaryCls}><span class={healthSummaryDot}></span>{healthSummary}</span></span>
+                        </template>
+                        <span class="rr-grow"></span>
+                        <span class="rr-weak rr-small rr-hide-narrow">{checkedText}</span>
+                        <template lwc:if={isAdmin}><button type="button" class="rr-link" onclick={openPipeline}>Pipeline ›</button></template>
+                    </section>
+
+                    <!-- KPI tiles -->
+                    <div class="rr-kpis">
+                        <template for:each={tiles} for:item="t">
+                            <button key={t.key} type="button" class={t.cls} data-key={t.key} onclick={openTile} title={t.title}>
+                                <span class="rr-tile-go" aria-hidden="true">›</span>
+                                <span class="rr-tile-label">{t.label}</span>
+                                <span class="rr-tile-value">{t.value}<template lwc:if={t.hasUnit}><small>{t.unit}</small></template></span>
+                                <span class="rr-tile-sub">{t.sub}</span>
+                            </button>
+                        </template>
+                        <div class="rr-tile rr-tile-plain">
+                            <span class="rr-tile-label">Raise → deployed · 30 days</span>
+                            <span class="rr-tile-value">{leadValue}<template lwc:if={hasLead}><small>days</small></template></span>
+                            <span class="rr-tile-sub">{leadSub}</span>
+                        </div>
+                    </div>
+
+                    <div class="rr-row2">
+                        <!-- Needs you -->
+                        <section class="rr-card rr-list-card" aria-label="Needs you">
+                            <div class="rr-card-hd">
+                                <h2 class="rr-h2">Needs you</h2>
+                                <span class="rr-pill rr-pill-wait">{needsTotal}</span>
+                                <span class="rr-grow"></span>
+                                <span class="rr-weak rr-small rr-hide-narrow">{needsRoles}</span>
+                            </div>
+                            <div class="rr-toolbar">
+                                <c-rly-search-box data-list="needs" label="Search Needs you" placeholder="Search release, title, org or raiser"
+                                    shown={needsShown} total={needsTotal} onsearch={handleNeedsSearch}></c-rly-search-box>
+                            </div>
+                            <div class="rr-scroll rr-scroll-needs">
+                                <table class="rr-ft">
+                                    <template lwc:if={narrow}>
+                                        <colgroup><col><col class="rr-w-60"><col class="rr-w-62"></colgroup>
+                                        <thead><tr><th scope="col">Release</th><th scope="col">Since</th><th scope="col"><span class="slds-assistive-text">Open</span></th></tr></thead>
+                                    </template>
+                                    <template lwc:else>
+                                        <colgroup><col class="rr-w-100"><col><col class="rr-w-112"><col class="rr-w-100"><col class="rr-w-112"><col class="rr-w-64"><col class="rr-w-60"></colgroup>
+                                        <thead><tr><th scope="col">Release</th><th scope="col">Title</th><th scope="col">Status</th><th scope="col">Org</th><th scope="col">Raised by</th><th scope="col">Since</th><th scope="col"><span class="slds-assistive-text">Open</span></th></tr></thead>
+                                    </template>
+                                    <template for:each={needGroups} for:item="g">
+                                        <tbody key={g.key}>
+                                            <tr class="rr-gh"><td colspan="7">{g.label}<em>{g.count}</em></td></tr>
+                                            <template lwc:if={g.isEmpty}>
+                                                <tr><td colspan="7" class="rr-group-empty"><b>{g.emptyTitle}</b>
+                                                    <template lwc:if={g.emptyLink}> <button type="button" class="rr-linkbtn" onclick={openNewRelease}>{g.emptyLink}</button></template>
+                                                    {g.emptyText}</td></tr>
+                                            </template>
+                                            <template for:each={g.rows} for:item="r">
+                                                <tr key={r.key}>
+                                                    <template lwc:if={narrow}>
+                                                        <td title={r.fullTitle}>
+                                                            <span class="rr-line"><button type="button" class="rr-rel" data-id={r.releaseId} onclick={openRelease}><template for:each={r.nameParts} for:item="a"><template lwc:if={a.hit}><mark key={a.key}>{a.text}</mark></template><template lwc:else><span key={a.key}>{a.text}</span></template></template></button> <span class={r.pillCls}>{r.pill}</span></span>
+                                                            <span class="rr-line rr-sub"><template for:each={r.titleParts} for:item="b"><template lwc:if={b.hit}><mark key={b.key}>{b.text}</mark></template><template lwc:else><span key={b.key}>{b.text}</span></template></template></span>
+                                                        </td>
+                                                        <td class="rr-weak">{r.sinceText}</td>
+                                                        <td class="rr-c"><button type="button" class="rr-open" data-id={r.releaseId} onclick={openRelease} aria-label={r.openLabel}>Open</button></td>
+                                                    </template>
+                                                    <template lwc:else>
+                                                        <td><button type="button" class="rr-rel" data-id={r.releaseId} onclick={openRelease}><template for:each={r.nameParts} for:item="c"><template lwc:if={c.hit}><mark key={c.key}>{c.text}</mark></template><template lwc:else><span key={c.key}>{c.text}</span></template></template></button></td>
+                                                        <td title={r.fullTitle}><template for:each={r.titleParts} for:item="d"><template lwc:if={d.hit}><mark key={d.key}>{d.text}</mark></template><template lwc:else><span key={d.key}>{d.text}</span></template></template></td>
+                                                        <td><span class={r.pillCls} title={r.note}>{r.pill}</span></td>
+                                                        <td title={r.org}><template for:each={r.orgParts} for:item="e"><template lwc:if={e.hit}><mark key={e.key}>{e.text}</mark></template><template lwc:else><span key={e.key}>{e.text}</span></template></template></td>
+                                                        <td title={r.raisedBy}><template for:each={r.byParts} for:item="f"><template lwc:if={f.hit}><mark key={f.key}>{f.text}</mark></template><template lwc:else><span key={f.key}>{f.text}</span></template></template></td>
+                                                        <td class="rr-weak">{r.sinceText}</td>
+                                                        <td class="rr-c"><button type="button" class="rr-open" data-id={r.releaseId} onclick={openRelease} aria-label={r.openLabel}>Open</button></td>
+                                                    </template>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </template>
+                                    <template lwc:if={needsNoMatch}>
+                                        <tbody><tr><td colspan="7" class="rr-nomatch">{needsNoMatchText} <button type="button" class="rr-linkbtn" onclick={clearNeedsSearch}>Clear search</button></td></tr></tbody>
+                                    </template>
+                                </table>
+                            </div>
+                            <template lwc:if={approver}>
+                                <div class="rr-lfoot"><span class="rr-grow"></span><button type="button" class="rr-link" onclick={openApprovals}>Approvals ›</button></div>
+                            </template>
+                        </section>
+
+                        <!-- Deploys chart -->
+                        <section class="rr-card" aria-label="Deploys over the last 8 weeks">
+                            <div class="rr-card-hd"><h2 class="rr-h2">Deploys · last 8 weeks</h2><span class="rr-grow"></span><span class="rr-weak rr-small">All orgs</span></div>
+                            <template lwc:if={hasDeploys}>
+                                <div class="rr-chart">
+                                    <div class="rr-legend"><span><i class="rr-key-ok"></i>Deployed</span><span><i class="rr-key-bad"></i>Failed</span></div>
+                                    <svg viewBox="0 0 420 170" role="img" aria-label="Deployed and failed deploys per week, last 8 weeks" class="rr-chart-svg">
+                                        <template for:each={chart.grid} for:item="gl">
+                                            <g key={gl.key}>
+                                                <line x1="28" y1={gl.y} x2="414" y2={gl.y} class="rr-gridline"></line>
+                                                <text x="22" y={gl.labelY} class="rr-axis">{gl.text}</text>
+                                            </g>
+                                        </template>
+                                        <line x1="28" y1="140" x2="414" y2="140" class="rr-baseline"></line>
+                                        <template for:each={chart.bars} for:item="b">
+                                            <g key={b.key}>
+                                                <title>{b.tip}</title>
+                                                <rect x={b.dx} y={b.dy} width="16" height={b.dh} rx="2" class="rr-bar-ok"></rect>
+                                                <rect x={b.fx} y={b.fy} width="16" height={b.fh} rx="2" class="rr-bar-bad"></rect>
+                                                <text x={b.lx} y="156" class={b.labelCls}>{b.label}</text>
+                                                <template lwc:if={b.showPeak}><text x={b.px} y={b.py} class="rr-peak">{b.peak}</text></template>
+                                            </g>
+                                        </template>
+                                    </svg>
+                                    <div class="rr-chart-foot"><span><b>{chartDeployed}</b> deployed · <b>{chartFailed}</b> failed · <b>{chartSuccess}</b> OK</span><span class="rr-grow"></span><button type="button" class="rr-link" onclick={openDeployed}>Releases ›</button></div>
+                                    <template lwc:if={hasWeekByOrg}>
+                                        <p class="rr-cap">This week by org</p>
+                                        <table class="rr-ft rr-ft-small">
+                                            <colgroup><col><col class="rr-w-72"><col class="rr-w-60"></colgroup>
+                                            <thead><tr><th scope="col">Org</th><th scope="col" class="rr-r">Deployed</th><th scope="col" class="rr-r">Failed</th></tr></thead>
+                                            <tbody>
+                                                <template for:each={weekByOrg} for:item="o">
+                                                    <tr key={o.orgName}><td title={o.orgName}>{o.orgName}</td><td class="rr-r">{o.deployed}</td><td class="rr-r">{o.failed}</td></tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </template>
+                                </div>
+                            </template>
+                            <template lwc:else>
+                                <div class="rr-pad"><div class="rr-empty"><b>No deploys in the last 8 weeks.</b><span>Bars appear after the first deploy.</span></div></div>
+                            </template>
+                        </section>
+                    </div>
+
+                    <!-- Route -->
+                    <template lwc:if={showRoute}>
+                        <section class="rr-card" aria-label="Route">
+                            <div class="rr-card-hd"><h2 class="rr-h2">Route</h2><span class="rr-weak rr-small rr-hide-narrow">{routeSub}</span><span class="rr-grow"></span>
+                                <template lwc:if={routeSet}><button type="button" class="rr-link" onclick={openPromote}>Promote ›</button></template></div>
+                            <template lwc:if={routeSet}>
+                                <div class="rr-route">
+                                    <template for:each={stops} for:item="s">
+                                        <div key={s.orgId} class="rr-stop-wrap">
+                                            <div class={s.cls}>
+                                                <div class="rr-stop-hd"><b>{s.name}</b><span class="rr-weak rr-tiny">{s.roleText}</span><span class="rr-stop-st"><span class={s.dot}></span>{s.statusText}</span></div>
+                                                <div class="rr-stop-bd">
+                                                    <div class="rr-stop-last">
+                                                        <p class="rr-weak rr-tiny">{s.lastLabel}</p>
+                                                        <template lwc:if={s.hasLast}>
+                                                            <button type="button" class="rr-rel rr-line" data-id={s.lastId} onclick={openRelease} title={s.lastText}>{s.lastText}</button>
+                                                            <span class="rr-weak rr-line">{s.meta}</span>
+                                                        </template>
+                                                        <template lwc:else><span class="rr-weak">{s.noLast}</span></template>
+                                                    </div>
+                                                    <div class="rr-stop-count">
+                                                        <span class="rr-stop-n">{s.count}</span>
+                                                        <span class="rr-grow rr-stop-text">{s.countText}</span>
+                                                        <lightning-button label={s.action} variant={s.actionVariant} size="small" data-kind={s.kind} onclick={openStop}></lightning-button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <template lwc:if={s.showArrow}><span class="rr-arrow" aria-hidden="true"><span class="rr-arrow-right">→</span><span class="rr-arrow-down">↓</span></span></template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template lwc:else>
+                                <div class="rr-pad"><div class="rr-empty"><b>No route yet. Set the route in Pipeline.</b><button type="button" class="rr-link" onclick={openPipeline}>Open Pipeline ›</button></div></div>
+                            </template>
+                        </section>
+                    </template>
+
+                    <!-- Recent activity -->
+                    <section class="rr-card rr-list-card" aria-label="Recent activity">
+                        <div class="rr-card-hd"><h2 class="rr-h2">Recent activity</h2><span class="rr-weak rr-small rr-hide-narrow">Last 50 events, every release</span><span class="rr-grow"></span>
+                            <button type="button" class="rr-link" onclick={openReleases}>Releases ›</button></div>
+                        <template lwc:if={hasActivity}>
+                            <div class="rr-toolbar">
+                                <c-rly-search-box data-list="activity" label="Search recent activity" placeholder="Search release, event, org or who"
+                                    shown={actShown} total={actTotal} onsearch={handleActSearch}></c-rly-search-box>
+                                <div class="rr-chips" role="group" aria-label="Show events">
+                                    <template for:each={chips} for:item="c">
+                                        <button key={c.id} type="button" class={c.cls} data-id={c.id} onclick={pickChip} aria-pressed={c.pressed}>{c.label} <i>{c.count}</i></button>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="rr-scroll rr-scroll-activity">
+                                <table class="rr-ft">
+                                    <template lwc:if={narrow}>
+                                        <colgroup><col class="rr-w-34"><col><col class="rr-w-64"></colgroup>
+                                        <thead><tr><th scope="col"><span class="slds-assistive-text">Kind</span></th><th scope="col">Release · event</th><th scope="col" class="rr-r">When</th></tr></thead>
+                                    </template>
+                                    <template lwc:else>
+                                        <colgroup><col class="rr-w-40"><col class="rr-w-108"><col><col class="rr-w-96"><col class="rr-w-136"><col class="rr-w-156"></colgroup>
+                                        <thead><tr><th scope="col"><span class="slds-assistive-text">Kind</span></th><th scope="col">Release</th><th scope="col">Event</th><th scope="col">Org</th><th scope="col">Who</th><th scope="col" class="rr-r">When ▼</th></tr></thead>
+                                    </template>
+                                    <tbody>
+                                        <template for:each={activityRows} for:item="a">
+                                            <tr key={a.key}>
+                                                <td class="rr-c"><span class={a.iconCls}><lightning-icon icon-name={a.icon} size="xx-small" alternative-text={a.iconAlt}></lightning-icon></span></td>
+                                                <template lwc:if={narrow}>
+                                                    <td title={a.eventText}>
+                                                        <span class="rr-line"><button type="button" class="rr-rel" data-id={a.releaseId} onclick={openRelease}><template for:each={a.nameParts} for:item="g"><template lwc:if={g.hit}><mark key={g.key}>{g.text}</mark></template><template lwc:else><span key={g.key}>{g.text}</span></template></template></button> <b><template for:each={a.labelParts} for:item="h"><template lwc:if={h.hit}><mark key={h.key}>{h.text}</mark></template><template lwc:else><span key={h.key}>{h.text}</span></template></template></b></span>
+                                                        <span class="rr-line rr-sub"><template for:each={a.narrowDetailParts} for:item="i"><template lwc:if={i.hit}><mark key={i.key}>{i.text}</mark></template><template lwc:else><span key={i.key}>{i.text}</span></template></template></span>
+                                                    </td>
+                                                    <td class="rr-r rr-weak">{a.whenShort}</td>
+                                                </template>
+                                                <template lwc:else>
+                                                    <td><button type="button" class="rr-rel" data-id={a.releaseId} onclick={openRelease}><template for:each={a.nameParts} for:item="j"><template lwc:if={j.hit}><mark key={j.key}>{j.text}</mark></template><template lwc:else><span key={j.key}>{j.text}</span></template></template></button></td>
+                                                    <td title={a.eventText}><b><template for:each={a.labelParts} for:item="k"><template lwc:if={k.hit}><mark key={k.key}>{k.text}</mark></template><template lwc:else><span key={k.key}>{k.text}</span></template></template></b><template for:each={a.detailParts} for:item="l"><template lwc:if={l.hit}><mark key={l.key}>{l.text}</mark></template><template lwc:else><span key={l.key}>{l.text}</span></template></template></td>
+                                                    <td title={a.orgName}><template for:each={a.orgParts} for:item="m"><template lwc:if={m.hit}><mark key={m.key}>{m.text}</mark></template><template lwc:else><span key={m.key}>{m.text}</span></template></template></td>
+                                                    <td title={a.who}><template for:each={a.whoParts} for:item="n"><template lwc:if={n.hit}><mark key={n.key}>{n.text}</mark></template><template lwc:else><span key={n.key}>{n.text}</span></template></template></td>
+                                                    <td class="rr-r rr-weak">{a.when}</td>
+                                                </template>
+                                            </tr>
+                                        </template>
+                                        <template lwc:if={actNoMatch}>
+                                            <tr><td colspan="6" class="rr-nomatch">{actNoMatchText}
+                                                <template lwc:if={actSearching}> <button type="button" class="rr-linkbtn" onclick={clearActSearch}>Clear search</button></template></td></tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="rr-lfoot"><span>Newest first · the last 50 events</span></div>
+                        </template>
+                        <template lwc:else>
+                            <div class="rr-pad"><div class="rr-empty"><b>No releases yet.</b><span>Raise the first one from a developer org.</span>
+                                <lightning-button variant="brand" label="New release" onclick={openNewRelease}></lightning-button></div></div>
+                        </template>
+                    </section>
+                </template>
+            </div>
+        </template>
+    </template>
+</template>

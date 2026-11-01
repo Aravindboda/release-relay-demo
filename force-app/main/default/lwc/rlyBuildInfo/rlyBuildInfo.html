@@ -88,8 +88,13 @@
                         </ul>
                         <div class="rr-card rr-area-card">
                             <div class="rr-card-head"><h3 class="rr-h3">{areaTitle}</h3></div>
+                            <div class="rr-toolbar">
+                                <c-rly-search-box data-list="classes" label="Search classes" placeholder="Search by class, kind or test"
+                                    shown={classesShown} total={classesTotal} onsearch={handleListSearch}></c-rly-search-box>
+                            </div>
                             <div class="rr-scroll">
-                                <table class="slds-table slds-table_cell-buffer rr-table">
+                                <table class="slds-table slds-table_cell-buffer rr-table rr-ft">
+                                    <colgroup><col /><col class="rr-w-kind" /><col class="rr-w-lines" /><col class="rr-w-tested" /></colgroup>
                                     <thead>
                                         <tr>
                                             <th scope="col">Class</th>
@@ -101,11 +106,14 @@
                                     <tbody>
                                         <template for:each={areaClasses} for:item="c">
                                             <tr key={c.name}>
-                                                <td class="rr-mono rr-break">{c.name}</td>
+                                                <td class="rr-mono" title={c.name}><template for:each={c.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></td>
                                                 <td><span class={c.kindCls}>{c.kind}</span></td>
                                                 <td class="rr-num">{c.linesText}</td>
-                                                <td class="rr-small rr-break">{c.testedBy}</td>
+                                                <td class="rr-small" title={c.testedBy}>{c.testedBy}</td>
                                             </tr>
+                                        </template>
+                                        <template lwc:if={classesNoMatch}>
+                                            <tr><td colspan="4" class="rr-nomatch">{classesNoMatchText} <button type="button" class="rr-linkbtn" data-list="classes" onclick={clearListSearch}>Clear search</button></td></tr>
                                         </template>
                                     </tbody>
                                 </table>
@@ -126,8 +134,14 @@
                 </button>
             </div>
             <template lwc:if={folds.lwc.open}>
-                <div id="rr-sec-lwc" class="rr-sec-body rr-scroll">
-                    <table class="slds-table slds-table_cell-buffer rr-table">
+                <div id="rr-sec-lwc" class="rr-sec-body">
+                    <div class="rr-toolbar">
+                        <c-rly-search-box data-list="lwc" label="Search components" placeholder="Search by component, purpose or where it's used"
+                            shown={lwcShown} total={lwcTotal} onsearch={handleListSearch}></c-rly-search-box>
+                    </div>
+                    <div class="rr-scroll">
+                    <table class="slds-table slds-table_cell-buffer rr-table rr-ft">
+                        <colgroup><col class="rr-w-comp" /><col /><col class="rr-w-used" /><col class="rr-w-lines" /></colgroup>
                         <thead>
                             <tr>
                                 <th scope="col">Component</th>
@@ -139,14 +153,18 @@
                         <tbody>
                             <template for:each={components} for:item="b">
                                 <tr key={b.name}>
-                                    <td><span class="rr-mono">{b.name}</span><span class="rr-reason">{b.label}</span></td>
-                                    <td class="rr-wide">{b.purpose}</td>
-                                    <td class="rr-small rr-break">{b.usedBy}</td>
+                                    <td title={b.name}><span class="rr-mono rr-line"><template for:each={b.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></span><span class="rr-reason rr-line" title={b.label}>{b.label}</span></td>
+                                    <td title={b.purpose}>{b.purpose}</td>
+                                    <td class="rr-small" title={b.usedBy}>{b.usedBy}</td>
                                     <td class="rr-num">{b.linesText}</td>
                                 </tr>
                             </template>
+                            <template lwc:if={lwcNoMatch}>
+                                <tr><td colspan="4" class="rr-nomatch">{lwcNoMatchText} <button type="button" class="rr-linkbtn" data-list="lwc" onclick={clearListSearch}>Clear search</button></td></tr>
+                            </template>
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </template>
         </section>
@@ -173,15 +191,22 @@
                     </div>
                     <pre class="rr-mono rr-codebox" aria-label="Test classes to run">{runTests}</pre>
                     <p class="rr-small rr-weak">Helpers, run through the tests above: {helperText}</p>
+                    <c-rly-search-box data-list="tests" label="Search test classes" placeholder="Search by test class or area"
+                        shown={testsShown} total={testsTotal} onsearch={handleListSearch}></c-rly-search-box>
+                    <div class="rr-scroll">
                     <ul class="rr-test-list" aria-label="Test classes">
                         <template for:each={testRows} for:item="t">
                             <li key={t.name} class="rr-test-item">
-                                <span class="rr-mono rr-break">{t.name}</span>
+                                <span class="rr-mono rr-ell" title={t.name}><template for:each={t.nameParts} for:item="u"><template lwc:if={u.hit}><mark key={u.key}>{u.text}</mark></template><template lwc:else><span key={u.key}>{u.text}</span></template></template></span>
                                 <span class="rr-weak rr-small">{t.area}</span>
                                 <span class="rr-pill rr-pill-none">{t.methodsText}</span>
                             </li>
                         </template>
                     </ul>
+                    <template lwc:if={testsNoMatch}>
+                        <p class="rr-nomatch-p">{testsNoMatchText} <button type="button" class="rr-linkbtn" data-list="tests" onclick={clearListSearch}>Clear search</button></p>
+                    </template>
+                    </div>
                 </div>
             </template>
         </section>

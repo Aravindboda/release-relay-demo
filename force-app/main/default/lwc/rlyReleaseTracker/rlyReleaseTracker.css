@@ -43,8 +43,7 @@
 .rr-chip-on, .rr-chip-on:hover { background: var(--rr-blue); border-color: var(--rr-blue); color: #fff; }
 .rr-count { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 8px; background: #f3f3f3; color: #444; }
 .rr-chip-on .rr-count { background: #fff; color: #014486; }
-.rr-search { flex: 1 1 220px; display: flex; justify-content: flex-end; }
-.rr-search lightning-input { width: 100%; max-width: 320px; }
+.rr-search { flex: 1 1 260px; min-width: 200px; }
 
 /* list + detail */
 .rr-body { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
@@ -119,3 +118,14 @@
 
 /* while the org's mode is read (RlyHubGuard.getHubStatus) */
 .rr-wait { position: relative; min-height: 120px; }
+
+/* long lists (build 27): the card list scrolls inside, the page and the detail pane stay put */
+.rr-scroll { max-height: 26rem; overflow: auto; }
+.rr-scroll-cards { display: flex; flex-direction: column; gap: 8px; max-height: 70vh; padding: 2px; }
+.rr-card { flex: none; }
+mark { background: #fef1cd; color: inherit; padding: 0; border-radius: 2px; }
+.rr-linkbtn { border: 0; background: none; padding: 0; font: inherit; color: var(--rr-link); text-decoration: underline; cursor: pointer; }
+.rr-linkbtn:focus-visible { outline: 2px solid var(--rr-blue); outline-offset: 2px; }
+@media (max-width: 600px) {
+    .rr-scroll, .rr-scroll-cards { max-height: 60vh; }
+}

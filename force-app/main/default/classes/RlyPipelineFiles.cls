@@ -104,6 +104,16 @@ public with sharing class RlyPipelineFiles {
     }
 
     /**
+     * @description The version packaged with the hub, read without a callout (the Home tab's health line).
+     * @return the lowest version among this hub's packaged files, or null when none is packaged
+     */
+    public static Integer packagedVersion() {
+        Data data = new Data();
+        List<FileInfo> files = catalog(data.git());
+        return lowestPackaged(hubFiles(files), data.bodies(files));
+    }
+
+    /**
      * @description Writes this hub's packaged files to the repository: on a branch with a pull request into the
      * pipeline branch, or straight to the pipeline branch. The caller checks the user is an admin.
      * @param how pullRequest (the default) or commit

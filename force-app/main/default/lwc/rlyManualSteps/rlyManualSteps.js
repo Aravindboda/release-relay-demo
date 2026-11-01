@@ -1,5 +1,6 @@
 import APP_NAME from '@salesforce/label/c.RLY_App_Name';
 import { LightningElement, api } from 'lwc';
+import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
 import getSteps from '@salesforce/apex/RlyManualStepController.getSteps';
 import saveStep from '@salesforce/apex/RlyManualStepController.saveStep';
 import deleteStep from '@salesforce/apex/RlyManualStepController.deleteStep';
@@ -25,6 +26,8 @@ const DONE = 'Done';
 const NOT_NEEDED = 'Not_Needed';
 const TO_DO = 'To_Do';
 const MAX_STEPS = 50;
+/** The checklist shows its search box from this many steps (or while a search is typed). */
+const SEARCH_FROM = 7;
 const MAX_TITLE = 120;
 
 function errorText(e) {
@@ -317,6 +320,34 @@ export default class RlyManualSteps extends LightningElement {
     }
 
     get hasRuns() { return this.runs.length > 0; }
+
+    // ---------- search in the checklist (build 27) ----------
+
+    /** The search text, normalised: filters the selected org's checklist (numbers keep the deploy order). */
+    term = '';
+
+    get shownRuns() {
+        const q = this.term;
+        return this.runs.filter((r) => matchesSearch([r.title, r.categoryLabel, r.timingLabel, r.statusLabel, r.metaText], q))
+            .map((r) => ({ ...r, titleParts: highlightParts(r.title, q) }));
+    }
+    get showSearch() { return this.runs.length >= SEARCH_FROM || !!this.term; }
+    get noMatch() { return !!this.term && this.shownRuns.length === 0; }
+    get noMatchText() { return 'No steps match \u2018' + this.term + '\u2019.'; }
+    get runCount() { return this.runs.length; }
+    get shownCount() { return this.shownRuns.length; }
+
+    handleSearch(event) {
+        this.term = searchTerm(event.detail && event.detail.value);
+    }
+
+    clearSearch() {
+        const box = this.template.querySelector('c-rly-search-box');
+        if (box) {
+            box.clear();
+        }
+        this.term = '';
+    }
     get noRunsText() { return this.selectedOrg ? 'No manual steps in ' + this.selectedOrg.orgName + '.' : ''; }
     get checkNote() {
         if (this.canCheck) {
