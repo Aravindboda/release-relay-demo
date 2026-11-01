@@ -549,4 +549,8 @@
         <tab>RLY_Built</tab>
         <visibility>Visible</visibility>
     </tabSettings>
+    <tabSettings>
+        <tab>RLY_My_Releases</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
 </PermissionSet>
