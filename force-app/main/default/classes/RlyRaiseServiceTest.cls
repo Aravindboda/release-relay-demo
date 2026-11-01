@@ -69,7 +69,7 @@ private class RlyRaiseServiceTest {
             bad[1].title = ' ';
             bad[2].items = new List<RlyRaiseService.Item>{ RlyReleaseTestData.item('ApexTrigger', 'AccountTrigger') };
             bad[3].testClasses = new List<String>{ 'NotSelectedTest' };
-            bad[4].items[0].deleted = true;
+            bad[4].deletions = new List<RlyRaiseService.Item>{ RlyReleaseTestData.item('Layout', 'Account-Account Layout') };
             bad[5].items = new List<RlyRaiseService.Item>{ RlyReleaseTestData.item('Layout', 'A,B') };
             bad[6].sourceOrgId = hubId;
             Integer refused = 0;

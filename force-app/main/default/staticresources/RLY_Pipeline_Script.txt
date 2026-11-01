@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 9
+// Release Relay pipeline files: version 10
 /*
  * Release Relay: one script for every pipeline job, on GitHub, GitLab, Bitbucket or Azure DevOps.
  *
@@ -13,6 +13,10 @@
  *                  developer org and committed the Metadata API zip to BRANCH as
  *                  .relay-inbox/<REQUEST_ID>.zip. Convert it to source format, replace the zip
  *                  with the files, push, open a PR/MR into TARGET. No org login is needed.
+ *                  DELETIONS (Type:Name list, and/or .relay-inbox/<REQUEST_ID>.deletions, the hub's
+ *                  marker for a release with only deletions) removes those components' files from
+ *                  BRANCH in the same commit; validate and deploy then delete them from the org
+ *                  (destructiveChangesPost). raise.json lists them under "deleted".
  *                  MODE=resolve: merge TARGET into BRANCH, applying the choices the hub committed in
  *                  .relay-inbox/<REQUEST_ID>-resolve.json for each conflicted file, then push.
  *                  Runs started by the hub (OPTIONS.hub) in modes hub and promote write
@@ -478,7 +482,18 @@ function buildDeployment(base, head) {
     const sourceDirs = new Set();
     const deletions = new Map();
     const unknown = [];
+    // A custom object deleted as a whole takes its fields, list views, compact layouts etc. with it.
+    const goneObjects = new Set(files.filter((f) => f.status === 'D').map((f) => componentFor(f.file))
+        .filter((c) => c && c.type === 'CustomObject' && !fs.existsSync(path.join(sourcePath(), 'objects', c.name)))
+        .map((c) => c.name));
     for (const f of files) {
+        const rel = path.relative(sourcePath(), f.file).split(path.sep);
+        if (f.status === 'D' && rel[0] === 'objects' && goneObjects.has(rel[1])) {
+            if (rel.length === 3 && rel[2] === `${rel[1]}.object-meta.xml`) {
+                deletions.set(`CustomObject:${rel[1]}`, { type: 'CustomObject', name: rel[1] });
+            }
+            continue;
+        }
         if (f.status !== 'D') {
             const c = componentFor(f.file);
             sourceDirs.add(c && c.dir ? c.dir : f.file);
@@ -905,11 +920,12 @@ function writesRaiseResult() {
 
 /**
  * results/<REQUEST_ID>/raise.json, the same shape for modes hub and promote:
- * { status: 'Opened' | 'Failed', mode, branch, target, sha, pr, url, commits, conflicts, message }.
+ * { status: 'Opened' | 'Failed', mode, branch, target, sha, pr, url, commits, conflicts, deleted, message }.
+ * deleted: the Type:Name entries mode hub removed from BRANCH (always [] for promote).
  */
 function raiseResult(status, data) {
     writeResult('raise', { status, mode, branch, target, sha: null, pr: null, url: null,
-        commits: [], conflicts: [], message: '', ...data });
+        commits: [], conflicts: [], deleted: [], message: '', ...data });
 }
 
 /** Ends the raise; a hub run first says why in raise.json. */
@@ -1096,45 +1112,140 @@ function testsLine() {
     return tests.length ? `**Tests:** ${tests.map((t) => '`' + t + '`').join(', ')} (RunSpecifiedTests)` : '**Tests:** none, no Apex (NoTestRun)';
 }
 
+/** Reverse of componentFor: the files (or folder) of one component on the checked-out branch, or null when unsupported. */
+function deletionPaths(d) {
+    if (d.type === 'StaticResource') {
+        return pathsFor(sourcePath(), d.type, d.name).filter((p) => p.split(path.sep).pop().split('.')[0] === d.name);
+    }
+    return pathsFor(sourcePath(), d.type, d.name);
+}
+
+/** The hub's deletions: DELETIONS plus any Type:Name entries in .relay-inbox/<REQUEST_ID>.deletions (commas or new lines). */
+function hubDeletions(markerFile) {
+    const raw = [input('DELETIONS'), fs.existsSync(markerFile) ? fs.readFileSync(markerFile, 'utf8') : '']
+        .join(',').split(/[,\r\n]+/).map((x) => x.trim()).filter(Boolean);
+    const seen = new Map();
+    for (const entry of raw) {
+        const m = ITEM_RE.exec(entry);
+        if (!m) {
+            raiseFailed(`The deletion "${entry.slice(0, 100)}" isn't Type:Name.`);
+        }
+        const d = { type: m[1], name: m[2].trim() };
+        if (CHILD_TYPES[d.type] && d.name.indexOf('.') < 1) {
+            raiseFailed(`${d.type} "${d.name}" must be written as Object.Name.`);
+        }
+        d.entry = `${d.type}:${d.name}`;
+        seen.set(d.entry, d);
+    }
+    return [...seen.values()];
+}
+
+/** Why a release can't both add and delete these, or ''. */
+function addedAndDeleted(components, deletions) {
+    const added = new Set(components.map((c) => `${c.type}:${c.name}`));
+    for (const d of deletions) {
+        if (added.has(d.entry)) {
+            return `${d.type} ${d.name} is both added and deleted.`;
+        }
+        if (d.type === 'CustomObject') {
+            const child = components.find((c) => CHILD_TYPES[c.type] && c.name.startsWith(d.name + '.'));
+            if (child) {
+                return `${child.type} ${child.name} is added, but its object ${d.name} is deleted.`;
+            }
+        }
+    }
+    return '';
+}
+
 async function raiseFromHub() {
     const components = parseList(input('COMPONENTS'), 'COMPONENTS');
     const zipFile = path.join('.relay-inbox', requestId + '.zip');
+    const markerFile = path.join('.relay-inbox', requestId + '.deletions');
     if (!remoteBranchExists(branch)) {
         raiseFailed(`Branch ${branch} doesn't exist. Raise the release again from Release Relay.`);
     }
     fetchBranch(target);
     fetchBranch(branch);
     git(['checkout', '-q', '-B', branch, `refs/remotes/origin/${branch}`]);
-    if (!fs.existsSync(zipFile)) {
-        raiseFailed(`${zipFile} isn't on ${branch}. Raise the release again from Release Relay.`);
+    const deletions = hubDeletions(markerFile);
+    const deleted = deletions.map((d) => d.entry);
+    const hasZip = fs.existsSync(zipFile);
+    if (!hasZip && !deletions.length) {
+        raiseFailed(`${zipFile} isn't on ${branch} (nor a ${markerFile} listing deletions). Raise the release again from Release Relay.`);
     }
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-hub-'));
-    const mdapi = path.join(tmp, 'mdapi');
-    const out = path.join(tmp, 'source');
-    run('unzip', ['-q', '-o', zipFile, '-d', mdapi]);
-    convertFromHub(mdapi, out);
-    const converted = [path.join(out, 'force-app', 'main', 'default'), path.join(out, 'force-app')]
-        .find((p) => fs.existsSync(p));
-    const wholeObjects = new Set(components.filter((c) => c.type === 'CustomObject').map((c) => c.name));
-    const copied = copyConverted(converted, sourcePath(), wholeObjects);
-    git(['rm', '-q', '--', zipFile]);
+    const clash = addedAndDeleted(components, deletions);
+    if (clash) {
+        raiseFailed(clash, { deleted });
+    }
+
+    // Deletions first, on the branch as the hub left it: each must be there to be removed.
+    for (const d of deletions) {
+        const paths = deletionPaths(d);
+        if (paths === null) {
+            raiseFailed(`Deleting ${d.type} isn't supported by the pipeline. Remove ${d.name} in a normal ${provider.label}.`, { deleted });
+        }
+        const found = paths.filter((p) => fs.existsSync(p));
+        if (!found.length) {
+            raiseFailed(`${d.type} ${d.name} isn't in ${branch}, so there's nothing to delete.`, { deleted });
+        }
+        git(['rm', '-r', '-q', '--', ...found]);
+    }
+
+    let copied = [];
+    if (hasZip) {
+        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-hub-'));
+        const mdapi = path.join(tmp, 'mdapi');
+        const out = path.join(tmp, 'source');
+        let unzipped = true;
+        try {
+            execFileSync('unzip', ['-q', '-o', zipFile, '-d', mdapi], { stdio: ['ignore', 'pipe', 'pipe'] });
+        } catch (e) {
+            unzipped = false; // an empty zip (a release with only deletions) makes unzip complain
+            if (components.length) {
+                raiseFailed(`${zipFile} couldn't be unzipped: ${String(e.stderr || e.message).trim().slice(0, 500)}`, { deleted });
+            }
+        }
+        const hasFiles = unzipped && fs.existsSync(mdapi)
+            && fs.readdirSync(mdapi, { recursive: true }).some((f) => !/(^|\/)package\.xml$/.test(String(f))
+                && fs.statSync(path.join(mdapi, String(f))).isFile());
+        if (components.length || hasFiles) {
+            convertFromHub(mdapi, out);
+            const converted = [path.join(out, 'force-app', 'main', 'default'), path.join(out, 'force-app')]
+                .find((p) => fs.existsSync(p));
+            const wholeObjects = new Set(components.filter((c) => c.type === 'CustomObject').map((c) => c.name));
+            copied = converted ? copyConverted(converted, sourcePath(), wholeObjects) : [];
+        }
+        git(['rm', '-q', '--', zipFile]);
+    }
+    if (fs.existsSync(markerFile)) {
+        if (gitQuiet(['ls-files', '--error-unmatch', '--', markerFile]) !== null) {
+            git(['rm', '-q', '-f', '--', markerFile]);
+        } else {
+            fs.rmSync(markerFile, { force: true });
+        }
+    }
     git(['add', '-A', '--', sourcePath()]);
     if (git(['diff', '--cached', '--name-only', '--', sourcePath()]) === '') {
-        raiseFailed(`${orgLabel()} already matches ${target} for these components. Nothing to commit.`);
+        raiseFailed(`${orgLabel()} already matches ${target} for these components. Nothing to commit.`, { deleted });
     }
-    git(['commit', '-q', '-m', title, '-m', `Release Relay ${requestId} from ${orgLabel()} (${copied.length} files)`]);
+    const counts = [copied.length ? `${copied.length} files` : '', deletions.length ? `${deletions.length} deletion(s)` : '']
+        .filter(Boolean).join(', ');
+    git(['commit', '-q', '-m', title, '-m', `Release Relay ${requestId} from ${orgLabel()} (${counts || 'no files'})`]);
     git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
     const sha = git(['rev-parse', 'HEAD']);
 
-    const list = components.map((i) => `- ${i.type}: \`${i.name}\``).join('\n');
+    const list = (items) => items.map((i) => `- ${i.type}: \`${i.name}\``).join('\n');
+    const requestType = deletions.length ? (components.length ? 'Changes and deletions' : 'Deletions') : 'Changes';
     const body = [
         `Raised from the Release Relay hub (${orgLabel()}), release ${requestId}.`,
-        '**Request type:** Changes',
-        `### Added or updated from ${orgLabel()}\n${list}`,
+        `**Request type:** ${requestType}`,
+        components.length ? `### Added or updated from ${orgLabel()}\n${list(components)}` : '',
+        deletions.length ? `### Deleted from ${orgLabel()}\n${list(deletions)}\n\nTheir files are removed from this branch; `
+            + `validating and deploying delete them from ${targetEnv ? `the ${targetEnv} org` : `${target}'s org`} too (destructiveChangesPost).` : '',
         testsLine(),
         'Every item was selected and reviewed in Release Relay. Approve it in Salesforce; Release Relay merges it.'
     ].filter(Boolean).join('\n\n');
-    await openAndRecord(body, { sha });
+    await openAndRecord(body, { sha, deleted });
 }
 
 /**

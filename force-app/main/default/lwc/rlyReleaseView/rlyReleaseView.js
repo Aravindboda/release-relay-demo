@@ -208,6 +208,11 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         this.load();
     }
 
+    /** A manual step was added or ticked: read the release again (header pill, notice, a deploy the last step started). */
+    handleStepsChange() {
+        this.load();
+    }
+
     // ---------- header ----------
 
     get rel() { return this.detail ? this.detail.release : {}; }
@@ -216,6 +221,11 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     get typeLabel() { return TYPE_LABEL[this.releaseType] || ''; }
     get eyebrow() { return (this.typeLabel || 'Release') + ' · ' + (this.rel.Name || ''); }
     get isHotfix() { return !!(this.detail && this.detail.isHotfix); }
+    /** Header pill: Detail.manualOpen, the manual steps still open for this release. */
+    get manualOpenText() {
+        const n = Number(this.detail && this.detail.manualOpen) || 0;
+        return n ? n + (n === 1 ? ' manual step open' : ' manual steps open') : '';
+    }
     get hotfixReason() { return this.isHotfix ? (this.detail.hotfixReason || '') : ''; }
     /** The header pill: Detail.phase (for example Resolving conflicts), else the status. */
     get phase() { return (this.detail && this.detail.phase) || this.rel.Status__c; }
@@ -369,8 +379,13 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         }
         return {
             key: 'collect', title: 'Collected from ' + (this.detail ? this.detail.sourceName : ''), state,
-            text: s === 'Retrieving' ? 'Retrieving the components with the Metadata API…' : (this.rel.Component_Count__c || 0) + ' components'
+            text: s === 'Retrieving' ? 'Retrieving the components with the Metadata API…' : (this.rel.Component_Count__c || 0) + ' components' + this.deletionsTail
         };
+    }
+
+    get deletionsTail() {
+        const d = this.deletions.length;
+        return d ? ' · ' + d + (d === 1 ? ' deletion' : ' deletions') : '';
     }
 
     prStep(collected) {
@@ -526,7 +541,22 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             key: i.Id, dtKey: i.Id + 't', type: typeLabel(i.Metadata_Type__c, tests.includes(i.Component_Name__c)), name: i.Component_Name__c
         }));
     }
-    get itemCount() { return String(this.items.length); }
+    get itemCount() {
+        const d = this.deletions.length;
+        return String(this.items.length) + (d ? ' · ' + d + (d === 1 ? ' deletion' : ' deletions') : '');
+    }
+
+    /** What the release removes from the target branch and org: Detail.deletions, as Type:Name. */
+    get deletions() {
+        const list = this.detail && Array.isArray(this.detail.deletions) ? this.detail.deletions : [];
+        return list.map((d, i) => {
+            const at = String(d).indexOf(':');
+            const type = at > 0 ? String(d).slice(0, at) : '';
+            return { key: 'd' + i, dtKey: 'd' + i + 't', type: type ? typeLabel(type, false) : '', name: at > 0 ? String(d).slice(at + 1) : String(d) };
+        });
+    }
+    get hasDeletions() { return this.deletions.length > 0; }
+    get deletesLabel() { return 'Deleted from ' + (this.targetName || 'the target'); }
 
     // ---------- results ----------
 

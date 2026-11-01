@@ -108,3 +108,10 @@
     position: sticky; bottom: 0; z-index: 1; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px;
     justify-content: flex-end; align-items: center;
 }
+
+/* deletions (board HubDeletions) */
+.rr-del { color: #8e030f; }
+.rr-dl dt.rr-del { color: #8e030f; font-weight: 700; }
+.rr-deletes { color: #8e030f; }
+.rr-del-head { margin: 0; padding: 8px 16px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #8e030f; border-top: 1px solid var(--rr-line); }
+.rr-del-items dd { color: #8e030f; }

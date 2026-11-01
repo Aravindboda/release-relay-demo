@@ -23,7 +23,18 @@
 .rr-title { margin: 0; font-size: 18px; font-weight: 700; }
 
 /* filters */
-.rr-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rr-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; }
+.rr-raised { flex: 0 1 260px; min-width: 200px; }
+.rr-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* live check (Releases tab): last checked, the 30 s countdown (as on the release page), Check now */
+.rr-live {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: #fff;
+    border: 1px solid var(--rr-line); border-radius: 4px; padding: 6px 12px;
+}
+.rr-meter { display: inline-block; width: 200px; max-width: 30vw; height: 4px; border-radius: 2px; background: #e5e5e5; overflow: hidden; }
+.rr-meter-fill { display: block; height: 100%; width: 100%; background: var(--rr-blue); transform-origin: left center; animation: rr-countdown 30s linear forwards; }
+@keyframes rr-countdown { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .rr-chip {
     height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid #c9c9c9; background: #fff;
     font: inherit; font-size: 13px; color: var(--rr-ink); cursor: pointer; display: inline-flex; align-items: center; gap: 6px;

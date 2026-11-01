@@ -11,7 +11,7 @@ public with sharing class RlyGitHub extends RlyGit {
      * @description The shape of a GitHub repository name.
      * @return owner/repository
      */
-    public override Pattern repositoryPattern() {
+    protected override Pattern repositoryPattern() {
         return REPO;
     }
 
@@ -150,6 +150,18 @@ public with sharing class RlyGitHub extends RlyGit {
         }
         assertOk(res, 'Reading ' + path);
         return res.getBody();
+    }
+
+    /**
+     * @description The paths of every file on a branch under a path (GET /git/trees/{branch}?recursive=1).
+     * @param branch the branch
+     * @param path the folder, for example force-app/main/default (blank: the whole branch)
+     * @return the file paths
+     */
+    public override List<String> listFiles(String branch, String path) {
+        HttpResponse res = send('GET', repo() + '/git/trees/' + encPath(branch) + '?recursive=1', null);
+        assertOk(res, 'Listing the files on ' + branch);
+        return RlyDeletionPaths.blobs(parse(res), path);
     }
 
     /**

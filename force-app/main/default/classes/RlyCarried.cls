@@ -65,19 +65,49 @@ public with sharing class RlyCarried {
     }
 
     /**
-     * @description The carried releases' components, each once, as new items for the promotion.
+     * @description The carried releases' components and deletions, each once, as new items for the promotion.
      * @param carried the carried releases
      * @return the items (not saved)
      */
     public static List<RLY_Release_Item__c> items(List<RLY_Release__c> carried) {
         Map<String, RLY_Release_Item__c> byKey = new Map<String, RLY_Release_Item__c>();
         for (RLY_Release_Item__c i : RlyPromoteStore.itemsOf(new Map<Id, RLY_Release__c>(carried).keySet())) {
-            String key = i.Metadata_Type__c + ':' + i.Component_Name__c;
+            String key = (i.Is_Deletion__c == true ? '-' : '+') + i.Metadata_Type__c + ':' + i.Component_Name__c;
             if (!byKey.containsKey(key)) {
                 byKey.put(key, new RLY_Release_Item__c(Metadata_Type__c = i.Metadata_Type__c, Component_Name__c = i.Component_Name__c,
-                    Change_Type__c = i.Change_Type__c, Source__c = i.Source__c));
+                    Change_Type__c = i.Change_Type__c, Source__c = i.Source__c, Is_Deletion__c = i.Is_Deletion__c == true));
             }
         }
         return byKey.values();
+    }
+
+    /**
+     * @description How many of these items add or change a component (the rest are deletions).
+     * @param items the items
+     * @return the count
+     */
+    public static Integer addedCount(List<RLY_Release_Item__c> items) {
+        Integer n = 0;
+        for (RLY_Release_Item__c i : items) {
+            n += i.Is_Deletion__c == true ? 0 : 1;
+        }
+        return n;
+    }
+
+    /**
+     * @description The carried releases' deletions, each once, oldest deploy first.
+     * @param carried the carried releases, with Deletions__c
+     * @return Type:Name of each
+     */
+    public static List<String> deletions(List<RLY_Release__c> carried) {
+        List<String> out = new List<String>();
+        for (RLY_Release__c r : carried) {
+            for (String k : RlyDeletions.of(r)) {
+                if (!out.contains(k)) {
+                    out.add(k);
+                }
+            }
+        }
+        return out;
     }
 }

@@ -1,6 +1,7 @@
 /**
  * @description The test rule of a release: Apex needs at least one test class (no bypass), and every selected
- * test class must be in the release, so the deploys can run it (RunSpecifiedTests).
+ * test class must be in the release, so the deploys can run it (RunSpecifiedTests). Deleting Apex needs no test class
+ * (production runs the local tests then: RlyPipelineOptions).
  */
 public with sharing class RlyTestRule {
 

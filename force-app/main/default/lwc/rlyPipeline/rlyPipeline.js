@@ -25,6 +25,7 @@ const LOGIN_OPTIONS = [
     { label: 'Production or Developer Edition', value: 'Production' },
     { label: 'Sandbox', value: 'Sandbox' }
 ];
+const LOGIN_LABELS = LOGIN_OPTIONS.reduce((m, o) => ({ ...m, [o.value]: o.label }), {});
 const ENVIRONMENT_OPTIONS = [
     { label: 'Developer sandbox', value: 'Developer' },
     { label: 'Developer Pro sandbox', value: 'Developer_Pro' },
@@ -48,9 +49,12 @@ const PROVIDERS = [
     { label: 'Bitbucket', value: 'Bitbucket', how: 'Custom pipeline', repo: 'workspace/repository', pipeLabel: 'Custom pipeline', pipe: 'release-relay', cred: 'RLY_Bitbucket' },
     { label: 'Azure DevOps', value: 'AzureDevOps', how: 'Azure Pipeline', repo: 'organization/project/repository', pipeLabel: 'Pipeline id', pipe: '', cred: 'RLY_AzureDevOps' }
 ];
-const ORG_FIELDS = ['Id', 'Name', 'Role__c', 'Environment__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Certificate__c', 'Git_Environment__c', 'Branch__c'];
+/** The org's own fields saveOrg takes (the consumer key is sent only when one is typed). */
+const ORG_FIELDS = ['Name', 'Role__c', 'Environment__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Certificate__c', 'Git_Environment__c', 'Branch__c'];
+/** A change to any of these (or a new consumer key) tests the sign-in again after Save. */
+const SIGN_IN_FIELDS = ['My_Domain__c', 'Login_Type__c', 'Username__c', 'Certificate__c'];
 const GIT_STATUS_CLS = { Connected: 'rr-pill rr-pill-ok', Failed: 'rr-pill rr-pill-bad', 'Not checked': 'rr-pill rr-pill-none' };
-const APPROVE_FIELDS = ['Approve_In_Salesforce__c', 'Approve_In_Slack__c'];
+const READONLY_CLS = 'slds-form-element slds-form-element_readonly rr-ro-item';
 
 function errorText(e) {
     return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
@@ -79,6 +83,32 @@ function blankGit() {
     };
 }
 
+/** One read-only label/value pair on a card (slds-form-element_readonly). */
+function fact(key, label, value, opts) {
+    const o = opts || {};
+    const has = value !== null && value !== undefined && String(value).trim() !== '';
+    return {
+        key, label, isFlag: false,
+        value: has ? value : (o.empty || 'Not set'),
+        valueCls: (o.mono && has ? 'rr-mono rr-break' : 'rr-break') + (has ? '' : ' rr-weak'),
+        cls: READONLY_CLS + (o.wide ? ' rr-ro-wide' : ''),
+        hint: o.hint || ''
+    };
+}
+
+/** One read-only switch on a card: a check and "On", or a dash and "Off". */
+function flag(key, label, on, hint) {
+    return { key, label, isFlag: true, on: on === true, value: on === true ? 'On' : 'Off', cls: READONLY_CLS, hint: hint || '' };
+}
+
+function trimOrNull(v) {
+    if (typeof v !== 'string') {
+        return v === undefined ? null : v;
+    }
+    const t = v.trim();
+    return t === '' ? null : t;
+}
+
 export default class RlyPipeline extends LightningElement {
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
     get appName() { return APP_NAME; }
@@ -90,36 +120,23 @@ export default class RlyPipeline extends LightningElement {
     isAdmin = false;
     loading = false;
     error;
-    editing = false;
-    form = blankForm();
-    formError;
-    saving = false;
     checkingId;
     showSetup = false;
     providerOptions = PROVIDERS.map((p) => ({ label: p.label, value: p.value }));
     git;
-    gitForm = blankGit();
-    gitError;
     gitBusy = false;
     developers = [];
     stages = [];
     warnings = [];
     routeDirty = false;
     routeBusy = false;
-    gitDirty = false;
     editingRoute = false;
     slackAvailable = false;
     gitProviderName;
-    bouncedId;
     slack = { isAdmin: false, events: [], allEvents: [], approvers: [] };
-    slackForm = { enabled: false, signingSecret: '', events: [] };
     slackBusy = false;
     slackTesting = false;
-    slackError;
-    slackEditing = false;
     showApprovers = false;
-    memberEdits = {};
-    memberSavingId;
     orgSlackBusyId;
     /** RlyRouteController.getPipelineFiles: the pipeline files' versions in the repository and packaged. */
     pipeFiles;
@@ -133,8 +150,23 @@ export default class RlyPipeline extends LightningElement {
     focusFiles = false;
     /** RlyRouteController.getBackPromote: the back promote switch and its orgs (null when this user can't read it). */
     backPromote;
-    bpBusy = false;
     bpBusyId;
+
+    // The Edit modal: every card is read-only; Edit (or Register an org) opens one modal with that card's settings.
+    /** Which modal is open: org, git, slack or backPromote (undefined when none). */
+    modalKind;
+    modalError;
+    saving = false;
+    focusModal = false;
+    /** The org being edited as the page has it (undefined when registering a new one). */
+    modalOrg;
+    form = blankForm();
+    bounced = false;
+    bpForm = { whenValue: 'Manual', approval: false };
+    gitForm = blankGit();
+    slackForm = { enabled: false, signingSecret: '', events: [] };
+    memberEdits = {};
+    bpSwitch = false;
 
     connectedCallback() {
         this.load();
@@ -146,6 +178,13 @@ export default class RlyPipeline extends LightningElement {
             if (close) {
                 close.focus();
                 this.focusFiles = false;
+            }
+        }
+        if (this.focusModal) {
+            const first = this.template.querySelector('.rr-modal .rr-first');
+            if (first) {
+                first.focus();
+                this.focusModal = false;
             }
         }
     }
@@ -168,9 +207,6 @@ export default class RlyPipeline extends LightningElement {
                 if (this.git && !this.pipeFiles && !this.pipeFilesLoading) {
                     this.loadPipeFiles();
                 }
-                if (this.orgs.length === 0 && this.isAdmin && !this.editing) {
-                    this.startAdd();
-                }
             })
             .catch((e) => {
                 this.error = errorText(e);
@@ -185,7 +221,7 @@ export default class RlyPipeline extends LightningElement {
         return getBackPromote().catch(() => null);
     }
 
-    // ---------- cards ----------
+    // ---------- cards (read-only) ----------
 
     get hasOrgs() { return this.orgs.length > 0; }
     get noOrgs() { return !this.loading && this.orgs.length === 0; }
@@ -197,43 +233,87 @@ export default class RlyPipeline extends LightningElement {
                 const isDeveloper = o.Role__c === 'Developer';
                 const isHub = o.Role__c === 'Hub';
                 const isBackPromote = o.Role__c === BACK_PROMOTE;
+                const isTarget = !isDeveloper && !isBackPromote;
                 const ap = approvals(o);
                 const busy = this.orgSlackBusyId === o.Id;
+                const bp = isBackPromote ? this.bpCard(o) : null;
                 return {
                     ...o,
+                    statusText: o.Status__c || 'Not checked',
                     statusCls: STATUS_CLS[o.Status__c] || STATUS_CLS['Not checked'],
                     rolePill: this.rolePill(o),
                     rolePillCls: isHub ? 'rr-pill rr-pill-info' : 'rr-pill rr-pill-none',
-                    summary: this.summary(o),
+                    facts: this.orgFacts(o),
+                    settings: this.orgSettings(o, { isDeveloper, isTarget, isBackPromote, ap, bp }),
                     checkedText: o.Last_Checked__c ? 'Checked ' + new Date(o.Last_Checked__c).toLocaleString([], {
                         month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not checked yet',
                     messageCls: o.Status__c === 'Failed' ? 'rr-msg rr-msg-bad rr-pad' : 'rr-msg rr-msg-info rr-pad',
                     checking: this.checkingId === o.Id,
                     checkLabel: this.checkingId === o.Id ? 'Signing in…' : 'Test sign-in',
+                    editLabel: 'Edit ' + o.Name,
                     isDeveloper,
-                    isTarget: !isDeveloper && !isBackPromote,
                     isBackPromote,
                     isOrg: true,
-                    Hotfix_Two_Approvers__c: o.Hotfix_Two_Approvers__c === true,
-                    twoApproverLabel: 'Hotfixes into ' + o.Name + ' need 2 approvers',
-                    showTwoApproverHelp: o.Hotfix_Two_Approvers__c === true,
-                    bp: isBackPromote ? this.bpCard(o) : null,
-                    Approve_In_Salesforce__c: ap.sf || !(this.slackAvailable && ap.slack),
-                    Approve_In_Slack__c: ap.slack,
-                    Require_Git_Review__c: ap.git,
-                    approveGroupLabel: 'Where releases into ' + o.Name + ' are approved',
-                    showApproveHelp: this.slackAvailable || this.bouncedId === o.Id,
-                    approveHelpCls: this.bouncedId === o.Id ? 'rr-msg rr-msg-wait' : 'rr-kicker',
-                    slackTitle: this.sectTitle(o, isDeveloper),
-                    channelPlaceholder: '#channel-name',
-                    postLabel: isDeveloper ? 'Also post here' : 'Post to Slack',
-                    cantEdit: !this.isAdmin || busy,
+                    bp,
+                    sectTitle: this.sectTitle(o, isDeveloper),
                     cantTest: !this.isAdmin || busy || this.slackBusy || !(o.Slack_Channel__c || '').trim(),
-                    showHubNote: !isDeveloper && !isBackPromote && !ap.slack && !!o.Slack_Post__c,
-                    showEvents: !isDeveloper && (!!o.Slack_Post__c || ap.slack),
+                    showHubNote: isTarget && this.slackSetUp && !ap.slack && !!o.Slack_Post__c,
+                    showEvents: this.slackSetUp && !isDeveloper && (!!o.Slack_Post__c || ap.slack),
+                    showDevNote: this.slackSetUp && isDeveloper,
                     showSect: !isDeveloper || this.slackSetUp
                 };
             });
+    }
+
+    /** Sign-in and environment facts for an org card. */
+    orgFacts(o) {
+        const facts = [
+            fact('env', 'Salesforce environment', ENVIRONMENT_LABELS[o.Environment__c]),
+            fact('branch', 'Branch', o.Branch__c, { mono: true }),
+            fact('genv', 'Git environment', o.Git_Environment__c, { mono: true }),
+            fact('login', 'Login type', LOGIN_LABELS[o.Login_Type__c]),
+            fact('domain', 'My Domain', o.My_Domain__c, { mono: true, wide: true }),
+            fact('user', 'Integration username', o.Username__c, { mono: true, wide: true })
+        ];
+        if (o.Role__c === 'Hub') {
+            facts.push(fact('deploy', 'Deploys with', 'This org (the hub)'));
+        } else {
+            let how;
+            if (o.Source_Tracking__c === 'Available') {
+                how = 'Fast: source tracking';
+            } else if (o.Source_Tracking__c === 'Not available') {
+                how = 'Metadata API';
+            }
+            facts.push(fact('deploy', 'Deploys with', how, { empty: 'Known after a sign-in' }));
+            facts.push(fact('api', 'API version', o.Api_Version__c, { empty: 'Known after a sign-in' }));
+        }
+        return facts;
+    }
+
+    /** Approval, Slack and back promote settings for an org card, as text. */
+    orgSettings(o, c) {
+        const list = [];
+        if (c.isTarget) {
+            list.push(flag('asf', 'Approve in Salesforce', c.ap.sf || !(this.slackAvailable && c.ap.slack)));
+            if (this.slackAvailable) {
+                list.push(flag('asl', 'Approve in Slack', c.ap.slack));
+            }
+            if (this.showGitReview) {
+                list.push(flag('git', 'Also require ' + this.gitProviderName.trim() + ' reviewers', c.ap.git));
+            }
+            list.push(flag('two', 'Hotfixes need 2 approvers', o.Hotfix_Two_Approvers__c === true,
+                o.Hotfix_Two_Approvers__c === true ? 'Two different approvers, and the person who raised the hotfix can\'t approve it.' : ''));
+        }
+        if (c.isBackPromote && c.bp) {
+            const when = this.bpWhenOptions.find((w) => w.value === c.bp.whenValue);
+            list.push(fact('bpw', 'When', when ? when.label : c.bp.whenValue));
+            list.push(flag('bpa', 'Approve before syncing', c.bp.approval, c.bp.approvalText));
+        }
+        if (this.slackSetUp) {
+            list.push(fact('ch', 'Slack channel', o.Slack_Channel__c, { mono: true, empty: 'None' }));
+            list.push(flag('post', c.isDeveloper ? 'Also post here' : 'Post to Slack', !!o.Slack_Post__c));
+        }
+        return list;
     }
 
     /** The org cards, with the Back promote card just before the back promote orgs (board HubHotfixBackPromote). */
@@ -264,7 +344,6 @@ export default class RlyPipeline extends LightningElement {
     }
 
     get showGitReview() { return !!(this.gitProviderName || '').trim(); }
-    get gitReviewLabel() { return 'Also require ' + (this.gitProviderName || '').trim() + ' reviewers before deploying'; }
 
     get roleOptions() {
         const first = this.stages.find((s) => s.Role__c !== 'Hub');
@@ -292,31 +371,6 @@ export default class RlyPipeline extends LightningElement {
         return i >= 0 ? 'Stage ' + (i + 1) : 'Stage';
     }
 
-    /** branch · env · source tracking or Metadata API · API version (or "this org" for the hub). */
-    summary(o) {
-        const parts = [];
-        if (o.Environment__c && ENVIRONMENT_LABELS[o.Environment__c]) {
-            parts.push({ key: 'v', label: ENVIRONMENT_LABELS[o.Environment__c] });
-        }
-        if (o.Branch__c) {
-            parts.push({ key: 'b', label: 'branch ', value: o.Branch__c });
-        }
-        if (o.Git_Environment__c) {
-            parts.push({ key: 'e', label: 'env ', value: o.Git_Environment__c });
-        }
-        if (o.Role__c === 'Hub') {
-            parts.push({ key: 'h', label: 'this org' });
-        } else if (o.Source_Tracking__c === 'Available') {
-            parts.push({ key: 't', label: 'Fast: source tracking' });
-        } else if (o.Source_Tracking__c === 'Not available') {
-            parts.push({ key: 't', label: 'Metadata API' });
-        }
-        if (o.Api_Version__c && o.Role__c !== 'Hub') {
-            parts.push({ key: 'a', label: 'API ' + o.Api_Version__c });
-        }
-        return parts;
-    }
-
     get eventsText() {
         if (!this.slack.enabled) {
             return 'Slack is off for the hub.';
@@ -325,79 +379,12 @@ export default class RlyPipeline extends LightningElement {
         return 'Events: ' + (events.length ? events.join(' · ') : 'none');
     }
 
-    // ---------- approval and Slack per org ----------
-
-    /** Approve in Salesforce / in Slack: either is enough, and the last one on can't be switched off. */
-    handleApproveToggle(event) {
-        const orgId = event.target.dataset.id;
-        const field = event.target.dataset.field;
-        const on = event.target.checked;
-        const o = this.orgs.find((x) => x.Id === orgId);
-        const ap = approvals(o);
-        const slack = this.slackAvailable && ap.slack;
-        const current = { Approve_In_Salesforce__c: ap.sf || !slack, Approve_In_Slack__c: slack };
-        const next = { ...current, [field]: on };
-        if (!APPROVE_FIELDS.some((k) => next[k])) {
-            event.target.checked = true;
-            this.bouncedId = orgId;
-            this.updateOrg(orgId, { [field]: true }, false);
-            return;
-        }
-        this.bouncedId = undefined;
-        this.updateOrg(orgId, { [field]: on }, true);
-    }
-
-    handleOrgChannel(event) {
-        this.updateOrg(event.target.dataset.id, { Slack_Channel__c: event.target.value }, false);
-    }
-
-    handleOrgChannelCommit(event) {
-        this.updateOrg(event.target.dataset.id, { Slack_Channel__c: (event.target.value || '').trim() }, true);
-    }
-
-    handleOrgToggle(event) {
-        this.updateOrg(event.target.dataset.id, { [event.target.dataset.field]: event.target.checked }, true);
-    }
-
-    /** Changes the org on the page at once; saves it through saveOrg (the sign-in fields as they are, the key kept). */
-    updateOrg(orgId, changes, save) {
-        this.orgs = this.orgs.map((x) => (x.Id === orgId ? { ...x, ...changes } : x));
-        if (save) {
-            this.saveOrgSlack(this.orgs.find((x) => x.Id === orgId));
-        }
-    }
-
-    saveOrgSlack(o) {
-        const payload = {};
-        ORG_FIELDS.forEach((k) => {
-            payload[k] = o[k] === undefined ? null : o[k];
-        });
-        const ap = approvals(o);
-        payload.Approve_In_Salesforce__c = ap.sf;
-        payload.Approve_In_Slack__c = ap.slack;
-        payload.Require_Git_Review__c = ap.git;
-        payload.Slack_Channel__c = (o.Slack_Channel__c || '').trim() || null;
-        payload.Slack_Post__c = !!o.Slack_Post__c;
-        payload.Hotfix_Two_Approvers__c = o.Hotfix_Two_Approvers__c === true;
-        this.orgSlackBusyId = o.Id;
-        return saveOrg({ orgJson: JSON.stringify(payload) })
-            .then(() => getOrgs())
-            .then((h) => {
-                this.orgs = h.orgs || this.orgs;
-                this.toast(o.Name + ': settings saved', 'success');
-            })
-            .catch((e) => {
-                this.toast(errorText(e), 'error');
-                return this.load();
-            })
-            .finally(() => {
-                this.orgSlackBusyId = undefined;
-            });
-    }
-
     handleOrgSlackTest(event) {
         const o = this.orgs.find((x) => x.Id === event.currentTarget.dataset.id);
-        this.runSlack(sendSlackTest({ channel: (o.Slack_Channel__c || '').trim() }), 'test');
+        this.orgSlackBusyId = o.Id;
+        this.runSlack(sendSlackTest({ channel: (o.Slack_Channel__c || '').trim() }), 'test').finally(() => {
+            this.orgSlackBusyId = undefined;
+        });
     }
 
     applySetup(s) {
@@ -408,18 +395,12 @@ export default class RlyPipeline extends LightningElement {
         this.warnings = s.warnings || [];
         this.routeDirty = false;
         this.editingRoute = false;
-        if (!this.gitDirty) {
-            this.gitForm = this.git ? { ...blankGit(), ...this.git } : blankGit();
-        }
     }
 
-    // ---------- Git connection ----------
+    // ---------- Git connection (read-only card) ----------
 
     get hasGit() { return !!this.git; }
-    get gitLocked() { return !this.isAdmin || this.gitBusy; }
-    get gitCantCheck() { return this.gitBusy || this.gitDirty; }
-    get showGitSave() { return this.isAdmin && (this.gitDirty || !this.git); }
-    get gitSaveLabel() { return this.gitBusy ? 'Saving…' : 'Save and check'; }
+    get noGit() { return !this.git; }
     get gitStatus() { return (this.git && this.git.Status__c) || 'Not checked'; }
     /** A short one-line result goes in the pill, as on the board; anything longer stays in the message below. */
     get gitShortMessage() {
@@ -428,74 +409,24 @@ export default class RlyPipeline extends LightningElement {
     }
     get gitStatusText() { return this.gitShortMessage || this.gitStatus; }
     get gitStatusCls() { return GIT_STATUS_CLS[this.gitStatus] || GIT_STATUS_CLS['Not checked']; }
-    get gitMessage() { return this.git && !this.gitDirty && !this.gitShortMessage ? this.git.Status_Message__c : null; }
+    get gitMessage() { return this.git && !this.gitShortMessage ? this.git.Status_Message__c : null; }
     get gitMessageCls() { return this.git && this.git.Status__c === 'Failed' ? 'rr-msg rr-msg-bad' : 'rr-msg rr-msg-info'; }
-    get providerTiles() {
-        const current = this.gitForm.Provider__c || 'GitHub';
-        return PROVIDERS.map((p) => ({
-            ...p,
-            pressed: p.value === current ? 'true' : 'false',
-            cls: p.value === current ? 'rr-prov rr-prov-on' : 'rr-prov'
-        }));
-    }
-    get gitProvider() { return PROVIDERS.find((p) => p.value === (this.gitForm.Provider__c || 'GitHub')) || PROVIDERS[0]; }
-    get gitProviderLabel() {
-        const p = this.git && PROVIDERS.find((x) => x.value === this.git.Provider__c);
-        return p ? p.label : '';
-    }
     get gitCheckLabel() { return this.gitBusy ? 'Testing…' : 'Test connection'; }
-    get scanOnText() { return 'On for every ' + (this.gitForm.Provider__c === 'GitLab' ? 'merge request' : 'pull request'); }
 
-    pickProvider(event) {
-        const value = event.currentTarget.dataset.value;
-        if (value === this.gitForm.Provider__c) {
-            return;
-        }
-        const p = PROVIDERS.find((x) => x.value === value);
-        this.gitForm = { ...this.gitForm, Provider__c: value, Named_Credential__c: p.cred, Pipeline__c: p.pipe };
-        this.gitDirty = true;
-        this.gitError = undefined;
-    }
-
-    cancelGitEdit() {
-        this.gitDirty = false;
-        this.gitError = undefined;
-        this.gitForm = this.git ? { ...blankGit(), ...this.git } : blankGit();
-    }
-
-    handleGitField(event) {
-        const field = event.target.dataset.field;
-        let value = event.detail && event.detail.value !== undefined ? event.detail.value : event.target.value;
-        if (event.target.type === 'checkbox' || event.target.type === 'toggle') {
-            value = event.target.checked;
-        }
-        this.gitForm = { ...this.gitForm, [field]: value };
-        this.gitDirty = true;
-        this.gitError = undefined;
-    }
-
-    handleGitSave() {
-        const f = this.gitForm;
-        const payload = {
-            Provider__c: f.Provider__c, Repository__c: (f.Repository__c || '').trim(), Named_Credential__c: (f.Named_Credential__c || '').trim(),
-            Pipeline__c: (f.Pipeline__c || '').trim(), Pipeline_Branch__c: (f.Pipeline_Branch__c || '').trim(),
-            Source_Path__c: (f.Source_Path__c || '').trim(), Code_Scan__c: f.Code_Scan__c !== false
-        };
-        this.gitBusy = true;
-        this.gitError = undefined;
-        saveGit({ gitJson: JSON.stringify(payload) })
-            .then(() => {
-                this.gitDirty = false;
-                // The provider or branch may have changed: read the pipeline files' versions again.
-                this.pipeFiles = undefined;
-                return this.load().then(() => this.runGitCheck());
-            })
-            .catch((e) => {
-                this.gitError = errorText(e);
-            })
-            .finally(() => {
-                this.gitBusy = false;
-            });
+    /** What the Git connection card shows, as text. */
+    get gitFacts() {
+        const g = this.git || {};
+        const p = PROVIDERS.find((x) => x.value === g.Provider__c) || PROVIDERS[0];
+        const scanOn = g.Code_Scan__c !== false;
+        return [
+            fact('prov', 'Provider', p.label + ' · ' + p.how),
+            fact('repo', 'Repository', g.Repository__c, { mono: true }),
+            fact('cred', 'Named Credential (token)', g.Named_Credential__c, { mono: true }),
+            fact('pipe', p.pipeLabel, g.Pipeline__c, { mono: true }),
+            fact('pb', 'Pipeline branch', g.Pipeline_Branch__c, { mono: true }),
+            fact('src', 'Source path', g.Source_Path__c, { mono: true }),
+            flag('scan', 'Code scan', scanOn, scanOn ? 'On for every ' + (g.Provider__c === 'GitLab' ? 'merge request' : 'pull request') : '')
+        ];
     }
 
     handleGitCheck() {
@@ -750,6 +681,7 @@ export default class RlyPipeline extends LightningElement {
         return text;
     }
 
+
     // ---------- back promote (optional, off by default) ----------
 
     /** The hub's name (production), for the back promote wording. */
@@ -760,10 +692,10 @@ export default class RlyPipeline extends LightningElement {
     get bpOrgs() { return (this.backPromote && this.backPromote.orgs) || []; }
     get bpEnabled() { return !!(this.backPromote && this.backPromote.enabled); }
     get bpIsAdmin() { return !!(this.backPromote && this.backPromote.isAdmin) && this.isAdmin; }
-    get bpCantToggle() { return !this.bpIsAdmin || this.bpBusy; }
     get bpPill() { return this.bpEnabled ? 'On' : 'Off by default'; }
     get bpPillCls() { return this.bpEnabled ? 'rr-pill rr-pill-ok' : 'rr-pill rr-pill-none'; }
     get bpToggleLabel() { return 'Send ' + this.hubName + '\'s changes to other orgs after a deploy'; }
+    get bpFacts() { return [flag('bp', this.bpToggleLabel, this.bpEnabled)]; }
     get bpHelpLead() { return 'Register an org with the role '; }
     get bpHelpTail() {
         return ', then choose when it gets ' + this.hubName + '\'s changes. Metadata only: users and records in that org stay as they are.';
@@ -791,9 +723,14 @@ export default class RlyPipeline extends LightningElement {
         ];
     }
 
-    /** What the Back promote org card shows: When, Approve before syncing, how far behind, Sync now. */
+    /** The org's back promote settings as getBackPromote has them. */
+    bpFor(o) {
+        return this.bpOrgs.find((x) => x.orgId === o.Id) || { orgId: o.Id, whenValue: o.Back_Promote_When__c, approval: o.Back_Promote_Approval__c === true, behind: 0 };
+    }
+
+    /** What the back promote org card shows: When, Approve before syncing, how far behind, Sync now. */
     bpCard(o) {
-        const b = this.bpOrgs.find((x) => x.orgId === o.Id) || { orgId: o.Id, whenValue: o.Back_Promote_When__c, approval: o.Back_Promote_Approval__c === true, behind: 0 };
+        const b = this.bpFor(o);
         const busy = this.bpBusyId === o.Id;
         const behind = b.behind || 0;
         const approval = b.approval === true;
@@ -804,7 +741,7 @@ export default class RlyPipeline extends LightningElement {
         return {
             whenValue: b.whenValue || 'Manual',
             approval,
-            approvalText: approval ? 'On: an approver approves each sync first' : 'Off: ' + this.hubName + '\'s approval is enough',
+            approvalText: approval ? 'An approver approves each sync first.' : this.hubName + '\'s approval is enough.',
             behindPill: behind ? this.behindText(b) : 'Matches ' + this.hubName,
             behindCls: behind ? 'rr-pill rr-pill-wait' : 'rr-pill rr-pill-ok',
             behindNames: (b.behindNames || []).join(', '),
@@ -812,60 +749,9 @@ export default class RlyPipeline extends LightningElement {
             syncStatus: b.syncStatus || '',
             syncCls: SYNC_STATUS_CLS[b.syncStatus] || 'rr-pill rr-pill-none',
             offNote: this.bpEnabled ? '' : 'Back promote is off. Switch it on in the Back promote card to sync this org.',
-            cantEdit: !this.bpIsAdmin || busy,
             cantSync: !this.bpIsAdmin || busy || !this.bpEnabled,
-            syncLabel: busy ? 'Starting…' : 'Sync now',
-            groupLabel: 'When ' + o.Name + ' gets ' + this.hubName + '\'s changes'
+            syncLabel: busy ? 'Starting…' : 'Sync now'
         };
-    }
-
-    handleBackPromoteToggle(event) {
-        const state = event.target.checked ? 'on' : 'off';
-        this.bpBusy = true;
-        setBackPromote({ state })
-            .then((bp) => {
-                this.backPromote = bp;
-                this.toast('Back promote ' + (bp && bp.enabled ? 'on' : 'off'), 'success');
-            })
-            .catch((e) => {
-                this.toast(errorText(e), 'error');
-                return this.readBackPromote().then((bp) => {
-                    this.backPromote = bp;
-                });
-            })
-            .finally(() => {
-                this.bpBusy = false;
-            });
-    }
-
-    handleBpWhen(event) {
-        this.saveBp(event.target.dataset.id, { whenValue: event.detail.value });
-    }
-
-    handleBpApproval(event) {
-        this.saveBp(event.target.dataset.id, { approval: event.target.checked });
-    }
-
-    /** Saves one back promote org's When and Approve before syncing (saveBackPromoteOrg returns the board again). */
-    saveBp(orgId, changes) {
-        const b = this.bpOrgs.find((x) => x.orgId === orgId) || {};
-        const settings = { orgId, whenValue: b.whenValue || 'Manual', approval: b.approval === true, ...changes };
-        this.backPromote = { ...this.backPromote, orgs: this.bpOrgs.map((x) => (x.orgId === orgId ? { ...x, ...changes } : x)) };
-        this.bpBusyId = orgId;
-        saveBackPromoteOrg({ settingsJson: JSON.stringify(settings) })
-            .then((bp) => {
-                this.backPromote = bp;
-                this.toast((b.name || 'Org') + ': back promote saved', 'success');
-            })
-            .catch((e) => {
-                this.toast(errorText(e), 'error');
-                return this.readBackPromote().then((bp) => {
-                    this.backPromote = bp;
-                });
-            })
-            .finally(() => {
-                this.bpBusyId = undefined;
-            });
     }
 
     handleSyncNow(event) {
@@ -884,6 +770,8 @@ export default class RlyPipeline extends LightningElement {
                 this.bpBusyId = undefined;
             });
     }
+
+    // ---------- route ----------
 
     startRouteEdit() {
         this.editingRoute = true;
@@ -920,19 +808,16 @@ export default class RlyPipeline extends LightningElement {
             });
     }
 
-    // ---------- Slack connection ----------
+    // ---------- Slack connection (read-only card) ----------
 
     applySlack(sl) {
         this.slack = sl || { isAdmin: false, events: [], allEvents: [], approvers: [] };
-        this.slackForm = { enabled: !!this.slack.enabled, signingSecret: '', events: [...(this.slack.events || [])] };
-        this.slackError = undefined;
     }
 
     get showSlack() { return this.isAdmin && this.slack.isAdmin; }
     /** Slack is optional: until it's connected or switched on, the org cards show only Approved in. */
     get slackSetUp() { return !!(this.slack.connected || this.slack.enabled); }
     get slackNotSetUp() { return !this.slackSetUp; }
-    get showSlackForm() { return this.slackEditing || this.slackNotSetUp; }
     get slackStatus() { return this.slack.status || 'Not set up'; }
     get slackStatusCls() {
         if (this.slackStatus === 'Connected') {
@@ -941,9 +826,6 @@ export default class RlyPipeline extends LightningElement {
         return this.slackStatus.startsWith('Error') ? 'rr-pill rr-pill-bad' : 'rr-pill rr-pill-none';
     }
     get slackTestLabel() { return this.slackTesting ? 'Testing…' : 'Test'; }
-    get slackEditLabel() { return this.slackEditing ? 'Close settings' : 'Settings'; }
-    get slackWorkspace() { return this.slack.workspace || 'Not connected yet'; }
-    get slackActionsText() { return this.slack.actionsUrl ? 'Site: ' + this.slack.actionsUrl : 'No Site set up yet'; }
     /** The secret itself never comes to the page: only a masked hint of the saved one. */
     get slackSecretText() {
         const hint = this.slack.signingSecretHint;
@@ -951,7 +833,21 @@ export default class RlyPipeline extends LightningElement {
     }
     get slackSecretPlaceholder() { return this.slack.signingSecretHint ? this.slack.signingSecretHint + '. Leave blank to keep it.' : ''; }
     get approversText() { return (this.slack.approversLinked || 0) + ' of ' + (this.slack.approversTotal || 0); }
-    get approversToggleLabel() { return this.showApprovers ? 'Hide' : 'Show'; }
+    get approversToggleLabel() { return this.showApprovers ? 'Hide approvers' : 'Show approvers'; }
+
+    /** What the Slack connection card shows, as text. */
+    get slackFacts() {
+        const events = this.slack.events || [];
+        return [
+            flag('on', 'Slack', !!this.slack.enabled),
+            fact('ws', 'Workspace', this.slack.workspace, { empty: 'Not connected yet' }),
+            fact('tok', 'Bot token', 'Named Credential RLY_Slack', { mono: true, hint: 'Token kept by Salesforce, never shown' }),
+            fact('site', 'Approve in Slack', this.slack.actionsUrl ? 'Site: ' + this.slack.actionsUrl : '', { mono: true, empty: 'No Site set up yet', hint: this.slackSecretText }),
+            fact('ev', 'Send a message when a release is', events.join(' · '), { empty: 'No events', wide: true }),
+            fact('ap', 'Approvers linked', this.approversText)
+        ];
+    }
+
     get approverRows() {
         return (this.slack.approvers || []).map((a) => {
             const edited = this.memberEdits[a.userId];
@@ -959,9 +855,9 @@ export default class RlyPipeline extends LightningElement {
             return {
                 ...a,
                 memberId,
+                memberText: a.slackMemberId || 'Not linked',
                 linked: !!a.slackMemberId,
-                inputLabel: 'Slack member ID for ' + a.name,
-                cantSave: this.memberSavingId === a.userId || memberId.trim() === (a.slackMemberId || '')
+                inputLabel: 'Slack member ID for ' + a.name
             };
         });
     }
@@ -977,50 +873,9 @@ export default class RlyPipeline extends LightningElement {
         return 'Last message: ' + when + this.slack.lastResult;
     }
     get slackLastCls() { return (this.slack.lastResult || '').startsWith('Failed') ? 'rr-msg rr-msg-bad rr-pad' : 'rr-msg rr-msg-info rr-pad'; }
-    get slackSaveLabel() { return this.slackBusy ? 'Saving…' : 'Save'; }
-
-    toggleSlackEdit() {
-        this.slackEditing = !this.slackEditing;
-        this.applySlack(this.slack);
-    }
-
-    openSlackEdit() {
-        this.slackEditing = true;
-    }
 
     toggleApprovers() {
         this.showApprovers = !this.showApprovers;
-    }
-
-    handleSlackEnabled(event) {
-        const enabled = event.target.checked;
-        // Switched on with no events chosen: every event, as the hub does.
-        const events = enabled && this.slackForm.events.length === 0 ? [...(this.slack.allEvents || [])] : this.slackForm.events;
-        this.slackForm = { ...this.slackForm, enabled, events };
-        this.slackError = undefined;
-    }
-
-    handleSlackSecret(event) {
-        this.slackForm = { ...this.slackForm, signingSecret: event.target.value };
-        this.slackError = undefined;
-    }
-
-    handleSlackEvents(event) {
-        this.slackForm = { ...this.slackForm, events: event.detail.value };
-    }
-
-    handleSlackSave() {
-        const secret = (this.slackForm.signingSecret || '').trim();
-        if (/\s/.test(secret)) {
-            this.slackError = 'The signing secret has no spaces: copy it again from the Slack app (Basic Information).';
-            return;
-        }
-        const settings = { enabled: this.slackForm.enabled, events: this.slackForm.events, signingSecret: secret };
-        this.runSlack(saveSlack({ settingsJson: JSON.stringify(settings) }), 'save').then((ok) => {
-            if (ok) {
-                this.slackEditing = false;
-            }
-        });
     }
 
     handleSlackConnTest() {
@@ -1030,16 +885,13 @@ export default class RlyPipeline extends LightningElement {
         });
     }
 
-    /** Runs a Slack call; kind is save, check or test (which toast to show). Resolves true when it worked. */
+    /** Runs a Slack check or test message (kind check or test: which toast to show). Resolves true when it worked. */
     runSlack(call, kind) {
         this.slackBusy = true;
-        this.slackError = undefined;
         return call
             .then((sl) => {
                 this.applySlack(sl);
-                if (kind === 'save') {
-                    this.toast('Slack settings saved', 'success');
-                } else if (kind === 'check') {
+                if (kind === 'check') {
                     this.toast('Slack: ' + (sl.status || 'checked'), sl.status === 'Connected' ? 'success' : 'error');
                 } else {
                     const failed = (sl.lastResult || '').startsWith('Failed');
@@ -1048,34 +900,11 @@ export default class RlyPipeline extends LightningElement {
                 return true;
             })
             .catch((e) => {
-                this.slackError = errorText(e);
-                this.toast(this.slackError, 'error');
+                this.toast(errorText(e), 'error');
                 return false;
             })
             .finally(() => {
                 this.slackBusy = false;
-            });
-    }
-
-    handleMemberInput(event) {
-        this.memberEdits = { ...this.memberEdits, [event.target.dataset.id]: event.target.value };
-    }
-
-    handleMemberSave(event) {
-        const userId = event.currentTarget.dataset.id;
-        const memberId = (this.memberEdits[userId] || '').trim();
-        this.memberSavingId = userId;
-        saveSlackMember({ userId, memberId })
-            .then((sl) => {
-                const edits = { ...this.memberEdits };
-                delete edits[userId];
-                this.memberEdits = edits;
-                this.applySlack(sl);
-                this.toast(memberId ? 'Slack member linked' : 'Slack member unlinked', 'success');
-            })
-            .catch((e) => this.toast(errorText(e), 'error'))
-            .finally(() => {
-                this.memberSavingId = undefined;
             });
     }
 
@@ -1101,25 +930,126 @@ export default class RlyPipeline extends LightningElement {
             });
     }
 
-    // ---------- form ----------
+    // ---------- the Edit modal ----------
+
+    get modalOpen() { return !!this.modalKind; }
+    get isOrgModal() { return this.modalKind === 'org'; }
+    get isGitModal() { return this.modalKind === 'git'; }
+    get isSlackModal() { return this.modalKind === 'slack'; }
+    get isBpModal() { return this.modalKind === 'backPromote'; }
+    get modalCls() { return this.isOrgModal ? 'slds-modal slds-fade-in-open slds-modal_medium rr-modal' : 'slds-modal slds-fade-in-open rr-modal'; }
+    get modalTitle() {
+        if (this.isOrgModal) {
+            return this.modalOrg ? 'Edit ' + this.modalOrg.Name : 'Register an org';
+        }
+        if (this.isGitModal) {
+            return 'Edit Git connection';
+        }
+        if (this.isSlackModal) {
+            return 'Edit Slack connection';
+        }
+        return 'Edit Back promote';
+    }
+    get modalSub() {
+        if (this.isOrgModal) {
+            return this.modalOrg ? 'Nothing changes until you press Save.' : 'Save signs in and reads the Org Id, sandbox name and Metadata API version.';
+        }
+        if (this.isGitModal) {
+            return 'One Git connection for the whole pipeline. Save tests the connection.';
+        }
+        return 'Nothing changes until you press Save.';
+    }
+    get saveLabel() { return this.saving ? 'Saving…' : 'Save'; }
+
+    openModal(kind) {
+        this.modalKind = kind;
+        this.modalError = undefined;
+        this.focusModal = true;
+    }
+
+    closeModal() {
+        if (!this.saving) {
+            this.modalKind = undefined;
+            this.modalError = undefined;
+        }
+    }
+
+    handleModalKey(event) {
+        if (event.key === 'Escape') {
+            event.stopPropagation();
+            this.closeModal();
+        }
+    }
+
+    /** Every required field in the modal filled in; shows the field errors when not. */
+    modalValid() {
+        const fields = [...this.template.querySelectorAll('.rr-modal lightning-input, .rr-modal lightning-combobox')];
+        return fields.reduce((ok, f) => f.reportValidity() && ok, true);
+    }
+
+    finishSave(message, reload) {
+        this.modalKind = undefined;
+        this.modalError = undefined;
+        this.toast(message, 'success');
+        return reload ? this.load() : null;
+    }
+
+    // ----- org -----
 
     startAdd() {
+        this.modalOrg = undefined;
         this.form = blankForm();
-        this.formError = undefined;
-        this.editing = true;
+        this.bounced = false;
+        this.openModal('org');
     }
 
     handleEdit(event) {
         const o = this.orgs.find((x) => x.Id === event.currentTarget.dataset.id);
+        if (!o) {
+            return;
+        }
         const ap = approvals(o);
+        const b = this.bpFor(o);
+        this.modalOrg = o;
         // An org saved before environments existed has none: show the picker empty rather than the new-org default.
-        this.form = { ...blankForm(), Environment__c: null, ...o, Approve_In_Salesforce__c: ap.sf, Approve_In_Slack__c: ap.slack, Require_Git_Review__c: ap.git };
-        this.formError = undefined;
-        this.editing = true;
+        this.form = {
+            ...blankForm(), Environment__c: null, ...o, Consumer_Key__c: '',
+            Approve_In_Salesforce__c: ap.sf || !(this.slackAvailable && ap.slack), Approve_In_Slack__c: ap.slack, Require_Git_Review__c: ap.git,
+            Slack_Channel__c: o.Slack_Channel__c || '', Slack_Post__c: !!o.Slack_Post__c, Hotfix_Two_Approvers__c: o.Hotfix_Two_Approvers__c === true
+        };
+        this.bpForm = { whenValue: b.whenValue || 'Manual', approval: b.approval === true };
+        this.bounced = false;
+        this.openModal('org');
     }
 
-    cancelEdit() {
-        this.editing = false;
+    get formIsDeveloper() { return this.form.Role__c === 'Developer'; }
+    get formIsBackPromote() { return this.form.Role__c === BACK_PROMOTE; }
+    get formIsTarget() { return !this.formIsDeveloper && !this.formIsBackPromote; }
+    get formOrgName() { return (this.form.Name || '').trim() || 'this org'; }
+    get formTwoApproverLabel() { return 'Hotfixes into ' + this.formOrgName + ' need 2 approvers'; }
+    get formTwoApproverOn() { return this.form.Hotfix_Two_Approvers__c === true; }
+    get formGitReviewLabel() { return 'Also require ' + (this.gitProviderName || '').trim() + ' reviewers before deploying'; }
+    get formApproveGroupLabel() { return 'Where releases into ' + this.formOrgName + ' are approved'; }
+    get formShowApproveHelp() { return this.slackAvailable || this.bounced; }
+    get formApproveHelpCls() { return this.bounced ? 'rr-msg rr-msg-wait' : 'rr-kicker'; }
+    get formPostLabel() { return this.formIsDeveloper ? 'Also post here' : 'Post to Slack'; }
+    get formSlackHelp() {
+        return this.formIsDeveloper
+            ? 'A release posts its card in the target\'s channel. A developer org can also get a copy, so the people working in ' + this.formOrgName + ' see their own releases.'
+            : 'Releases into ' + this.formOrgName + ' post their card in this channel.';
+    }
+    get formShowSlack() { return this.slackSetUp; }
+    /** Back promote settings belong to a registered back promote org (getBackPromote has it). */
+    get formShowBp() { return this.formIsBackPromote && !!this.form.Id && this.bpIsAdmin; }
+    get formBpNew() { return this.formIsBackPromote && !this.form.Id; }
+    get formBpGroupLabel() { return 'When ' + this.formOrgName + ' gets ' + this.hubName + '\'s changes'; }
+
+    /** The masked hint of the saved consumer key (the key itself never comes to the page). */
+    get savedKeyHint() { return this.form.Id ? this.keyHints[this.form.Id] : null; }
+    get keyRequired() { return !this.savedKeyHint; }
+    get keyPlaceholder() {
+        const saved = this.savedKeyHint;
+        return saved ? 'Saved (ends ••••' + saved.slice(-4) + '). Leave blank to keep it.' : '';
     }
 
     handleField(event) {
@@ -1135,44 +1065,262 @@ export default class RlyPipeline extends LightningElement {
             next.Environment__c = 'Production';
         }
         this.form = next;
-        this.formError = undefined;
+        this.modalError = undefined;
     }
 
-    get formTitle() { return this.form.Id ? '2 · Edit ' + this.form.Name : '2 · Register an org'; }
-
-    /** The masked hint of the saved consumer key (the key itself never comes to the page). */
-    get savedKeyHint() { return this.form.Id ? this.keyHints[this.form.Id] : null; }
-    get keyRequired() { return !this.savedKeyHint; }
-    get keyPlaceholder() {
-        const saved = this.savedKeyHint;
-        return saved ? 'Saved (ends ••••' + saved.slice(-4) + '). Leave blank to keep it.' : '';
+    handleFormToggle(event) {
+        this.form = { ...this.form, [event.target.dataset.field]: event.target.checked };
     }
-    get saveLabel() { return this.saving ? 'Saving…' : 'Save org'; }
 
-    handleSave() {
-        // A blank consumer key isn't sent, so an edit keeps the saved one.
-        const keys = ['Id', 'Name', 'Role__c', 'Environment__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Consumer_Key__c',
-            'Certificate__c', 'Git_Environment__c', 'Branch__c', 'Approve_In_Salesforce__c', 'Approve_In_Slack__c',
-            'Require_Git_Review__c', 'Slack_Channel__c', 'Slack_Post__c', 'Hotfix_Two_Approvers__c'];
+    /** Approve in Salesforce / in Slack: either is enough, and the last one on can't be switched off. */
+    handleApproveToggle(event) {
+        const field = event.target.dataset.field;
+        const next = { ...this.form, [field]: event.target.checked };
+        if (!next.Approve_In_Salesforce__c && !(this.slackAvailable && next.Approve_In_Slack__c)) {
+            event.target.checked = true;
+            this.bounced = true;
+            return;
+        }
+        this.bounced = false;
+        this.form = next;
+    }
+
+    handleBpWhen(event) {
+        this.bpForm = { ...this.bpForm, whenValue: event.detail.value };
+    }
+
+    handleBpApproval(event) {
+        this.bpForm = { ...this.bpForm, approval: event.target.checked };
+    }
+
+    /** The org as saveOrg takes it: sign-in, approval, Slack and two-approver fields; a blank consumer key keeps the saved one. */
+    orgPayload() {
+        const f = this.form;
         const payload = {};
-        keys.forEach((k) => {
-            if (this.form[k] !== null && this.form[k] !== undefined && this.form[k] !== '') {
-                payload[k] = typeof this.form[k] === 'string' ? this.form[k].trim() : this.form[k];
-            }
+        if (f.Id) {
+            payload.Id = f.Id;
+        }
+        ORG_FIELDS.forEach((k) => {
+            payload[k] = trimOrNull(f[k]);
         });
+        const key = (f.Consumer_Key__c || '').trim();
+        if (key) {
+            payload.Consumer_Key__c = key;
+        }
+        payload.Approve_In_Salesforce__c = f.Approve_In_Salesforce__c === true;
+        payload.Approve_In_Slack__c = f.Approve_In_Slack__c === true;
+        payload.Require_Git_Review__c = f.Require_Git_Review__c === true;
+        payload.Slack_Channel__c = trimOrNull(f.Slack_Channel__c);
+        payload.Slack_Post__c = f.Slack_Post__c === true;
+        payload.Hotfix_Two_Approvers__c = f.Hotfix_Two_Approvers__c === true;
+        return payload;
+    }
+
+    /** A new org, a new consumer key or a changed sign-in field: test the sign-in after Save. */
+    signInChanged(payload) {
+        const before = this.modalOrg;
+        return !before || !!payload.Consumer_Key__c || SIGN_IN_FIELDS.some((k) => (payload[k] || null) !== (before[k] || null));
+    }
+
+    bpChanged() {
+        const b = this.bpFor(this.modalOrg);
+        return (b.whenValue || 'Manual') !== this.bpForm.whenValue || (b.approval === true) !== this.bpForm.approval;
+    }
+
+    saveOrgModal() {
+        if (!this.modalValid()) {
+            return;
+        }
+        const payload = this.orgPayload();
+        const check = this.signInChanged(payload);
+        const saveBp = this.formShowBp && this.bpChanged();
+        const name = payload.Name || 'Org';
         this.saving = true;
-        this.formError = undefined;
+        this.modalError = undefined;
         saveOrg({ orgJson: JSON.stringify(payload) })
             .then((id) => {
-                this.editing = false;
-                return this.load().then(() => this.runCheck(id));
+                const orgId = payload.Id || id;
+                if (!saveBp) {
+                    return orgId;
+                }
+                const settings = { orgId, whenValue: this.bpForm.whenValue, approval: this.bpForm.approval };
+                return saveBackPromoteOrg({ settingsJson: JSON.stringify(settings) }).then(() => orgId);
+            })
+            .then((orgId) => {
+                this.saving = false;
+                return this.finishSave(name + ': saved', true).then(() => (check && orgId ? this.runCheck(orgId) : null));
             })
             .catch((e) => {
-                this.formError = errorText(e);
+                this.modalError = errorText(e);
             })
             .finally(() => {
                 this.saving = false;
             });
+    }
+
+    // ----- Git connection -----
+
+    openGitEdit() {
+        this.gitForm = this.git ? { ...blankGit(), ...this.git } : blankGit();
+        this.openModal('git');
+    }
+
+    get providerTiles() {
+        const current = this.gitForm.Provider__c || 'GitHub';
+        return PROVIDERS.map((p, i) => ({
+            ...p,
+            pressed: p.value === current ? 'true' : 'false',
+            cls: (p.value === current ? 'rr-prov rr-prov-on' : 'rr-prov') + (i === 0 ? ' rr-first' : '')
+        }));
+    }
+    get gitProvider() { return PROVIDERS.find((p) => p.value === (this.gitForm.Provider__c || 'GitHub')) || PROVIDERS[0]; }
+    get scanHelp() { return 'When on, every ' + (this.gitForm.Provider__c === 'GitLab' ? 'merge request' : 'pull request') + ' is scanned.'; }
+
+    pickProvider(event) {
+        const value = event.currentTarget.dataset.value;
+        if (value === this.gitForm.Provider__c) {
+            return;
+        }
+        const p = PROVIDERS.find((x) => x.value === value);
+        this.gitForm = { ...this.gitForm, Provider__c: value, Named_Credential__c: p.cred, Pipeline__c: p.pipe };
+        this.modalError = undefined;
+    }
+
+    handleGitField(event) {
+        const field = event.target.dataset.field;
+        let value = event.detail && event.detail.value !== undefined ? event.detail.value : event.target.value;
+        if (event.target.type === 'checkbox' || event.target.type === 'toggle') {
+            value = event.target.checked;
+        }
+        this.gitForm = { ...this.gitForm, [field]: value };
+        this.modalError = undefined;
+    }
+
+    saveGitModal() {
+        if (!this.modalValid()) {
+            return;
+        }
+        const f = this.gitForm;
+        const payload = {
+            Provider__c: f.Provider__c, Repository__c: (f.Repository__c || '').trim(), Named_Credential__c: (f.Named_Credential__c || '').trim(),
+            Pipeline__c: (f.Pipeline__c || '').trim(), Pipeline_Branch__c: (f.Pipeline_Branch__c || '').trim(),
+            Source_Path__c: (f.Source_Path__c || '').trim(), Code_Scan__c: f.Code_Scan__c !== false
+        };
+        this.saving = true;
+        this.modalError = undefined;
+        saveGit({ gitJson: JSON.stringify(payload) })
+            .then(() => {
+                this.saving = false;
+                // The provider or branch may have changed: read the pipeline files' versions again.
+                this.pipeFiles = undefined;
+                return this.finishSave('Git connection saved', true).then(() => this.runGitCheck());
+            })
+            .catch((e) => {
+                this.modalError = errorText(e);
+            })
+            .finally(() => {
+                this.saving = false;
+            });
+    }
+
+    // ----- Slack connection -----
+
+    openSlackEdit() {
+        this.slackForm = { enabled: !!this.slack.enabled, signingSecret: '', events: [...(this.slack.events || [])] };
+        this.memberEdits = {};
+        this.openModal('slack');
+    }
+
+    handleSlackEnabled(event) {
+        const enabled = event.target.checked;
+        // Switched on with no events chosen: every event, as the hub does.
+        const events = enabled && this.slackForm.events.length === 0 ? [...(this.slack.allEvents || [])] : this.slackForm.events;
+        this.slackForm = { ...this.slackForm, enabled, events };
+        this.modalError = undefined;
+    }
+
+    handleSlackSecret(event) {
+        this.slackForm = { ...this.slackForm, signingSecret: event.target.value };
+        this.modalError = undefined;
+    }
+
+    handleSlackEvents(event) {
+        this.slackForm = { ...this.slackForm, events: event.detail.value };
+    }
+
+    handleMemberInput(event) {
+        this.memberEdits = { ...this.memberEdits, [event.target.dataset.id]: event.target.value };
+    }
+
+    /** Saves the Slack settings, then each approver whose member ID changed (saveSlackMember, one at a time). */
+    saveSlackModal() {
+        const secret = (this.slackForm.signingSecret || '').trim();
+        if (/\s/.test(secret)) {
+            this.modalError = 'The signing secret has no spaces: copy it again from the Slack app (Basic Information).';
+            return;
+        }
+        const settings = { enabled: this.slackForm.enabled, events: this.slackForm.events, signingSecret: secret };
+        const members = (this.slack.approvers || [])
+            .filter((a) => this.memberEdits[a.userId] !== undefined && this.memberEdits[a.userId].trim() !== (a.slackMemberId || ''))
+            .map((a) => ({ userId: a.userId, memberId: this.memberEdits[a.userId].trim() }));
+        this.saving = true;
+        this.modalError = undefined;
+        saveSlack({ settingsJson: JSON.stringify(settings) })
+            .then((sl) => {
+                this.applySlack(sl);
+                return members.reduce((p, m) => p.then(() => saveSlackMember(m)).then((s2) => this.applySlack(s2)), Promise.resolve());
+            })
+            .then(() => {
+                this.saving = false;
+                this.memberEdits = {};
+                return this.finishSave('Slack settings saved', true);
+            })
+            .catch((e) => {
+                this.modalError = errorText(e);
+            })
+            .finally(() => {
+                this.saving = false;
+            });
+    }
+
+    // ----- Back promote switch -----
+
+    openBpEdit() {
+        this.bpSwitch = this.bpEnabled;
+        this.openModal('backPromote');
+    }
+
+    handleBpSwitch(event) {
+        this.bpSwitch = event.target.checked;
+    }
+
+    saveBpModal() {
+        this.saving = true;
+        this.modalError = undefined;
+        setBackPromote({ state: this.bpSwitch ? 'on' : 'off' })
+            .then((bp) => {
+                this.backPromote = bp;
+                this.saving = false;
+                return this.finishSave('Back promote ' + (bp && bp.enabled ? 'on' : 'off'), true);
+            })
+            .catch((e) => {
+                this.modalError = errorText(e);
+            })
+            .finally(() => {
+                this.saving = false;
+            });
+    }
+
+    handleModalSave() {
+        if (this.isOrgModal) {
+            this.saveOrgModal();
+        } else if (this.isGitModal) {
+            this.saveGitModal();
+        } else if (this.isSlackModal) {
+            this.saveSlackModal();
+        } else if (this.isBpModal) {
+            this.saveBpModal();
+        }
     }
 
     // ---------- setup help ----------
@@ -1182,7 +1330,7 @@ export default class RlyPipeline extends LightningElement {
     }
 
     get setupLabel() { return this.showSetup ? 'Hide setup steps' : 'Setup steps for a new org'; }
-    get remoteSite() { return (this.form && this.form.My_Domain__c) || 'https://<that org>.my.salesforce.com'; }
+    get remoteSite() { return (this.isOrgModal && this.form.My_Domain__c) || 'https://<that org>.my.salesforce.com'; }
 
     toast(message, variant) {
         this.dispatchEvent(new ShowToastEvent({ title: APP_NAME, message, variant }));

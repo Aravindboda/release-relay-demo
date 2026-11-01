@@ -1,7 +1,7 @@
 /**
  * @description The rules a release request must meet before anything is called or saved: components selected,
  * a title, a source and target (RlyRaiseRoute: a developer org with its own branch, into the first stage), a checked Git connection, supported names,
- * and no deletions yet. The test rule is RlyTestRule.
+ * and supported deletions (RlyDeletionRules). The test rule is RlyTestRule.
  */
 public with sharing class RlyRaiseRules {
 
@@ -16,16 +16,20 @@ public with sharing class RlyRaiseRules {
     }
 
     /**
-     * @description Checks the request has components and a title.
+     * @description Checks the request has components or deletions, and a title.
      * @param req the request
      */
     public static void checkRequest(RlyRaiseService.RaiseRequest req) {
-        if (req == null || req.items == null || req.items.isEmpty()) {
+        if (req == null || (isEmpty(req.items) && isEmpty(req.deletions))) {
             throw new RlyReleaseException('Select at least one component.');
         }
         if (String.isBlank(req.title) || req.title.trim().length() > 200) {
             throw new RlyReleaseException('Give the release a title (up to 200 characters).');
         }
+    }
+
+    private static Boolean isEmpty(List<RlyRaiseService.Item> items) {
+        return items == null || items.isEmpty();
     }
 
     /**
@@ -50,7 +54,7 @@ public with sharing class RlyRaiseRules {
     }
 
     /**
-     * @description The components by type; refuses names the pipeline can't carry and deleted components.
+     * @description The components by type; refuses names the pipeline can't carry.
      * @param items the selected components
      * @param source the developer org (for the message)
      * @return component names by metadata type
@@ -58,7 +62,7 @@ public with sharing class RlyRaiseRules {
     public static Map<String, Set<String>> byType(List<RlyRaiseService.Item> items, RLY_Org__c source) {
         Map<String, Set<String>> out = new Map<String, Set<String>>();
         for (RlyRaiseService.Item i : items) {
-            checkItem(i, source);
+            checkName(i, source);
             if (!out.containsKey(i.type)) {
                 out.put(i.type, new Set<String>());
             }
@@ -67,12 +71,14 @@ public with sharing class RlyRaiseRules {
         return out;
     }
 
-    private static void checkItem(RlyRaiseService.Item i, RLY_Org__c source) {
-        if (String.isBlank(i.type) || String.isBlank(i.name) || i.name.contains(',') || i.name.contains(':')) {
-            throw new RlyReleaseException('Can\'t release "' + i.name + '": names with commas or colons aren\'t supported.');
-        }
-        if (i.deleted == true) {
-            throw new RlyReleaseException(i.name + ' was deleted in ' + source.Name + '. Deletions come in a later build: leave it out for now.');
+    /**
+     * @description Refuses a component name the pipeline can't carry (commas and colons separate its lists).
+     * @param i the component
+     * @param source the developer org (for the message)
+     */
+    public static void checkName(RlyRaiseService.Item i, RLY_Org__c source) {
+        if (String.isBlank(i.type) || String.isBlank(i.name) || i.name.contains(',') || i.name.contains(':') || i.type.contains(':')) {
+            throw new RlyReleaseException('Can\'t release "' + i.name + '" from ' + source.Name + ': names with commas or colons aren\'t supported.');
         }
     }
 }

@@ -198,3 +198,19 @@
 .rr-hotfix { border-top: 1px solid var(--rr-line); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
 .rr-hotfix .rr-row { gap: 8px; }
 .rr-hotfix-check { font-weight: 700; }
+
+/* deletions (board HubDeletions) */
+.rr-del { color: #8e030f; }
+.rr-block { display: block; font-weight: 700; }
+.rr-type-del { color: #8e030f; }
+.rr-type-del .rr-count { color: #8e030f; font-weight: 700; }
+.rr-type-del.rr-type-on { background: #feded8; color: #8e030f; }
+.rr-row-del td { background: #fff7f5; }
+.rr-row-del.rr-row-on td { background: #feded8; }
+.rr-chip-del { background: #feded8; color: #8e030f; }
+.rr-finding { display: flex; align-items: center; gap: 12px; }
+.rr-spin-box { position: relative; width: 32px; height: 32px; flex: none; }
+.rr-files-head { margin: 6px 10px 2px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--rr-muted); }
+.rr-files-head.rr-del { color: #8e030f; margin-top: 12px; }
+.rr-file-del { color: #8e030f; }
+.rr-file-del:hover { background: #fef1ee; }

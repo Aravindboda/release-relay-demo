@@ -11,15 +11,23 @@ public with sharing class RlyBackPromoteRun {
     private static final Set<String> SUCCESS = new Set<String>{ 'Deployed', 'Nothing to deploy' };
 
     /**
-     * @description Moves an open sync along: starts it when queued, else reads its result. Callouts only.
+     * @description Moves an open sync along: starts it when queued (unless manual steps before deploy are still to do in
+     * its org), else reads its result. Callouts only.
      * @param rel the sync (Submitted or Deploying)
      * @param git the Git provider
      */
     public static void advanceSync(RLY_Release__c rel, RlyGit git) {
         if (rel.Status__c == RlyPromotion.QUEUED) {
-            dispatch(rel, git);
+            startUnlessHeld(rel, git);
         } else {
             readSync(rel, git);
+        }
+    }
+
+    // A queued sync waits while manual steps before deploy are still to do in its org (RlyManualStepGate).
+    private static void startUnlessHeld(RLY_Release__c rel, RlyGit git) {
+        if (!RlyManualStepGate.blocks(rel)) {
+            dispatch(rel, git);
         }
     }
 

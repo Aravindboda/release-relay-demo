@@ -14,16 +14,40 @@
 
         <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
 
-        <!-- filters: status chips with counts, search -->
+        <!-- filters: Raised by (Releases tab), state chips with counts, search; then the live check line -->
         <section class="rr-filters" aria-label="Filters">
-            <template for:each={chips} for:item="c">
-                <button key={c.id} type="button" class={c.cls} data-id={c.id} aria-pressed={c.on} onclick={pickChip}>{c.label} <span class="rr-count">{c.count}</span></button>
+            <template lwc:if={isReleases}>
+                <div class="rr-raised">
+                    <lightning-record-picker label="Raised by" placeholder="Everyone" object-api-name="User" value={raisedById}
+                        onchange={handleRaisedBy}></lightning-record-picker>
+                </div>
             </template>
+            <div class="rr-chips" role="group" aria-label="Status">
+                <template for:each={chips} for:item="c">
+                    <button key={c.id} type="button" class={c.cls} data-id={c.id} aria-pressed={c.on} title={c.title} onclick={pickChip}>{c.label} <span class="rr-count">{c.count}</span></button>
+                </template>
+            </div>
             <div class="rr-search">
-                <lightning-input type="search" label="Search releases" variant="label-hidden" placeholder="Search release number, title or org"
-                    value={search} onchange={handleSearch}></lightning-input>
+                <lightning-input type="search" label="Search releases" variant="label-hidden" placeholder={searchPlaceholder}
+                    value={search} onchange={handleSearch} oncommit={handleSearchCommit}></lightning-input>
             </div>
         </section>
+
+        <template lwc:if={showLive}>
+            <section class="rr-live" aria-label="Live status">
+                <lightning-icon icon-name="utility:refresh" size="xx-small" alternative-text=""></lightning-icon>
+                <span class="rr-small rr-weak" aria-live="off">{syncedText}</span>
+                <template lwc:if={counting}>
+                    <span class="rr-meter" aria-hidden="true">
+                        <template for:each={cycles} for:item="c">
+                            <span key={c.key} class="rr-meter-fill" onanimationend={handleCountdownEnd}></span>
+                        </template>
+                    </span>
+                </template>
+                <span class="rr-grow"></span>
+                <lightning-button label="Check now" onclick={checkNow} disabled={checkDisabled}></lightning-button>
+            </section>
+        </template>
 
         <div class={bodyCls}>
             <!-- list: one card per release -->
@@ -36,6 +60,8 @@
                                 <template lwc:if={r.isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
                                 <template lwc:if={r.typeLabel}><span class="rr-pill rr-pill-run">{r.typeLabel}</span></template>
                                 <span class="rr-no">{r.name}</span>
+                                <template lwc:if={r.deletesText}><span class="rr-pill rr-pill-bad">{r.deletesText}</span></template>
+                                <template lwc:if={r.manualText}><span class="rr-pill rr-pill-wait">{r.manualText}</span></template>
                                 <span class={r.pillCls}>{r.status}</span>
                                 <span class="rr-grow"></span>
                                 <span class="rr-weak rr-small">{r.when}</span>

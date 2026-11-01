@@ -6,6 +6,7 @@ import listChanges from '@salesforce/apex/RlyChangesController.listChanges';
 import listFolderChanges from '@salesforce/apex/RlyChangesController.listFolderChanges';
 import listTracked from '@salesforce/apex/RlyChangesController.listTracked';
 import detectTests from '@salesforce/apex/RlyChangesController.detectTests';
+import findDeletions from '@salesforce/apex/RlyChangesController.findDeletions';
 import raiseRelease from '@salesforce/apex/RlyReleasesController.raiseRelease';
 
 const TYPES_PER_CALL = 24;
@@ -48,6 +49,20 @@ function groupOf(type) {
 
 function words(type) {
     return type.replace(/([a-z])([A-Z])/g, '$1 $2');
+}
+
+/** A deletion's selection key: never the same as the key of the component it removes, so both can't be one row. */
+function deletionKey(type, name) {
+    return 'del|' + type + ':' + name;
+}
+
+/** Deletions from the org get their own keys and are never ticked for the user. */
+function asDeletion(c) {
+    return { ...c, key: deletionKey(c.type, c.name), deleted: true };
+}
+
+function marked(c) {
+    return c.deleted ? asDeletion(c) : c;
 }
 
 // Orgs listed at once on step 2; search narrows the rest.
@@ -97,8 +112,14 @@ export default class RlyReleaseBuilder extends LightningElement {
     drawerOpen = false;
     manualType = 'ApexClass';
     manualName = '';
+    manualMode = 'add';
     manualError;
     allTypes = [];
+
+    // deletions found from the branch (orgs without source tracking)
+    findingDeletions = false;
+    deletionResult;
+    deletionResultBad = false;
 
     connectedCallback() {
         this.loading = true;
@@ -327,6 +348,7 @@ export default class RlyReleaseBuilder extends LightningElement {
         this.scanning = true;
         this.scanErrors = [];
         this.changes = [];
+        this.deletionResult = undefined;
         this.scanDone = 0;
         const orgId = this.orgId;
         const since = this.sinceIso;
@@ -344,7 +366,7 @@ export default class RlyReleaseBuilder extends LightningElement {
                 this.scanTotal = jobs.length;
                 found = await this.runAll(jobs);
             }
-            this.changes = found;
+            this.changes = found.map(marked);
             this.tests = new Set(await this.findTests(found.filter((c) => c.type === 'ApexClass' && !c.deleted).map((c) => c.name)));
             this.cache[key] = { changes: this.changes, tests: this.tests };
         } catch (e) {
@@ -406,7 +428,8 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     get byMe() {
         const me = this.start ? this.start.hubUserName : null;
-        return (c) => this.changedBy === 'anyone' || !me || c.modifiedBy === me;
+        // Deletions found from the branch have no author in the org, so Changed by doesn't hide them.
+        return (c) => this.changedBy === 'anyone' || !me || c.modifiedBy === me || (c.deleted && !c.modifiedBy);
     }
 
     get pool() {
@@ -428,6 +451,11 @@ export default class RlyReleaseBuilder extends LightningElement {
         const order = ['Code', 'Automation', 'Data model', 'Access and UI', 'Other'];
         const nav = [{ key: 'g-all', isGroup: false, value: 'all', label: 'All changed', count: pool.length,
             cls: 'rr-type' + (this.typeFilter === 'all' ? ' rr-type-on' : ''), pressed: this.typeFilter === 'all' ? 'true' : 'false' }];
+        const deletions = pool.filter((c) => c.deleted).length;
+        if (deletions || this.typeFilter === 'deleted') {
+            nav.push({ key: 'g-deleted', isGroup: false, value: 'deleted', label: 'Deleted', count: deletions,
+                cls: 'rr-type rr-type-del' + (this.typeFilter === 'deleted' ? ' rr-type-on' : ''), pressed: this.typeFilter === 'deleted' ? 'true' : 'false' });
+        }
         order.filter((g) => groups[g]).forEach((g) => {
             nav.push({ key: 'g-' + g, isGroup: true, label: g });
             groups[g].sort().forEach((t) => nav.push({ key: 't-' + t, isGroup: false, value: t, label: words(t), count: counts[t],
@@ -457,31 +485,36 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     get filtered() {
         const q = this.search;
-        return this.pool.filter((c) => (this.typeFilter === 'all' || c.type === this.typeFilter)
+        return this.pool.filter((c) => (this.typeFilter === 'all' || c.type === this.typeFilter || (this.typeFilter === 'deleted' && c.deleted))
             && (!q || c.name.toLowerCase().includes(q) || c.type.toLowerCase().includes(q)));
     }
 
     get rows() {
         return this.filtered.slice(0, this.shown).map((c) => {
             const on = this.selected.has(c.key);
-            const isTest = c.type === 'ApexClass' && this.tests.has(c.name);
+            const isTest = !c.deleted && c.type === 'ApexClass' && this.tests.has(c.name);
+            const changed = [c.modifiedOn ? new Date(c.modifiedOn).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '', c.modifiedBy || ''].join(' ').trim();
             return {
                 ...c,
                 checked: on,
-                rowCls: on ? 'rr-row-on' : '',
+                rowCls: (on ? 'rr-row-on' : '') + (c.deleted ? ' rr-row-del' : ''),
                 typeLabel: isTest ? 'Apex test class' : words(c.type),
                 kind: c.standard ? 'Standard' : 'Custom',
                 kindCls: 'rr-pill ' + (c.standard ? 'rr-pill-std' : 'rr-pill-custom'),
                 when: c.modifiedOn ? new Date(c.modifiedOn).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '',
                 by: c.modifiedBy || '',
-                changedText: [c.modifiedOn ? new Date(c.modifiedOn).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '', c.modifiedBy || ''].join(' ').trim(),
-                selLabel: 'Select ' + c.name
+                changedText: changed,
+                deleteText: c.deleted ? this.deleteFromText : '',
+                selLabel: (c.deleted ? 'Delete ' : 'Select ') + c.name
             };
         });
     }
 
     get noRows() { return !this.scanning && this.filtered.length === 0; }
     get emptyText() {
+        if (this.typeFilter === 'deleted') {
+            return 'No deletions found in ' + this.sourceName + '.';
+        }
         if (this.changes.length === 0) {
             return 'No changes found in ' + this.sourceName + ' for this period. Try Any time, or add a component by name.';
         }
@@ -491,10 +524,12 @@ export default class RlyReleaseBuilder extends LightningElement {
     get moreLabel() { return 'Show ' + Math.min(PAGE, this.filtered.length - this.shown) + ' more'; }
     showMore() { this.shown += PAGE; }
 
+    /** Select all ticks changes only: deletions are never ticked for the user, each one is ticked by hand. */
     get allShownChecked() {
-        const rows = this.rows;
+        const rows = this.rows.filter((r) => !r.deleted);
         return rows.length > 0 && rows.every((r) => r.checked);
     }
+    get noCheckAll() { return this.rows.every((r) => r.deleted); }
 
     handleCheck(event) {
         const key = event.target.dataset.key;
@@ -509,8 +544,52 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     handleCheckAll(event) {
         const next = new Set(this.selected);
-        this.rows.forEach((r) => (event.target.checked ? next.add(r.key) : next.delete(r.key)));
+        this.rows.filter((r) => !r.deleted).forEach((r) => (event.target.checked ? next.add(r.key) : next.delete(r.key)));
         this.selected = next;
+    }
+
+    // ---------- deletions ----------
+
+    get target() { return (this.start && this.start.targetName) || 'the target'; }
+    get deleteFromText() { return 'Delete from ' + this.target; }
+    get deletedGroupLabel() { return 'Deleted from ' + this.target; }
+    /** Orgs without source tracking can't list their deletions: the hub compares the org with its branch. */
+    get canFindDeletions() { return !!this.sourceOrg && this.sourceOrg.Source_Tracking__c !== 'Available'; }
+    get cantFindDeletions() { return this.scanning || this.findingDeletions; }
+    get findLabel() { return this.findingDeletions ? 'Finding deleted components…' : 'Find deleted components'; }
+    /** The developer org's own branch, else the first stage's. */
+    get ownBranch() { return this.sourceBranch || (this.start && this.start.targetBranch) || 'the branch'; }
+    get deletionResultCls() { return 'rr-msg rr-msg-inset ' + (this.deletionResultBad ? 'rr-msg-bad' : 'rr-msg-info'); }
+
+    async findDeleted() {
+        this.findingDeletions = true;
+        this.deletionResult = undefined;
+        this.deletionResultBad = false;
+        try {
+            const found = (await findDeletions({ orgId: this.orgId })).map(asDeletion);
+            const known = new Set(this.changes.map((c) => c.key));
+            const fresh = found.filter((c) => !known.has(c.key));
+            this.changes = [...this.changes, ...fresh];
+            if (this.cache[this.cacheKey]) {
+                this.cache[this.cacheKey] = { ...this.cache[this.cacheKey], changes: this.changes };
+            }
+            const branch = this.ownBranch;
+            const org = this.sourceName;
+            if (found.length === 0) {
+                this.deletionResult = 'Everything in ' + branch + '\'s branch is in ' + org + '. Nothing to delete.';
+            } else {
+                this.deletionResult = 'In ' + branch + '\'s branch but not in ' + org
+                    + '. They may have been deleted in ' + org + ', or came from another org through the branch and were never deployed to ' + org
+                    + '. Tick only what you deleted.';
+                this.typeFilter = 'deleted';
+                this.shown = PAGE;
+            }
+        } catch (e) {
+            this.deletionResult = errorText(e);
+            this.deletionResultBad = true;
+        } finally {
+            this.findingDeletions = false;
+        }
     }
 
     // ---------- add by name ----------
@@ -522,6 +601,19 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     handleManualType(event) { this.manualType = event.detail.value; }
     handleManualName(event) { this.manualName = event.target.value; this.manualError = undefined; }
+    get isManualDelete() { return this.manualMode === 'delete'; }
+    get manualButtons() {
+        return [{ label: 'Add', value: 'add' }, { label: 'Delete', value: 'delete' }].map((b) => ({
+            ...b, cls: 'rr-seg' + (b.value === this.manualMode ? ' rr-seg-on' : ''), pressed: b.value === this.manualMode ? 'true' : 'false' }));
+    }
+    get manualLabel() { return this.isManualDelete ? 'Not in the list? Delete it by name' : 'Not in the list? Add it by name'; }
+    get manualAction() { return this.isManualDelete ? 'Delete' : 'Add'; }
+    handleManualMode(event) {
+        this.manualMode = event.currentTarget.dataset.value;
+        this.manualError = undefined;
+    }
+    /** The message when a component is picked to be added and to be deleted. */
+    bothText(type, name) { return type + ' ' + name + ' is both added and deleted.'; }
 
     async addManual() {
         const name = (this.manualName || '').trim();
@@ -529,7 +621,15 @@ export default class RlyReleaseBuilder extends LightningElement {
             this.manualError = 'Enter the API name, for example AccountServiceTest or Account.Region__c.';
             return;
         }
+        if (this.isManualDelete) {
+            this.addManualDeletion(name);
+            return;
+        }
         const key = this.manualType + ':' + name;
+        if (this.selected.has(deletionKey(this.manualType, name))) {
+            this.manualError = this.bothText(this.manualType, name);
+            return;
+        }
         if (!this.changes.some((c) => c.key === key)) {
             const isStd = (this.manualType === 'CustomObject' && !name.includes('__'))
                 || (this.manualType === 'CustomField' && name.includes('.') && !name.split('.')[1].includes('__'))
@@ -550,6 +650,21 @@ export default class RlyReleaseBuilder extends LightningElement {
         this.manualName = '';
     }
 
+    /** Delete by name: the user names it, so it is ticked. */
+    addManualDeletion(name) {
+        const type = this.manualType;
+        const key = deletionKey(type, name);
+        if (this.selectedItems.some((c) => !c.deleted && c.type === type && c.name === name)) {
+            this.manualError = this.bothText(type, name);
+            return;
+        }
+        if (!this.changes.some((c) => c.key === key)) {
+            this.changes = [{ key, type, name, standard: false, deleted: true, modifiedBy: '(deleted by name)', modifiedOn: null }, ...this.changes];
+        }
+        this.selected = new Set([...this.selected, key]);
+        this.manualName = '';
+    }
+
     // ---------- the selection and the test rule ----------
 
     get selectedItems() {
@@ -565,16 +680,33 @@ export default class RlyReleaseBuilder extends LightningElement {
         return this.selectedItems.filter((c) => !c.deleted && c.type === 'ApexClass' && this.tests.has(c.name));
     }
 
+    get addedItems() { return this.selectedItems.filter((c) => !c.deleted); }
+    get deletionItems() { return this.selectedItems.filter((c) => c.deleted); }
+    get hasDeletions() { return this.deletionItems.length > 0; }
+    /** Picked to be added and to be deleted: the hub refuses it, so it is shown before raising. */
+    get bothItems() {
+        const added = new Set(this.addedItems.map((c) => c.type + ':' + c.name));
+        return this.deletionItems.filter((c) => added.has(c.type + ':' + c.name));
+    }
+    get bothError() {
+        const b = this.bothItems;
+        return b.length ? b.map((c) => this.bothText(c.type, c.name)).join(' ') : '';
+    }
+
     get ruleBlocked() { return this.apexItems.length > 0 && this.testItems.length === 0; }
     get ruleOk() { return this.apexItems.length > 0 && this.testItems.length > 0; }
     get selectedCount() { return this.selected.size; }
     get noneSelected() { return this.selected.size === 0; }
-    get cantReview() { return this.noneSelected || this.ruleBlocked || this.scanning; }
+    get cantReview() { return this.noneSelected || this.ruleBlocked || this.scanning || this.bothItems.length > 0; }
 
-    get barCls() { return 'rr-bar' + (this.ruleBlocked ? ' rr-bar-bad' : ''); }
+    get barCls() { return 'rr-bar' + (this.ruleBlocked || this.bothItems.length ? ' rr-bar-bad' : ''); }
     get barText() {
         const n = this.selected.size;
-        const parts = [n + (n === 1 ? ' selected' : ' selected')];
+        const parts = [n + ' selected'];
+        const d = this.deletionItems.length;
+        if (d) {
+            parts.push(d + (d === 1 ? ' deletion' : ' deletions'));
+        }
         if (this.apexItems.length) {
             parts.push(this.apexItems.length + ' Apex');
             parts.push(this.testItems.length + (this.testItems.length === 1 ? ' test class' : ' test classes') + (this.ruleOk ? ' ✓' : ''));
@@ -590,7 +722,7 @@ export default class RlyReleaseBuilder extends LightningElement {
         }
         const names = this.apexItems.map((c) => c.name.toLowerCase());
         return this.changes
-            .filter((c) => c.type === 'ApexClass' && this.tests.has(c.name) && !this.selected.has(c.key)
+            .filter((c) => !c.deleted && c.type === 'ApexClass' && this.tests.has(c.name) && !this.selected.has(c.key)
                 && names.some((n) => c.name.toLowerCase().includes(n)))
             .slice(0, 3)
             .map((c) => ({ key: c.key, name: c.name, addLabel: 'Add ' + c.name }));
@@ -606,15 +738,28 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     get grouped() {
         const groups = {};
-        this.selectedItems.forEach((c) => {
+        this.addedItems.forEach((c) => {
             const label = c.type === 'ApexClass' && this.tests.has(c.name) ? 'Apex test class' : words(c.type);
             (groups[label] = groups[label] || []).push(c);
         });
-        return Object.keys(groups).sort().map((g) => ({
+        const out = Object.keys(groups).sort().map((g) => ({
             key: g,
             label: g + ' · ' + groups[g].length,
-            items: groups[g].map((c) => ({ key: c.key, name: c.name, removeLabel: 'Remove ' + c.name, deleted: c.deleted }))
+            labelCls: 'rr-label',
+            chipCls: 'rr-chip',
+            items: groups[g].map((c) => ({ key: c.key, name: c.name, removeLabel: 'Remove ' + c.name }))
         }));
+        const del = this.deletionItems;
+        if (del.length) {
+            out.unshift({
+                key: 'deleted',
+                label: this.deletedGroupLabel + ' · ' + del.length,
+                labelCls: 'rr-label rr-del',
+                chipCls: 'rr-chip rr-chip-del',
+                items: del.map((c) => ({ key: c.key, name: words(c.type) + ' ' + c.name, removeLabel: 'Don\'t delete ' + c.name }))
+            });
+        }
+        return out;
     }
 
     removeItem(event) {
@@ -645,29 +790,47 @@ export default class RlyReleaseBuilder extends LightningElement {
     }
 
     get reviewRows() {
-        return this.selectedItems
+        return this.addedItems
             .map((c) => {
                 const isTest = c.type === 'ApexClass' && this.tests.has(c.name);
                 return {
                     key: c.key, name: c.name, typeLabel: isTest ? 'Apex test class' : words(c.type),
                     kind: c.standard ? 'Standard' : 'Custom', kindCls: 'rr-pill ' + (c.standard ? 'rr-pill-std' : 'rr-pill-custom'),
                     removeLabel: 'Remove ' + c.name,
-                    subText: (isTest ? 'Apex test class' : words(c.type)) + ' · ' + (c.deleted ? 'Deleted' : c.standard ? 'Standard' : 'Custom')
+                    subText: (isTest ? 'Apex test class' : words(c.type)) + ' · ' + (c.standard ? 'Standard' : 'Custom')
                 };
             })
             .sort((a, b) => (a.typeLabel + a.name).localeCompare(b.typeLabel + b.name));
     }
 
+    get hasAdded() { return this.addedItems.length > 0; }
+    get reviewDeletions() {
+        return this.deletionItems
+            .map((c) => ({ key: c.key, name: c.name, subText: words(c.type) + ' · ' + this.deleteFromText, removeLabel: 'Don\'t delete ' + c.name }))
+            .sort((a, b) => (a.subText + a.name).localeCompare(b.subText + b.name));
+    }
+
     get reviewSummary() {
-        const n = this.selected.size;
-        const types = new Set(this.selectedItems.map((c) => c.type)).size;
-        return n + (n === 1 ? ' component' : ' components') + ' of ' + types + (types === 1 ? ' type' : ' types');
+        const added = this.addedItems;
+        const n = added.length;
+        const types = new Set(added.map((c) => c.type)).size;
+        const d = this.deletionItems.length;
+        const parts = [];
+        if (n || !d) {
+            parts.push(n + (n === 1 ? ' component' : ' components') + ' of ' + types + (types === 1 ? ' type' : ' types'));
+        }
+        if (d) {
+            parts.push(d + (d === 1 ? ' deletion' : ' deletions'));
+        }
+        return parts.join(' · ');
     }
 
     title = '';
     description = '';
     hotfix = false;
     hotfixReason = '';
+    /** Manual steps for the release (RaiseRequest.manualSteps), from c-rly-manual-steps. */
+    manualSteps = [];
     raising = false;
     raiseError;
     raisedId;
@@ -697,7 +860,7 @@ export default class RlyReleaseBuilder extends LightningElement {
         return this.isHotfix ? 'Raise hotfix' : 'Raise ' + this.crWord;
     }
     get cantRaise() {
-        return this.raising || this.noneSelected || this.ruleBlocked || !(this.title || '').trim()
+        return this.raising || this.noneSelected || this.ruleBlocked || this.bothItems.length > 0 || !(this.title || '').trim()
             || (this.isHotfix && !(this.hotfixReason || '').trim());
     }
     get reviewKicker() { return 'New release · step 4 of 5 · Review'; }
@@ -727,17 +890,32 @@ export default class RlyReleaseBuilder extends LightningElement {
     handleHotfixReason(event) {
         this.hotfixReason = event.target.value;
     }
-    get testRunCls() { return 'rr-msg ' + (this.ruleBlocked ? 'rr-msg-bad' : 'rr-msg-info'); }
+    // ---------- manual steps ----------
+
+    /** The route's orgs (stages and the hub), offered under Pick orgs for a manual step. */
+    get routeOrgNames() {
+        return ((this.start && this.start.routeStops) || []).map((o) => o.Name);
+    }
+    handleManualSteps(event) {
+        this.manualSteps = event.detail.steps || [];
+    }
+    get testRunCls() { return 'rr-msg ' + (this.ruleBlocked || this.bothItems.length ? 'rr-msg-bad' : 'rr-msg-info'); }
 
     handleTitle(event) { this.title = event.target.value; }
     handleDescription(event) { this.description = event.target.value; }
 
     get testRunText() {
+        if (this.bothItems.length) {
+            return this.bothError;
+        }
         if (this.ruleBlocked) {
             return this.ruleText;
         }
         if (!this.apexItems.length) {
-            return 'No Apex in this release: deploys run without tests (NoTestRun).';
+            const apexGone = this.deletionItems.some((c) => c.type === 'ApexClass' || c.type === 'ApexTrigger');
+            return apexGone
+                ? 'No Apex added: deploys run without tests (NoTestRun). Deleting Apex from production runs the local tests (RunLocalTests), as Salesforce requires.'
+                : 'No Apex in this release: deploys run without tests (NoTestRun).';
         }
         return 'Runs ' + this.testItems.map((t) => t.name).join(', ') + ' (RunSpecifiedTests) in every org it deploys to. Each Apex class and trigger needs 75% coverage.';
     }
@@ -746,15 +924,18 @@ export default class RlyReleaseBuilder extends LightningElement {
         this.raising = true;
         this.raiseError = undefined;
         try {
-            const items = this.selectedItems.map((c) => ({ type: c.type, name: c.name, deleted: !!c.deleted, standard: !!c.standard }));
+            const items = this.addedItems.map((c) => ({ type: c.type, name: c.name, deleted: false, standard: !!c.standard }));
+            const deletions = this.deletionItems.map((c) => ({ type: c.type, name: c.name }));
             const request = {
                 sourceOrgId: this.orgId,
                 title: this.title.trim(),
                 description: this.description,
                 items,
+                deletions,
                 testClasses: this.testItems.map((t) => t.name),
                 isHotfix: this.isHotfix,
-                hotfixReason: this.isHotfix ? this.hotfixReason.trim() : null
+                hotfixReason: this.isHotfix ? this.hotfixReason.trim() : null,
+                manualSteps: this.manualSteps
             };
             this.raisedId = await raiseRelease({ requestJson: JSON.stringify(request) });
             this.step = 'raise';
@@ -771,6 +952,7 @@ export default class RlyReleaseBuilder extends LightningElement {
         this.description = '';
         this.hotfix = false;
         this.hotfixReason = '';
+        this.manualSteps = [];
         this.raisedId = undefined;
         this.step = 'source';
     }

@@ -13,6 +13,17 @@ public with sharing class RlyApprovalRuns {
      * @param who who approved, and where
      */
     public static void startMerge(RLY_Release__c rel, RlyGit git, RlyApprover who) {
+        dispatchMerge(rel, git);
+        recordApproval(rel, who);
+    }
+
+    /**
+     * @description Starts the merge and deploy (for a back promote: the sync run) of an approved release, without
+     * recording an approval (the approval was recorded while it waited for manual steps).
+     * @param rel the release
+     * @param git the Git provider
+     */
+    public static void dispatchMerge(RLY_Release__c rel, RlyGit git) {
         if (RlyPromotion.typeOf(rel) == RlyPromotion.TYPE_BACK_PROMOTE) {
             RlyBackPromoteRun.dispatch(rel, git);
         } else {
@@ -20,14 +31,22 @@ public with sharing class RlyApprovalRuns {
             rel.Pending_Run__c = 'merge';
         }
         rel.Status__c = 'Deploying';
+        rel.Deploy_Status__c = 'Deploying';
+        rel.Checks_Requested__c = System.now();
+        rel.Error_Message__c = null;
+    }
+
+    /**
+     * @description Records the approval on the release (the status is left as it is).
+     * @param rel the release
+     * @param who who approved, and where
+     */
+    public static void recordApproval(RLY_Release__c rel, RlyApprover who) {
         rel.Approval_Status__c = 'Approved';
         rel.Approved_By__c = who.userId;
         rel.Approved_Via__c = who.via;
         rel.Approved_On__c = System.now();
         rel.Approval_Comment__c = who.comment == null ? null : who.comment.left(2000);
-        rel.Deploy_Status__c = 'Deploying';
-        rel.Checks_Requested__c = System.now();
-        rel.Error_Message__c = null;
     }
 
     /**

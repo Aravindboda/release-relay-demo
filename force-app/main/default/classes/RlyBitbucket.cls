@@ -10,7 +10,7 @@ public with sharing class RlyBitbucket extends RlyGit {
      * @description The shape of a Bitbucket repository name.
      * @return workspace/repository
      */
-    public override Pattern repositoryPattern() {
+    protected override Pattern repositoryPattern() {
         return REPO;
     }
 
