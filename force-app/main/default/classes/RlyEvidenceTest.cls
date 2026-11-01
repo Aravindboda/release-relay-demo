@@ -185,7 +185,9 @@ private class RlyEvidenceTest {
             System.assertEquals('To do', RlyEvidenceWords.words('To_Do'), 'Picklist value as words');
             System.assertEquals('', RlyEvidenceWords.words(null), 'Blank');
             String wrapped = RlyEvidenceWords.breakable('see https://example.com/abcdefghijklmnopqrstuvwxyz0123456789abc done');
-            System.assert(wrapped.contains('https:/&#8203;') && wrapped.endsWith(' done'), 'Break points in a long link: ' + wrapped);
+            System.assert(wrapped.contains('example.com/ ') && wrapped.endsWith(' done'), 'Break points in a long link: ' + wrapped);
+            System.assertEquals(new List<Integer>{ 28, 72 }, RlyEvidenceWords.widths(new List<String>{ 'Item', 'Value' }), 'Key and value');
+            System.assertEquals(new List<Integer>(), RlyEvidenceWords.widths(new List<String>{ 'A' }), 'No widths');
             System.assertEquals('short words stay', RlyEvidenceWords.breakable('short words stay'), 'Short words unchanged');
         }
     }
