@@ -1,0 +1,26 @@
+{
+ "request": "REL-90053",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 23,
+ "deleted": [],
+ "mergedWith": "c2e9d0d663d3c201fd83c07f9ab0aeafcb3e7e6f",
+ "validatedTree": "ecff1b58c1bab540992e57d99ad1b1cb49effa95",
+ "environment": "sit",
+ "ok": false,
+ "message": "NAME has no value for sit in .relay/values.json (used in staticresources/RLY_Pipeline_GitHub.txt, staticresources/RLY_Pipeline_Script.txt). PAYMENT_URL has no value for sit in .relay/values.json (used in staticresources/RLY_Pipeline_Script.txt).",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41308375830",
+ "finishedAt": "2026-11-01T12:51:12.207Z",
+ "excluded": [],
+ "selfUpdate": true,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
+}
