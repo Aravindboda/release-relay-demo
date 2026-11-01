@@ -89,7 +89,8 @@
                             </div>
                         </div>
                         <template lwc:if={isSinceDate}>
-                            <lightning-input type="date" label="Since" value={sinceDate} onchange={handleSince} class="rr-date"></lightning-input>
+                            <lightning-input type="date" label="Since" value={sinceDate} max={today} onchange={handleSince} class="rr-date"
+                                message-when-range-overflow="Pick today or an earlier date."></lightning-input>
                         </template>
                         <div class="rr-col">
                             <p class="rr-label">Changed by</p>
@@ -214,20 +215,6 @@
                             </template>
                         </div>
 
-                        <div class="rr-manual">
-                            <p class="rr-label">{manualLabel}</p>
-                            <div class="rr-manual-row">
-                                <div class="rr-segs" role="group" aria-label="Add or delete">
-                                    <template for:each={manualButtons} for:item="m">
-                                        <button key={m.value} type="button" class={m.cls} data-value={m.value} aria-pressed={m.pressed} onclick={handleManualMode}>{m.label}</button>
-                                    </template>
-                                </div>
-                                <lightning-combobox label="Type" variant="label-hidden" value={manualType} options={typeOptions} onchange={handleManualType} class="rr-manual-type"></lightning-combobox>
-                                <lightning-input label="API name" variant="label-hidden" placeholder="API name" value={manualName} onchange={handleManualName} class="rr-grow"></lightning-input>
-                                <lightning-button label={manualAction} onclick={addManual}></lightning-button>
-                            </div>
-                            <template lwc:if={manualError}><p class="rr-small rr-bad">{manualError}</p></template>
-                        </div>
                     </div>
                 </div>
             </section>

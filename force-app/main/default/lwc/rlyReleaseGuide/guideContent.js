@@ -346,7 +346,7 @@ const SECTIONS = [
                                 where: 'New Release → Select',
                                 items: [
                                     'Types are on the left with counts; changes on the right. Filter custom, standard or both, and search by name.',
-                                    'Not in the list? Add it by type and API name at the bottom.',
+                                    'Not in the list? Set Changed to **Any time** and Changed by to **Anyone**: that lists every component in the org, including ones you didn\'t change but the release needs.',
                                     'Components to remove show a red **Delete** pill (see Deleting components).',
                                     'The bar at the bottom counts your Apex and test classes. Red means Apex without a test class: tick the suggested test or add it.'
                                 ],
@@ -402,11 +402,6 @@ const SECTIONS = [
                                     'Press **Find deleted components**. The hub compares the files in your org\'s own branch with what is in the org and lists what is in the branch but not in the org.',
                                     'They may have been deleted in your org, or came from another org through the branch and were never deployed to yours. Nothing is ticked for you: **tick only what you deleted**.'
                                 ]
-                            },
-                            {
-                                title: 'Delete by name',
-                                where: 'New Release → Select',
-                                text: ['Not in the list? At the bottom choose **Delete**, the type and the API name, for example Apex Class and `OldHelper`.']
                             },
                             {
                                 title: 'Review',
@@ -1003,7 +998,7 @@ const SECTIONS = [
                             ['A sign-in error on an org', 'The message names the fix (Remote Site, certificate, consumer key, pre-authorized user). An admin uses Test sign-in on the Pipeline tab.'],
                             ['Git connection: check failed', 'The token is missing a permission (see Set up, step 1) or the pipeline files aren\'t on the pipeline branch.'],
                             ['"couldn\'t close the pull request"', 'The Git token needs pull request (merge request) write access.'],
-                            ['A test class doesn\'t show as a test', 'It must contain @IsTest. Add it by name if it isn\'t in the list.'],
+                            ['A test class doesn\'t show as a test', 'It must contain @IsTest. If it isn\'t in the list, set Changed to Any time and Changed by to Anyone.'],
                             ['Slack: Not set up or Error', 'Check the Named Credential `RLY_Slack` holds the bot token, then Test on the Slack connection card.'],
                             ['Slack test message fails with not_in_channel', 'Invite the Slack app to that channel.'],
                             ['Approve in Slack says you can\'t approve', 'An admin links your Slack member ID (Slack connection → Approvers linked), and you need `RLY_Approver`.'],
