@@ -55,11 +55,11 @@
                         <p class="rr-small rr-weak">{testsHint}</p>
                     </template>
                     <template lwc:else>
-                        <p class="rr-small rr-weak">No tests run in a sandbox rollback.</p>
+                        <p class="rr-small rr-weak">{sandboxTestsHint}</p>
                     </template>
                 </template>
 
-                <lightning-input label="Why roll back" required max-length="255" value={reason} onchange={handleReason}
+                <lightning-input label="Why roll back" required max-length="255" value={reason} oninput={handleReason} onchange={handleReason}
                     placeholder="What went wrong after the deploy" class="rr-reason"></lightning-input>
             </div>
             <div class="slds-modal__footer rr-modal-foot">

@@ -143,6 +143,7 @@ private class RlyPromoteTest {
             System.assert(dispatched.contains('"target":"prod"'), 'Into the next stop\'s branch');
             System.assertEquals(true, RlyReleaseTestData.dispatchedOptions(mock).get('validateMerged'), 'Validated merged');
             System.assertEquals(true, RlyReleaseTestData.dispatchedOptions(mock).get('hub'), 'Hub run');
+            System.assertEquals('sit', RlyReleaseTestData.dispatchedOptions(mock).get('stageBranch'), 'The next stop gets the stage\'s files');
             System.assert(d.running, 'Still running');
         }
     }

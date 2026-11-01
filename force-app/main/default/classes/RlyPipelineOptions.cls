@@ -1,7 +1,8 @@
 /**
  * @description The options a pipeline run starts with (the options input, as JSON): the hub flag, the org label,
  * the test classes, the scan switch (the target org's code scan choice, RlyScanRule), validateMerged (hub, promote, check and resolve: validate the release merged with
- * the target branch), attempt (the run's token, echoed in every result file) and syncBranches (the branches to update
+ * the target branch), stageBranch (promote: the stage's branch, whose files the next stop gets), append and appendZip
+ * (hub, adding changes to an open release: RlyAppendInputs), attempt (the run's token, echoed in every result file) and syncBranches (the branches to update
  * from the target after the merge: every developer branch when the target is the first stage; after a merge into the
  * hub, every stage branch in route order, then every developer branch: the back-merge).
  */
@@ -31,10 +32,36 @@ public with sharing class RlyPipelineOptions {
         if (VALIDATE_MERGED_MODES.contains(mode)) {
             options.put('validateMerged', true);
         }
+        addModeOptions(rel, mode, options);
+        return options;
+    }
+
+    // merge: the branches to update; promote: the stage's branch (the next stop gets each file as it is there);
+    // hub adding to an open release: append and the zip (RlyAppendRun).
+    private static void addModeOptions(RLY_Release__c rel, String mode, Map<String, Object> options) {
         if (mode == 'merge') {
             addSyncBranches(rel, options);
+        } else if (mode == RlyPromotion.MODE) {
+            String stageBranch = stageBranchOf(rel);
+            if (String.isNotBlank(stageBranch)) {
+                options.put('stageBranch', stageBranch.trim());
+            }
+        } else if (mode == 'hub') {
+            RlyAppendInputs.addOptions(rel, options);
         }
-        return options;
+    }
+
+    /**
+     * @description The branch of a promotion's stage (its source org), read again when the release was read without it.
+     * @param rel the promotion
+     * @return the branch, or null
+     */
+    public static String stageBranchOf(RLY_Release__c rel) {
+        RLY_Org__c stage = (RLY_Org__c) rel.getPopulatedFieldsAsMap().get('Source_Org__r');
+        if ((stage == null || !stage.getPopulatedFieldsAsMap().containsKey('Branch__c')) && rel.Source_Org__c != null) {
+            stage = RlyReleaseStore.org(rel.Source_Org__c);
+        }
+        return stage == null ? null : stage.Branch__c;
     }
 
     // Deleting Apex in production needs tests: without tests of its own, a release into the hub that deletes Apex sends

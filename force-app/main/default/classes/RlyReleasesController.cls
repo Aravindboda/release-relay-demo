@@ -98,6 +98,8 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public List<RlyFlowResults.FlowResult> flows = new List<RlyFlowResults.FlowResult>();
         /** @description The release's history, oldest first. */
         @AuraEnabled public List<RlyReleaseHistory.EventRow> events = new List<RlyReleaseHistory.EventRow>();
+        /** @description The current user may add changes from the developer org now (RlyAppendRules). */
+        @AuraEnabled public Boolean canAppend;
     }
 
     /** @description What a release page shows about the release's links to others (Detail extends it; RlyReleaseLinks fills it). */
@@ -365,6 +367,7 @@ public with sharing class RlyReleasesController {
         d.tests = RlyReleasePhase.tests(d.release);
         d.gitProvider = RlyGitName.labelFor(RlyReleaseStore.git());
         d.slackChannel = RlyReleasePhase.slackChannel(d.release);
+        d.canAppend = RlyAppendRules.mayAppend(d.release);
         RlyRollbackView.fill(d);
         RlyReleaseLinks.fill(d);
         RlyReleaseHistory.fill(d);
