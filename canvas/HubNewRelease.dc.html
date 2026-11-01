@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hub new release</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+a{color:#0B5CAB}a:hover{color:#014486}
+.rr-tab{display:flex;align-items:center;height:40px;padding:0 12px;font-size:13px;color:#181818;text-decoration:none;border-bottom:3px solid transparent;white-space:nowrap}
+.rr-tab-on{border-bottom-color:#2347D6;font-weight:700;background:#F3F6FF}
+.rr-btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.rr-btn-brand{background:#0176D3;border-color:#0176D3;color:#fff}
+.rr-src{flex:1 1 200px;min-width:0;text-align:left;font:inherit;color:inherit;background:#fff;border:1px solid #E5E5E5;border-radius:4px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:4px}
+.rr-src-on{border-color:#0176D3;box-shadow:0 0 0 1px #0176D3;background:#F3F6FF}
+.rr-pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.rr-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.rr-weak{color:#5C5C5C}
+.rr-step{flex:1;height:36px;display:flex;align-items:center;justify-content:center;font-size:13px;background:#E5E5E5;color:#444}
+.rr-th{font-size:12px;font-weight:600;color:#5C5C5C;text-align:left;padding:8px 10px;background:#FAFAF9;border-bottom:1px solid #E5E5E5}
+.rr-td{font-size:13px;padding:9px 10px;border-bottom:1px solid #F3F3F3}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column">
+  <header style="background: #fff; border-bottom: 1px solid #E5E5E5; display: flex; flex-wrap: wrap; align-items: stretch; gap: 0 8px; padding: 0 16px">
+    <div style="display: flex; align-items: center; gap: 10px; padding-right: 16px; height: 40px">
+      <span style="width: 24px; height: 24px; border-radius: 4px; background: #2347D6; display: inline-flex; align-items: center; justify-content: center" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h12"></path><path d="M12 6l6 6-6 6"></path><path d="M4 5v14"></path></svg>
+      </span>
+      <span style="font-size: 16px; font-weight: 700">Release Relay</span>
+      <span class="rr-pill" style="background: #EEEDFE; color: #3C3489">Hub · Aravind</span>
+    </div>
+    <nav aria-label="Release Relay tabs" style="display: flex; flex-wrap: wrap; align-items: stretch">
+      <a href="#" class="rr-tab rr-tab-on" aria-current="page">New Release</a>
+      <a href="Main.dc.html" class="rr-tab">Releases</a>
+      <a href="#" class="rr-tab">Approvals</a>
+      <a href="PromoteSit.dc.html" class="rr-tab">Promote</a>
+      <a href="HubPipeline.dc.html" class="rr-tab">Pipeline</a>
+      <a href="#" class="rr-tab">Guide</a>
+    </nav>
+  </header>
+
+  <main style="flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 12px; max-width: 1600px; width: 100%; box-sizing: border-box; margin: 0 auto">
+    <div style="display: flex; gap: 2px; border-radius: 18px; overflow: hidden" aria-label="Steps">
+      <span class="rr-step" style="background: #0176D3; color: #fff; font-weight: 700">1 Source</span>
+      <span class="rr-step">2 Select</span>
+      <span class="rr-step">3 Review</span>
+      <span class="rr-step">4 Raise</span>
+    </div>
+
+    <section style="background: #fff; border: 1px solid #E5E5E5; border-radius: 4px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+      <h1 style="margin: 0; font-size: 16px; font-weight: 700">Where do the changes come from?</h1>
+      <div role="group" aria-label="Source org" style="display: flex; flex-wrap: wrap; gap: 8px">
+        <sc-for list="{{orgs}}" as="o" hint-placeholder-count="3">
+          <button class="{{o.cls}}" onClick="{{o.pick}}" aria-pressed="{{o.on}}">
+            <span style="display: flex; align-items: center; gap: 8px"><strong style="font-size: 14px">{{o.name}}</strong><span class="rr-pill" style="{{o.style}}">{{o.status}}</span></span>
+            <span class="rr-weak" style="font-size: 12px"><span class="rr-mono">{{o.domain}}</span></span>
+            <span class="rr-weak" style="font-size: 12px">{{o.note}}</span>
+          </button>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px">
+        <span class="rr-weak">Goes to</span>
+        <span class="rr-pill" style="background: #F3F3F3; color: #444">{{sel.name}} → sit</span>
+        <span class="rr-weak">Set by the pipeline route. A pull request from a new branch into <span class="rr-mono">sit</span>, scanned and validated in SIT.</span>
+      </div>
+    </section>
+
+    <section aria-label="Changes preview" style="background: #fff; border: 1px solid #E5E5E5; border-radius: 4px">
+      <div style="padding: 12px 16px; border-bottom: 1px solid #E5E5E5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+        <h2 style="margin: 0; font-size: 15px; font-weight: 700; flex: 1 1 260px">Recent changes in {{sel.name}}</h2>
+        <span class="rr-weak" style="font-size: 12px">Read from {{sel.name}} by the hub through <span class="rr-mono">{{sel.cred}}</span></span>
+      </div>
+      <table style="width: 100%; border-collapse: collapse">
+        <thead><tr><th class="rr-th">Component</th><th class="rr-th">Type</th><th class="rr-th">Changed by</th><th class="rr-th">Compared with sit</th></tr></thead>
+        <tbody>
+          <sc-for list="{{sel.changes}}" as="c" hint-placeholder-count="3">
+            <tr><td class="rr-td">{{c.name}}</td><td class="rr-td rr-weak">{{c.type}}</td><td class="rr-td rr-weak">{{c.by}}</td><td class="rr-td"><span class="rr-pill" style="{{c.style}}">{{c.status}}</span></td></tr>
+          </sc-for>
+        </tbody>
+      </table>
+      <div style="padding: 12px 16px; border-top: 1px solid #E5E5E5; background: #FAFAF9; display: flex; justify-content: flex-end">
+        <button class="rr-btn rr-btn-brand">Next: Select changes</button>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+var OK = 'background:#EBF7E6;color:#2E844A', WAIT = 'background:#FEF1CD;color:#8C4B02';
+var NEW = 'background:#EBF7E6;color:#2E844A', DIFF = 'background:#EEF4FF;color:#014486';
+var ORGS = [
+  { name: 'DEV1', domain: 'aravind--dev1', cred: 'RLY_Org_DEV1', status: 'Connected', style: OK, note: 'Your sandbox',
+    changes: [{ name: 'Case_Escalation', type: 'Flow', by: 'You', status: 'Different', style: DIFF }, { name: 'Case.Escalation_Level__c', type: 'Custom field', by: 'You', status: 'New', style: NEW }] },
+  { name: 'DEV2', domain: 'aravind--dev2', cred: 'RLY_Org_DEV2', status: 'Connected', style: OK, note: 'Shared with the Accounts team',
+    changes: [{ name: 'Account.Region__c', type: 'Custom field', by: 'Demo User', status: 'New', style: NEW }, { name: 'Account-Account Layout', type: 'Page layout', by: 'Demo User', status: 'Different', style: DIFF }] },
+  { name: 'DEV3', domain: 'aravind--dev3', cred: 'RLY_Org_DEV3', status: 'Refreshed: re-check', style: WAIT, note: 'Refreshed yesterday',
+    changes: [{ name: 'AccountActionsController', type: 'Apex class', by: 'You', status: 'Different', style: DIFF }] }
+];
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { sel: 'DEV1' }; }
+  renderVals() {
+    var self = this;
+    var sel = ORGS.find(function (o) { return o.name === self.state.sel; });
+    return {
+      sel: sel,
+      orgs: ORGS.map(function (o) {
+        var on = o.name === sel.name;
+        return Object.assign({}, o, { on: on ? 'true' : 'false', cls: on ? 'rr-src rr-src-on' : 'rr-src', pick: function () { self.setState({ sel: o.name }); } });
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Orgs in parallel</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px}
+.hd{padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.pad{padding:12px 16px}
+.h1{margin:0;font-size:18px;font-weight:700}.h2{margin:0;font-size:15px;font-weight:700}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.ok{background:#EBF7E6;color:#2E844A}.bad{background:#FEDED8;color:#8E030F}.wait{background:#FEF1CD;color:#8C4B02}.none{background:#F3F3F3;color:#444}.info{background:#EEF4FF;color:#014486}
+.btn{height:30px;padding:0 12px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px;cursor:pointer}
+.brand{background:#0176D3;border-color:#0176D3;color:#fff}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.arrow{color:#0176D3;font-weight:700}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #E5E5E5;font-size:13px}th{background:#F3F3F3;font-size:12px;color:#444}
+.code{font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:20px;white-space:pre;padding:0 10px}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:#fff;border:1px solid #E5E5E5;border-top:3px solid #2E844A;border-radius:4px;padding:10px 16px}
+.note{padding:8px 10px;border-radius:4px;font-size:12px;line-height:1.45}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:12px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+  <section class="card hd">
+    <div style="flex:1 1 300px"><p class="k">Release Relay hub · how branches work</p><h1 class="h1">Orgs in parallel: Git merges, nothing is overwritten</h1></div>
+    <span class="pill info">Each dev org has its own branch</span>
+  </section>
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:12px">
+    <section class="card">
+      <div class="hd"><h2 class="h2">Where a release branch starts</h2></div>
+      <div class="pad" style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+        <svg viewBox="0 0 460 210" width="100%%" role="img" aria-label="dev1 and dev2 branches merging into sit">
+          <line x1="20" y1="40" x2="440" y2="40" stroke="#0176D3" stroke-width="3"/><text x="20" y="28" font-size="12" fill="#014486">sit</text>
+          <line x1="40" y1="110" x2="300" y2="110" stroke="#2E844A" stroke-width="3"/><text x="40" y="100" font-size="12" fill="#2E844A">dev1 (DEV1)</text>
+          <line x1="40" y1="180" x2="380" y2="180" stroke="#8C4B02" stroke-width="3"/><text x="40" y="170" font-size="12" fill="#8C4B02">dev2 (DEV2)</text>
+          <path d="M300 110 C330 110 330 40 360 40" stroke="#2E844A" stroke-width="3" fill="none"/>
+          <path d="M380 180 C410 180 410 40 430 40" stroke="#8C4B02" stroke-width="3" fill="none"/>
+          <circle cx="360" cy="40" r="6" fill="#2E844A"/><circle cx="430" cy="40" r="6" fill="#8C4B02"/>
+          <text x="250" y="70" font-size="11" fill="#444">REL-00021 (A) merged</text><text x="372" y="62" font-size="11" fill="#444">REL-00022 (B)</text>
+          <path d="M360 44 C370 140 250 150 240 176" stroke="#939393" stroke-dasharray="4 3" fill="none"/><text x="250" y="150" font-size="11" fill="#5C5C5C">sit flows back to dev2</text>
+        </svg>
+        <ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px">
+          <li><strong>Raise:</strong> the branch starts from the dev org's own branch (<span class="mono">dev2</span>), not from sit, so Git knows what that org started from.</li>
+          <li><strong>Merge into sit:</strong> Git combines A's and B's changes line by line. Different lines in the same class: both kept.</li>
+          <li><strong>Same lines changed:</strong> a conflict. The hub stops before approval and shows it.</li>
+          <li><strong>Validation</strong> deploys the merged result (what SIT will really get), not only B's copy.</li>
+          <li><strong>After each SIT deploy:</strong> sit merges back into every devN branch. Optional: deploy it to the dev orgs too (back-promote).</li>
+        </ol>
+      </div>
+    </section>
+    <section class="card">
+      <div class="hd">
+        <div style="flex:1"><p class="k">REL-00022 · DEV2 <span class="arrow">→</span> SIT · sit</p><h2 class="h2">Discount rules for partner accounts</h2></div>
+        <span class="pill bad">Conflict with SIT</span>
+      </div>
+      <div class="pad" style="display:flex;flex-direction:column;gap:10px">
+        <div class="note" style="background:#FEF1EE;color:#8E030F"><strong>1 file conflicts</strong> with REL-00021 (DEV1, deployed to SIT 10:42). 3 other files merged cleanly with A's changes.</div>
+        <table>
+          <thead><tr><th>File</th><th>With SIT</th><th></th></tr></thead>
+          <tbody>
+            <tr><td class="mono">classes/DiscountService.cls</td><td><span class="pill bad">Conflict · lines 14–18</span></td><td><button class="btn">Resolve</button></td></tr>
+            <tr><td class="mono">classes/DiscountServiceTest.cls</td><td><span class="pill ok">Merged with A's change</span></td><td></td></tr>
+            <tr><td class="mono">objects/Account/fields/Tier__c</td><td><span class="pill ok">Only B changed it</span></td><td></td></tr>
+            <tr><td class="mono">layouts/Account-Partner Layout</td><td><span class="pill ok">Merged with A's change</span></td><td></td></tr>
+          </tbody>
+        </table>
+        <div class="card" style="overflow:hidden">
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-bottom:1px solid #E5E5E5;font-size:13px">
+            <div style="padding:8px 10px;background:#FAFAF9;border-right:1px solid #E5E5E5"><span class="pill info">Yours</span> <strong>DEV2</strong> <span class="weak sm">REL-00022</span></div>
+            <div style="padding:8px 10px;background:#FAFAF9"><span class="pill none">In SIT now</span> <strong>sit</strong> <span class="weak sm">from REL-00021 (DEV1)</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr))">
+            <div style="border-right:1px solid #E5E5E5"><div class="code">14  if (acct.Tier__c == 'Partner') {</div><div class="code" style="background:#EBF7E6">15      return amount * 0.85;</div><div class="code">16  }</div></div>
+            <div><div class="code">14  if (acct.Type == 'Partner') {</div><div class="code" style="background:#FEF1EE">15      return amount * 0.80;</div><div class="code">16  }</div></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn">Keep mine</button><button class="btn">Keep SIT's</button><button class="btn brand">Edit the merged lines</button><span class="weak sm" style="align-self:center">The choice is committed to the release branch, then the checks run again.</span></div>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

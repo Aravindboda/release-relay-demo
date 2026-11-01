@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Promote from SIT</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+a{color:#0B5CAB}a:hover{color:#014486}
+.rr-tab{display:flex;align-items:center;height:40px;padding:0 12px;font-size:13px;color:#181818;text-decoration:none;border-bottom:3px solid transparent;white-space:nowrap}
+.rr-tab-on{border-bottom-color:#2347D6;font-weight:700;background:#F3F6FF}
+.rr-stage{flex:1 1 140px;min-width:0;font:inherit;text-align:left;background:#fff;border:1px solid #E5E5E5;border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;cursor:pointer;color:inherit}
+.rr-stage-on{border-color:#0176D3;box-shadow:0 0 0 1px #0176D3}
+.rr-pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.rr-btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.rr-btn-brand{background:#0176D3;border-color:#0176D3;color:#fff}
+.rr-btn-off{background:#E5E5E5;border-color:#E5E5E5;color:#5C5C5C;cursor:not-allowed}
+.rr-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.rr-weak{color:#5C5C5C}
+.rr-th{font-size:12px;font-weight:600;color:#5C5C5C;text-align:left;padding:8px 10px;background:#FAFAF9;border-bottom:1px solid #E5E5E5;white-space:nowrap}
+.rr-td{font-size:13px;padding:10px;border-bottom:1px solid #F3F3F3;vertical-align:top}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column">
+
+  <header style="background: #fff; border-bottom: 1px solid #E5E5E5; display: flex; flex-wrap: wrap; align-items: stretch; gap: 0 8px; padding: 0 16px">
+    <div style="display: flex; align-items: center; gap: 10px; padding-right: 16px; height: 40px">
+      <span style="width: 24px; height: 24px; border-radius: 4px; background: #2347D6; display: inline-flex; align-items: center; justify-content: center" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h12"></path><path d="M12 6l6 6-6 6"></path><path d="M4 5v14"></path></svg>
+      </span>
+      <span style="font-size: 16px; font-weight: 700">Release Relay</span>
+    </div>
+    <nav aria-label="Release Relay tabs" style="display: flex; flex-wrap: wrap; align-items: stretch">
+      <a href="#" class="rr-tab">New Release</a>
+      <a href="Main.dc.html" class="rr-tab">My Releases</a>
+      <a href="#" class="rr-tab">Approvals</a>
+      <a href="#" class="rr-tab rr-tab-on" aria-current="page">Promote</a>
+      <a href="#" class="rr-tab">Connections</a>
+      <a href="#" class="rr-tab">Guide</a>
+    </nav>
+  </header>
+
+  <main style="flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 12px; max-width: 1600px; width: 100%; box-sizing: border-box; margin: 0 auto">
+
+    <section style="background: #fff; border: 1px solid #E5E5E5; border-radius: 4px; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+      <div style="flex: 1 1 240px">
+        <p style="margin: 0; font-size: 12px; color: #5C5C5C">Running in the SIT org · reads what was merged in GitHub, from every dev org · route <span class="rr-mono">sit&gt;uat&gt;prod</span></p>
+        <h1 style="margin: 0; font-size: 18px; font-weight: 700">Promote</h1>
+      </div>
+    </section>
+
+    <section aria-label="Stages" style="display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px">
+      <sc-for list="{{stages}}" as="s" hint-placeholder-count="3">
+        <button class="{{s.cls}}" onClick="{{s.pick}}" aria-pressed="{{s.on}}">
+          <span class="rr-weak" style="font-size: 12px">{{s.from}} → {{s.to}}</span>
+          <span style="font-size: 16px; font-weight: 700">{{s.ready}} ready</span>
+          <span class="rr-weak" style="font-size: 12px">{{s.note}}</span>
+        </button>
+      </sc-for>
+    </section>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start">
+
+      <section aria-label="Ready to promote" style="flex: 999 1 560px; min-width: 0; background: #fff; border: 1px solid #E5E5E5; border-radius: 4px">
+        <div style="padding: 12px 16px; border-bottom: 1px solid #E5E5E5">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700">Ready to promote to {{stage.toLabel}}</h2>
+          <p class="rr-weak" style="margin: 4px 0 0; font-size: 13px">Merged into {{stage.from}} in GitHub and not yet in {{stage.to}}, whichever dev org raised it. Ticked items go into one pull request, cherry-picked oldest merge first.</p>
+        </div>
+        <div style="overflow-x: auto">
+          <table style="width: 100%; border-collapse: collapse; min-width: 560px">
+            <thead>
+              <tr>
+                <th class="rr-th" style="width: 36px"><span style="position: absolute; left: -9999px">Select</span></th>
+                <th class="rr-th">Release</th>
+                <th class="rr-th">From</th>
+                <th class="rr-th">Merged into {{stage.fromLabel}}</th>
+                <th class="rr-th">Merge commit</th>
+                <th class="rr-th">Files</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{rows}}" as="r" hint-placeholder-count="3">
+                <tr style="{{r.rowStyle}}">
+                  <td class="rr-td"><input type="checkbox" checked="{{r.checked}}" onChange="{{r.toggle}}" aria-label="{{r.selLabel}}"></td>
+                  <td class="rr-td">
+                    <a href="Main.dc.html" style="font-weight: 700; font-size: 12px">{{r.no}}</a> <span class="rr-weak" style="font-size: 12px">PR {{r.pr}}</span>
+                    <div style="font-weight: 600">{{r.title}}</div>
+                    <sc-if value="{{r.overlap}}" hint-placeholder-val="{{false}}">
+                      <div style="margin-top: 4px; font-size: 12px; color: #8C4B02">Shares {{r.overlap}} with {{r.overlapWith}}; keep both in the same order.</div>
+                    </sc-if>
+                  </td>
+                  <td class="rr-td"><span class="rr-pill" style="{{r.originStyle}}">{{r.origin}}</span></td>
+                  <td class="rr-td rr-weak">{{r.when}}</td>
+                  <td class="rr-td"><span class="rr-mono">{{r.sha}}</span></td>
+                  <td class="rr-td rr-weak">{{r.count}}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+        <sc-if value="{{noRows}}" hint-placeholder-val="{{false}}">
+          <p class="rr-weak" style="margin: 0; padding: 24px; text-align: center; font-size: 13px">Nothing waiting. Everything deployed to {{stage.fromLabel}} is already in {{stage.toLabel}}.</p>
+        </sc-if>
+
+        <div style="padding: 12px 16px; border-top: 1px solid #E5E5E5">
+          <h3 style="margin: 0 0 8px; font-size: 13px; font-weight: 700">Promotions in flight</h3>
+          <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px">
+            <sc-for list="{{stage.flight}}" as="f" hint-placeholder-count="1">
+              <li style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px">
+                <a href="Main.dc.html" style="font-weight: 700; font-size: 12px">{{f.no}}</a>
+                <span>{{f.title}}</span>
+                <span class="rr-pill" style="background: #EEF4FF; color: #014486">{{f.status}}</span>
+              </li>
+            </sc-for>
+          </ul>
+        </div>
+      </section>
+
+      <aside aria-label="Promotion summary" style="flex: 1 1 340px; min-width: 0; background: #fff; border: 1px solid #E5E5E5; border-radius: 4px; display: flex; flex-direction: column">
+        <div style="padding: 12px 16px; border-bottom: 1px solid #E5E5E5">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700">New promotion</h2>
+          <p class="rr-weak" style="margin: 4px 0 0; font-size: 13px">Creates release {{nextNo}} (Mode: Promotion) from {{stage.fromLabel}}.</p>
+        </div>
+        <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 12px">
+          <div>
+            <div class="rr-weak" style="font-size: 12px; margin-bottom: 4px">Cherry-pick order</div>
+            <ol style="margin: 0; padding-left: 20px; font-size: 13px; display: flex; flex-direction: column; gap: 4px">
+              <sc-for list="{{picked}}" as="p" hint-placeholder-count="2">
+                <li><strong>{{p.no}}</strong> <span class="rr-mono rr-weak">{{p.sha}}</span> · {{p.title}}</li>
+              </sc-for>
+            </ol>
+            <sc-if value="{{nonePicked}}" hint-placeholder-val="{{false}}">
+              <p class="rr-weak" style="margin: 0; font-size: 13px">Tick releases on the left.</p>
+            </sc-if>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; font-size: 13px">
+            <div><div class="rr-weak" style="font-size: 12px">Branch</div><div class="rr-mono" style="word-break: break-all">{{branch}}</div></div>
+            <div><div class="rr-weak" style="font-size: 12px">Pull request into</div><div class="rr-mono">{{stage.to}}</div></div>
+            <div><div class="rr-weak" style="font-size: 12px">Validate in</div><div>{{stage.toLabel}} ({{stage.to}} environment)</div></div>
+            <div><div class="rr-weak" style="font-size: 12px">Deploy test level</div><div>{{stage.tests}}</div></div>
+          </div>
+          <sc-if value="{{stage.reviewers}}" hint-placeholder-val="{{false}}">
+            <p style="margin: 0; padding: 8px 10px; border-radius: 4px; background: #FEF1CD; color: #5E3600; font-size: 12px">The prod environment has required reviewers in GitHub. The deploy waits for them after approval here.</p>
+          </sc-if>
+          <p class="rr-weak" style="margin: 0; font-size: 12px">Then the usual path: code scan → validate → approval → merge → deploy.</p>
+        </div>
+        <div style="margin-top: auto; padding: 12px 16px; border-top: 1px solid #E5E5E5; background: #FAFAF9; display: flex; justify-content: flex-end">
+          <button class="{{btnCls}}" disabled="{{nonePicked}}">{{btnLabel}}</button>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+var DEVS = { DEV1: 'background:#E1F5EE;color:#085041', DEV2: 'background:#EEEDFE;color:#3C3489', DEV3: 'background:#FAECE7;color:#712B13', GitHub: 'background:#F3F3F3;color:#444' };
+var STAGES = {
+  uat: { from: 'sit', to: 'uat', fromLabel: 'SIT', toLabel: 'UAT', tests: 'Default (org setting)', reviewers: false, note: '4 merged since last promotion',
+    flight: [{ no: 'REL-00021', title: 'Promote 2 changes to UAT', status: 'Validating in UAT' }],
+    rows: [
+      { no: 'REL-00014', pr: '#31', title: 'Case escalation flow v2', origin: 'DEV1', when: 'Oct 27', sha: 'a91f03b', count: 3 },
+      { no: 'REL-00009', pr: '#33', title: 'Account Region field and layout', origin: 'DEV2', when: 'Oct 28', sha: '4e1a9c2', count: 2, overlap: 'Account-Account Layout', overlapWith: 'REL-00017' },
+      { no: 'REL-00017', pr: '#35', title: 'Account page action buttons', origin: 'DEV3', when: 'Oct 29', sha: 'c03b7e5', count: 2 },
+      { no: 'PR only', pr: '#36', title: 'Hotfix: OpportunityTrigger null check', origin: 'GitHub', when: 'Oct 30', sha: '77c2d10', count: 1 }
+    ] },
+  prod: { from: 'uat', to: 'prod', fromLabel: 'UAT', toLabel: 'PROD', tests: 'RunLocalTests', reviewers: true, note: 'Required reviewers on prod',
+    flight: [],
+    rows: [{ no: 'REL-00012', pr: '#29', title: 'Promote 3 changes to UAT', origin: 'GitHub', when: 'Oct 26', sha: '19de4a0', count: 6 }] }
+};
+var ORDER = ['uat', 'prod'];
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { stage: 'uat', picked: { 'REL-00014': true, 'REL-00009': true, 'REL-00017': true } }; }
+  renderVals() {
+    var self = this, st = STAGES[this.state.stage], pk = this.state.picked;
+    var picked = st.rows.filter(function (r) { return pk[r.no]; });
+    var n = picked.length;
+    return {
+      stages: ORDER.map(function (id) {
+        var s = STAGES[id], on = id === self.state.stage;
+        return { from: s.fromLabel, to: s.toLabel, ready: s.rows.length, note: s.note, on: on ? 'true' : 'false',
+          cls: on ? 'rr-stage rr-stage-on' : 'rr-stage', pick: function () { self.setState({ stage: id, picked: {} }); } };
+      }),
+      stage: st,
+      rows: st.rows.map(function (r) {
+        var on = !!pk[r.no];
+        return Object.assign({}, r, { originStyle: DEVS[r.origin] || DEVS.GitHub, checked: on, rowStyle: on ? 'background:#F3F6FF' : '', selLabel: 'Promote ' + r.no,
+          toggle: function () { var next = Object.assign({}, self.state.picked); next[r.no] = !on; self.setState({ picked: next }); } });
+      }),
+      noRows: st.rows.length === 0,
+      picked: picked,
+      nonePicked: n === 0,
+      nextNo: 'REL-00022',
+      branch: 'promote/rel-00022-to-' + st.to,
+      btnLabel: n === 0 ? 'Promote to ' + st.toLabel : 'Promote ' + n + (n === 1 ? ' release' : ' releases') + ' to ' + st.toLabel,
+      btnCls: n === 0 ? 'rr-btn rr-btn-off' : 'rr-btn rr-btn-brand'
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Deletions</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px}
+.hd{padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;gap:8px}
+.hd h2{margin:0;font-size:15px;flex:1}
+.bd{padding:12px 16px;display:flex;flex-direction:column;gap:10px;font-size:13px}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.lab{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5C5C5C}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap;width:max-content}
+.hot{background:#FEDED8;color:#8E030F}.ok{background:#EBF7E6;color:#2E844A}.info{background:#EEF4FF;color:#014486}.none{background:#F3F3F3;color:#444}.wait{background:#FEF1CD;color:#8C4B02}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tg{display:inline-flex;width:44px;height:24px;border-radius:12px;background:#0176D3;position:relative;flex:none}.tg::after{content:"";position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.tg.off{background:#939393}.tg.off::after{right:auto;left:3px}
+.cb{width:16px;height:16px;border-radius:3px;background:#0176D3;color:#fff;font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.in{border:1px solid #C9C9C9;border-radius:4px;padding:8px 10px;min-height:20px;color:#181818}
+.btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #0176D3;background:#0176D3;color:#fff;font:inherit;font-size:13px}
+.btn2{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.route{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.node{border:1px solid #E5E5E5;border-radius:4px;padding:8px 12px;background:#fff;display:flex;flex-direction:column;gap:2px;min-width:110px}
+.node.side{border-style:dashed;background:#FAFAF9}
+.arr{color:#0176D3;font-size:18px}.arr.d{color:#939393}
+.seg{display:inline-flex;border:1px solid #C9C9C9;border-radius:4px;overflow:hidden}.seg span{padding:6px 12px;border-right:1px solid #C9C9C9}.seg span:last-child{border-right:0}.seg .s{background:#0176D3;color:#fff}
+.step{display:flex;gap:10px;padding:8px 0;border-top:1px solid #F3F3F3}.step:first-child{border-top:0}
+.dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none;background:#2E844A;color:#fff}
+.dot.n{background:#F3F3F3;color:#747474}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:8px 10px;border-top:1px solid #E5E5E5;font-size:13px}th{border-top:0;background:#FAFAF9;font-size:12px;color:#5C5C5C}
+.del{color:#8E030F}.rowdel{background:#FFF7F5}
+.split{display:grid;grid-template-columns:200px 1fr;border-top:1px solid #E5E5E5}
+.nav{background:#FAFAF9;border-right:1px solid #E5E5E5;padding:8px;display:flex;flex-direction:column;gap:2px;font-size:13px}
+.nav span{display:flex;justify-content:space-between;padding:5px 8px;border-radius:4px}.nav .on{background:#FEDED8;color:#8E030F;font-weight:700}
+.nav .g{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#5C5C5C;padding:8px 8px 2px}
+.msg{padding:8px 10px;border-radius:4px;font-size:12px;line-height:1.45}.msg.i{background:#EEF4FF;color:#014486}.msg.b{background:#FEF1EE;color:#8E030F}
+.cbo{width:16px;height:16px;border-radius:3px;border:1px solid #939393;background:#fff;flex:none;display:inline-block}
+.bar{display:flex;align-items:center;gap:12px;border-top:3px solid #2E844A;padding:10px 16px;font-size:13px}
+.file{display:flex;justify-content:space-between;gap:6px;padding:6px 10px;border-radius:4px}
+dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px}dt{color:#5C5C5C}dd{margin:0}
+</style>
+</helmet>
+<div style="padding:12px;display:flex;flex-direction:column;gap:12px">
+
+<p class="lab">Deletions = components a release removes: from the target branch, and on deploy from the target org (destructiveChangesPost). They are promoted and merged back down like any change</p>
+
+<section class="card">
+  <div class="hd"><h2>1 · New Release, Select: the Deleted filter and Find deleted components</h2><span class="sm weak">DEV1 has no source tracking (Metadata API)</span></div>
+  <div class="bd" style="padding-bottom:0">
+    <div class="row"><strong style="font-size:15px">DEV1 <span style="color:#0176D3">→</span> SIT · sit</strong><span class="sm weak">last 7 days · changed by me · <u style="color:#0176D3">Change</u></span><span style="flex:1"></span>
+      <div class="seg"><span class="s">Custom + standard</span><span>Custom</span><span>Standard</span></div><span class="in" style="width:180px;color:#747474">Search by name or type</span><button class="btn2">🗑 Find deleted components</button><button class="btn2">⟳</button></div>
+    <div class="msg i">In dev1's branch but not in DEV1. They may have been deleted in DEV1, or came from another org through the branch and were never deployed to DEV1. Tick only what you deleted.</div>
+  </div>
+  <div class="split" style="margin-top:10px">
+    <div class="nav">
+      <span>All changed <span class="weak sm">9</span></span>
+      <span class="on">Deleted <span>3</span></span>
+      <span class="g">Code</span><span>Apex Class <span class="weak sm">5</span></span><span>Lightning Component Bundle <span class="weak sm">1</span></span>
+      <span class="g">Data model</span><span>Custom Field <span class="weak sm">3</span></span>
+    </div>
+    <div>
+      <table>
+        <tr><th style="width:30px"><span class="cbo" style="opacity:.5"></span></th><th>Name</th><th>Type</th><th>Kind</th><th>Changed</th></tr>
+        <tr class="rowdel"><td><span class="cb">✓</span></td><td><span class="mono">OldHelper</span> <span class="pill hot">Delete</span></td><td>Apex Class</td><td><span class="pill" style="background:#E1F5EE;color:#0F6E56">Custom</span></td><td class="del"><strong>Delete from SIT</strong></td></tr>
+        <tr class="rowdel"><td><span class="cbo"></span></td><td><span class="mono">Account.Legacy_Code__c</span> <span class="pill hot">Delete</span></td><td>Custom Field</td><td><span class="pill" style="background:#E1F5EE;color:#0F6E56">Custom</span></td><td class="del"><strong>Delete from SIT</strong></td></tr>
+        <tr class="rowdel"><td><span class="cbo"></span></td><td><span class="mono">oldTile</span> <span class="pill hot">Delete</span></td><td>Lightning Component Bundle</td><td><span class="pill" style="background:#E1F5EE;color:#0F6E56">Custom</span></td><td class="del"><strong>Delete from SIT</strong></td></tr>
+      </table>
+      <p class="k" style="padding:6px 10px">Nothing is ticked for you, and Select all ticks changes only: each deletion is ticked by hand. With source tracking, deletions come with the changes (no button).</p>
+      <div style="border-top:1px solid #E5E5E5;padding:10px 16px">
+        <p class="k" style="margin-bottom:6px">Not in the list? Delete it by name</p>
+        <div class="row"><div class="seg"><span>Add</span><span class="s">Delete</span></div><span class="in" style="width:180px">Apex Class ▾</span><span class="in" style="flex:1">OldHelper</span><button class="btn2">Delete</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="bar"><button class="btn2">Back</button><strong style="flex:1">7 selected · 2 deletions · 2 Apex · 1 test class ✓</strong><span style="color:#0B5CAB">Show selection</span><button class="btn">Next: review</button></div>
+</section>
+
+<div class="grid">
+  <section class="card">
+    <div class="hd"><h2>2 · Review: In this release</h2><span class="pill info">5 components of 3 types · 2 deletions</span></div>
+    <div class="bd" style="flex-direction:row;gap:12px;align-items:flex-start">
+      <div style="width:240px;border:1px solid #E5E5E5;border-radius:4px;padding:6px">
+        <p class="lab" style="margin:4px 8px">In this release</p>
+        <div class="file"><span><strong>AccountService</strong><br><span class="sm weak">Apex Class · Custom</span></span><span class="weak">×</span></div>
+        <div class="file"><span><strong>AccountServiceTest</strong><br><span class="sm weak">Apex test class · Custom</span></span><span class="weak">×</span></div>
+        <div class="file"><span><strong>Account.Region__c</strong><br><span class="sm weak">Custom Field · Custom</span></span><span class="weak">×</span></div>
+        <p class="lab del" style="margin:12px 8px 4px">Deleted from SIT</p>
+        <div class="file del"><span><strong>OldHelper</strong><br><span class="sm">Apex Class · Delete from SIT</span></span><span>×</span></div>
+        <div class="file del"><span><strong>Account.Legacy_Code__c</strong><br><span class="sm">Custom Field · Delete from SIT</span></span><span>×</span></div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+        <div class="msg i">Runs AccountServiceTest (RunSpecifiedTests) in every org it deploys to. Each Apex class and trigger needs 75% coverage.</div>
+        <p class="k">Deleting Apex needs no test class unless Apex is also added. Deletions alone: NoTestRun into sandboxes; into production Salesforce runs the local tests (RunLocalTests).</p>
+        <div class="msg b">ApexClass OldHelper is both added and deleted.</div>
+        <p class="k">(shown instead, and Raise is off, when the same component is picked both ways)</p>
+        <div class="row" style="justify-content:flex-end"><button class="btn">Raise pull request</button></div>
+      </div>
+    </div>
+  </section>
+  <section class="card">
+    <div class="hd"><h2>3 · Release page: Details and Components</h2></div>
+    <div class="bd">
+      <dl>
+        <dt>Status</dt><dd><span class="pill info">Validating</span></dd>
+        <dt>Branch</dt><dd class="sm">feature/rel-00034</dd>
+        <dt class="del" style="font-weight:700">Deletes</dt><dd class="del"><span class="mono">OldHelper</span> <span class="sm">Apex Class</span><br><span class="mono">Account.Legacy_Code__c</span> <span class="sm">Custom Field</span></dd>
+      </dl>
+      <div class="row" style="border-top:1px solid #E5E5E5;padding-top:10px"><strong style="flex:1;font-size:15px">Components</strong><span class="pill none">3 · 2 deletions</span></div>
+      <dl><dt>Apex Class</dt><dd>AccountService</dd><dt>Apex test class</dt><dd>AccountServiceTest</dd><dt>Custom Field</dt><dd>Account.Region__c</dd></dl>
+      <p class="lab del" style="border-top:1px solid #E5E5E5;padding-top:8px;margin:0">Deleted from SIT</p>
+      <dl class="del"><dt>Apex Class</dt><dd><span class="pill hot">Delete</span> OldHelper</dd><dt>Custom Field</dt><dd><span class="pill hot">Delete</span> Account.Legacy_Code__c</dd></dl>
+      <p class="k">Progress: Collected from DEV1 · 3 components · 2 deletions</p>
+    </div>
+  </section>
+</div>
+
+<div class="grid">
+  <section class="card">
+    <div class="hd"><h2>4 · Releases and Approvals lists</h2></div>
+    <div class="bd">
+      <div style="border:1px solid #E5E5E5;border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:4px">
+        <div class="row"><strong>REL-00034</strong><span class="pill hot">Deletes 2</span><span class="pill wait">Ready for approval</span><span style="flex:1"></span><span class="sm weak">5 min ago</span></div>
+        <span>Account region, remove the old helper</span>
+        <span class="sm weak">DEV1 → SIT · 3 components · 2 deletions · You</span>
+      </div>
+      <p class="k">"Deletes n" pill on the Approvals tab; "· n deletions" in the meta line everywhere.</p>
+    </div>
+  </section>
+  <section class="card">
+    <div class="hd"><h2>5 · Promote SIT → PROD</h2></div>
+    <div class="bd">
+      <div class="row"><span class="cb">✓</span><strong>REL-00034</strong><span class="weak">Account region, remove the old helper</span><span class="pill hot">Deletes 2</span></div>
+      <p><strong>1 release</strong> · 3 components · 2 deletions</p>
+      <p class="k">The deletions are already in the release's merge commit (files removed), so promoting carries them; PROD's deploy removes them with destructiveChangesPost.</p>
+    </div>
+  </section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1240}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

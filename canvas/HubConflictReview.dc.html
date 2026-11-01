@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Resolve conflicts: full-screen review</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#7a7a7a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.win{position:absolute;inset:16px 2%;background:#fff;border-radius:4px;display:flex;flex-direction:column;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.head{padding:14px 20px;border-bottom:1px solid #E5E5E5}
+.head h1{margin:0;font-size:20px;font-weight:400}
+.k{margin:4px 0 0;font-size:12px;color:#5C5C5C}
+.x{position:absolute;right:-10px;top:-12px;width:30px;height:30px;border-radius:50%;background:#fff;border:1px solid #C9C9C9;display:flex;align-items:center;justify-content:center;font-size:14px}
+.body{flex:1;display:grid;grid-template-columns:260px 1fr;min-height:0}
+.files{background:#FAFAF9;border-right:1px solid #E5E5E5;padding:8px 0}
+.files .t{padding:4px 14px 8px;font-size:12px;font-weight:700}
+.f{padding:9px 14px;border-left:3px solid transparent;display:flex;flex-direction:column;gap:4px}
+.f.on{background:#EEF4FF;border-left-color:#0176D3}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;width:max-content}
+.ok{background:#EBF7E6;color:#2E844A}.bad{background:#FEDED8;color:#8E030F}.info{background:#EEF4FF;color:#014486}.none{background:#F3F3F3;color:#444}
+.main{padding:12px 18px;display:flex;flex-direction:column;gap:10px;min-height:0}
+.cmp{flex:1;border:1px solid #E5E5E5;border-radius:4px;display:grid;grid-template-rows:auto 1fr;min-height:0;overflow:hidden}
+.ch{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.ch div{padding:8px 12px;background:#FAFAF9;border-bottom:1px solid #E5E5E5;font-size:13px}.ch div:first-child{border-right:1px solid #E5E5E5}
+.cb{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:0}.cb>div{padding:4px 0;min-width:0;overflow:auto}.cb>div:first-child{border-right:1px solid #E5E5E5}.cb .ln{width:max-content;min-width:100%;box-sizing:border-box}
+.ln{font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:22px;white-space:pre;padding:0 12px}.ln i{display:inline-block;width:30px;color:#939393;font-style:normal}
+.m{background:#EBF7E6}.th{background:#FEF1EE}
+.row{display:flex;align-items:center;gap:10px}
+.seg{display:inline-flex;border:1px solid #C9C9C9;border-radius:4px;overflow:hidden}.seg span{padding:6px 12px;font-size:13px;border-right:1px solid #C9C9C9}.seg span:last-child{border-right:0}.seg .on{background:#0176D3;color:#fff}
+.btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px}
+.brand{background:#0176D3;border-color:#0176D3;color:#fff}
+.foot{padding:12px 20px;border-top:1px solid #E5E5E5;background:#F3F3F3;display:flex;align-items:center;gap:8px}
+.sm{font-size:12px;color:#5C5C5C}
+</style>
+</helmet>
+<div style="position:relative;min-height:100vh">
+  <div class="win">
+    <span class="x">✕</span>
+    <div class="head"><h1>Conflict with SIT</h1><p class="k">2 files changed on both sides since DEV1's branch started. Choose what to keep for each file; your choices are committed to the release branch, then the checks run again.</p></div>
+    <div class="body">
+      <div class="files">
+        <p class="t">Files <span class="sm">(1 of 2 files resolved)</span></p>
+        <div class="f"><span class="mono" style="font-weight:700">RlyDemoGreeting.cls</span><span class="pill ok">Keep mine</span></div>
+        <div class="f on"><span class="mono" style="font-weight:700">RlyDemoGreetingTest.cls</span><span class="pill bad">Conflict</span></div>
+      </div>
+      <div class="main">
+        <p class="mono sm" style="margin:0">force-app/main/default/classes/RlyDemoGreetingTest.cls</p>
+        <div class="cmp">
+          <div class="ch"><div><span class="pill info">Yours</span> <strong>Yours (DEV1)</strong></div><div><span class="pill none">SIT</span> <strong>In SIT now</strong></div></div>
+          <div class="cb">
+            <div>
+              <div class="ln"><i>1</i>@IsTest</div><div class="ln"><i>2</i>private class RlyDemoGreetingTest {</div><div class="ln"><i>3</i>    @IsTest</div><div class="ln"><i>4</i>    static void greetsByName() {</div><div class="ln"><i>5</i>        System.runAs(new User(Id = UserInfo.getUserId())) {</div><div class="ln"><i>6</i>            System.assertEquals('Hi, Ana!', RlyDemoGreeting.greet(' Ana '));</div><div class="ln m"><i>7</i>            System.assertEquals('Welcome, friend', RlyDemoGreeting.greet(''));</div><div class="ln"><i>8</i>        }</div><div class="ln"><i>9</i>    }</div><div class="ln"><i>10</i>}</div>
+            </div>
+            <div>
+              <div class="ln"><i>1</i>@IsTest</div><div class="ln"><i>2</i>private class RlyDemoGreetingTest {</div><div class="ln"><i>3</i>    @IsTest</div><div class="ln"><i>4</i>    static void greetsByName() {</div><div class="ln"><i>5</i>        System.runAs(new User(Id = UserInfo.getUserId())) {</div><div class="ln"><i>6</i>            System.assertEquals('Hi, Ana!', RlyDemoGreeting.greet(' Ana '));</div><div class="ln th"><i>7</i>            System.assertEquals('Hello, team', RlyDemoGreeting.greet(''));</div><div class="ln"><i>8</i>        }</div><div class="ln"><i>9</i>    }</div><div class="ln"><i>10</i>}</div>
+            </div>
+          </div>
+        </div>
+        <div class="row"><strong style="font-size:12px">Keep</strong><div class="seg"><span>Keep mine</span><span>Keep SIT's</span><span>Edit</span></div><span style="flex:1"></span><button class="btn">Next file ›</button></div>
+      </div>
+    </div>
+    <div class="foot"><span class="sm" style="flex:1">Every file needs a choice. An edited file must not keep the &lt;&lt;&lt;&lt;&lt;&lt;&lt; or &gt;&gt;&gt;&gt;&gt;&gt;&gt; markers.</span><button class="btn">Close</button><button class="btn brand" disabled style="opacity:.5">Resolve and check again</button></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

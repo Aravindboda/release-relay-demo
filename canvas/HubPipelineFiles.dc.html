@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pipeline files</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px;box-shadow:0 2px 2px rgba(0,0,0,.05)}
+.hd{padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.pad{padding:12px 16px}
+.h1{margin:0;font-size:18px;font-weight:700}.h2{margin:0;font-size:15px;font-weight:700}.h3{margin:0;font-size:14px;font-weight:700}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.ok{background:#EBF7E6;color:#2E844A}.bad{background:#FEDED8;color:#8E030F}.wait{background:#FEF1CD;color:#8C4B02}.none{background:#F3F3F3;color:#444}.info{background:#EEF4FF;color:#014486}
+.btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;text-decoration:none}
+.brand{background:#0176D3;border-color:#0176D3;color:#fff}
+.link{color:#0B5CAB;font-size:13px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.icon{width:32px;height:32px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;flex:none}
+.lbl{font-size:12px;color:#444;margin:0 0 4px}
+.lay{display:grid;grid-template-columns:230px 1fr;gap:12px}
+.nav{padding:8px 0}.nav p{margin:0;padding:8px 16px;font-size:13px;border-left:3px solid transparent}.nav .on{border-left-color:#0176D3;background:#EEF4FF;font-weight:700;color:#014486}.nav .grp{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#747474;padding-top:14px}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #E5E5E5;font-size:13px;vertical-align:top}th{background:#F3F3F3;font-size:12px;color:#444}
+.status{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 12px;border:1px solid #E5E5E5;border-radius:4px;background:#FAFAF9;font-size:13px}
+.prov{display:block;font-size:11px;color:#5C5C5C;margin-top:2px}
+.in{height:32px;border:1px solid #C9C9C9;border-radius:4px;padding:0 10px;display:flex;align-items:center;font-size:13px;background:#fff}
+.tiles{display:flex;gap:8px}.tile{flex:1;border:1px solid #E5E5E5;border-radius:4px;padding:8px 10px;font-size:13px}.tile.on{border-color:#0176D3;box-shadow:0 0 0 1px #0176D3;background:#F3F6FF}
+.modal{position:absolute;right:24px;top:12px;width:560px;background:#fff;border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,.35);display:flex;flex-direction:column}
+.mh{padding:12px 16px;border-bottom:1px solid #E5E5E5;text-align:center}
+.mb{padding:12px 16px;display:flex;flex-direction:column;gap:10px}
+.mf{padding:12px 16px;border-top:1px solid #E5E5E5;background:#F3F3F3;display:flex;justify-content:flex-end;gap:8px;border-radius:0 0 4px 4px}
+.radio{display:flex;align-items:center;gap:8px;font-size:13px;margin-top:6px}.dot{width:14px;height:14px;border-radius:50%;border:1px solid #C9C9C9;flex:none}.dot.on{border:4px solid #0176D3;width:8px;height:8px}
+.list{border:1px solid #E5E5E5;border-radius:4px}.list div{display:flex;align-items:center;gap:12px;padding:8px 12px}.list div+div{border-top:1px solid #E5E5E5}
+.note{padding:8px 10px;border-radius:4px;font-size:12px;line-height:1.45}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:12px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+  <!-- Guide: Repository files → Download the pipeline files -->
+  <p class="k" style="font-weight:700;text-transform:uppercase;letter-spacing:.06em">Guide · Repository files (admins)</p>
+  <div class="lay">
+    <section class="card nav">
+      <p class="grp">Start here</p><p>How it works</p><p>Set up, step by step</p><p class="on">Repository files</p>
+      <p class="grp">Daily use</p><p>Raise a release (developer)</p><p>Approve (approver)</p>
+    </section>
+    <section class="card">
+      <div class="hd"><h2 class="h2" style="flex:1;font-size:16px">Download the pipeline files</h2></div>
+      <div class="pad" style="display:flex;flex-direction:column;gap:10px">
+        <p style="margin:0;font-size:13px;line-height:1.55">Put each file at its path on the pipeline branch (usually <span class="mono">main</span>). Your provider's file and <span class="mono">release-relay.js</span> are all you need. When a new version of {app name} brings new files, update them from the Pipeline tab: it opens a pull request with them.</p>
+        <div class="status"><span class="pill wait">Update available</span><span style="flex:1">Pipeline files: version 7 in your repository · version 8 available</span><button class="btn">Update from the Pipeline tab</button></div>
+        <table>
+          <tr><th>File</th><th>Path in the repository</th><th>What it's for</th><th>Version</th><th></th></tr>
+          <tr><td style="white-space:nowrap"><strong class="mono">release-relay.yml</strong><span class="prov">GitHub</span></td><td class="mono">.github/workflows/release-relay.yml</td><td>The GitHub Actions workflow: starts the jobs (raise, scan, validate, merge, deploy) when the hub asks.</td><td style="white-space:nowrap">Version 8<br><span class="pill wait" style="margin-top:4px">Version 7 in your repository</span></td><td><a class="btn">Download</a></td></tr>
+          <tr><td style="white-space:nowrap"><strong class="mono">release-relay.js</strong><span class="prov">Every provider</span></td><td class="mono">scripts/release-relay.js</td><td>Every step the pipeline runs, for every provider: converts the hub's zip, opens the pull request, merges, tests, deploys.</td><td style="white-space:nowrap">Version 8<br><span class="pill ok" style="margin-top:4px">Up to date in your repository</span></td><td><a class="btn">Download</a></td></tr>
+        </table>
+        <div><a class="link">Show other providers (3)</a> <span class="sm weak">GitLab · Bitbucket · Azure DevOps, same columns, no repository version</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Pipeline: Git connection card with the Pipeline files line, and the update modal -->
+  <p class="k" style="font-weight:700;text-transform:uppercase;letter-spacing:.06em">Pipeline · 1 · Where the code lives</p>
+  <div style="position:relative;flex:1;min-height:380px">
+    <section class="card" style="width:620px">
+      <div class="hd" style="display:block"><h2 class="h2">1 · Where the code lives</h2><p class="k" style="margin-top:4px;font-size:13px">One Git connection for the whole pipeline. Saved as a record, never in custom metadata. The token stays in a Named Credential.</p></div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+        <div class="tiles"><div class="tile on"><strong>GitHub</strong><br><span class="sm weak">Actions workflow</span></div><div class="tile"><strong>GitLab</strong><br><span class="sm weak">CI pipeline</span></div><div class="tile"><strong>Bitbucket</strong><br><span class="sm weak">Custom pipeline</span></div><div class="tile"><strong>Azure DevOps</strong><br><span class="sm weak">Azure Pipeline</span></div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><p class="lbl">Repository</p><div class="in">owner/repository</div></div><div><p class="lbl">Pipeline branch</p><div class="in">main</div></div></div>
+        <div style="display:flex;align-items:center;gap:8px"><button class="btn">Test connection</button><span class="pill ok">Connected</span></div>
+        <div class="status"><span class="pill wait">Update available</span><span style="flex:1">Pipeline files: version 7 in your repository · version 8 available</span><button class="btn">Update pipeline files</button></div>
+        <p class="sm weak" style="margin:0">Other states: <span class="pill ok">Up to date</span> Pipeline files: up to date (version 8) · <span class="pill wait">Not found</span> not found in your repository · version 8 available. The button shows to admins only, when not up to date. GitLab says merge request. The pull request comes from <span class="mono">release-relay/pipeline-files-v8</span>.</p>
+      </div>
+    </section>
+
+    <div style="position:absolute;inset:0 0 0 640px;background:rgba(8,7,7,.45);border-radius:4px"></div>
+    <section class="modal" aria-label="Update pipeline files">
+      <div class="mh"><h2 class="h2" style="font-size:18px;font-weight:400">Update pipeline files to version 8</h2><p class="sm weak" style="margin:4px 0 0">Pipeline files: version 7 in your repository · version 8 available</p></div>
+      <div class="mb">
+        <div><p class="lbl">How</p>
+          <div class="radio"><span class="dot on"></span>Open a pull request (recommended)</div>
+          <div class="radio"><span class="dot"></span>Commit directly to main</div>
+          <p class="sm weak" style="margin:6px 0 0">A branch with the new files and a pull request into main. Merge it in your Git provider to start using them.</p></div>
+        <div><p class="lbl">Files that will change</p>
+          <div class="list">
+            <div><span style="flex:1"><strong class="mono" style="display:block">release-relay.yml</strong><span class="mono weak">.github/workflows/release-relay.yml</span></span><span class="pill info">Version 7 → 8</span></div>
+            <div><span style="flex:1"><strong class="mono" style="display:block">release-relay.js</strong><span class="mono weak">scripts/release-relay.js</span></span><span class="pill info">Already version 8 · written again</span></div>
+          </div></div>
+        <div class="note ok">Done: <strong>Release Relay pipeline files v8</strong> is open. <a class="link" style="font-size:12px">Open the pull request</a> <span class="weak">(after Update; Cancel becomes Close). Errors show here in words.</span></div>
+      </div>
+      <div class="mf"><button class="btn">Cancel</button><button class="btn brand">Update</button></div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

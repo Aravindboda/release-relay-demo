@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tabs by permission set</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.rr-th{font-size:12px;font-weight:600;color:#5C5C5C;text-align:center;padding:8px 10px;background:#FAFAF9;border-bottom:1px solid #E5E5E5}
+.rr-td{font-size:13px;text-align:center;padding:9px 10px;border-bottom:1px solid #F3F3F3}
+.rr-tab{display:inline-flex;align-items:center;height:32px;padding:0 10px;font-size:12px;border-bottom:3px solid transparent;white-space:nowrap}
+.rr-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+</style>
+</helmet>
+<div style="width: 1280px; height: 560px; box-sizing: border-box; padding: 32px; background: #F3F3F3; display: flex; gap: 24px">
+
+  <section style="flex: 0 0 520px; background: #fff; border: 1px solid #E5E5E5; border-radius: 4px; display: flex; flex-direction: column">
+    <div style="padding: 14px 16px; border-bottom: 1px solid #E5E5E5">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700">Tab visibility</h2>
+      <p style="margin: 4px 0 0; font-size: 13px; color: #5C5C5C">Set in each permission set's <span class="rr-mono">tabSettings</span>. A user sees the union of the sets they hold.</p>
+    </div>
+    <table style="width: 100%; border-collapse: collapse">
+      <thead>
+        <tr>
+          <th class="rr-th" style="text-align: left">Tab (own Lightning page + LWC)</th>
+          <th class="rr-th">RLY_User</th>
+          <th class="rr-th">RLY_Approver</th>
+          <th class="rr-th">RLY_Admin</th>
+        </tr>
+      </thead>
+      <tbody>
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+          <tr>
+            <td class="rr-td" style="text-align: left"><strong>{{r.tab}}</strong> <span class="rr-mono" style="color: #5C5C5C">{{r.lwc}}</span></td>
+            <td class="rr-td">{{r.u}}</td>
+            <td class="rr-td">{{r.a}}</td>
+            <td class="rr-td">{{r.m}}</td>
+          </tr>
+        </sc-for>
+      </tbody>
+    </table>
+    <p style="margin: auto 0 0; padding: 12px 16px; font-size: 12px; color: #5C5C5C; border-top: 1px solid #E5E5E5">Apex still checks the RLY_Approver and RLY_Admin custom permissions on every action; hiding a tab is not the security boundary.</p>
+  </section>
+
+  <section style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+    <h2 style="margin: 0; font-size: 15px; font-weight: 700">What each person sees</h2>
+    <sc-for list="{{personas}}" as="p" hint-placeholder-count="3">
+      <div style="background: #fff; border: 1px solid #E5E5E5; border-radius: 4px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+        <div style="font-size: 13px"><strong>{{p.who}}</strong> <span style="color: #5C5C5C">· {{p.sets}}</span></div>
+        <div style="display: flex; flex-wrap: wrap; border-bottom: 1px solid #E5E5E5">
+          <sc-for list="{{p.tabs}}" as="t" hint-placeholder-count="4">
+            <span class="rr-tab" style="{{t.style}}">{{t.label}}</span>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+    <p style="margin: 0; font-size: 12px; color: #5C5C5C">Deep link: <span class="rr-mono">/lightning/n/RLY_My_Releases?c__release=REL-00007</span> opens My Releases with that release selected in the detail panel.</p>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":560}}'>
+var TABS = [
+  { tab: 'New Release', lwc: 'rlyNewRelease', sets: ['u'] },
+  { tab: 'My Releases', lwc: 'rlyMyReleases', sets: ['u'] },
+  { tab: 'Approvals', lwc: 'rlyApprovals', sets: ['a'] },
+  { tab: 'Promote', lwc: 'rlyPromote', sets: ['a'] },
+  { tab: 'Connections', lwc: 'rlyConnections', sets: ['m'] },
+  { tab: 'Guide', lwc: 'rlyGuide', sets: ['u', 'a', 'm'] }
+];
+var ON = 'border-bottom-color:#2347D6;font-weight:700';
+function tabsFor(have) {
+  return TABS.filter(function (t) { return t.sets.some(function (s) { return have.indexOf(s) >= 0; }); })
+    .map(function (t, i) { return { label: t.tab, style: i === 0 ? ON : '' }; });
+}
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      rows: TABS.map(function (t) {
+        function mark(s) { return t.sets.indexOf(s) >= 0 ? '✓' : '—'; }
+        return { tab: t.tab, lwc: t.lwc, u: mark('u'), a: mark('a'), m: mark('m') };
+      }),
+      personas: [
+        { who: 'Developer', sets: 'RLY_User', tabs: tabsFor(['u']) },
+        { who: 'Release manager', sets: 'RLY_User + RLY_Approver', tabs: tabsFor(['u', 'a']) },
+        { who: 'Admin', sets: 'RLY_User + RLY_Approver + RLY_Admin', tabs: tabsFor(['u', 'a', 'm']) }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

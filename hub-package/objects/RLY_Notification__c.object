@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Where Release Relay sends notifications: one record per channel (Slack). Admins change it on the Pipeline tab; the flow reads it in Apex. The webhook URL is encrypted and never sent to the browser.</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>false</enableHistory>
+    <enableReports>false</enableReports>
+    <enableSearch>false</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <fields>
+        <fullName>Channel__c</fullName>
+        <description>The channel this record configures.</description>
+        <label>Channel</label>
+        <required>false</required>
+        <type>Picklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Slack</fullName><default>true</default><label>Slack</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>Enabled__c</fullName>
+        <defaultValue>false</defaultValue>
+        <description>Notifications are sent only when this is on.</description>
+        <label>Enabled</label>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
+        <fullName>Webhook_URL__c</fullName>
+        <description>The Slack incoming webhook URL (https://hooks.slack.com/services/...). Encrypted at rest, never sent to the browser; only Apex reads it.</description>
+        <externalId>false</externalId>
+        <label>Webhook URL</label>
+        <length>175</length>
+        <maskChar>asterisk</maskChar>
+        <maskType>all</maskType>
+        <required>false</required>
+        <type>EncryptedText</type>
+    </fields>
+    <fields>
+        <fullName>Events__c</fullName>
+        <description>The release events that send a message.</description>
+        <label>Events</label>
+        <required>false</required>
+        <type>MultiselectPicklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Ready for approval</fullName><default>false</default><label>Ready for approval</label></value>
+                <value><fullName>Checks failed</fullName><default>false</default><label>Checks failed</label></value>
+                <value><fullName>Deployed</fullName><default>false</default><label>Deployed</label></value>
+                <value><fullName>Deploy failed</fullName><default>false</default><label>Deploy failed</label></value>
+                <value><fullName>Rejected</fullName><default>false</default><label>Rejected</label></value>
+                <value><fullName>Raised</fullName><default>false</default><label>Raised</label></value>
+            </valueSetDefinition>
+        </valueSet>
+        <visibleLines>6</visibleLines>
+    </fields>
+    <fields>
+        <fullName>Last_Sent__c</fullName>
+        <description>When the last message was sent (or tried).</description>
+        <label>Last Sent</label>
+        <required>false</required>
+        <type>DateTime</type>
+    </fields>
+    <fields>
+        <fullName>Last_Result__c</fullName>
+        <description>What happened to the last message: sent, or why it failed.</description>
+        <externalId>false</externalId>
+        <label>Last Result</label>
+        <length>255</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Signing_Secret__c</fullName>
+        <description>The Slack app's signing secret: Approve and Reject from Slack are accepted only when Slack's signature matches. Encrypted, never sent to the browser.</description>
+        <externalId>false</externalId>
+        <label>Signing Secret</label>
+        <length>175</length>
+        <maskChar>asterisk</maskChar>
+        <maskType>lastFour</maskType>
+        <required>false</required>
+        <type>EncryptedText</type>
+    </fields>
+    <label>Release Relay Notification</label>
+    <nameField>
+        <label>Notification Name</label>
+        <type>Text</type>
+    </nameField>
+    <pluralLabel>Release Relay Notifications</pluralLabel>
+    <searchLayouts/>
+    <sharingModel>Private</sharingModel>
+</CustomObject>

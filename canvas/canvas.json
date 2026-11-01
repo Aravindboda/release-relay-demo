@@ -1,0 +1,239 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "HubCompare.dc.html": {
+      "expand": "fill",
+      "h": 760,
+      "title": "Compare: left = source (DEV2) → right = target (sit)",
+      "w": 1280,
+      "x": 0,
+      "y": 4560
+    },
+    "HubConflictReview.dc.html": {
+      "expand": "fill",
+      "h": 820,
+      "title": "Resolve conflicts: near-full-screen review (files left, side by side, keep / edit)",
+      "w": 1280,
+      "x": 0,
+      "y": 8660
+    },
+    "HubGuide.dc.html": {
+      "expand": "fill",
+      "h": 1500,
+      "title": "Guide v3: setup in order, repository files, real screenshots",
+      "w": 1280,
+      "x": 1360,
+      "y": 7640
+    },
+    "HubHotfix.dc.html": {
+      "expand": "fill",
+      "h": 640,
+      "title": "Hotfix: raise from the SIT org → PROD",
+      "w": 1280,
+      "x": 1360,
+      "y": 5680
+    },
+    "HubMerge.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "title": "Orgs in parallel: merge into SIT, conflicts resolved, never overwritten",
+      "w": 1280,
+      "x": 1360,
+      "y": 4560
+    },
+    "HubNewRelease.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "is_interactive": true,
+      "title": "Hub: New Release, pick the source dev org",
+      "w": 1280,
+      "x": 1360,
+      "y": 2340
+    },
+    "HubPipeline.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "title": "Hub: Pipeline (orgs registered in the hub)",
+      "w": 1280,
+      "x": 0,
+      "y": 2340
+    },
+    "HubPipelineFiles.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "title": "Pipeline files: download in the Guide, update from the Pipeline tab",
+      "w": 1280,
+      "x": 1360,
+      "y": 8660
+    },
+    "HubPromoteProd.dc.html": {
+      "expand": "fill",
+      "h": 820,
+      "title": "Promote SIT → PROD: pick releases, bundle, tests carried",
+      "w": 1280,
+      "x": 0,
+      "y": 5680
+    },
+    "HubReleasePolish.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "title": "Release page, SLDS: path, highlights, Resolving state, Open in Slack",
+      "w": 1280,
+      "x": 0,
+      "y": 7640
+    },
+    "HubSelect.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "title": "Select changes (as built): route header, lists fit the screen, bar with the test rule (OK and blocked)",
+      "w": 1280,
+      "x": 1360,
+      "y": 3540
+    },
+    "HubSetup.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "is_interactive": true,
+      "title": "Hub: Pipeline setup (Git connection, register org, route)",
+      "w": 1280,
+      "x": 0,
+      "y": 3540
+    },
+    "HubSlackCard.dc.html": {
+      "expand": "fill",
+      "h": 760,
+      "title": "Slack: one card per release, updated in place, history in the thread",
+      "w": 1280,
+      "x": 1360,
+      "y": 6620
+    },
+    "HubSlackConnection.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "title": "Pipeline: Slack and approval set per connection (org)",
+      "w": 1280,
+      "x": 0,
+      "y": 6620
+    },
+    "HubSourceEnvironments.dc.html": {
+      "expand": "fill",
+      "h": 1300,
+      "title": "New Release: 1) where the changes come from (environment)  2) pick the org, searchable for 140+ orgs",
+      "w": 1280,
+      "x": 0,
+      "y": 9680
+    },
+    "Main.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "is_interactive": true,
+      "title": "My Releases — cards + split detail",
+      "w": 1280,
+      "x": 0,
+      "y": 0
+    },
+    "Promote.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "is_interactive": true,
+      "title": "Promote — ready to promote SIT → UAT",
+      "w": 1280,
+      "x": 1360,
+      "y": 0
+    },
+    "PromoteSit.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "is_interactive": true,
+      "title": "Promote from SIT: all dev orgs (reads GitHub)",
+      "w": 1280,
+      "x": 1360,
+      "y": 1020
+    },
+    "Tabs.dc.html": {
+      "h": 560,
+      "title": "Tabs by permission set",
+      "w": 1280,
+      "x": 0,
+      "y": 1020
+    },
+    "HubHotfixBackPromote.dc.html": {
+      "expand": "fill",
+      "h": 1160,
+      "title": "Hotfix (dev org → SIT → PROD alone → merged back) and optional back promote (PROD ⤳ Training)",
+      "w": 1280,
+      "x": 1360,
+      "y": 9680
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-31T01:40:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "t1": {
+      "kind": "title1",
+      "maxW": 2640,
+      "text": "Release Relay — new app shell",
+      "x": 0,
+      "y": -300
+    },
+    "t2": {
+      "kind": "title1",
+      "maxW": 2640,
+      "text": "Hub model: Release Relay in one org (Aravind)",
+      "x": 0,
+      "y": 2040
+    },
+    "t3": {
+      "kind": "title1",
+      "maxW": 2640,
+      "text": "Hub: setup, all metadata, compare",
+      "x": 0,
+      "y": 3240
+    },
+    "t4": {
+      "kind": "title1",
+      "maxW": 2640,
+      "text": "Hub next: orgs in parallel, SIT → PROD, hotfix",
+      "x": 0,
+      "y": 5520
+    },
+    "t5": {
+      "kind": "title1",
+      "maxW": 2640,
+      "text": "Next build: Slack per connection, polished release page, Guide v3",
+      "x": 0,
+      "y": 6440
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Promote.dc.html",
+    "Tabs.dc.html",
+    "PromoteSit.dc.html",
+    "HubPipeline.dc.html",
+    "HubNewRelease.dc.html",
+    "HubSetup.dc.html",
+    "HubSelect.dc.html",
+    "HubCompare.dc.html",
+    "HubMerge.dc.html",
+    "HubPromoteProd.dc.html",
+    "HubHotfix.dc.html",
+    "HubSlackConnection.dc.html",
+    "HubSlackCard.dc.html",
+    "HubReleasePolish.dc.html",
+    "HubGuide.dc.html",
+    "HubConflictReview.dc.html",
+    "HubPipelineFiles.dc.html",
+    "HubSourceEnvironments.dc.html",
+    "HubHotfixBackPromote.dc.html"
+  ],
+  "pages": [],
+  "title": "Release Relay app shell"
+}

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Release page, SLDS polish</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px;box-shadow:0 2px 2px rgba(0,0,0,.05)}
+.hd{padding:12px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}
+.h1{margin:0;font-size:18px;font-weight:700}.h2{margin:0;font-size:15px;font-weight:700}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.ok{background:#EBF7E6;color:#2E844A}.bad{background:#FEDED8;color:#8E030F}.wait{background:#FEF1CD;color:#8C4B02}.none{background:#F3F3F3;color:#444}.info{background:#EEF4FF;color:#014486}
+.btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px;cursor:pointer}
+.brand{background:#0176D3;border-color:#0176D3;color:#fff}.dest{color:#BA0517}
+.icon{width:32px;height:32px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:#06A59A}
+.path{display:flex;margin:0 16px 12px;border-radius:16px;overflow:hidden}
+.path span{flex:1;text-align:center;font-size:12px;padding:8px 6px;background:#F3F3F3;color:#444;position:relative;border-right:2px solid #fff}
+.path .d{background:#2E844A;color:#fff}.path .c{background:#0B5CAB;color:#fff;font-weight:700}
+.hl{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border-top:1px solid #E5E5E5}
+.hl div{padding:10px 16px;border-right:1px solid #E5E5E5}.hl div:last-child{border-right:0}
+.hl p{margin:0}
+.cols{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+.step{display:flex;gap:10px;padding:10px 16px;border-top:1px solid #F3F3F3}
+.dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none}
+.dot.d{background:#2E844A;color:#fff}.dot.w{background:#fff;border:2px solid #0B5CAB;color:#0B5CAB}.dot.n{background:#F3F3F3;color:#747474}.dot.s{background:#0B5CAB;color:#fff}
+.step p{margin:0;font-size:13px}
+.meter{height:4px;background:#E5E5E5;border-radius:2px;overflow:hidden;margin-top:6px;width:200px}.meter i{display:block;height:100%;width:40%;background:#0176D3}
+.note{padding:8px 12px;border-radius:4px;font-size:12px;line-height:1.45}
+.foot{position:sticky;bottom:0;padding:10px 16px;border-top:1px solid #E5E5E5;background:#fff;display:flex;gap:8px;justify-content:flex-end;align-items:center}
+dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px;padding:12px 16px}dt{color:#5C5C5C}dd{margin:0}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:12px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+  <section class="card">
+    <div class="hd">
+      <span class="icon">⇪</span>
+      <div style="flex:1 1 320px"><p class="k">Release · REL-00016</p><h1 class="h1">Greeting says Welcome, friend</h1></div>
+      <span class="pill info">Resolving conflicts</span>
+      <button class="btn">Open in Slack</button><button class="btn">Pull request #20</button><button class="btn">Pipeline run</button>
+    </div>
+    <div class="path"><span class="d">Raised</span><span class="d">Pull request</span><span class="c">Checks</span><span>Approval</span><span>Deploy</span></div>
+    <div class="hl">
+      <div><p class="k">Route</p><p><strong>DEV1</strong> <span style="color:#0176D3">→</span> <strong>SIT</strong> <span class="sm weak">sit</span></p></div>
+      <div><p class="k">Raised by</p><p>Aravind Reddy Boda</p></div>
+      <div><p class="k">Raised</p><p>Oct 31, 1:43 PM</p></div>
+      <div><p class="k">Tests</p><p>RlyDemoGreetingTest</p></div>
+      <div><p class="k">Approved in</p><p>Release Relay · Slack</p></div>
+    </div>
+  </section>
+
+  <div class="cols">
+    <section class="card">
+      <div class="hd" style="border-bottom:1px solid #E5E5E5"><h2 class="h2" style="flex:1">Progress</h2><span class="sm weak">Last checked 2:02:24 PM · next check in</span><div class="meter"><i></i></div><button class="btn">Check now</button></div>
+      <div class="step"><span class="dot d">✓</span><div><p><strong>Collected from DEV1</strong> <span class="pill ok">Done</span></p><p class="sm weak">2 components</p></div></div>
+      <div class="step"><span class="dot d">✓</span><div><p><strong>Pull request</strong> <span class="pill ok">Done</span></p><p class="sm weak">#20: feature/rel-00016 → sit</p></div></div>
+      <div class="step"><span class="dot s">⟳</span><div><p><strong>Conflicts</strong> <span class="pill info">Resolving</span></p><p class="sm weak">Your choices for 2 files were committed. The pipeline is merging sit and checking again…</p></div></div>
+      <div class="step"><span class="dot n">4</span><div><p><strong>Code scan and validation in SIT</strong></p><p class="sm weak">Run again after the merge</p></div></div>
+      <div class="step"><span class="dot n">5</span><div><p><strong>Approval</strong></p></div></div>
+      <div class="step"><span class="dot n">6</span><div><p><strong>Merge and deploy to SIT</strong></p></div></div>
+      <div class="note" style="margin:8px 16px 14px;background:#FEF1CD;color:#5E3600"><strong>New:</strong> if SIT's branch changes after the checks passed, Approve first re-checks against the newest SIT instead of failing at the merge.</div>
+    </section>
+    <section class="card">
+      <div class="hd" style="border-bottom:1px solid #E5E5E5"><h2 class="h2">Details</h2></div>
+      <dl>
+        <dt>Status</dt><dd><span class="pill info">Resolving conflicts</span></dd>
+        <dt>Code scan</dt><dd><span class="pill ok">Passed</span> 2 Low</dd>
+        <dt>Validation</dt><dd><span class="pill none">Pending</span></dd>
+        <dt>Branch</dt><dd><span class="sm">feature/rel-00016</span></dd>
+        <dt>Slack</dt><dd>#rr-sit · <a style="color:#0B5CAB">Open</a></dd>
+      </dl>
+      <div class="hd" style="border-top:1px solid #E5E5E5"><h2 class="h2" style="flex:1">Components</h2><span class="pill none">2</span></div>
+      <dl><dt>Apex Class</dt><dd>RlyDemoGreeting</dd><dt>Apex test class</dt><dd>RlyDemoGreetingTest</dd></dl>
+    </section>
+  </div>
+  <div class="card foot"><span class="sm weak" style="flex:1">Actions show when the checks finish.</span><button class="btn" disabled>Check again</button><button class="btn dest" disabled>Reject</button><button class="btn brand" disabled>Approve and deploy</button></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

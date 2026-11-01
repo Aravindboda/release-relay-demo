@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Compare</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.rr-btn{height:30px;padding:0 12px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.rr-file{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:4px;font-size:13px}
+.rr-file-on{background:#EEF4FF}
+.rr-pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.rr-weak{color:#5C5C5C}
+.rr-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:20px;white-space:pre}
+.rr-ln{width:36px;text-align:right;padding-right:8px;color:#939393;user-select:none}
+</style>
+</helmet>
+<div style="min-height: 100vh; padding: 12px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; max-width: 1600px; margin: 0 auto">
+  <section style="background: #fff; border: 1px solid #E5E5E5; border-radius: 4px; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+    <div style="flex: 1 1 280px">
+      <p style="margin: 0; font-size: 12px; color: #5C5C5C">New Release · step 3 of 4 · Review</p>
+      <h1 style="margin: 0; font-size: 18px; font-weight: 700">Compare before raising</h1>
+    </div>
+    <span class="rr-pill" style="background: #EEF4FF; color: #014486">6 of 8 files reviewed</span>
+  </section>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start">
+    <nav aria-label="Files" style="flex: 1 1 220px; max-width: 280px; background: #fff; border: 1px solid #E5E5E5; border-radius: 4px; padding: 6px; display: flex; flex-direction: column; gap: 2px">
+      <div class="rr-file rr-file-on"><strong>Industry.field-meta.xml</strong><span class="rr-weak" style="font-size: 12px">objects/Account/fields · <span style="color: #2E844A">+3</span> <span style="color: #BA0517">−1</span></span></div>
+      <div class="rr-file"><strong>Region__c.field-meta.xml</strong><span class="rr-weak" style="font-size: 12px">New · <span style="color: #2E844A">+14</span></span></div>
+      <div class="rr-file"><strong>Industry.standardValueSet-meta.xml</strong><span class="rr-weak" style="font-size: 12px">standardValueSets · <span style="color: #2E844A">+5</span></span></div>
+      <div class="rr-file"><strong>Account-Account Layout.layout-meta.xml</strong><span class="rr-weak" style="font-size: 12px">layouts · <span style="color: #2E844A">+6</span> <span style="color: #BA0517">−2</span></span></div>
+    </nav>
+
+    <section aria-label="Side by side compare" style="flex: 999 1 640px; min-width: 0; background: #fff; border: 1px solid #E5E5E5; border-radius: 4px; overflow: hidden">
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid #E5E5E5">
+        <div style="padding: 10px 12px; background: #FAFAF9; border-right: 1px solid #E5E5E5; display: flex; align-items: center; gap: 8px">
+          <span class="rr-pill" style="background: #E1F5EE; color: #085041">Source</span><strong style="font-size: 13px">DEV2</strong><span class="rr-weak" style="font-size: 12px">what the release brings</span>
+          <span style="flex: 1"></span><button class="rr-btn">Edit</button>
+        </div>
+        <div style="padding: 10px 12px; background: #FAFAF9; display: flex; align-items: center; gap: 8px; position: relative">
+          <span aria-label="goes to" role="img" style="position: absolute; left: -15px; top: 50%; margin-top: -14px; width: 28px; height: 28px; border-radius: 14px; background: #0176D3; display: inline-flex; align-items: center; justify-content: center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+          </span>
+          <span style="width: 12px"></span>
+          <span class="rr-pill" style="background: #F3F3F3; color: #444">Target</span><strong style="font-size: 13px">sit branch</strong><span class="rr-weak" style="font-size: 12px">what's there now</span>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow-x: auto">
+        <table style="border-collapse: collapse; border-right: 1px solid #E5E5E5" aria-label="Source">
+          <tbody>
+            <sc-for list="{{right}}" as="l" hint-placeholder-count="12">
+              <tr style="{{l.bg}}"><td class="rr-code rr-ln">{{l.n}}</td><td class="rr-code">{{l.t}}</td></tr>
+            </sc-for>
+          </tbody>
+        </table>
+        <table style="border-collapse: collapse" aria-label="Target">
+          <tbody>
+            <sc-for list="{{left}}" as="l" hint-placeholder-count="12">
+              <tr style="{{l.bg}}"><td class="rr-code rr-ln">{{l.n}}</td><td class="rr-code">{{l.t}}</td></tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <div style="padding: 10px 12px; border-top: 1px solid #E5E5E5; display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 13px"><input type="checkbox" checked> Reviewed</label>
+        <span style="flex: 1"></span><button class="rr-btn">Next file</button>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":760}}'>
+var DEL = 'background:#FEF1EE', ADD = 'background:#EBF7E6', NONE = '', PAD = 'background:#FAFAF9';
+var L = [
+  ['1', '<?xml version="1.0" encoding="UTF-8"?>', NONE],
+  ['2', '<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">', NONE],
+  ['3', '    <fullName>Industry</fullName>', NONE],
+  ['4', '    <trackHistory>false</trackHistory>', DEL],
+  ['', '', PAD], ['', '', PAD],
+  ['5', '    <type>Picklist</type>', NONE],
+  ['6', '</CustomField>', NONE]
+];
+var R = [
+  ['1', '<?xml version="1.0" encoding="UTF-8"?>', NONE],
+  ['2', '<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">', NONE],
+  ['3', '    <fullName>Industry</fullName>', NONE],
+  ['4', '    <trackHistory>true</trackHistory>', ADD],
+  ['5', '    <trackFeedHistory>true</trackFeedHistory>', ADD],
+  ['6', '    <inlineHelpText>Pick the closest sector</inlineHelpText>', ADD],
+  ['7', '    <type>Picklist</type>', NONE],
+  ['8', '</CustomField>', NONE]
+];
+function rows(a) { return a.map(function (x) { return { n: x[0], t: x[1], bg: x[2] }; }); }
+class Component extends DCLogic {
+  renderVals() { return { left: rows(L), right: rows(R) }; }
+}
+</script>
+</body>
+</html>

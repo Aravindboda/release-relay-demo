@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>The Release Relay hub's Git connection: one per hub. The token stays in the Named Credential, never here.</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>true</enableHistory>
+    <enableReports>false</enableReports>
+    <enableSearch>false</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <fields>
+        <fullName>Provider__c</fullName>
+        <description>Where the repository and the pipeline live.</description>
+        <label>Provider</label>
+        <required>false</required>
+        <type>Picklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>GitHub</fullName><default>true</default><label>GitHub</label></value>
+                <value><fullName>GitLab</fullName><default>false</default><label>GitLab</label></value>
+                <value><fullName>Bitbucket</fullName><default>false</default><label>Bitbucket</label></value>
+                <value><fullName>AzureDevOps</fullName><default>false</default><label>AzureDevOps</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>Repository__c</fullName>
+        <description>owner/repo (GitHub), group/project (GitLab), workspace/repo (Bitbucket) or organization/project/repo (Azure DevOps).</description>
+        <externalId>false</externalId>
+        <label>Repository</label>
+        <length>255</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Named_Credential__c</fullName>
+        <description>Named Credential holding the provider token, for example RLY_GitHub.</description>
+        <externalId>false</externalId>
+        <label>Named Credential</label>
+        <length>80</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Pipeline__c</fullName>
+        <description>GitHub workflow file (release-relay.yml), GitLab CI file, Bitbucket custom pipeline name, or Azure DevOps pipeline id.</description>
+        <externalId>false</externalId>
+        <label>Pipeline</label>
+        <length>120</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Pipeline_Branch__c</fullName>
+        <description>Branch the pipeline definition runs from, usually main.</description>
+        <externalId>false</externalId>
+        <label>Pipeline Branch</label>
+        <length>100</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Source_Path__c</fullName>
+        <description>Folder of the Salesforce source in the repository, usually force-app/main/default.</description>
+        <externalId>false</externalId>
+        <label>Source Path</label>
+        <length>200</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Status__c</fullName>
+        <description>Result of the last check.</description>
+        <label>Status</label>
+        <required>false</required>
+        <type>Picklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Not checked</fullName><default>true</default><label>Not checked</label></value>
+                <value><fullName>Connected</fullName><default>false</default><label>Connected</label></value>
+                <value><fullName>Failed</fullName><default>false</default><label>Failed</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>Status_Message__c</fullName>
+        <description>Details of the last check.</description>
+        <label>Status Message</label>
+        <length>4000</length>
+        <type>LongTextArea</type>
+        <visibleLines>4</visibleLines>
+    </fields>
+    <fields>
+        <fullName>Last_Checked__c</fullName>
+        <description>When the connection was last checked.</description>
+        <label>Last Checked</label>
+        <required>false</required>
+        <type>DateTime</type>
+    </fields>
+    <fields>
+        <fullName>Code_Scan__c</fullName>
+        <defaultValue>true</defaultValue>
+        <description>Run Salesforce Code Analyzer on every pull request.</description>
+        <label>Code Scan</label>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
+        <fullName>Back_Promote__c</fullName>
+        <defaultValue>false</defaultValue>
+        <description>Send production's changes to the back promote orgs (metadata only). Off by default.</description>
+        <label>Back Promote</label>
+        <type>Checkbox</type>
+    </fields>
+    <label>Release Relay Git Connection</label>
+    <nameField>
+        <label>Connection Name</label>
+        <trackHistory>true</trackHistory>
+        <type>Text</type>
+    </nameField>
+    <pluralLabel>Release Relay Git Connections</pluralLabel>
+    <searchLayouts/>
+    <sharingModel>Read</sharingModel>
+</CustomObject>

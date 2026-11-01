@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Guide v3</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px;box-shadow:0 2px 2px rgba(0,0,0,.05)}
+.hd{padding:12px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;border-bottom:1px solid #E5E5E5}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}
+.h1{margin:0;font-size:18px;font-weight:700}.h2{margin:0;font-size:16px;font-weight:700}.h3{margin:0;font-size:14px;font-weight:700}
+.icon{width:32px;height:32px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:#3BA755}
+.lay{display:grid;grid-template-columns:230px 1fr;gap:12px}
+.nav{padding:8px 0}.nav p{margin:0;padding:8px 16px;font-size:13px;border-left:3px solid transparent}.nav .on{border-left-color:#0176D3;background:#EEF4FF;font-weight:700;color:#014486}.nav .grp{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#747474;padding-top:14px}
+.prog{display:flex;gap:0;padding:12px 16px}.prog div{flex:1;text-align:center;font-size:11px;color:#5C5C5C}.prog b{display:block;margin:0 auto 4px;width:24px;height:24px;border-radius:50%;line-height:24px;background:#F3F3F3;color:#444}.prog .d b{background:#2E844A;color:#fff}.prog .c b{background:#0176D3;color:#fff}
+.stp{display:grid;grid-template-columns:36px 1fr 300px;gap:12px;padding:14px 16px;border-top:1px solid #E5E5E5;align-items:start}
+.num{width:28px;height:28px;border-radius:50%;background:#0176D3;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.stp ol,.stp ul{margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.55}
+.where{display:inline-block;margin-top:4px;font-size:12px;background:#F3F3F3;border-radius:4px;padding:2px 8px;color:#444}
+.shot{width:100%;border:1px solid #E5E5E5;border-radius:4px;display:block}
+.cap{font-size:11px;color:#5C5C5C;margin-top:4px}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #E5E5E5;font-size:13px;vertical-align:top}th{background:#F3F3F3;font-size:12px;color:#444}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.tree{font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:20px;background:#1E1E1E;color:#D4D4D4;border-radius:4px;padding:10px 14px;white-space:pre;margin:0}
+.who{display:inline-flex;height:18px;padding:0 6px;border-radius:9px;font-size:10px;font-weight:700;background:#EEF4FF;color:#014486;align-items:center;margin-left:6px}
+.seq{display:flex;align-items:stretch;gap:0;padding:12px 16px;overflow:auto}
+.seq div{flex:1;min-width:120px;border:1px solid #E5E5E5;border-radius:4px;padding:8px;font-size:12px;background:#FAFAF9}
+.seq span{align-self:center;color:#0176D3;font-weight:700;padding:0 4px}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:12px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+  <section class="card" style="display:flex;align-items:center;gap:12px;padding:12px 16px">
+    <span class="icon">?</span><div style="flex:1"><p class="k">Release Relay</p><h1 class="h1">Guide</h1></div>
+    <span class="sm weak">Admin sections show only to Release Relay Admin</span>
+  </section>
+  <div class="lay">
+    <section class="card nav">
+      <p class="grp">Start here</p><p>How it works</p><p class="on">Set up, step by step</p><p>Repository files</p>
+      <p class="grp">Daily use</p><p>Raise a release (developer)</p><p>Approve (approver)</p><p>Conflicts between orgs</p><p>Hotfix from SIT</p><p>Slack</p><p>Statuses</p>
+      <p class="grp">Reference</p><p>Permission sets</p><p>Troubleshooting</p>
+    </section>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <section class="card">
+        <div class="hd"><h2 class="h2" style="flex:1">Set up, step by step</h2><span class="sm weak">About 45 minutes for a hub with 2 orgs</span></div>
+        <div class="prog"><div class="d"><b>1</b>Git repository</div><div class="d"><b>2</b>Hub certificate</div><div class="c"><b>3</b>Register orgs</div><div><b>4</b>Pipeline logins</div><div><b>5</b>Route</div><div><b>6</b>Slack</div><div><b>7</b>People</div><div><b>8</b>First release</div></div>
+        <div class="stp"><span class="num">1</span><div><h3 class="h3">Prepare the Git repository <span class="who">Git admin</span></h3>
+          <ol><li>Create the repository and a branch per org: <span class="mono">dev1</span>, <span class="mono">sit</span>, <span class="mono">prod</span> (the hub can create missing ones).</li><li>Copy the two pipeline files to <span class="mono">main</span> (see Repository files).</li><li>Create a fine-grained token: Contents, Pull requests and Actions read and write.</li><li>In the hub: Named Credential <span class="mono">RLY_GitHub</span> with that token.</li></ol>
+          <span class="where">GitHub → Settings · Salesforce Setup → Named Credentials</span></div>
+          <div><img class="shot" src="shots/pipeline.jpg"><p class="cap">Pipeline tab: Git connection shows Connected and lists what it checked.</p></div></div>
+        <div class="stp"><span class="num">2</span><div><h3 class="h3">Create the hub certificate <span class="who">Salesforce admin</span></h3>
+          <ol><li>Setup → Certificate and Key Management → Create Self-Signed: <span class="mono">release_relay</span>, exportable key.</li><li>Download the certificate (.crt) for step 3; Export to Keystore (.jks) for step 4.</li></ol></div><div></div></div>
+        <div class="stp"><span class="num">3</span><div><h3 class="h3">Register each org <span class="who">Salesforce admin</span></h3>
+          <ol><li>In the org: External Client App, JWT bearer flow with the hub .crt, admins pre-authorized, integration user's profile.</li><li>In the hub: Remote Site for the org's My Domain.</li><li>Pipeline → Register an org: role, My Domain, username, consumer key, branch → <strong>Save and test sign-in</strong>.</li></ol>
+          <span class="where">The org: Setup → External Client App Manager · Hub: Release Relay → Pipeline</span></div>
+          <div><img class="shot" src="shots/register.jpg"><p class="cap">Register an org: the consumer key is saved encrypted and shown as ••••.</p></div></div>
+        <div class="stp"><span class="num">4</span><div><h3 class="h3">Give the pipeline a login per stage <span class="who">Git admin</span></h3>
+          <ol><li>GitHub → Settings → Environments → one per stage (<span class="mono">sit</span>, <span class="mono">prod</span>).</li><li>Secrets: <span class="mono">SF_USERNAME</span>, <span class="mono">SF_CLIENT_ID</span>, <span class="mono">SF_JKS</span>, <span class="mono">SF_JKS_PASSWORD</span>. Variables: <span class="mono">SF_INSTANCE_URL</span>, <span class="mono">SF_JKS_ALIAS</span>.</li><li>Deployment branches: <span class="mono">main</span> only.</li></ol></div><div></div></div>
+        <div class="stp"><span class="num">5</span><div><h3 class="h3">Check the route</h3><p class="sm" style="margin:6px 0 0">Pipeline → Route shows DEV1 → SIT → PROD. Use the arrows to reorder stages; <strong>Create missing branches</strong> makes any branch Git doesn't have yet.</p></div><div></div></div>
+        <div class="stp"><span class="num">6</span><div><h3 class="h3">Slack (optional)</h3><ol><li>Slack app with <span class="mono">chat:write</span>; bot token in Named Credential <span class="mono">RLY_Slack</span>.</li><li>On each org card: channel, Post to Slack, Approve in Slack.</li><li><span class="mono">/invite @Release Relay</span> in each channel.</li></ol></div><div></div></div>
+        <div class="stp"><span class="num">7</span><div><h3 class="h3">Give people access</h3><p class="sm" style="margin:6px 0 0">Developer → <span class="mono">RLY_Developer</span> · Approver → <span class="mono">RLY_Approver</span> · Admin → <span class="mono">RLY_Admin</span> (includes Hotfix).</p></div><div></div></div>
+        <div class="stp"><span class="num">8</span><div><h3 class="h3">Raise a first release</h3><p class="sm" style="margin:6px 0 0">New Release → pick DEV1 → select a class and its test → Review → Raise. Watch it on the release page.</p></div><div><img class="shot" src="shots/select.jpg"><p class="cap">Select: the bar shows the test rule before you can go on.</p></div></div>
+      </section>
+
+      <section class="card">
+        <div class="hd"><h2 class="h2" style="flex:1">Repository files</h2><span class="sm weak">Aravindboda/release-relay-demo</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:12px;padding:12px 16px">
+<pre class="tree">release-relay-demo/
+├─ .github/workflows/
+│  └─ release-relay.yml     ← the pipeline
+├─ scripts/
+│  └─ release-relay.js      ← every step
+├─ force-app/main/default/  ← the metadata
+├─ .relay-inbox/            ← hub drops zips here
+└─ sfdx-project.json
+
+branches:  main · dev1 · sit · prod
+           feature/rel-xxxxx · hotfix/rel-xxxxx
+           release-relay-results  ← step results</pre>
+          <table>
+            <tr><th>File or branch</th><th>What it's for</th></tr>
+            <tr><td class="mono">release-relay.yml</td><td>Starts the jobs: raise, scan, validate, merge, deploy. Modes: hub, check, resolve, merge.</td></tr>
+            <tr><td class="mono">release-relay.js</td><td>The steps themselves: convert the hub's zip, open the PR, merge the target, run tests, deploy, update branches.</td></tr>
+            <tr><td class="mono">.relay-inbox/</td><td>Where the hub commits a release's zip and your conflict choices. The pipeline removes them after use.</td></tr>
+            <tr><td class="mono">release-relay-results</td><td>One folder per release with <span class="mono">scan.json</span>, <span class="mono">validate.json</span>, <span class="mono">merge.json</span>, <span class="mono">deploy.json</span>. The hub reads these.</td></tr>
+            <tr><td class="mono">feature/rel-xxxxx</td><td>One branch per release, from the developer org's branch.</td></tr>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="hd"><h2 class="h2">A release, in order</h2></div>
+        <div class="seq"><div><strong>Raise</strong><br>Hub retrieves from DEV1</div><span>→</span><div><strong>Pull request</strong><br>Pipeline converts and opens it</div><span>→</span><div><strong>Checks</strong><br>Scan + check-only deploy, merged with SIT</div><span>→</span><div><strong>Conflict?</strong><br>Choose per file, checks run again</div><span>→</span><div><strong>Approve</strong><br>Release Relay, Slack or GitHub</div><span>→</span><div><strong>Deploy</strong><br>Merge, deploy, update dev branches</div></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:0 16px 14px">
+          <div><img class="shot" src="shots/review.jpg"><p class="cap">Review: what goes in, and which tests run.</p></div>
+          <div><img class="shot" src="shots/conflict.jpg"><p class="cap">Conflict: your version and SIT's side by side.</p></div>
+          <div><img class="shot" src="shots/approval.jpg"><p class="cap">Approval: scan findings and the decision.</p></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1500}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

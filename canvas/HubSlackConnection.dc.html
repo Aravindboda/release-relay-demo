@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Slack per connection</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px;box-shadow:0 2px 2px rgba(0,0,0,.05)}
+.hd{padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.pad{padding:12px 16px}
+.h1{margin:0;font-size:18px;font-weight:700}.h2{margin:0;font-size:15px;font-weight:700}.h3{margin:0;font-size:14px;font-weight:700}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.ok{background:#EBF7E6;color:#2E844A}.bad{background:#FEDED8;color:#8E030F}.wait{background:#FEF1CD;color:#8C4B02}.none{background:#F3F3F3;color:#444}.info{background:#EEF4FF;color:#014486}
+.btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px;cursor:pointer}
+.brand{background:#0176D3;border-color:#0176D3;color:#fff}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.icon{width:32px;height:32px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;flex:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:12px}
+.lbl{font-size:12px;color:#444;margin:0 0 4px}
+.in{height:32px;border:1px solid #C9C9C9;border-radius:4px;padding:0 10px;display:flex;align-items:center;font-size:13px;background:#fff}
+.tog{display:inline-flex;align-items:center;gap:8px;font-size:13px}
+.sw{width:40px;height:22px;border-radius:11px;background:#0176D3;position:relative;flex:none}.sw:after{content:"";position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff}
+.sw.off{background:#C9C9C9}.sw.off:after{left:3px;right:auto}
+.togs{display:flex;flex-wrap:wrap;gap:8px 24px}
+.sect{border-top:1px solid #E5E5E5;padding:12px 16px;display:flex;flex-direction:column;gap:10px;background:#FAFAF9}
+.note{padding:8px 10px;border-radius:4px;font-size:12px;line-height:1.45}
+.foot{padding:10px 16px;border-top:1px solid #E5E5E5;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:12px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+  <section class="card hd">
+    <span class="icon" style="background:#0176D3">⚙</span>
+    <div style="flex:1 1 300px"><p class="k">Release Relay</p><h1 class="h1">Pipeline</h1></div>
+    <button class="btn">Setup steps for a new org</button><button class="btn brand">Register an org</button>
+  </section>
+
+  <section class="card">
+    <div class="hd"><span class="icon" style="background:#4A154B">#</span><div style="flex:1"><h2 class="h2">Slack connection</h2><p class="k">One Slack app for the hub. Each org below picks its own channel.</p></div><span class="pill ok">Connected</span><button class="btn">Test</button></div>
+    <div class="pad" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 24px">
+      <div><p class="lbl">Workspace</p><strong>Release Relay</strong></div>
+      <div><p class="lbl">Bot token</p><span class="mono">Named Credential RLY_Slack</span><br><span class="sm weak">Token kept by Salesforce, never shown</span></div>
+      <div><p class="lbl">Approve in Slack</p><span class="mono">Site: relay-hub…/services/apexrest/rly/slack</span><br><span class="sm weak">Signing secret saved (ends ••••4f2a)</span></div>
+      <div><p class="lbl">Approvers linked</p><strong>2 of 3</strong> <a class="sm" style="color:#0B5CAB">Show</a></div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <div class="hd"><h3 class="h3" style="flex:1">SIT</h3><span class="pill ok">Connected</span><span class="pill none">Stage 1</span></div>
+      <div class="pad sm weak">branch <span class="mono">sit</span> · env <span class="mono">sit</span> · Metadata API · API 68.0</div>
+      <div class="sect">
+        <p class="h3" style="font-size:13px">Approval and Slack for releases into {org name} <span class="weak" style="font-weight:400">(example: SIT)</span></p>
+        <div><div class="togs"><label class="tog"><span class="sw off"></span>Approve in Salesforce</label><label class="tog"><span class="sw"></span>Approve in Slack</label></div>
+          <p class="k" style="margin-top:4px">Either is enough. At least one stays on.</p></div>
+        <label class="tog"><span class="sw off"></span>Also require GitHub reviewers before deploying</label>
+        <div style="display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end">
+          <div style="flex:1 1 180px"><p class="lbl">Slack channel</p><div class="in">#rr-sit</div></div>
+          <label class="tog"><span class="sw"></span>Post to Slack</label>
+        </div>
+        <p class="k">Events: Raised · Ready for approval · Checks failed · Deployed · Deploy failed · Rejected <a style="color:#0B5CAB">Change</a></p>
+      </div>
+      <div class="foot"><span class="sm weak">Checked Oct 31, 12:34 PM</span><span><button class="btn">Edit</button> <button class="btn">Test sign-in</button></span></div>
+    </section>
+
+    <section class="card">
+      <div class="hd"><h3 class="h3" style="flex:1">PROD</h3><span class="pill ok">Connected</span><span class="pill info">Hub</span></div>
+      <div class="pad sm weak">branch <span class="mono">prod</span> · env <span class="mono">prod</span> · this org</div>
+      <div class="sect">
+        <p class="h3" style="font-size:13px">Approval and Slack for releases into PROD</p>
+        <div><div class="togs"><label class="tog"><span class="sw"></span>Approve in Salesforce</label><label class="tog"><span class="sw off"></span>Approve in Slack</label></div>
+          <p class="k" style="margin-top:4px">Either is enough. At least one stays on.</p></div>
+        <label class="tog"><span class="sw"></span>Also require GitHub reviewers before deploying</label>
+        <div style="display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end">
+          <div style="flex:1 1 180px"><p class="lbl">Slack channel</p><div class="in">#rr-prod</div></div>
+          <label class="tog"><span class="sw"></span>Post to Slack</label>
+        </div>
+        <div class="note" style="background:#EEF4FF;color:#014486">Approved in Salesforce only: Slack shows the card with <strong>Open in {app name}</strong> instead of Approve. Every name here (orgs, branches, channels, app name) comes from this org's own setup.</div>
+      </div>
+      <div class="foot"><span class="sm weak">Checked Oct 31, 1:31 PM</span><span><button class="btn">Edit</button> <button class="btn">Test sign-in</button></span></div>
+    </section>
+
+    <section class="card">
+      <div class="hd"><h3 class="h3" style="flex:1">DEV1</h3><span class="pill ok">Connected</span><span class="pill none">Developer</span></div>
+      <div class="pad sm weak">branch <span class="mono">dev1</span> · Metadata API</div>
+      <div class="sect">
+        <p class="h3" style="font-size:13px">Slack for DEV1's developers (optional)</p>
+        <div style="display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end">
+          <div style="flex:1 1 180px"><p class="lbl">Slack channel</p><div class="in">#rr-dev1</div></div>
+          <label class="tog"><span class="sw"></span>Also post here</label>
+        </div>
+        <p class="k">A release posts its card in the target's channel. A developer org can also get a copy, so the people working in DEV1 see their own releases.</p>
+      </div>
+      <div class="foot"><span class="sm weak">Checked Oct 31, 12:33 PM</span><span><button class="btn">Edit</button> <button class="btn">Test sign-in</button></span></div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

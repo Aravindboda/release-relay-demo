@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fields>
+        <fullName>Source_Org__c</fullName>
+        <deleteConstraint>SetNull</deleteConstraint>
+        <description>Hub: the registered developer org the release was raised from.</description>
+        <label>Source Org</label>
+        <referenceTo>RLY_Org__c</referenceTo>
+        <relationshipLabel>Releases raised</relationshipLabel>
+        <relationshipName>Releases_From</relationshipName>
+        <required>false</required>
+        <type>Lookup</type>
+    </fields>
+    <fields>
+        <fullName>Target_Org__c</fullName>
+        <deleteConstraint>SetNull</deleteConstraint>
+        <description>Hub: the stage org the release deploys to.</description>
+        <label>Target Org</label>
+        <referenceTo>RLY_Org__c</referenceTo>
+        <relationshipLabel>Releases received</relationshipLabel>
+        <relationshipName>Releases_To</relationshipName>
+        <required>false</required>
+        <type>Lookup</type>
+    </fields>
+    <fields>
+        <fullName>Test_Classes__c</fullName>
+        <description>Hub: the release's test classes, comma separated. They run (RunSpecifiedTests) in every org it deploys to; blank means no Apex (NoTestRun).</description>
+        <label>Test Classes</label>
+        <length>32768</length>
+        <type>LongTextArea</type>
+        <visibleLines>3</visibleLines>
+    </fields>
+    <fields>
+        <fullName>Check_Token__c</fullName>
+        <description>Hub: token of the latest pipeline run the hub started. The run writes it into every result file (attempt), so an earlier run's result is never read.</description>
+        <externalId>false</externalId>
+        <label>Check Token</label>
+        <length>40</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Slack_Channel_Id__c</fullName>
+        <description>Hub: the Slack channel ID the release card was posted to.</description>
+        <externalId>false</externalId>
+        <label>Slack Channel Id</label>
+        <length>40</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Slack_Ts__c</fullName>
+        <description>Hub: the Slack timestamp (ts) of the release card; later events edit the card and reply in its thread.</description>
+        <externalId>false</externalId>
+        <label>Slack Ts</label>
+        <length>40</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Approved_Via__c</fullName>
+        <description>Hub: where the release was approved or rejected: Salesforce, Slack or the Git provider's name.</description>
+        <externalId>false</externalId>
+        <label>Approved Via</label>
+        <length>40</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Release_Type__c</fullName>
+        <description>Hub: Release (raised from a developer org), Promotion (a stage's deployed releases carried to its next stop) or Back promote (production's changes sent to a back promote org).</description>
+        <label>Release Type</label>
+        <required>false</required>
+        <type>Picklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Release</fullName><default>true</default><label>Release</label></value>
+                <value><fullName>Promotion</fullName><default>false</default><label>Promotion</label></value>
+                <value><fullName>Back_Promote</fullName><default>false</default><label>Back promote</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>Is_Hotfix__c</fullName>
+        <defaultValue>false</defaultValue>
+        <description>Hub: an urgent release from a developer org (Release Relay Hotfix permission). It is listed first for approval and promotion and can be promoted on its own.</description>
+        <label>Hotfix</label>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
+        <fullName>Hotfix_Reason__c</fullName>
+        <description>Hub: why the release is a hotfix (required for a hotfix).</description>
+        <label>Hotfix Reason</label>
+        <required>false</required>
+        <type>TextArea</type>
+    </fields>
+    <fields>
+        <fullName>Promoted_In__c</fullName>
+        <deleteConstraint>SetNull</deleteConstraint>
+        <description>Hub: the promotion that carries this release to its stage's next stop. Cleared when that promotion is rejected, fails or is closed, so the release can be promoted again.</description>
+        <label>Promoted In</label>
+        <referenceTo>RLY_Release__c</referenceTo>
+        <relationshipLabel>Releases carried</relationshipLabel>
+        <relationshipName>Promoted_Releases_In</relationshipName>
+        <required>false</required>
+        <type>Lookup</type>
+    </fields>
+    <fields>
+        <fullName>Carried_Releases__c</fullName>
+        <description>Hub: for a promotion, the Ids of the releases it carries, comma separated, oldest deploy first.</description>
+        <label>Carried Releases</label>
+        <length>32768</length>
+        <type>LongTextArea</type>
+        <visibleLines>3</visibleLines>
+    </fields>
+    <fields>
+        <fullName>Second_Approved_By__c</fullName>
+        <deleteConstraint>SetNull</deleteConstraint>
+        <description>Hub: the second approver of a hotfix into an org that needs two approvers.</description>
+        <label>Second Approved By</label>
+        <referenceTo>User</referenceTo>
+        <relationshipName>RLY_Second_Approvals</relationshipName>
+        <required>false</required>
+        <type>Lookup</type>
+    </fields>
+    <fields>
+        <fullName>Second_Approved_On__c</fullName>
+        <description>Hub: when the second approver approved.</description>
+        <label>Second Approved On</label>
+        <required>false</required>
+        <type>DateTime</type>
+    </fields>
+    <fields>
+        <fullName>Back_Merge_Result__c</fullName>
+        <description>Hub: how the branches were brought up to date after the merge, as JSON: [{branch, status (Synced, Conflict or Missing), message}].</description>
+        <label>Back Merge Result</label>
+        <length>32768</length>
+        <type>LongTextArea</type>
+        <visibleLines>3</visibleLines>
+    </fields>
+    <fields>
+        <fullName>Deletions__c</fullName>
+        <description>Hub: the components the release deletes, comma separated Type:Name (for example ApexClass:OldHelper). They are removed from the release branch and, on deploy, from the target org (destructiveChangesPost).</description>
+        <label>Deletions</label>
+        <length>32768</length>
+        <type>LongTextArea</type>
+        <visibleLines>3</visibleLines>
+    </fields>
+</CustomObject>

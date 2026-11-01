@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Promote SIT to PROD</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px}
+.hd{padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.pad{padding:12px 16px}
+.h1{margin:0;font-size:18px;font-weight:700}.h2{margin:0;font-size:15px;font-weight:700}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.ok{background:#EBF7E6;color:#2E844A}.bad{background:#FEDED8;color:#8E030F}.wait{background:#FEF1CD;color:#8C4B02}.none{background:#F3F3F3;color:#444}.info{background:#EEF4FF;color:#014486}
+.btn{height:30px;padding:0 12px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px;cursor:pointer}
+.brand{background:#0176D3;border-color:#0176D3;color:#fff}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.arrow{color:#0176D3;font-weight:700}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #E5E5E5;font-size:13px}th{background:#F3F3F3;font-size:12px;color:#444}
+.code{font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:20px;white-space:pre;padding:0 10px}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:#fff;border:1px solid #E5E5E5;border-top:3px solid #2E844A;border-radius:4px;padding:10px 16px}
+.note{padding:8px 10px;border-radius:4px;font-size:12px;line-height:1.45}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:12px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+  <section class="card hd">
+    <div style="flex:1 1 300px"><p class="k">Release Relay hub · Promote</p><h1 class="h1"><span>SIT</span> <span class="arrow">→</span> <span>PROD · prod</span></h1></div>
+    <span class="weak sm">Releases deployed to SIT and not yet in PROD</span>
+  </section>
+  <div style="display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:12px;align-items:start">
+    <section class="card">
+      <table>
+        <thead><tr><th style="width:32px"><input type="checkbox" aria-label="Select all"></th><th>Release</th><th>From</th><th>Deployed to SIT</th><th>Tests</th><th>Scan</th></tr></thead>
+        <tbody>
+          <tr style="background:#F2F7FE"><td><input type="checkbox" checked aria-label="REL-00010"></td><td><strong>REL-00010</strong> Greeting service</td><td>DEV1</td><td>Oct 31 10:24</td><td class="mono">RlyDemoGreetingTest</td><td><span class="pill wait">2 low</span></td></tr>
+          <tr style="background:#F2F7FE"><td><input type="checkbox" checked aria-label="REL-00011"></td><td><strong>REL-00011</strong> Account search by name</td><td>DEV1</td><td>Oct 31 10:28</td><td class="mono">RlyDemoSearchTest</td><td><span class="pill wait">Bypassed</span></td></tr>
+          <tr style="background:#F2F7FE"><td><input type="checkbox" checked aria-label="REL-00014"></td><td><strong>REL-00014</strong> Greeting v3</td><td>DEV1</td><td>Oct 31 10:35</td><td class="mono">RlyDemoGreetingTest</td><td><span class="pill wait">2 low</span></td></tr>
+          <tr><td><input type="checkbox" aria-label="REL-00025"></td><td><strong>REL-00025</strong> Partner discounts</td><td>DEV2</td><td>Nov 2 09:10</td><td class="mono">DiscountServiceTest</td><td><span class="pill ok">Passed</span></td></tr>
+          <tr><td><input type="checkbox" aria-label="REL-00026"></td><td><strong>REL-00026</strong> SIT hotfix: case routing</td><td>SIT (hotfix)</td><td>Nov 2 11:02</td><td class="mono">CaseRoutingTest</td><td><span class="pill ok">Passed</span></td></tr>
+        </tbody>
+      </table>
+      <p class="pad sm weak" style="margin:0">Order is kept: oldest SIT merge first. REL-00014 depends on REL-00010 (same class): picking 00014 picks 00010 too.</p>
+    </section>
+    <section class="card">
+      <div class="hd"><h2 class="h2">Bundle into one PROD release</h2></div>
+      <div class="pad" style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+        <p style="margin:0"><strong>3 releases</strong> · 4 classes · 3 commits</p>
+        <p style="margin:0">Tests in PROD: <span class="mono">RlyDemoGreetingTest, RlyDemoSearchTest</span> (RunSpecifiedTests, 75% each)</p>
+        <div class="note" style="background:#FEF1CD;color:#5E3600">REL-00011 had its code scan bypassed in SIT (by Aravind: "Demo bypass…"). PROD runs the scan again; a bypass there needs a PROD approver.</div>
+        <label class="sm"><input type="checkbox"> Squash into one commit for PROD</label>
+        <label class="sm" style="display:flex;flex-direction:column;gap:4px">Title<input value="SIT → PROD: greeting and account search" style="height:30px;border:1px solid #C9C9C9;border-radius:4px;padding:0 8px;font:inherit"></label>
+        <div class="note" style="background:#EEF4FF;color:#014486">Next: PR <span class="mono">promote/rel-00030</span> into <span class="mono">prod</span> → scan → check-only deploy to PROD → two approvals (Release Relay + GitHub reviewer) → quick deploy.</div>
+      </div>
+    </section>
+  </div>
+  <div class="bar"><button class="btn">Back</button><div style="flex:1;font-size:13px"><strong>3 releases selected · 2 test classes ✓</strong></div><button class="btn brand">Raise promotion to PROD</button></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

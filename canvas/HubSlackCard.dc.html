@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Slack: one card per release</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#1D1C1D}
+.wrap{display:grid;grid-template-columns:220px 1fr 340px;min-height:100vh}
+.side{background:#3F0E40;color:#fff;padding:14px 10px;font-size:14px}
+.side p{margin:0 0 6px;padding:4px 8px;border-radius:4px;opacity:.85}.side .on{background:#1164A3;opacity:1}
+.main{background:#fff;display:flex;flex-direction:column}
+.top{padding:12px 18px;border-bottom:1px solid #E8E8E8;font-weight:900;font-size:17px}
+.msgs{padding:8px 18px;display:flex;flex-direction:column;gap:18px}
+.msg{display:flex;gap:10px}
+.av{width:36px;height:36px;border-radius:6px;background:#0176D3;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+.who{font-weight:900;font-size:15px}.app{font-size:10px;background:#E8E8E8;padding:1px 4px;border-radius:3px;margin-left:4px;color:#555}.t{font-size:12px;color:#616061;margin-left:6px}
+.blk{border:1px solid #DDD;border-left:4px solid #FFB75D;border-radius:6px;padding:10px 12px;margin-top:6px;max-width:620px}
+.blk.done{border-left-color:#2E844A}.blk.fail{border-left-color:#BA0517}
+.blk h4{margin:0 0 4px;font-size:15px}
+.blk p{margin:2px 0;font-size:14px;line-height:1.45}
+.steps{font-size:13px;color:#1D1C1D;margin:6px 0}
+.bt{display:inline-block;border:1px solid #BBB;border-radius:4px;padding:5px 12px;font-size:14px;font-weight:700;margin:6px 6px 0 0;background:#fff}
+.bt.p{background:#007A5A;border-color:#007A5A;color:#fff}.bt.d{color:#E01E5A;border-color:#E01E5A}
+.th{font-size:13px;color:#1264A3;font-weight:700;margin-top:6px}
+.thread{border-left:1px solid #E8E8E8;background:#fff;display:flex;flex-direction:column}
+.tr{padding:10px 16px;border-bottom:1px solid #F1F1F1;font-size:14px}
+.cap{position:absolute}
+.note{margin:12px 18px;padding:10px 12px;background:#F8F8F8;border-radius:6px;font-size:13px;line-height:1.5;color:#444}
+</style>
+</helmet>
+<div class="wrap">
+  <div class="side">
+    <p style="font-weight:900;opacity:1;margin-bottom:14px">Release Relay</p>
+    <p># all-release-relay</p><p class="on"># rr-sit</p><p># rr-prod</p><p># rr-dev1</p>
+  </div>
+  <div class="main">
+    <div class="top"># rr-sit</div>
+    <div class="msgs">
+      <div class="msg"><div class="av">R</div><div>
+        <span class="who">Release Relay</span><span class="app">APP</span><span class="t">2:16 PM (edited)</span>
+        <div class="blk">
+          <h4>REL-00018 · Slack check: greeting comment</h4>
+          <p>🟡 <strong>Ready for approval</strong> · DEV1 → SIT · raised by Aravind Reddy Boda</p>
+          <p class="steps">✅ Collected  ✅ PR #22  ✅ Scan (2 Low)  ✅ Validation (1 test)  ⏳ Approval  ⚪ Deploy</p>
+          <span class="bt p">Approve</span><span class="bt d">Reject</span><span class="bt">Open in Release Relay</span>
+        </div>
+        <div class="th">3 replies · Last reply 2:18 PM</div>
+      </div></div>
+
+      <div class="msg"><div class="av">R</div><div>
+        <span class="who">Release Relay</span><span class="app">APP</span><span class="t">1:43 PM (edited)</span>
+        <div class="blk done">
+          <h4>REL-00016 · Greeting says Welcome, friend</h4>
+          <p>✅ <strong>Deployed to SIT</strong> · DEV1 → SIT · approved by Aravind Reddy Boda in Slack</p>
+          <p class="steps">✅ Collected  ✅ PR #20  ✅ Conflict resolved (2 files)  ✅ Validation  ✅ Approval  ✅ Deployed</p>
+          <span class="bt">Open in Release Relay</span>
+        </div>
+        <div class="th">7 replies · Last reply 2:09 PM</div>
+      </div></div>
+
+      <div class="msg"><div class="av">R</div><div>
+        <span class="who">Release Relay</span><span class="app">APP</span><span class="t">12:30 PM (edited)</span>
+        <div class="blk fail">
+          <h4>REL-00015 · Discount rule</h4>
+          <p>⛔ <strong>Rejected</strong> by Aravind Reddy Boda: “Test expects 20% off, fix the rule first.”</p>
+          <span class="bt">Open in Release Relay</span>
+        </div>
+      </div></div>
+    </div>
+    <div class="note"><strong>One message per release.</strong> Release Relay posts it once (on Raised) and edits it as the release moves, so the channel stays one line per release. Every step also goes into the message's thread. Approve/Reject show only when <em>Approve in Slack</em> is on for the target org and the person is a linked approver.</div>
+  </div>
+  <div class="thread">
+    <div class="top" style="font-size:15px">Thread · REL-00018</div>
+    <div class="tr">📤 Raised from DEV1 by Aravind · 2 components</div>
+    <div class="tr">🔍 Code scan passed with 2 Low findings</div>
+    <div class="tr">✅ Check-only deploy passed in SIT · 1 test</div>
+    <div class="tr" style="background:#F8F8F8"><strong>After Approve:</strong><br>👍 Approved by Aravind Reddy Boda (Slack) · deploying…<br>🚀 Deployed to SIT · dev1 updated</div>
+    <div class="tr" style="background:#FFF6E0"><strong>Reject</strong> opens a Slack form:<br><span style="display:block;border:1px solid #CCC;border-radius:4px;padding:6px;margin-top:6px;color:#777">Why are you rejecting? (required)</span><span class="bt d" style="margin-top:8px">Reject release</span></div>
+    <div class="tr" style="color:#616061">Not linked or not an approver → “You can't approve REL-00018. Link your Slack account in Release Relay → Approvals.” (only you see this)</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":760}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

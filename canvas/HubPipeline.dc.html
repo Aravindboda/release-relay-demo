@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hub pipeline</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+a{color:#0B5CAB}a:hover{color:#014486}
+.rr-tab{display:flex;align-items:center;height:40px;padding:0 12px;font-size:13px;color:#181818;text-decoration:none;border-bottom:3px solid transparent;white-space:nowrap}
+.rr-tab-on{border-bottom-color:#2347D6;font-weight:700;background:#F3F6FF}
+.rr-btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.rr-btn-brand{background:#0176D3;border-color:#0176D3;color:#fff}
+.rr-org{background:#fff;border:1px solid #E5E5E5;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.rr-pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.rr-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.rr-weak{color:#5C5C5C}
+.rr-th{font-size:12px;font-weight:600;color:#5C5C5C;text-align:left;padding:8px 10px;background:#FAFAF9;border-bottom:1px solid #E5E5E5;white-space:nowrap}
+.rr-td{font-size:13px;padding:10px;border-bottom:1px solid #F3F3F3;vertical-align:top}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column">
+  <header style="background: #fff; border-bottom: 1px solid #E5E5E5; display: flex; flex-wrap: wrap; align-items: stretch; gap: 0 8px; padding: 0 16px">
+    <div style="display: flex; align-items: center; gap: 10px; padding-right: 16px; height: 40px">
+      <span style="width: 24px; height: 24px; border-radius: 4px; background: #2347D6; display: inline-flex; align-items: center; justify-content: center" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h12"></path><path d="M12 6l6 6-6 6"></path><path d="M4 5v14"></path></svg>
+      </span>
+      <span style="font-size: 16px; font-weight: 700">Release Relay</span>
+      <span class="rr-pill" style="background: #EEEDFE; color: #3C3489">Hub · Aravind</span>
+    </div>
+    <nav aria-label="Release Relay tabs" style="display: flex; flex-wrap: wrap; align-items: stretch">
+      <a href="HubNewRelease.dc.html" class="rr-tab">New Release</a>
+      <a href="Main.dc.html" class="rr-tab">Releases</a>
+      <a href="#" class="rr-tab">Approvals</a>
+      <a href="PromoteSit.dc.html" class="rr-tab">Promote</a>
+      <a href="#" class="rr-tab rr-tab-on" aria-current="page">Pipeline</a>
+      <a href="#" class="rr-tab">Guide</a>
+    </nav>
+  </header>
+
+  <main style="flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 12px; max-width: 1600px; width: 100%; box-sizing: border-box; margin: 0 auto">
+    <section style="background: #fff; border: 1px solid #E5E5E5; border-radius: 4px; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+      <div style="flex: 1 1 260px">
+        <p style="margin: 0; font-size: 12px; color: #5C5C5C">Hub org Aravind (production) · GitHub · Aravindboda/release-relay-demo</p>
+        <h1 style="margin: 0; font-size: 18px; font-weight: 700">Pipeline</h1>
+      </div>
+      <button class="rr-btn">Edit route</button>
+      <button class="rr-btn rr-btn-brand">Register an org</button>
+    </section>
+
+    <section aria-label="Pipeline route" style="background: #fff; border: 1px solid #E5E5E5; border-radius: 4px; padding: 16px">
+      <h2 style="margin: 0 0 12px; font-size: 15px; font-weight: 700">Route</h2>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+        <div style="display: flex; flex-direction: column; gap: 8px; flex: 1 1 220px">
+          <sc-for list="{{devs}}" as="o" hint-placeholder-count="3">
+            <div class="rr-org">
+              <div style="display: flex; align-items: center; gap: 8px"><strong style="font-size: 14px">{{o.name}}</strong><span class="rr-pill" style="{{o.style}}">{{o.status}}</span></div>
+              <span class="rr-weak" style="font-size: 12px">Developer sandbox · env <span class="rr-mono">{{o.env}}</span> → <span class="rr-mono">sit</span></span>
+            </div>
+          </sc-for>
+        </div>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5C5C5C" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+        <sc-for list="{{stages}}" as="s" hint-placeholder-count="3">
+          <div style="display: flex; align-items: center; gap: 12px; flex: 1 1 180px">
+            <div class="rr-org" style="flex: 1">
+              <div style="display: flex; align-items: center; gap: 8px"><strong style="font-size: 14px">{{s.name}}</strong><span class="rr-pill" style="{{s.style}}">{{s.status}}</span></div>
+              <span class="rr-weak" style="font-size: 12px">{{s.kind}} · branch <span class="rr-mono">{{s.branch}}</span></span>
+              <span class="rr-weak" style="font-size: 12px">{{s.extra}}</span>
+            </div>
+            <sc-if value="{{s.arrow}}" hint-placeholder-val="{{true}}">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5C5C5C" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section aria-label="Registered orgs" style="background: #fff; border: 1px solid #E5E5E5; border-radius: 4px">
+      <div style="padding: 12px 16px; border-bottom: 1px solid #E5E5E5">
+        <h2 style="margin: 0; font-size: 15px; font-weight: 700">Registered orgs</h2>
+        <p class="rr-weak" style="margin: 4px 0 0; font-size: 13px">The hub signs in to each org through its own Named Credential to list and compare changes. GitHub uses the environment to retrieve and deploy.</p>
+      </div>
+      <div style="overflow-x: auto">
+        <table style="width: 100%; border-collapse: collapse; min-width: 720px">
+          <thead><tr><th class="rr-th">Org</th><th class="rr-th">Role</th><th class="rr-th">My Domain</th><th class="rr-th">Named Credential</th><th class="rr-th">GitHub environment</th><th class="rr-th">Connection</th><th class="rr-th"><span style="position: absolute; left: -9999px">Actions</span></th></tr></thead>
+          <tbody>
+            <sc-for list="{{orgs}}" as="o" hint-placeholder-count="6">
+              <tr>
+                <td class="rr-td"><strong>{{o.name}}</strong></td>
+                <td class="rr-td rr-weak">{{o.role}}</td>
+                <td class="rr-td"><span class="rr-mono">{{o.domain}}</span></td>
+                <td class="rr-td"><span class="rr-mono">{{o.cred}}</span></td>
+                <td class="rr-td"><span class="rr-mono">{{o.env}}</span></td>
+                <td class="rr-td"><span class="rr-pill" style="{{o.style}}">{{o.status}}</span></td>
+                <td class="rr-td"><a href="#">Edit</a></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+var OK = 'background:#EBF7E6;color:#2E844A', BAD = 'background:#FEDED8;color:#8E030F', WAIT = 'background:#FEF1CD;color:#8C4B02';
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      devs: [
+        { name: 'DEV1', env: 'dev1', status: 'Connected', style: OK },
+        { name: 'DEV2', env: 'dev2', status: 'Connected', style: OK },
+        { name: 'DEV3', env: 'dev3', status: 'Refreshed: re-check', style: WAIT }
+      ],
+      stages: [
+        { name: 'SIT', kind: 'Integration', branch: 'sit', extra: 'Back-promotes to dev orgs', status: 'Connected', style: OK, arrow: true },
+        { name: 'UAT', kind: 'User testing', branch: 'uat', extra: 'Validated before approval', status: 'Connected', style: OK, arrow: true },
+        { name: 'PROD', kind: 'Aravind (this hub)', branch: 'prod', extra: 'RunLocalTests · reviewers', status: 'Connected', style: OK, arrow: false }
+      ],
+      orgs: [
+        { name: 'DEV1', role: 'Developer sandbox', domain: 'aravind--dev1', cred: 'RLY_Org_DEV1', env: 'dev1', status: 'Connected', style: OK },
+        { name: 'DEV2', role: 'Developer sandbox', domain: 'aravind--dev2', cred: 'RLY_Org_DEV2', env: 'dev2', status: 'Connected', style: OK },
+        { name: 'DEV3', role: 'Developer sandbox', domain: 'aravind--dev3', cred: 'RLY_Org_DEV3', env: 'dev3', status: 'Org Id changed: refreshed', style: WAIT },
+        { name: 'SIT', role: 'Stage', domain: 'aravind--sit', cred: 'RLY_Org_SIT', env: 'sit', status: 'Connected', style: OK },
+        { name: 'UAT', role: 'Stage', domain: 'aravind--uat', cred: 'RLY_Org_UAT', env: 'uat', status: 'Connected', style: OK },
+        { name: 'PROD', role: 'Stage (hub)', domain: 'aravind', cred: 'RLY_Org_Self', env: 'prod', status: 'Connected', style: OK }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hotfix and back promote</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px}
+.hd{padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;gap:8px}
+.hd h2{margin:0;font-size:15px;flex:1}
+.bd{padding:12px 16px;display:flex;flex-direction:column;gap:10px;font-size:13px}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.lab{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5C5C5C}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap;width:max-content}
+.hot{background:#FEDED8;color:#8E030F}.ok{background:#EBF7E6;color:#2E844A}.info{background:#EEF4FF;color:#014486}.none{background:#F3F3F3;color:#444}.wait{background:#FEF1CD;color:#8C4B02}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tg{display:inline-flex;width:44px;height:24px;border-radius:12px;background:#0176D3;position:relative;flex:none}.tg::after{content:"";position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.tg.off{background:#939393}.tg.off::after{right:auto;left:3px}
+.cb{width:16px;height:16px;border-radius:3px;background:#0176D3;color:#fff;font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.in{border:1px solid #C9C9C9;border-radius:4px;padding:8px 10px;min-height:20px;color:#181818}
+.btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #0176D3;background:#0176D3;color:#fff;font:inherit;font-size:13px}
+.btn2{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.route{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.node{border:1px solid #E5E5E5;border-radius:4px;padding:8px 12px;background:#fff;display:flex;flex-direction:column;gap:2px;min-width:110px}
+.node.side{border-style:dashed;background:#FAFAF9}
+.arr{color:#0176D3;font-size:18px}.arr.d{color:#939393}
+.seg{display:inline-flex;border:1px solid #C9C9C9;border-radius:4px;overflow:hidden}.seg span{padding:6px 12px;border-right:1px solid #C9C9C9}.seg span:last-child{border-right:0}.seg .s{background:#0176D3;color:#fff}
+.step{display:flex;gap:10px;padding:8px 0;border-top:1px solid #F3F3F3}.step:first-child{border-top:0}
+.dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none;background:#2E844A;color:#fff}
+.dot.n{background:#F3F3F3;color:#747474}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:8px 10px;border-top:1px solid #E5E5E5;font-size:13px}th{border-top:0;background:#FAFAF9;font-size:12px;color:#5C5C5C}
+</style>
+</helmet>
+<div style="padding:12px;display:flex;flex-direction:column;gap:12px">
+
+<p class="lab">Hotfix = a release from a developer org, marked urgent: approved into SIT, promoted to PROD on its own, then merged back down</p>
+<div class="grid">
+  <section class="card">
+    <div class="hd"><h2>1 · New Release, step 4 (Raise): the hotfix flag</h2><span class="sm weak">only with RLY Hotfix</span></div>
+    <div class="bd">
+      <div class="row"><span class="cb">✓</span><strong>This is a hotfix</strong><span class="pill hot">Hotfix</span></div>
+      <p class="k">Goes to SIT like any release (scan, check-only deploy, tests, approval). After approval it can be promoted to PROD on its own.</p>
+      <p class="k" style="font-weight:700;color:#181818">* Why is this a hotfix?</p>
+      <div class="in">Case escalation flow sends duplicate emails in PROD since this morning.</div>
+      <div class="row" style="justify-content:flex-end"><button class="btn">Raise hotfix</button></div>
+    </div>
+  </section>
+  <section class="card">
+    <div class="hd"><h2>2 · Approvals tab and Slack: hotfixes first</h2></div>
+    <div class="bd">
+      <table>
+        <tr><th>Release</th><th>Route</th><th>Waiting</th><th></th></tr>
+        <tr style="background:#FFF7F5"><td><span class="pill hot">Hotfix</span> <strong>REL-00031</strong> Stop duplicate emails</td><td>DEV1 → SIT</td><td>4 min</td><td><button class="btn" style="height:28px">Review</button></td></tr>
+        <tr><td><strong>REL-00029</strong> Region field on Account</td><td>DEV1 → SIT</td><td>2 h</td><td><button class="btn2" style="height:28px">Review</button></td></tr>
+      </table>
+      <p class="k">The reason shows on the approval and on the Slack card. Approval can never be skipped. Into PROD, a hotfix can need a 2nd approver (switch on the PROD card); the person who raised it can't approve it.</p>
+    </div>
+  </section>
+  <section class="card">
+    <div class="hd"><h2>3 · Promote SIT → PROD: promote the hotfix alone</h2></div>
+    <div class="bd">
+      <div class="row"><span class="cb">✓</span><span class="pill hot">Hotfix</span><strong>REL-00031</strong><span class="weak">Stop duplicate emails · approved in SIT 5:02 PM</span></div>
+      <div class="row"><span class="cb" style="background:#fff;border:1px solid #939393"></span><strong>REL-00029</strong><span class="weak">Region field on Account · stays in SIT</span></div>
+      <p class="k">Only the hotfix's changes go to PROD. Other work waiting in SIT isn't included.</p>
+      <div class="row" style="justify-content:flex-end"><button class="btn">Promote hotfix to PROD</button></div>
+    </div>
+  </section>
+  <section class="card">
+    <div class="hd"><h2>4 · Release page after the PROD deploy: merged back down</h2></div>
+    <div class="bd">
+      <div class="step"><span class="dot">✓</span><div><strong>Deployed to PROD</strong> <span class="pill ok">Done</span><p class="k">5:21 PM · 2 approvers</p></div></div>
+      <div class="step"><span class="dot">✓</span><div><strong>Merged back to sit</strong> <span class="pill ok">Done</span></div></div>
+      <div class="step"><span class="dot">✓</span><div><strong>Merged back to developer branches</strong> <span class="pill wait">1 to review</span><p class="k">dev1 ✓ · dev2 ✓ · dev3: conflicts with work in progress, Review</p></div></div>
+      <div class="step"><span class="dot n">→</span><div><strong>Back promote</strong> <span class="pill none">Off</span><p class="k">Not set up on the Pipeline tab</p></div></div>
+    </div>
+  </section>
+</div>
+
+<p class="lab" style="margin-top:8px">Back promote: optional, off by default, set up from Salesforce on the Pipeline tab</p>
+<section class="card">
+  <div class="hd"><h2>Pipeline tab · 3 · Route</h2><button class="btn2">Create missing branches</button></div>
+  <div class="bd">
+    <div class="route">
+      <div class="node"><strong>DEV1</strong><span class="sm weak">Developer</span></div><span class="arr">→</span>
+      <div class="node"><strong>SIT</strong><span class="sm weak">Stage 1</span></div><span class="arr">→</span>
+      <div class="node"><strong>PROD</strong><span class="sm weak">Hub</span></div><span class="arr d">⤳</span>
+      <div class="node side"><strong>TRAINING</strong><span class="sm weak">Back promote · matches PROD</span></div>
+      <div class="node side"><strong>DEMO</strong><span class="sm weak">Back promote · 3 releases behind</span></div>
+    </div>
+    <p class="k">Dashed: orgs that receive PROD's changes after a deploy. They never send changes up the route.</p>
+  </div>
+</section>
+<div class="grid">
+  <section class="card">
+    <div class="hd"><h2>Back promote</h2><span class="pill none">Off by default</span></div>
+    <div class="bd">
+      <div class="row"><span>Send PROD's changes to other orgs after a deploy</span><span class="tg"></span></div>
+      <p class="k">Register an org with the role <strong>Back promote (after production)</strong>, then choose when it gets PROD's changes. Metadata only: users and records in that org stay as they are.</p>
+    </div>
+  </section>
+  <section class="card">
+    <div class="hd"><h2>TRAINING</h2><span class="pill ok">Connected</span><span class="pill none">Back promote</span></div>
+    <div class="bd" style="background:#FAFAF9">
+      <p class="k">branch training · env training · Full Copy sandbox</p>
+      <div><p class="k">When</p><div class="seg"><span>After every PROD deploy</span><span class="s">When an admin clicks Sync now</span></div></div>
+      <div class="row"><span>Approve before syncing</span><span class="tg off"></span><span class="k">Off: PROD's approval is enough</span></div>
+      <div class="row"><span class="pill wait">3 releases behind</span><span class="k">REL-00027, REL-00029, REL-00031</span><span style="flex:1"></span><button class="btn">Sync now</button></div>
+    </div>
+  </section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1160}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>An org registered in the Release Relay hub: how the hub signs in to it (JWT with the hub certificate), its role on the route and its Git environment. No secrets are stored here; the consumer key is kept encrypted (Consumer_Key__c) and only Apex reads it.</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>true</enableHistory>
+    <enableReports>true</enableReports>
+    <enableSearch>false</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <fields>
+        <fullName>Environment__c</fullName>
+        <description>The Salesforce environment: Developer, Developer Pro, Partial Copy or Full Copy sandbox, or Production. New Release groups the orgs by it.</description>
+        <label>Environment</label>
+        <required>false</required>
+        <trackHistory>false</trackHistory>
+        <type>Picklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Developer</fullName><default>false</default><label>Developer</label></value>
+                <value><fullName>Developer_Pro</fullName><default>false</default><label>Developer Pro</label></value>
+                <value><fullName>Partial_Copy</fullName><default>false</default><label>Partial Copy</label></value>
+                <value><fullName>Full_Copy</fullName><default>false</default><label>Full Copy</label></value>
+                <value><fullName>Production</fullName><default>false</default><label>Production</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>Role__c</fullName>
+        <description>Developer: a dev org that raises releases. Stage: an org on the route to production. Hub: this org (production). Back promote: an org that receives production's changes after a deploy and never sends any up.</description>
+        <label>Role</label>
+        <required>false</required>
+        <trackHistory>true</trackHistory>
+        <type>Picklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Developer</fullName><default>true</default><label>Developer</label></value>
+                <value><fullName>Stage</fullName><default>false</default><label>Stage</label></value>
+                <value><fullName>Hub</fullName><default>false</default><label>Hub</label></value>
+                <value><fullName>Back_Promote</fullName><default>false</default><label>Back promote (after production)</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>My_Domain__c</fullName>
+        <description>https://&lt;domain&gt;.my.salesforce.com (or .sandbox.my.salesforce.com). Also add it as a Remote Site Setting in the hub.</description>
+        <externalId>false</externalId>
+        <label>My Domain URL</label>
+        <length>255</length>
+        <required>false</required>
+        <trackHistory>true</trackHistory>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Login_Type__c</fullName>
+        <description>Production (also Developer Edition) signs in with audience login.salesforce.com; Sandbox with test.salesforce.com.</description>
+        <label>Login Type</label>
+        <required>false</required>
+        <trackHistory>true</trackHistory>
+        <type>Picklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Production</fullName><default>true</default><label>Production</label></value>
+                <value><fullName>Sandbox</fullName><default>false</default><label>Sandbox</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>Username__c</fullName>
+        <description>The integration user the hub signs in as. Pre-authorized in the org's External Client App.</description>
+        <externalId>false</externalId>
+        <label>Integration Username</label>
+        <length>255</length>
+        <required>false</required>
+        <trackHistory>true</trackHistory>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Client_Id__c</fullName>
+        <description>Deprecated: moved to Consumer_Key__c.</description>
+        <externalId>false</externalId>
+        <label>Client Id</label>
+        <length>255</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Consumer_Key__c</fullName>
+        <description>Consumer key of the External Client App in that org (the JWT issuer). Encrypted at rest, never sent to the browser, and shown masked (last four characters); only Apex reads it to sign in.</description>
+        <externalId>false</externalId>
+        <label>Consumer Key</label>
+        <length>175</length>
+        <maskChar>asterisk</maskChar>
+        <maskType>lastFour</maskType>
+        <required>false</required>
+        <type>EncryptedText</type>
+    </fields>
+    <fields>
+        <fullName>Certificate__c</fullName>
+        <description>API name of the hub certificate (Setup > Certificate and Key Management) that signs the login. Its public key is uploaded to the org's External Client App.</description>
+        <externalId>false</externalId>
+        <label>Hub Certificate</label>
+        <length>80</length>
+        <required>false</required>
+        <trackHistory>true</trackHistory>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Git_Environment__c</fullName>
+        <description>The Git provider environment holding this org's login for the pipeline, for example dev1 or sit.</description>
+        <externalId>false</externalId>
+        <label>Git Environment</label>
+        <length>80</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Org_Id__c</fullName>
+        <description>Read at sign-in. A change means the sandbox was refreshed.</description>
+        <externalId>false</externalId>
+        <label>Org Id</label>
+        <length>18</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Org_Type__c</fullName>
+        <description>Read at sign-in, for example Developer Edition or Enterprise Edition.</description>
+        <externalId>false</externalId>
+        <label>Org Type</label>
+        <length>80</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Is_Sandbox__c</fullName>
+        <defaultValue>false</defaultValue>
+        <description>Read at sign-in.</description>
+        <label>Is Sandbox</label>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
+        <fullName>Api_Version__c</fullName>
+        <description>Newest API version the org supports, read at sign-in.</description>
+        <externalId>false</externalId>
+        <label>API Version</label>
+        <length>10</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Source_Tracking__c</fullName>
+        <description>Available: changes are listed from source tracking (fast). Not available: the Metadata API lists them.</description>
+        <label>Source Tracking</label>
+        <required>false</required>
+        <type>Picklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Unknown</fullName><default>true</default><label>Unknown</label></value>
+                <value><fullName>Available</fullName><default>false</default><label>Available</label></value>
+                <value><fullName>Not available</fullName><default>false</default><label>Not available</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>Status__c</fullName>
+        <description>Result of the last sign-in check.</description>
+        <label>Status</label>
+        <required>false</required>
+        <type>Picklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Not checked</fullName><default>true</default><label>Not checked</label></value>
+                <value><fullName>Connected</fullName><default>false</default><label>Connected</label></value>
+                <value><fullName>Failed</fullName><default>false</default><label>Failed</label></value>
+                <value><fullName>Refreshed</fullName><default>false</default><label>Refreshed</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>Status_Message__c</fullName>
+        <description>Details of the last sign-in check: the error, or the recommendation shown to admins.</description>
+        <label>Status Message</label>
+        <length>2000</length>
+        <type>LongTextArea</type>
+        <visibleLines>3</visibleLines>
+    </fields>
+    <fields>
+        <fullName>Last_Checked__c</fullName>
+        <description>When the hub last signed in to this org.</description>
+        <label>Last Checked</label>
+        <required>false</required>
+        <type>DateTime</type>
+    </fields>
+    <fields>
+        <fullName>Branch__c</fullName>
+        <description>Git branch for this org: a stage branch (sit, uat, prod), or a developer org's own branch used for back-promote (dev1).</description>
+        <externalId>false</externalId>
+        <label>Branch</label>
+        <length>100</length>
+        <required>false</required>
+        <trackHistory>true</trackHistory>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Stage_Order__c</fullName>
+        <description>Position of a stage on the route: 1 is the first stage after the developer orgs (usually SIT). Empty for developer orgs.</description>
+        <externalId>false</externalId>
+        <label>Stage Order</label>
+        <precision>3</precision>
+        <required>false</required>
+        <scale>0</scale>
+        <type>Number</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Approval_In__c</fullName>
+        <description>Where releases into this org are approved: In Salesforce (the release page or Approvals tab), In Slack (Approve and Reject on the Slack card, for linked approvers) or In Git provider (the merge starts when the checks pass and the provider's own reviewers approve it). Blank means In Salesforce.</description>
+        <label>Approval In</label>
+        <required>false</required>
+        <type>Picklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Salesforce</fullName><default>true</default><label>In Salesforce</label></value>
+                <value><fullName>Slack</fullName><default>false</default><label>In Slack</label></value>
+                <value><fullName>Git</fullName><default>false</default><label>In Git provider</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>Slack_Channel__c</fullName>
+        <description>Slack channel for releases into (or, for a developer org, out of) this org: a channel name (#channel-name) or a channel ID. Invite the Release Relay app to it.</description>
+        <externalId>false</externalId>
+        <label>Slack Channel</label>
+        <length>80</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Slack_Post__c</fullName>
+        <defaultValue>false</defaultValue>
+        <description>Post release cards to the Slack channel. For a developer org: also post a one-line copy of its releases' events there.</description>
+        <label>Post to Slack</label>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
+        <fullName>Approve_In_Salesforce__c</fullName>
+        <defaultValue>true</defaultValue>
+        <description>Releases into this org can be approved in Salesforce (Approvals tab and the release page).</description>
+        <label>Approve in Salesforce</label>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
+        <fullName>Approve_In_Slack__c</fullName>
+        <defaultValue>false</defaultValue>
+        <description>Releases into this org can be approved from their Slack card (when Slack is connected). With Approve in Salesforce on too, either is enough.</description>
+        <label>Approve in Slack</label>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
+        <fullName>Require_Git_Review__c</fullName>
+        <defaultValue>false</defaultValue>
+        <description>After the approval, the deploy also waits for the Git provider's environment reviewers (set up in the provider).</description>
+        <label>Also require Git reviewers</label>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
+        <fullName>Hotfix_Two_Approvers__c</fullName>
+        <defaultValue>false</defaultValue>
+        <description>Hotfixes into this org need two different approvers, neither of them the person who raised it.</description>
+        <label>Hotfixes Need Two Approvers</label>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
+        <fullName>Back_Promote_When__c</fullName>
+        <description>For a back promote org: when it gets production's changes.</description>
+        <label>Back Promote When</label>
+        <required>false</required>
+        <type>Picklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Manual</fullName><default>true</default><label>When an admin clicks Sync now</label></value>
+                <value><fullName>After_Deploy</fullName><default>false</default><label>After every PROD deploy</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>Back_Promote_Approval__c</fullName>
+        <defaultValue>false</defaultValue>
+        <description>For a back promote org: each sync waits for an approver before it runs.</description>
+        <label>Approve Before Syncing</label>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
+        <fullName>Synced_On__c</fullName>
+        <description>For a back promote org: when its last successful sync started (everything production had then is in it).</description>
+        <label>Synced On</label>
+        <required>false</required>
+        <type>DateTime</type>
+    </fields>
+    <fields>
+        <fullName>Sync_Status__c</fullName>
+        <description>For a back promote org: how its last sync went: Deployed, Failed, Conflict or Running.</description>
+        <externalId>false</externalId>
+        <label>Sync Status</label>
+        <length>40</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <label>Release Relay Org</label>
+    <nameField>
+        <label>Org Name</label>
+        <trackHistory>true</trackHistory>
+        <type>Text</type>
+    </nameField>
+    <pluralLabel>Release Relay Orgs</pluralLabel>
+    <searchLayouts/>
+    <sharingModel>Read</sharingModel>
+</CustomObject>

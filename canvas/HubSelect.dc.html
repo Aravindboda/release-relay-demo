@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Select changes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px}
+.btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px;cursor:pointer}
+.brand{background:#0176D3;border-color:#0176D3;color:#fff}
+.off{background:#E5E5E5;border-color:#E5E5E5;color:#5C5C5C;cursor:not-allowed}
+.seg{height:30px;padding:0 12px;border:1px solid #C9C9C9;background:#fff;font:inherit;font-size:13px;color:#181818;cursor:pointer}
+.seg-on{background:#0176D3;border-color:#0176D3;color:#fff}
+.step{font-size:12px;padding:4px 10px;border-radius:12px;background:#F3F3F3;color:#5C5C5C}
+.step-done{background:#EBF7E6;color:#2E844A}.step-now{background:#0176D3;color:#fff;font-weight:700}
+.type{display:flex;gap:8px;padding:5px 8px;border-radius:4px;font-size:13px}.type-on{background:#E5EFFD;color:#014486;font-weight:700}
+.count{margin-left:auto;font-size:11px;color:#5C5C5C}
+.grp{margin:10px 8px 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#5C5C5C}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700}
+.custom{background:#E1F5EE;color:#0F6E56}.std{background:#EAEEF9;color:#3A49A4}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.weak{color:#5C5C5C}
+table{border-collapse:collapse;width:100%}th{position:sticky;top:0;background:#F3F3F3;font-size:12px;color:#444;text-align:left;padding:8px 10px;border-bottom:1px solid #E5E5E5}
+td{font-size:13px;padding:8px 10px;border-bottom:1px solid #E5E5E5}
+tr.on td{background:#F2F7FE}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:#fff;border:1px solid #E5E5E5;border-radius:4px;padding:10px 16px;box-shadow:0 -2px 6px rgba(0,0,0,.06)}
+</style>
+</helmet>
+<div style="height:100vh;padding:12px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+  <section class="card" style="padding:12px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:12px">
+    <span style="width:32px;height:32px;border-radius:4px;background:#2347D6;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700">↑</span>
+    <div style="flex:1"><p style="margin:0;font-size:12px;color:#5C5C5C">Release Relay</p><h1 style="margin:0;font-size:18px">New release</h1></div>
+    <span class="step step-done">✓ Source</span><span class="step step-now">2 Select</span><span class="step">3 Review</span><span class="step">4 Raise</span>
+  </section>
+
+  <section class="card" style="flex:1;min-height:0;display:flex;flex-direction:column">
+    <div style="padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px">
+      <div style="flex:1 1 300px">
+        <h2 style="margin:0;font-size:15px;display:flex;gap:6px;align-items:baseline">DEV1 <span style="color:#0176D3">→</span> SIT · sit</h2>
+        <p style="margin:2px 0 0;font-size:12px" class="weak">last 7 days · changed by me · <a href="#" style="color:#0176D3">Change</a></p>
+      </div>
+      <div role="group" aria-label="Show" style="display:flex">
+        <button class="seg seg-on" style="border-radius:4px 0 0 4px">Custom + standard</button><button class="seg" style="margin-left:-1px">Custom</button><button class="seg" style="border-radius:0 4px 4px 0;margin-left:-1px">Standard</button>
+      </div>
+      <input placeholder="Search by name or type" aria-label="Search" style="width:240px;height:30px;border:1px solid #C9C9C9;border-radius:4px;padding:0 10px;font:inherit;font-size:13px">
+      <button class="btn" aria-label="Read the org again" style="width:32px;padding:0">⟳</button>
+    </div>
+    <div style="flex:1;min-height:0;display:grid;grid-template-columns:220px minmax(0,1fr)">
+      <nav aria-label="Types" style="border-right:1px solid #E5E5E5;background:#FAFAF9;padding:8px;overflow:auto">
+        <div class="type">All changed<span class="count">643</span></div>
+        <p class="grp">Code</p><div class="type type-on">Apex Class<span class="count">6</span></div>
+        <p class="grp">Automation</p><div class="type">Flow<span class="count">1</span></div><div class="type">Flow Definition<span class="count">1</span></div>
+        <p class="grp">Data model</p><div class="type">Custom Field<span class="count">25</span></div><div class="type">Record Type<span class="count">2</span></div>
+        <p class="grp">Access and UI</p><div class="type">Flexi Page<span class="count">14</span></div><div class="type">Layout<span class="count">164</span></div><div class="type">List View<span class="count">224</span></div><div class="type">Permission Set<span class="count">2</span></div>
+      </nav>
+      <div style="overflow:auto;min-width:0;display:flex;flex-direction:column">
+        <table>
+          <thead><tr><th style="width:36px"><input type="checkbox" aria-label="Select all shown"></th><th>Name</th><th>Type</th><th>Kind</th><th>Changed</th></tr></thead>
+          <tbody>
+            <tr><td><input type="checkbox" aria-label="Select RlyDemoGreetingTest"></td><td class="mono">RlyDemoGreetingTest</td><td>Apex test class</td><td><span class="pill custom">Custom</span></td><td class="weak">Oct 31 Aravind Reddy Boda</td></tr>
+            <tr><td><input type="checkbox" aria-label="Select RlyDemoGreeting"></td><td class="mono">RlyDemoGreeting</td><td>Apex Class</td><td><span class="pill custom">Custom</span></td><td class="weak">Oct 31 Aravind Reddy Boda</td></tr>
+            <tr class="on"><td><input type="checkbox" checked aria-label="Select RlyDemoDiscountTest"></td><td class="mono">RlyDemoDiscountTest</td><td>Apex test class</td><td><span class="pill custom">Custom</span></td><td class="weak">Oct 31 Aravind Reddy Boda</td></tr>
+            <tr class="on"><td><input type="checkbox" checked aria-label="Select RlyDemoDiscount"></td><td class="mono">RlyDemoDiscount</td><td>Apex Class</td><td><span class="pill custom">Custom</span></td><td class="weak">Oct 31 Aravind Reddy Boda</td></tr>
+            <tr><td><input type="checkbox" aria-label="Select RlyDemoSearch"></td><td class="mono">RlyDemoSearch</td><td>Apex Class</td><td><span class="pill custom">Custom</span></td><td class="weak">Oct 31 Aravind Reddy Boda</td></tr>
+            <tr><td><input type="checkbox" aria-label="Select Account.Industry"></td><td class="mono">Account.Industry</td><td>Custom Field</td><td><span class="pill std">Standard</span></td><td class="weak">Oct 30 Aravind Reddy Boda</td></tr>
+          </tbody>
+        </table>
+        <div style="border-top:1px solid #E5E5E5;padding:12px 16px;margin-top:auto">
+          <p style="margin:0 0 6px;font-size:12px" class="weak">Not in the list? Add it by name</p>
+          <div style="display:flex;gap:8px;align-items:flex-end"><select style="height:32px;width:200px"><option>Apex Class</option></select><input placeholder="API name" style="flex:1;height:30px;border:1px solid #C9C9C9;border-radius:4px;padding:0 10px"><button class="btn">Add</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="bar" style="border-top:3px solid #2E844A">
+    <button class="btn">Back</button>
+    <div style="flex:1;font-size:13px"><strong>2 selected · 1 Apex · 1 test class ✓</strong></div>
+    <button class="btn" style="border:0;color:#0176D3">Show selection</button>
+    <button class="btn brand">Next: review</button>
+  </div>
+  <div class="bar" style="border-top:3px solid #BA0517;background:#FEF1EE">
+    <button class="btn">Back</button>
+    <div style="flex:1;font-size:13px;display:flex;flex-direction:column;gap:2px"><strong style="color:#8E030F">1 selected · 1 Apex · 0 test classes</strong><span style="font-size:12px">Apex selected without a test class. Tick the test class that covers it (or add it by name). <span style="border:1px solid #C9C9C9;background:#fff;border-radius:12px;padding:1px 8px">+ RlyDemoGreetingTest</span></span></div>
+    <button class="btn" style="border:0;color:#0176D3">Show selection</button>
+    <button class="btn off" disabled>Next: review</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

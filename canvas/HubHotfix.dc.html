@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hotfix from SIT</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px}
+.hd{padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.pad{padding:12px 16px}
+.h1{margin:0;font-size:18px;font-weight:700}.h2{margin:0;font-size:15px;font-weight:700}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.ok{background:#EBF7E6;color:#2E844A}.bad{background:#FEDED8;color:#8E030F}.wait{background:#FEF1CD;color:#8C4B02}.none{background:#F3F3F3;color:#444}.info{background:#EEF4FF;color:#014486}
+.btn{height:30px;padding:0 12px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px;cursor:pointer}
+.brand{background:#0176D3;border-color:#0176D3;color:#fff}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.arrow{color:#0176D3;font-weight:700}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #E5E5E5;font-size:13px}th{background:#F3F3F3;font-size:12px;color:#444}
+.code{font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:20px;white-space:pre;padding:0 10px}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:#fff;border:1px solid #E5E5E5;border-top:3px solid #2E844A;border-radius:4px;padding:10px 16px}
+.note{padding:8px 10px;border-radius:4px;font-size:12px;line-height:1.45}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:12px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+  <section class="card hd">
+    <div style="flex:1 1 300px"><p class="k">Release Relay hub · New release · step 1 of 4</p><h1 class="h1">Where are the changes?</h1></div>
+  </section>
+  <section class="card">
+    <div class="pad" style="display:flex;flex-direction:column;gap:12px">
+      <p class="k">Developer orgs</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <div class="card" style="padding:10px 12px;min-width:220px"><strong>DEV1</strong><br><span class="mono weak">dev1</span><br><span class="sm weak">Metadata API · → SIT</span></div>
+        <div class="card" style="padding:10px 12px;min-width:220px"><strong>DEV2</strong><br><span class="mono weak">dev2</span><br><span class="sm weak">Fast: source tracking · → SIT</span></div>
+      </div>
+      <p class="k">Stage orgs (hotfix: changes made directly in the org)</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <div class="card" style="padding:9px 11px;min-width:220px;border:2px solid #0176D3;background:#EEF4FF"><strong>SIT</strong> <span class="pill wait">Hotfix</span><br><span class="mono weak">sit</span><br><span class="sm weak">→ PROD, skips no checks</span></div>
+      </div>
+      <div class="note" style="background:#FEF1CD;color:#5E3600;max-width:760px"><strong>Hotfix from SIT goes to PROD.</strong> It's raised like any release (scan, check-only deploy to PROD with its tests, approvals), and is committed to <span class="mono">sit</span> first so SIT and Git stay the same. Then it flows back to every dev branch so no org overwrites it. Only users with the Hotfix permission see stage orgs here.</div>
+      <p style="margin:0;font-size:13px">Goes to <span class="arrow">→</span> <strong>PROD · prod</strong> <span class="weak">(the next stage after SIT)</span></p>
+    </div>
+    <div style="padding:12px 16px;border-top:1px solid #E5E5E5;background:#FAFAF9;display:flex;justify-content:flex-end"><button class="btn brand">Next: find changes</button></div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":640}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hotfix from any org</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.lab{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5C5C5C}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.wait{background:#FEF1CD;color:#8C4B02}.ok{background:#EBF7E6;color:#2E844A}.info{background:#EEF4FF;color:#014486}.none{background:#F3F3F3;color:#444}
+.tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.tile{display:flex;flex-direction:column;gap:4px;border:1px solid #E5E5E5;border-radius:4px;padding:12px;background:#fff}
+.tile b{font-size:15px}.tile .c{margin-top:4px;font-size:13px;font-weight:700;color:#0B5CAB}
+.tile.on{border:2px solid #0176D3;background:#EEF4FF;padding:11px}
+.hf{font-size:12px;color:#8C4B02;font-weight:700}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #0176D3;background:#0176D3;color:#fff;font:inherit;font-size:13px}
+.btn2{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px}
+.foot{padding:10px 16px;border-top:1px solid #E5E5E5;background:#F3F3F3;display:flex;justify-content:flex-end;gap:8px}
+.note{padding:10px 12px;border-radius:4px;font-size:13px;line-height:1.45;background:#FEF1CD;color:#5E3600}
+.flow{display:flex;align-items:stretch;gap:0;flex-wrap:wrap}
+.fs{flex:1 1 0;min-width:170px;border:1px solid #E5E5E5;border-radius:4px;padding:10px 12px;background:#fff;display:flex;flex-direction:column;gap:4px}
+.arr{align-self:center;padding:0 8px;color:#0176D3;font-size:18px}
+.tg{display:inline-flex;align-items:center;width:44px;height:24px;border-radius:12px;background:#0176D3;position:relative}.tg::after{content:"";position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.tg.off{background:#939393}.tg.off::after{right:auto;left:3px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px 12px;border-top:1px solid #E5E5E5;vertical-align:top}th{background:#FAFAF9;font-size:12px;color:#5C5C5C;border-top:0}
+</style>
+</helmet>
+<div style="padding:12px;display:flex;flex-direction:column;gap:12px">
+
+  <p class="lab">1 · New Release, step 1 · what a user with both hotfix permissions sees</p>
+  <section class="card">
+    <div style="padding:12px 16px;border-bottom:1px solid #E5E5E5"><p class="k">Release Relay hub · New release · step 1 of 5</p><h1 style="margin:2px 0 0;font-size:18px">Where should the changes come from?</h1></div>
+    <div style="padding:16px" class="tiles">
+      <div class="tile"><b>Developer sandbox</b><span class="sm weak">Metadata only · refresh every day</span><span class="c">140 orgs</span></div>
+      <div class="tile"><b>Developer Pro sandbox</b><span class="sm weak">Metadata, more storage · refresh every day</span><span class="c">12 orgs</span></div>
+      <div class="tile"><b>Partial Copy sandbox</b><span class="sm weak">Metadata and sample data · refresh every 5 days</span><span class="c">1 org</span></div>
+      <div class="tile"><b>Full Copy sandbox</b><span class="sm weak">Copy of production · refresh every 29 days</span><span class="c">1 org</span><span class="hf">Hotfix: SIT → PROD</span></div>
+      <div class="tile on"><b>Production</b><span class="sm weak">The live org</span><span class="c">1 org</span><span class="hf">Hotfix: capture a fix made in PROD</span></div>
+    </div>
+    <div class="foot"><button class="btn">Next: pick the org</button></div>
+  </section>
+  <p class="k" style="margin-top:-6px">Users without a hotfix permission see Full Copy and Production greyed out: "SIT: releases arrive here", "PROD: releases end here".</p>
+
+  <p class="lab" style="margin-top:8px">2 · Production hotfix: capture, then flow back</p>
+  <section class="card">
+    <div style="padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;gap:8px"><div style="flex:1"><p class="k">Release Relay hub · New release · step 2 of 5</p><h1 style="margin:2px 0 0;font-size:18px">Capture a hotfix from PROD <span class="pill wait">Hotfix</span></h1></div><button class="btn2">Back</button></div>
+    <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+      <div class="note"><strong>The fix is already live in PROD.</strong> Release Relay records it in Git and sends it back down the route, so the next release from a dev org can't overwrite it. Nothing is deployed to PROD.</div>
+      <div class="flow">
+        <div class="fs"><span class="pill wait" style="width:max-content">1 Capture</span><strong>PROD → prod branch</strong><span class="sm weak">Pull request with the changed components. Code scan runs. An approver confirms it.</span></div>
+        <span class="arr">→</span>
+        <div class="fs"><span class="pill info" style="width:max-content">2 Stages</span><strong>prod → sit</strong><span class="sm weak">Merged into every stage branch. Optional: deploy to SIT so the org matches PROD.</span></div>
+        <span class="arr">→</span>
+        <div class="fs"><span class="pill info" style="width:max-content">3 Developers</span><strong>sit → dev1, dev2 … dev140</strong><span class="sm weak">Merged into every developer branch.</span></div>
+      </div>
+      <div class="row" style="gap:12px"><span class="tg"></span><span style="font-size:13px"><strong>Also deploy to SIT</strong> <span class="weak">(check-only first; a conflict with unreleased SIT work stops here for review)</span></span></div>
+      <div class="row" style="gap:24px"><div><p class="k">Changed in PROD</p><div class="row" style="gap:0;border:1px solid #C9C9C9;border-radius:4px;overflow:hidden;font-size:13px"><span style="padding:6px 12px;background:#0176D3;color:#fff">Last 24 hours</span><span style="padding:6px 12px;border-left:1px solid #C9C9C9">Last 7 days</span><span style="padding:6px 12px;border-left:1px solid #C9C9C9">Since a date…</span></div></div>
+        <div><p class="k">Changed by</p><div class="row" style="gap:0;border:1px solid #C9C9C9;border-radius:4px;overflow:hidden;font-size:13px"><span style="padding:6px 12px">Me</span><span style="padding:6px 12px;border-left:1px solid #C9C9C9;background:#0176D3;color:#fff">Anyone</span></div></div></div>
+    </div>
+    <div class="foot"><button class="btn">Next: find changes in PROD</button></div>
+  </section>
+
+  <div class="cols" style="margin-top:8px">
+    <div>
+      <p class="lab">3 · Pipeline tab: per-org switch (admins)</p>
+      <section class="card">
+        <div style="padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;gap:8px"><strong style="flex:1;font-size:15px">PROD</strong><span class="pill ok">Connected</span><span class="pill info">Hub</span></div>
+        <div style="padding:12px 16px;background:#FAFAF9;display:flex;flex-direction:column;gap:10px;font-size:13px">
+          <strong>Hotfixes from PROD</strong>
+          <div class="row" style="gap:10px"><span>Allow hotfixes from this org</span><span class="tg"></span></div>
+          <span class="sm weak">Who can raise them: users with the <span class="mono">RLY Hotfix Production</span> permission set (3 users).</span>
+        </div>
+      </section>
+      <section class="card" style="margin-top:8px">
+        <div style="padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;gap:8px"><strong style="flex:1;font-size:15px">UAT</strong><span class="pill ok">Connected</span><span class="pill none">Stage 2</span></div>
+        <div style="padding:12px 16px;background:#FAFAF9;display:flex;flex-direction:column;gap:10px;font-size:13px">
+          <strong>Hotfixes from UAT</strong>
+          <div class="row" style="gap:10px"><span>Allow hotfixes from this org</span><span class="tg off"></span></div>
+          <span class="sm weak">Off: nobody can raise a hotfix from UAT, whatever their permissions.</span>
+        </div>
+      </section>
+    </div>
+    <div>
+      <p class="lab">4 · Who sees what: permission sets</p>
+      <section class="card">
+        <table>
+          <tr><th>Permission set</th><th>Hotfix from</th><th>Typical users</th></tr>
+          <tr><td><span class="mono">RLY Developer</span></td><td>None: normal releases from developer orgs</td><td class="weak">Developers</td></tr>
+          <tr><td><span class="mono">RLY Hotfix</span></td><td>Stage orgs with hotfixes allowed (SIT, UAT…) → next stop</td><td class="weak">Release managers, QA leads</td></tr>
+          <tr><td><span class="mono">RLY Hotfix Production</span></td><td>PROD: capture and flow back</td><td class="weak">Production support</td></tr>
+          <tr><td><span class="mono">RLY Admin</span></td><td>None by default; assign a hotfix set as well if needed</td><td class="weak">Release Relay admins</td></tr>
+        </table>
+        <p class="k" style="padding:10px 12px;border-top:1px solid #E5E5E5">Both conditions apply: the user has the permission set <strong>and</strong> the org allows hotfixes.</p>
+      </section>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1320}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>
