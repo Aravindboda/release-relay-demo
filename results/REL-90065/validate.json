@@ -1,0 +1,88 @@
+{
+ "request": "REL-90065",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 41,
+ "deleted": [],
+ "mergedWith": "2be941d28ee74e781fd0fc4012dd1e261c4b3235",
+ "validatedTree": "d1888885c2c9b998b6d2506f34b60aa29a329a66",
+ "environment": "prod",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0Afg800000K61nWCAR",
+ "testsRun": 252,
+ "tests": [
+  "RlyAppendTest",
+  "RlyApprovalRulesTest",
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyBackPromoteTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyDeletionFinderTest",
+  "RlyDeployReaderTest",
+  "RlyEvidenceTest",
+  "RlyFlowActivationTest",
+  "RlyGitAdviceTest",
+  "RlyGitProvidersTest",
+  "RlyHotfixTest",
+  "RlyHubGuardTest",
+  "RlyManualOnlyTest",
+  "RlyManualStepGateTest",
+  "RlyManualStepsTest",
+  "RlyOrgControllerTest",
+  "RlyOrgSessionTest",
+  "RlyPipelineFilesTest",
+  "RlyPromoteOverlapTest",
+  "RlyPromoteTest",
+  "RlyPullRequestCloseTest",
+  "RlyRaiseServiceTest",
+  "RlyReleasesFilterTest",
+  "RlyRepoSettingsTest",
+  "RlyRollbackTest",
+  "RlyRouteControllerTest",
+  "RlyScanRuleTest",
+  "RlySetupStatusTest",
+  "RlySlackActionsTest",
+  "RlySlackCardTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest",
+  "RlyTwoApproversTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [
+  {
+   "name": "RlyAppendTest",
+   "method": "addStartsTheRetrieveAndReopensTheRelease",
+   "message": "System.AssertException: Assertion Failed: Pending"
+  },
+  {
+   "name": "RlyAppendTest",
+   "method": "failedRetrieveLeavesTheReleaseAsItWas",
+   "message": "System.AssertException: Assertion Failed: Not pending: Expected: false, Actual: true"
+  },
+  {
+   "name": "RlyAppendTest",
+   "method": "readerCommitsTheAddAndRunsAppend",
+   "message": "System.AssertException: Assertion Failed: Counted: Expected: 4, Actual: 2"
+  }
+ ],
+ "message": "3 test failure(s)",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41323793354",
+ "finishedAt": "2026-11-01T16:02:47.557Z",
+ "excluded": [],
+ "selfUpdate": true,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
+}
