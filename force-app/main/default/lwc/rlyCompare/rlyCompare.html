@@ -25,17 +25,28 @@
                     </div>
                     <nav class="rr-c-list" aria-label="Components compared">
                         <p class="rr-c-head">{countText}</p>
+                        <template lwc:if={showSearch}>
+                            <div class="rr-c-search">
+                                <c-rly-search-box label="Search components" placeholder="Search by name or type" shown={shownCount} total={rowCount}
+                                    onsearch={handleSearch}></c-rly-search-box>
+                            </div>
+                        </template>
+                        <div class="rr-scroll">
                         <ul>
-                            <template for:each={rows} for:item="r">
+                            <template for:each={shownRows} for:item="r">
                                 <li key={r.key}>
                                     <button type="button" class={r.cls} aria-current={r.current} data-key={r.key} onclick={pickComponent}>
-                                        <span class="rr-c-l1"><strong class="rr-c-name">{r.name}</strong><span class={r.chipCls}>{r.chipLabel}</span></span>
+                                        <span class="rr-c-l1"><strong class="rr-c-name" title={r.name}><template for:each={r.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></strong><span class={r.chipCls}>{r.chipLabel}</span></span>
                                         <span class="rr-small rr-weak">{r.sub}</span>
                                         <template lwc:if={r.why}><span class="rr-c-why">{r.why}</span></template>
                                     </button>
                                 </li>
                             </template>
                         </ul>
+                        <template lwc:if={noMatch}>
+                            <p class="rr-nomatch-p">{noMatchText} <button type="button" class="rr-linkbtn" onclick={clearSearch}>Clear search</button></p>
+                        </template>
+                        </div>
                     </nav>
 
                     <div class="rr-c-pane">

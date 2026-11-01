@@ -88,3 +88,21 @@
     .rr-pr { grid-template-columns: 64px minmax(0, 1fr) auto; }
     .rr-bar { display: none; }
 }
+
+/* ---- long lists (build 27, same in every bundle): search toolbar, fixed columns, pinned header, scroll inside ---- */
+.rr-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid #e5e5e5; }
+.rr-toolbar c-rly-search-box { flex: 1 1 260px; min-width: 0; }
+.rr-scroll { max-height: 26rem; overflow: auto; }
+.rr-ft { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
+.rr-ft th { position: sticky; top: 0; z-index: 1; background: #f3f3f3; }
+.rr-ft th, .rr-ft td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rr-ft .rr-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rr-ft td.rr-nomatch { white-space: normal; text-align: center; color: #5c5c5c; padding: 16px; }
+.rr-ft mark, .rr-scroll mark { background: #fef1cd; color: inherit; padding: 0; border-radius: 2px; }
+.rr-linkbtn { border: 0; background: none; padding: 0; font: inherit; color: #0b5cab; text-decoration: underline; cursor: pointer; }
+.rr-linkbtn:focus-visible { outline: 2px solid #0176d3; outline-offset: 2px; }
+.rr-ft-narrow { --rr-ft-min: 420px; }
+@media (max-width: 900px) { .rr-ft { min-width: var(--rr-ft-min, 640px); } }
+@media (max-width: 600px) { .rr-scroll { max-height: 60vh; } }
+.rr-nomatch-p { margin: 0; padding: 16px; text-align: center; font-size: 13px; color: var(--rr-muted); }
+.rr-toolbar { border-bottom-color: #f3f3f3; }

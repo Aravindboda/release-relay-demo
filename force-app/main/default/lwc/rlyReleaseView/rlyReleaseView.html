@@ -143,15 +143,16 @@
                             <div class="rr-pad-all rr-line-top">
                                 <p class="rr-label">Code scan findings</p>
                                 <div class="rr-scroll">
-                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table">
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table rr-ft">
+                                        <colgroup><col class="rr-w-prio" /><col class="rr-w-rule" /><col class="rr-w-where" /><col /></colgroup>
                                         <thead><tr><th scope="col">Priority</th><th scope="col">Rule</th><th scope="col">Where</th><th scope="col">Finding</th></tr></thead>
                                         <tbody>
                                             <template for:each={violations} for:item="v">
                                                 <tr key={v.key}>
                                                     <td><span class={v.sevCls} title={v.severityLabel}>{v.priority}</span></td>
-                                                    <td class="rr-small">{v.rule}</td>
-                                                    <td class="rr-mono">{v.where}</td>
-                                                    <td class="rr-small rr-wrap">{v.message}</td>
+                                                    <td class="rr-small" title={v.rule}>{v.rule}</td>
+                                                    <td class="rr-mono" title={v.where}>{v.where}</td>
+                                                    <td class="rr-small" title={v.message}>{v.message}</td>
                                                 </tr>
                                             </template>
                                         </tbody>
@@ -163,7 +164,7 @@
                         <template lwc:if={hasProblems}>
                             <div class="rr-pad-all rr-line-top">
                                 <p class="rr-label">Deployment errors</p>
-                                <ul class="rr-problems">
+                                <ul class="rr-problems rr-scroll">
                                     <template for:each={problems} for:item="p">
                                         <li key={p.key}><span class="rr-mono">{p.what}</span><span class="rr-small rr-sp">{p.message}</span></li>
                                     </template>
@@ -257,21 +258,46 @@
                             <template lwc:if={manualOnly}>
                                 <p class="rr-small rr-weak rr-pad-x">No components: this release has only manual steps.</p>
                             </template>
-                            <dl class="rr-dl rr-items">
-                                <template for:each={items} for:item="i">
-                                    <dt key={i.dtKey}>{i.type}</dt>
-                                    <dd key={i.key} class="rr-break">{i.name}</dd>
-                                </template>
-                            </dl>
-                            <template lwc:if={hasDeletions}>
-                                <p class="rr-del-head">{deletesLabel}</p>
-                                <dl class="rr-dl rr-items rr-del-items">
-                                    <template for:each={deletions} for:item="d">
-                                        <dt key={d.dtKey}>{d.type}</dt>
-                                        <dd key={d.key} class="rr-break"><span class="rr-pill rr-pill-bad">Delete</span><span class="rr-sp">{d.name}</span></dd>
-                                    </template>
-                                </dl>
+                            <template lwc:if={showCompSearch}>
+                                <div class="rr-toolbar">
+                                    <c-rly-search-box data-list="comp" label="Search components" placeholder="Search by component name or type"
+                                        shown={compShown} total={compTotal} onsearch={handleCompSearch}></c-rly-search-box>
+                                </div>
                             </template>
+                            <div class="rr-scroll">
+                                <template lwc:if={hasShownItems}>
+                                    <table class="rr-ft rr-ft-narrow rr-ctable">
+                                        <colgroup><col class="rr-w-type" /><col /></colgroup>
+                                        <thead><tr><th scope="col">Type</th><th scope="col">Component</th></tr></thead>
+                                        <tbody>
+                                            <template for:each={shownItems} for:item="i">
+                                                <tr key={i.key}>
+                                                    <td class="rr-weak" title={i.type}>{i.type}</td>
+                                                    <td title={i.name}><template for:each={i.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </template>
+                                <template lwc:if={hasShownDeletions}>
+                                    <p class="rr-del-head">{deletesLabel}</p>
+                                    <table class="rr-ft rr-ft-narrow rr-ctable rr-del-items">
+                                        <colgroup><col class="rr-w-type" /><col /></colgroup>
+                                        <thead><tr><th scope="col">Type</th><th scope="col">Deleted component</th></tr></thead>
+                                        <tbody>
+                                            <template for:each={shownDeletions} for:item="d">
+                                                <tr key={d.key}>
+                                                    <td title={d.type}>{d.type}</td>
+                                                    <td title={d.name}><span class="rr-pill rr-pill-bad">Delete</span><span class="rr-sp"><template for:each={d.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></span></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </template>
+                                <template lwc:if={compNoMatch}>
+                                    <p class="rr-nomatch-p">{compNoMatchText} <button type="button" class="rr-linkbtn" onclick={clearCompSearch}>Clear search</button></p>
+                                </template>
+                            </div>
                         </div>
                         <template lwc:if={changesOpened}>
                             <div class={changesPaneCls} role="tabpanel">
@@ -327,17 +353,24 @@
                                 <h2 class="rr-h2 rr-grow">History</h2>
                                 <span class="rr-pill rr-pill-none">{eventCountText}</span>
                             </div>
+                            <template lwc:if={showHistorySearch}>
+                                <div class="rr-toolbar">
+                                    <c-rly-search-box data-list="history" label="Search history" placeholder="Search by event, person or detail"
+                                        shown={shownEvents.length} total={events.length} onsearch={handleHistorySearch}></c-rly-search-box>
+                                </div>
+                            </template>
                             <div class="rr-pad-all rr-col">
                                 <template lwc:if={hasEvents}>
+                                    <div class="rr-scroll rr-scroll-vt">
                                     <ol class="rr-vt" aria-label="History, newest first">
-                                        <template for:each={events} for:item="e">
+                                        <template for:each={shownEvents} for:item="e">
                                             <li key={e.key} class="rr-vt-item">
                                                 <span class={e.cls}><lightning-icon icon-name={e.icon} size="xx-small" variant="inverse" alternative-text=""></lightning-icon></span>
                                                 <template lwc:if={e.hasArrow}>
                                                     <span class="rr-vt-arrow" aria-hidden="true"><lightning-icon icon-name="utility:chevrondown" size="xx-small" alternative-text=""></lightning-icon></span>
                                                 </template>
                                                 <div class="rr-tlb">
-                                                    <p class="rr-tl-l1"><strong>{e.title}</strong><span class="rr-small rr-weak">{e.who}</span><span class="rr-tl-when">{e.whenText}</span></p>
+                                                    <p class="rr-tl-l1"><strong><template for:each={e.titleParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></strong><span class="rr-small rr-weak">{e.who}</span><span class="rr-tl-when">{e.whenText}</span></p>
                                                     <template lwc:if={e.detail}><p class="rr-small rr-weak rr-break">{e.detail}</p></template>
                                                     <template lwc:if={e.refLink}><p class="rr-small rr-break"><a href={e.refLink} target="_blank" rel="noopener">{e.refLink}</a></p></template>
                                                     <template lwc:if={e.refText}><p class="rr-mono rr-break">{e.refText}</p></template>
@@ -345,6 +378,10 @@
                                             </li>
                                         </template>
                                     </ol>
+                                    <template lwc:if={historyNoMatch}>
+                                        <p class="rr-nomatch-p">{historyNoMatchText} <button type="button" class="rr-linkbtn" onclick={clearHistorySearch}>Clear search</button></p>
+                                    </template>
+                                    </div>
                                 </template>
                                 <template lwc:else><p class="rr-small rr-weak">Nothing recorded yet.</p></template>
                                 <p class="rr-kicker">Newest first. Recorded by {appName} only; nobody can edit or delete an event. The PDF holds this full list (oldest first) plus components, scan findings, tests, approvals, manual steps, flow results and deploy ids.</p>

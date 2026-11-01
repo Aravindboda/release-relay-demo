@@ -3,6 +3,12 @@ import { LightningElement } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import read from '@salesforce/apex/RlyBuildInfo.read';
 import BUILD_DATA from './buildData';
+import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
+
+/** "No classes match 'x'." for an empty search. */
+function noMatchText(things, term) {
+    return 'No ' + things + ' match \u2018' + term + '\u2019.';
+}
 
 /** Salesforce counts most custom object records as 2 KB. */
 const KB_PER_RECORD = 2;
@@ -201,28 +207,68 @@ export default class RlyBuildInfo extends LightningElement {
         return a ? a.name + ' · ' + plural(a.classes.length, 'class', 'classes') : '';
     }
 
-    get areaClasses() {
+    get allAreaClasses() {
         const a = this.area;
-        if (!a) {
-            return [];
-        }
-        return a.classes.map((c) => ({
+        return a ? a.classes : [];
+    }
+
+    get areaClasses() {
+        const q = this.terms.classes;
+        return this.allAreaClasses.filter((c) => matchesSearch([c.name, c.kind, c.testedBy], q)).map((c) => ({
             ...c,
+            nameParts: highlightParts(c.name, q),
             linesText: fmt(c.lines),
             kindCls: c.isTest ? 'rr-pill rr-pill-none' : 'rr-pill rr-pill-info'
         }));
     }
+    get classesTotal() { return this.allAreaClasses.length; }
+    get classesShown() { return this.areaClasses.length; }
+    get classesNoMatch() { return !!this.terms.classes && this.areaClasses.length === 0; }
+    get classesNoMatchText() { return noMatchText('classes', this.terms.classes); }
 
     // ---------- 3 · components ----------
 
     get components() {
-        return this.data.lwc.map((b) => ({ ...b, linesText: fmt(b.lines) }));
+        const q = this.terms.lwc;
+        return this.data.lwc.filter((b) => matchesSearch([b.name, b.label, b.purpose, b.usedBy], q))
+            .map((b) => ({ ...b, nameParts: highlightParts(b.name, q), linesText: fmt(b.lines) }));
     }
+    get lwcTotal() { return this.data.lwc.length; }
+    get lwcShown() { return this.components.length; }
+    get lwcNoMatch() { return !!this.terms.lwc && this.components.length === 0; }
+    get lwcNoMatchText() { return noMatchText('components', this.terms.lwc); }
 
     // ---------- 4 · tests ----------
 
     get testRows() {
-        return this.data.tests.classes.map((c) => ({ ...c, methodsText: fmt(c.methods) }));
+        const q = this.terms.tests;
+        return this.data.tests.classes.filter((c) => matchesSearch([c.name, c.area], q))
+            .map((c) => ({ ...c, nameParts: highlightParts(c.name, q), methodsText: fmt(c.methods) }));
+    }
+    get testsTotal() { return this.data.tests.classes.length; }
+    get testsShown() { return this.testRows.length; }
+    get testsNoMatch() { return !!this.terms.tests && this.testRows.length === 0; }
+    get testsNoMatchText() { return noMatchText('test classes', this.terms.tests); }
+
+    // ---------- search in the long lists (build 27) ----------
+
+    /** Search text per list (classes of the area, components, tests), normalised. */
+    terms = { classes: '', lwc: '', tests: '' };
+
+    /** rlySearchBox above a list; data-list names the list. */
+    handleListSearch(event) {
+        const name = event.currentTarget.dataset.list;
+        this.terms = { ...this.terms, [name]: searchTerm(event.detail && event.detail.value) };
+    }
+
+    /** "Clear search" under a list; data-list names the list. */
+    clearListSearch(event) {
+        const name = event.currentTarget.dataset.list;
+        const box = [...this.template.querySelectorAll('c-rly-search-box')].find((b) => b.dataset.list === name);
+        if (box) {
+            box.clear();
+        }
+        this.terms = { ...this.terms, [name]: '' };
     }
     get testCount() { return fmt(this.data.tests.classes.length); }
     get methodCount() { return fmt(this.data.tests.methodTotal); }

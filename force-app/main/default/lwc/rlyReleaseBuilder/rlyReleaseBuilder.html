@@ -64,10 +64,11 @@
                     <section class="rr-card" aria-label="Source org">
                         <div class="rr-pad rr-stack">
                             <template lwc:if={showOrgSearch}>
-                                <lightning-input type="search" label="Search orgs" variant="label-hidden" placeholder="Search by org name or branch"
-                                    value={orgSearch} onchange={handleOrgSearch} class="rr-org-search"></lightning-input>
+                                <c-rly-search-box label="Search orgs" placeholder="Search by org name or branch" shown={orgShown} total={orgTotal}
+                                    onsearch={handleOrgSearch} class="rr-org-search"></c-rly-search-box>
                             </template>
-                            <p class="rr-small rr-weak" aria-live="polite">{orgCountText}</p>
+                            <template lwc:if={orgOverLimit}><p class="rr-small rr-weak" aria-live="polite">{orgCountText}</p></template>
+                            <template lwc:if={showOrgCount}><p class="rr-small rr-weak">{orgCountText}</p></template>
                             <div class="rr-orgs" role="group" aria-label={sourceTitle}>
                                 <template lwc:if={noOrgMatch}><p class="rr-env-none rr-pad">No org matches the search.</p></template>
                                 <template for:each={orgRows} for:item="o">
@@ -152,7 +153,8 @@
                                     <button key={s.value} type="button" class={s.cls} data-value={s.value} aria-pressed={s.pressed} onclick={handleShow}>{s.label}</button>
                                 </template>
                             </div>
-                            <lightning-input type="search" label="Search" variant="label-hidden" placeholder="Search by name or type" onchange={handleSearch} class="rr-search"></lightning-input>
+                            <c-rly-search-box label="Search changes" placeholder="Search by name or type" shown={searchShown} total={searchTotal}
+                                onsearch={handleSearch} class="rr-search"></c-rly-search-box>
                             <template lwc:if={canFindDeletions}>
                                 <lightning-button label={findLabel} icon-name="utility:delete" onclick={findDeleted} disabled={cantFindDeletions}></lightning-button>
                             </template>
@@ -193,7 +195,8 @@
 
                             <div class="rr-list">
                                 <div class="rr-list-scroll">
-                                    <table class="slds-table slds-table_cell-buffer rr-table">
+                                    <table class="slds-table slds-table_cell-buffer rr-table rr-ft">
+                                        <colgroup><col class="rr-w-check" /><col /><col class="rr-w-type" /><col class="rr-w-kind" /><col class="rr-w-changed" /></colgroup>
                                         <thead>
                                             <tr>
                                                 <th scope="col" class="rr-check-col">
@@ -211,14 +214,14 @@
                                                     <td class="rr-check-col">
                                                         <lightning-input type="checkbox" label={r.selLabel} variant="label-hidden" data-key={r.key} checked={r.checked} onchange={handleCheck} disabled={r.inRelease}></lightning-input>
                                                     </td>
-                                                    <td class="rr-name">
-                                                        <span class="rr-mono">{r.name}</span>
+                                                    <td class="rr-name" title={r.name}>
+                                                        <span class="rr-mono"><template for:each={r.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></span>
                                                         <template lwc:if={r.deleted}><span class="rr-pill rr-pill-bad rr-ml">Delete</span></template>
                                                         <template lwc:if={r.inRelease}><span class="rr-pill rr-pill-none rr-ml">{inReleaseText}</span></template>
                                                     </td>
-                                                    <td>{r.typeLabel}</td>
+                                                    <td title={r.typeLabel}>{r.typeLabel}</td>
                                                     <td><span class={r.kindCls}>{r.kind}</span></td>
-                                                    <td class="rr-weak">
+                                                    <td class="rr-weak" title={r.changedText}>
                                                         <template lwc:if={r.deleted}><span class="rr-del rr-block">{r.deleteText}</span></template>
                                                         {r.changedText}
                                                     </td>
@@ -226,7 +229,10 @@
                                             </template>
                                         </tbody>
                                     </table>
-                                    <template lwc:if={noRows}><div class="rr-empty rr-empty-inset">{emptyText}</div></template>
+                                    <template lwc:if={searchNoMatch}>
+                                        <div class="rr-empty rr-empty-inset">{searchNoMatchText} <button type="button" class="rr-linkbtn" onclick={clearSearch}>Clear search</button></div>
+                                    </template>
+                                    <template lwc:if={plainNoRows}><div class="rr-empty rr-empty-inset">{emptyText}</div></template>
                                     <template lwc:if={hasMore}>
                                         <div class="rr-more"><lightning-button variant="base" label={moreLabel} onclick={showMore}></lightning-button></div>
                                     </template>

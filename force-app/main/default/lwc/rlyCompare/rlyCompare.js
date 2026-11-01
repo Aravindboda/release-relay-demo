@@ -1,9 +1,12 @@
 import { LightningElement, api } from 'lwc';
 import startCompare from '@salesforce/apex/RlyCompareController.startCompare';
 import checkCompare from '@salesforce/apex/RlyCompareController.checkCompare';
+import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
 
 /** The most components one compare takes (RlyCompareFiles.MAX_COMPONENTS). */
 const MAX_COMPONENTS = 25;
+/** The list shows its search box from this many components (or while a search is typed). */
+const SEARCH_FROM = 7;
 /** Statuses from RlyCompareController.checkCompare (RlyCompareFiles). */
 const CHANGED = 'changed';
 const SAME = 'same';
@@ -203,6 +206,32 @@ export default class RlyCompare extends LightningElement {
             };
         });
     }
+    /** The search text, normalised: filters the component list (the picker below 900px keeps them all). */
+    term = '';
+
+    get shownRows() {
+        const q = this.term;
+        return this.rows.filter((r) => matchesSearch([r.name, r.sub, r.chipLabel], q))
+            .map((r) => ({ ...r, nameParts: highlightParts(r.name, q) }));
+    }
+    get showSearch() { return this.components.length >= SEARCH_FROM || !!this.term; }
+    get noMatch() { return !!this.term && this.shownRows.length === 0; }
+    get noMatchText() { return 'No components match \u2018' + this.term + '\u2019.'; }
+    get rowCount() { return this.components.length; }
+    get shownCount() { return this.shownRows.length; }
+
+    handleSearch(event) {
+        this.term = searchTerm(event.detail && event.detail.value);
+    }
+
+    clearSearch() {
+        const box = this.template.querySelector('c-rly-search-box');
+        if (box) {
+            box.clear();
+        }
+        this.term = '';
+    }
+
     get pickOptions() { return this.components.map((c) => ({ label: c.item.name, value: c.key })); }
 
     pickComponent(event) {

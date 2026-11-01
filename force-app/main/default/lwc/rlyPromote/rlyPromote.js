@@ -4,9 +4,13 @@ import getPromote from '@salesforce/apex/RlyPromoteController.getPromote';
 import promote from '@salesforce/apex/RlyPromoteController.promote';
 import getSteps from '@salesforce/apex/RlyManualStepController.getSteps';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
+import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
 
 /** Modes of RlyHubGuard.getHubStatus in which the tab shows only the org gate. */
 const GATED_MODES = ['sandbox', 'copy', 'setup'];
+
+/** A list shows its search box from this many rows (or while a search is typed). */
+const SEARCH_FROM = 7;
 
 const TIMING_LABEL = { Before_Deploy: 'Before deploy', After_Deploy: 'After deploy' };
 
@@ -141,6 +145,8 @@ export default class RlyPromote extends LightningElement {
     titles = {};
     /** stageId → error from promote. */
     errors = {};
+    /** The search text per stage, normalised (filters that stage's waiting releases on the page). */
+    searches = {};
     busyStage;
     promotedId;
     /** releaseId → its manual steps (StepRow, in sequence), read for releases with Ready.manualSteps. */
@@ -262,6 +268,8 @@ export default class RlyPromote extends LightningElement {
         const blocked = overlap.blocked;
         const manual = this.manualFor(chosen, s.nextName);
         const onlyManual = chosen.length > 0 && chosen.every((r) => r.manualOnly === true);
+        const term = this.searches[s.stageId] || '';
+        const found = ready.filter((r) => matchesSearch([r.name, r.title, r.raisedBy, r.hotfixReason, ...(r.tests || [])], term));
         const someManualOnly = !onlyManual && chosen.some((r) => r.manualOnly === true);
         return {
             key: 'st-' + s.stageId,
@@ -277,7 +285,13 @@ export default class RlyPromote extends LightningElement {
             emptyText: 'Nothing deployed to ' + s.stageName + ' is waiting to be promoted.',
             locked,
             allChecked: ready.length > 0 && picks.length === ready.length,
-            rows: ready.map((r) => {
+            showSearch: ready.length >= SEARCH_FROM || !!term,
+            searchLabel: 'Search releases in ' + s.stageName,
+            shownCount: found.length,
+            totalCount: ready.length,
+            noMatch: !!term && found.length === 0,
+            noMatchText: 'No releases match \u2018' + term + '\u2019.',
+            rows: found.map((r) => {
                 const on = picked.has(r.id);
                 const carry = overlap.carried.get(r.id);
                 const blocks = !!blocked && blocked.id === r.id;
@@ -285,6 +299,8 @@ export default class RlyPromote extends LightningElement {
                     id: r.id,
                     name: r.name,
                     title: r.title,
+                    nameParts: highlightParts(r.name, term),
+                    titleParts: highlightParts(r.title, term),
                     isHotfix: r.isHotfix === true,
                     manualOnly: r.manualOnly === true,
                     reason: r.isHotfix ? r.hotfixReason : '',
@@ -409,6 +425,22 @@ export default class RlyPromote extends LightningElement {
             next.delete(id);
         }
         this.setPicks(stageId, [...next]);
+    }
+
+    /** rlySearchBox above a stage's list: filters its waiting releases (picks stay picked). */
+    handleStageSearch(event) {
+        const stageId = event.currentTarget.dataset.stage;
+        this.searches = { ...this.searches, [stageId]: searchTerm(event.detail && event.detail.value) };
+    }
+
+    /** "Clear search" in a stage's list. */
+    clearStageSearch(event) {
+        const stageId = event.currentTarget.dataset.stage;
+        const box = [...this.template.querySelectorAll('c-rly-search-box')].find((b) => b.dataset.stage === stageId);
+        if (box) {
+            box.clear();
+        }
+        this.searches = { ...this.searches, [stageId]: '' };
     }
 
     handleCheckAll(event) {

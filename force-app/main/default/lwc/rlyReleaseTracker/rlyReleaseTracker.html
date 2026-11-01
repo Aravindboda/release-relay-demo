@@ -37,8 +37,8 @@
                         </template>
                     </div>
                     <div class="rr-search">
-                        <lightning-input type="search" label="Search releases" variant="label-hidden" placeholder={searchPlaceholder}
-                            value={search} onchange={handleSearch} oncommit={handleSearchCommit}></lightning-input>
+                        <c-rly-search-box label={searchLabel} placeholder={searchPlaceholder} shown={shownCount} total={totalCount}
+                            onsearch={handleSearch}></c-rly-search-box>
                     </div>
                     <template lwc:if={isReleases}>
                         <div class="rr-export">
@@ -70,13 +70,14 @@
                     <template lwc:if={showList}>
                         <section class="rr-list slds-is-relative" aria-label="Release list">
                             <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+                            <div class="rr-scroll rr-scroll-cards">
                             <template for:each={cards} for:item="r">
                                 <button key={r.id} type="button" class={r.cls} data-id={r.id} aria-pressed={r.on} onclick={pick}>
                                     <span class="rr-card-top">
                                         <template lwc:if={r.isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
                                         <template lwc:if={r.typeLabel}><span class="rr-pill rr-pill-run">{r.typeLabel}</span></template>
                                         <template lwc:if={r.manualOnly}><span class="rr-pill rr-pill-run">Manual steps only</span></template>
-                                        <span class="rr-no">{r.name}</span>
+                                        <span class="rr-no" title={r.name}><template for:each={r.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></span>
                                         <template lwc:if={r.deletesText}><span class="rr-pill rr-pill-bad">{r.deletesText}</span></template>
                                         <template lwc:if={r.manualText}><span class="rr-pill rr-pill-wait">{r.manualText}</span></template>
                                         <span class={r.pillCls}>{r.status}</span>
@@ -84,7 +85,7 @@
                                         <span class="rr-grow"></span>
                                         <span class="rr-weak rr-small">{r.when}</span>
                                     </span>
-                                    <span class="rr-card-title">{r.title}</span>
+                                    <span class="rr-card-title" title={r.title}><template for:each={r.titleParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></span>
                                     <template lwc:if={r.hotfixReason}><span class="rr-reason">{r.hotfixReason}</span></template>
                                     <template lwc:if={r.carriesText}><span class="rr-weak rr-small">{r.carriesText}</span></template>
                                     <span class="rr-segs" role="img" aria-label={r.pathLabel}>
@@ -104,7 +105,12 @@
                                     </template>
                                 </button>
                             </template>
-                            <template lwc:if={isEmpty}><div class="rr-empty">{emptyText}</div></template>
+                            <template lwc:if={isSearchEmpty}>
+                                <div class="rr-empty">{searchEmptyText} <button type="button" class="rr-linkbtn" onclick={clearSearch}>Clear search</button></div>
+                            </template>
+                            <template lwc:if={isPlainEmpty}><div class="rr-empty">{emptyText}</div></template>
+                            </div>
+                            <template lwc:if={atServerMax}><p class="rr-small rr-weak">{serverMaxText}</p></template>
                         </section>
                     </template>
 
