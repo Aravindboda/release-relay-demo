@@ -1,4 +1,6 @@
-# Release Relay pipeline files: version 12
+# Release Relay pipeline files: version 13
+# Version 13: per-org values (.relay/values.json), quality gates (.relay/gates.json), rollback snapshots before every
+# deploy (release-relay-snapshots branch) and mode=rollback, and a cached Salesforce CLI. See pipelines/README.md.
 # Release Relay's own metadata (its components by exact name, plus .relay/exclude) is never validated, deployed or deleted;
 # options {"selfUpdate":true} (the hub updating itself, from the release-relay-hub branch) ignores the list.
 # Release Relay for Azure Pipelines. Started only from Salesforce: the Release Relay hub runs this
@@ -22,6 +24,8 @@
 #   mode=sync    back promote: merge branch (the hub's production branch) into target (a back-promote
 #                org's branch, made from branch when missing), deploy what changed to the org in
 #                target_environment, and push target only when that deploy worked.
+#   mode=rollback deploy a snapshot taken before an earlier deploy back into the org in target_environment
+#                (options.snapshotPath, else the latest for the release and environment); Git isn't changed.
 # Each org's login is a variable group named release-relay-<environment> (release-relay-sit). The
 # deploy and sync jobs run in the Azure DevOps environment named <target_environment>, so its approvals
 # and checks gate the deployment. Each step writes its result as JSON to the release-relay-results
@@ -40,7 +44,7 @@ parameters:
   - name: mode
     displayName: Mode
     type: string
-    values: [org, branch, promote, hub, resolve, check, merge, sync]
+    values: [org, branch, promote, hub, resolve, check, merge, sync, rollback]
   - name: environment
     displayName: Environment of the source org
     type: string
@@ -112,7 +116,17 @@ stages:
                 inputs:
                   versionSpec: '22.x'
               - ${{ if or(eq(parameters.mode, 'hub'), and(eq(parameters.mode, 'org'), ne(parameters.components, '-'), ne(parameters.components, ''))) }}:
-                  - bash: npm install --global @salesforce/cli@2 --silent
+                  # The Salesforce CLI (major version 2) is cached per agent OS and month, so most runs skip the install.
+                  - bash: echo "##vso[task.setvariable variable=RELAY_SF_MONTH]$(date -u +%Y-%m)"
+                    displayName: Salesforce CLI cache key
+                  - task: Cache@2
+                    displayName: Cache Salesforce CLI
+                    inputs:
+                      key: '"relay-sf-cli2" | "$(Agent.OS)" | "node22" | "$(RELAY_SF_MONTH)"'
+                      path: $(Pipeline.Workspace)/.relay-sf
+                  - bash: |
+                      [ -x "$PIPELINE_WORKSPACE/.relay-sf/bin/sf" ] || npm install --global --prefix "$PIPELINE_WORKSPACE/.relay-sf" @salesforce/cli@2 --silent --no-audit --no-fund
+                      echo "##vso[task.prependpath]$PIPELINE_WORKSPACE/.relay-sf/bin"
                     displayName: Install Salesforce CLI
               - bash: |
                   git show "$BUILD_SOURCEVERSION:scripts/release-relay.js" > "$AGENT_TEMPDIRECTORY/release-relay.js"
@@ -155,8 +169,18 @@ stages:
                       versionSpec: '17'
                       jdkArchitectureOption: x64
                       jdkSourceOption: PreInstalled
+                  # The Salesforce CLI (major version 2) is cached per agent OS and month, so most runs skip the install.
+                  - bash: echo "##vso[task.setvariable variable=RELAY_SF_MONTH]$(date -u +%Y-%m)"
+                    displayName: Salesforce CLI cache key
+                  - task: Cache@2
+                    displayName: Cache Salesforce CLI
+                    inputs:
+                      key: '"relay-sf-cli2" | "$(Agent.OS)" | "node22" | "$(RELAY_SF_MONTH)"'
+                      path: $(Pipeline.Workspace)/.relay-sf
                   - bash: |
-                      npm install --global @salesforce/cli@2 --silent
+                      [ -x "$PIPELINE_WORKSPACE/.relay-sf/bin/sf" ] || npm install --global --prefix "$PIPELINE_WORKSPACE/.relay-sf" @salesforce/cli@2 --silent --no-audit --no-fund
+                      echo "##vso[task.prependpath]$PIPELINE_WORKSPACE/.relay-sf/bin"
+                      export PATH="$PIPELINE_WORKSPACE/.relay-sf/bin:$PATH"
                       sf plugins install code-analyzer
                     displayName: Install Salesforce CLI and Code Analyzer
                   - bash: |
@@ -182,7 +206,17 @@ stages:
                   - task: NodeTool@0
                     inputs:
                       versionSpec: '22.x'
-                  - bash: npm install --global @salesforce/cli@2 --silent
+                  # The Salesforce CLI (major version 2) is cached per agent OS and month, so most runs skip the install.
+                  - bash: echo "##vso[task.setvariable variable=RELAY_SF_MONTH]$(date -u +%Y-%m)"
+                    displayName: Salesforce CLI cache key
+                  - task: Cache@2
+                    displayName: Cache Salesforce CLI
+                    inputs:
+                      key: '"relay-sf-cli2" | "$(Agent.OS)" | "node22" | "$(RELAY_SF_MONTH)"'
+                      path: $(Pipeline.Workspace)/.relay-sf
+                  - bash: |
+                      [ -x "$PIPELINE_WORKSPACE/.relay-sf/bin/sf" ] || npm install --global --prefix "$PIPELINE_WORKSPACE/.relay-sf" @salesforce/cli@2 --silent --no-audit --no-fund
+                      echo "##vso[task.prependpath]$PIPELINE_WORKSPACE/.relay-sf/bin"
                     displayName: Install Salesforce CLI
                   - bash: |
                       git show "$BUILD_SOURCEVERSION:scripts/release-relay.js" > "$AGENT_TEMPDIRECTORY/release-relay.js"
@@ -255,7 +289,17 @@ stages:
                         - task: NodeTool@0
                           inputs:
                             versionSpec: '22.x'
-                        - bash: npm install --global @salesforce/cli@2 --silent
+                        # The Salesforce CLI (major version 2) is cached per agent OS and month, so most runs skip the install.
+                        - bash: echo "##vso[task.setvariable variable=RELAY_SF_MONTH]$(date -u +%Y-%m)"
+                          displayName: Salesforce CLI cache key
+                        - task: Cache@2
+                          displayName: Cache Salesforce CLI
+                          inputs:
+                            key: '"relay-sf-cli2" | "$(Agent.OS)" | "node22" | "$(RELAY_SF_MONTH)"'
+                            path: $(Pipeline.Workspace)/.relay-sf
+                        - bash: |
+                            [ -x "$PIPELINE_WORKSPACE/.relay-sf/bin/sf" ] || npm install --global --prefix "$PIPELINE_WORKSPACE/.relay-sf" @salesforce/cli@2 --silent --no-audit --no-fund
+                            echo "##vso[task.prependpath]$PIPELINE_WORKSPACE/.relay-sf/bin"
                           displayName: Install Salesforce CLI
                         - bash: |
                             git show "$BUILD_SOURCEVERSION:scripts/release-relay.js" > "$AGENT_TEMPDIRECTORY/release-relay.js"
@@ -297,12 +341,74 @@ stages:
                     - task: NodeTool@0
                       inputs:
                         versionSpec: '22.x'
-                    - bash: npm install --global @salesforce/cli@2 --silent
+                    # The Salesforce CLI (major version 2) is cached per agent OS and month, so most runs skip the install.
+                    - bash: echo "##vso[task.setvariable variable=RELAY_SF_MONTH]$(date -u +%Y-%m)"
+                      displayName: Salesforce CLI cache key
+                    - task: Cache@2
+                      displayName: Cache Salesforce CLI
+                      inputs:
+                        key: '"relay-sf-cli2" | "$(Agent.OS)" | "node22" | "$(RELAY_SF_MONTH)"'
+                        path: $(Pipeline.Workspace)/.relay-sf
+                    - bash: |
+                        [ -x "$PIPELINE_WORKSPACE/.relay-sf/bin/sf" ] || npm install --global --prefix "$PIPELINE_WORKSPACE/.relay-sf" @salesforce/cli@2 --silent --no-audit --no-fund
+                        echo "##vso[task.prependpath]$PIPELINE_WORKSPACE/.relay-sf/bin"
                       displayName: Install Salesforce CLI
                     - bash: |
                         git show "$BUILD_SOURCEVERSION:scripts/release-relay.js" > "$AGENT_TEMPDIRECTORY/release-relay.js"
                         node "$AGENT_TEMPDIRECTORY/release-relay.js"
                       displayName: Back promote
+                      env:
+                        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+                        SF_USERNAME: $(SF_USERNAME)
+                        SF_CLIENT_ID: $(SF_CLIENT_ID)
+                        SF_JWT_KEY: $(SF_JWT_KEY)
+                        SF_JKS: $(SF_JKS)
+                        SF_JKS_PASSWORD: $(SF_JKS_PASSWORD)
+
+  # ---------- rollback: deploy a snapshot back into the org (Git isn't changed) ----------
+  - ${{ if and(eq(parameters.mode, 'rollback'), ne(parameters.target_environment, '-'), ne(parameters.target_environment, '')) }}:
+      - stage: rollback
+        displayName: Roll back
+        dependsOn: []
+        jobs:
+          # A deployment job, like deploy: the target environment's approvals and checks run first.
+          - deployment: rollback
+            displayName: Roll back the target org
+            timeoutInMinutes: 120
+            environment: ${{ parameters.target_environment }}
+            variables:
+              - name: STEP
+                value: rollback
+              - group: release-relay-${{ parameters.target_environment }}
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - download: none
+                    # Only the pipeline's commit is needed: the snapshot is read from release-relay-snapshots.
+                    - checkout: self
+                      persistCredentials: true
+                      fetchDepth: 1
+                      fetchTags: false
+                    - task: NodeTool@0
+                      inputs:
+                        versionSpec: '22.x'
+                    # The Salesforce CLI (major version 2) is cached per agent OS and month, so most runs skip the install.
+                    - bash: echo "##vso[task.setvariable variable=RELAY_SF_MONTH]$(date -u +%Y-%m)"
+                      displayName: Salesforce CLI cache key
+                    - task: Cache@2
+                      displayName: Cache Salesforce CLI
+                      inputs:
+                        key: '"relay-sf-cli2" | "$(Agent.OS)" | "node22" | "$(RELAY_SF_MONTH)"'
+                        path: $(Pipeline.Workspace)/.relay-sf
+                    - bash: |
+                        [ -x "$PIPELINE_WORKSPACE/.relay-sf/bin/sf" ] || npm install --global --prefix "$PIPELINE_WORKSPACE/.relay-sf" @salesforce/cli@2 --silent --no-audit --no-fund
+                        echo "##vso[task.prependpath]$PIPELINE_WORKSPACE/.relay-sf/bin"
+                      displayName: Install Salesforce CLI
+                    - bash: |
+                        git show "$BUILD_SOURCEVERSION:scripts/release-relay.js" > "$AGENT_TEMPDIRECTORY/release-relay.js"
+                        node "$AGENT_TEMPDIRECTORY/release-relay.js"
+                      displayName: Roll back
                       env:
                         SYSTEM_ACCESSTOKEN: $(System.AccessToken)
                         SF_USERNAME: $(SF_USERNAME)
