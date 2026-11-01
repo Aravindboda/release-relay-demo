@@ -1,0 +1,18 @@
+{
+ "request": "REL-90044",
+ "step": "scan",
+ "status": "Passed",
+ "total": 0,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {},
+ "files": [
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js"
+ ],
+ "violations": [],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41274879621",
+ "finishedAt": "2026-11-01T04:56:24.629Z"
+}
