@@ -15,7 +15,7 @@ public with sharing class RlySignInAdvice {
         new Rule(new List<String>{ 'hasn\'t approved', 'has not approved', 'not approved' },
             'Pre-authorize the integration user in {org}\'s External Client App: Permitted Users = Admin approved users are pre-authorized, then add the user\'s profile or permission set.'),
         new Rule(new List<String>{ 'audience' },
-            'Check Login type: Production for production and Developer Edition orgs, Sandbox for sandboxes.'),
+            'Check the My Domain URL: the Login type is read from it (a .sandbox. URL signs in as a sandbox).'),
         new Rule(new List<String>{ 'inactive', 'not found', 'invalid' },
             'Check Integration username: it must be an active user in {org}.').alsoNeeding('user'),
         new Rule(new List<String>{ 'invalid_grant' },
