@@ -1,0 +1,41 @@
+{
+ "request": "REL-00021",
+ "step": "deploy",
+ "status": "Deployed",
+ "sha": "9aff1d29c7d1c4da2e5d1afcef09de39e5b32600",
+ "changed": 2,
+ "deleted": [
+  "ApexClass:RlyDemoSearch",
+  "ApexClass:RlyDemoSearchTest"
+ ],
+ "ok": true,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cKtFNSA0",
+ "testsRun": 1,
+ "tests": [
+  "RlyDemoGreetingTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "Quick deployed validation 0AfgL00000cKsmLSAS: its tests already passed, so none ran again.",
+ "validationId": "0AfgL00000cKsmLSAS",
+ "quick": true,
+ "quickNote": "Quick deployed validation 0AfgL00000cKsmLSAS: its tests already passed, so none ran again.",
+ "snapshot": {
+  "branch": "release-relay-snapshots",
+  "path": "REL-00021/sit/dd58be7d25499edb6c316ebe876faa1e",
+  "existing": 2,
+  "added": 0
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41321002738",
+ "finishedAt": "2026-11-01T15:24:30.482Z",
+ "attempt": "dd58be7d25499edb6c316ebe876faa1e",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
+}
