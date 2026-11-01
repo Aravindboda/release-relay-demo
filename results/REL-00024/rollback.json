@@ -1,0 +1,18 @@
+{
+ "request": "REL-00024",
+ "step": "rollback",
+ "status": "Rolled back",
+ "environment": "prod",
+ "deployId": "0Afg800000K6EROCA3",
+ "restored": 2,
+ "removed": 0,
+ "snapshot": "REL-00024/prod/eb14bcf1b12c99d7f6469a328961caf7",
+ "message": "Rolled prod back to snapshot REL-00024/prod/eb14bcf1b12c99d7f6469a328961caf7 (taken 2026-11-01T16:13:46.249Z, before deploying 9853f1f): restored 2 component(s), removed 0 the release had added (RunSpecifiedTests). Git wasn't changed: a follow-up release brings the branches in line.",
+ "testLevel": "RunSpecifiedTests",
+ "testsRun": 1,
+ "componentErrors": [],
+ "testFailures": [],
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41325445461",
+ "finishedAt": "2026-11-01T16:16:33.557Z",
+ "attempt": "54e1f166deb215adc0745db8193accf8"
+}
