@@ -9,6 +9,11 @@
  *
  * Each org's My Domain must be a Remote Site Setting in the hub, because the token exchange and
  * the API calls are ordinary Apex callouts.
+ *
+ * A token is reused across transactions through Platform Cache (RlyTokenCache, 15 minutes), so many people reading
+ * releases don't each sign in again. A call made with a reused token that the org refuses as expired (HTTP 401, or
+ * INVALID_SESSION_ID) drops it, signs in once more and is sent again, once. Without the cache partition the token is
+ * kept for the transaction only, as before.
  */
 public with sharing class RlyOrgSession {
 
@@ -17,8 +22,8 @@ public with sharing class RlyOrgSession {
     private static final Integer TIMEOUT_MS = 30000;
     private static final String KEY_MASK = '••••••••';
 
-    // One token per org per transaction.
-    private static final Map<String, String> TOKENS = new Map<String, String>();
+    // How many times this transaction signed in (tests check that a kept token saves the sign-in).
+    @TestVisible private static Integer signIns = 0;
 
     // Tests replace the JWT exchange, which needs a real certificate.
     @TestVisible private static String testToken;
@@ -67,6 +72,36 @@ public with sharing class RlyOrgSession {
         public Call withHeader(String name, String value) {
             headers.put(name, value);
             return this;
+        }
+
+        /**
+         * @description Puts a new token where the body carries the old one (a SOAP envelope's session header).
+         * @param stale the refused token
+         * @param fresh the new token
+         */
+        public void swapToken(String stale, String fresh) {
+            if (body != null) {
+                body = body.replace(stale, fresh);
+            }
+        }
+
+        /**
+         * @description The request for this call, without its Authorization header (RlyOrgSession.send adds it).
+         * @param base the org's base URL
+         * @return the request
+         */
+        public HttpRequest request(String base) {
+            HttpRequest req = new HttpRequest();
+            req.setMethod(method);
+            req.setEndpoint(base + path);
+            req.setTimeout(TIMEOUT_MS);
+            for (String h : headers.keySet()) {
+                req.setHeader(h, headers.get(h));
+            }
+            if (body != null) {
+                req.setBody(body);
+            }
+            return req;
         }
     }
 
@@ -120,10 +155,16 @@ public with sharing class RlyOrgSession {
      * @return the access token
      */
     public static String accessToken(RLY_Org__c org) {
-        String key = baseUrl(org) + '|' + org.Username__c;
-        if (TOKENS.containsKey(key)) {
-            return TOKENS.get(key);
+        String token = RlyTokenCache.current(org);
+        if (token == null) {
+            token = signIn(org);
+            RlyTokenCache.remember(org, token);
         }
+        return token;
+    }
+
+    // A new token from the JWT exchange; throws SignInException with a plain-language hint.
+    private static String signIn(RLY_Org__c org) {
         String token;
         try {
             token = Test.isRunningTest() ? fakeToken() : exchange(org);
@@ -135,7 +176,17 @@ public with sharing class RlyOrgSession {
         if (String.isBlank(token)) {
             throw new SignInException(RlySignInAdvice.explain('No access token was returned.', org));
         }
-        TOKENS.put(key, token);
+        signIns++;
+        return token;
+    }
+
+    // A fresh token when the org refused a reused one as expired (only once per org per transaction); otherwise null.
+    private static String renewed(RLY_Org__c org, HttpResponse res) {
+        if (!RlyTokenCache.refused(org, res)) {
+            return null;
+        }
+        String token = signIn(org);
+        RlyTokenCache.remember(org, token);
         return token;
     }
 
@@ -169,24 +220,29 @@ public with sharing class RlyOrgSession {
     /**
      * @description Sends a request to the org with the hub's token. The Authorization header carries a token
      * obtained at runtime from Auth.JWTBearerTokenExchange: orgs are registered at runtime, so a Named
-     * Credential per org isn't possible, and that's why the Named Credential suggestion is suppressed here.
+     * Credential per org isn't possible, and that's why the Named Credential suggestion is suppressed here. A reused
+     * token the org refuses as expired is renewed and the call sent again, once.
      * @param org the registered org
      * @param c the call to make
      * @return the org's response
      */
     @SuppressWarnings('PMD.ApexSuggestUsingNamedCred')
     public static HttpResponse send(RLY_Org__c org, Call c) {
-        HttpRequest req = new HttpRequest();
-        req.setMethod(c.method);
-        req.setEndpoint(baseUrl(org) + c.path);
-        req.setTimeout(TIMEOUT_MS);
-        req.setHeader('Authorization', 'Bearer ' + accessToken(org));
-        for (String h : c.headers.keySet()) {
-            req.setHeader(h, c.headers.get(h));
+        String token = accessToken(org);
+        HttpRequest req = c.request(baseUrl(org));
+        req.setHeader('Authorization', 'Bearer ' + token);
+        HttpResponse res = transmit(org, req);
+        String fresh = renewed(org, res);
+        if (fresh != null) {
+            c.swapToken(token, fresh);
+            req = c.request(baseUrl(org));
+            req.setHeader('Authorization', 'Bearer ' + fresh);
+            res = transmit(org, req);
         }
-        if (c.body != null) {
-            req.setBody(c.body);
-        }
+        return res;
+    }
+
+    private static HttpResponse transmit(RLY_Org__c org, HttpRequest req) {
         try {
             return new Http().send(req);
         } catch (CalloutException e) {

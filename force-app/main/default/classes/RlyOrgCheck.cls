@@ -19,6 +19,7 @@ public with sharing class RlyOrgCheck {
     public static RLY_Org__c run(RLY_Org__c org) {
         RLY_Org__c out = new RLY_Org__c(Id = org.Id, Last_Checked__c = Datetime.now());
         List<String> notes = new List<String>();
+        RlyTokenCache.evict(org); // the check signs in afresh, so it tests today's sign-in set-up, not a kept token
         try {
             out.Api_Version__c = newestApiVersion(org);
             readIdentity(org, out, notes);

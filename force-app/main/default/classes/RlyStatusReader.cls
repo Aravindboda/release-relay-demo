@@ -12,6 +12,10 @@
  *           then queues the back promote syncs (RlyBackPromote.afterDeploy). When the checks pass and the target org's
  *           approval rule needs no approver, the release is approved by rule and its deploy starts (RlyAutoApproval); after a
  *           deploy the flows chosen Activate are activated (RlyFlowActivation). In a sandbox copy of the hub it only reads.
+ *
+ * Shared reads (RlySharedRead): everyone with the release open asks for its status, but only one of them per
+ * RlySharedRead.FRESH_SECONDS does the reading (Git, the org, Slack); the others get the release as last saved. When two
+ * viewers save at the same moment and the row is locked, the one that loses gets the saved release instead of an error.
  */
 public with sharing class RlyStatusReader {
 
@@ -19,12 +23,25 @@ public with sharing class RlyStatusReader {
     public static final Set<String> OPEN_STATUSES = new Set<String>{ 'Submitted', 'Retrieving', 'Workflow running', 'Validating', 'Deploying' };
 
     /**
-     * @description Reads the latest status of a release and saves it. A failure to read keeps the release where it is,
-     * with the reason on the page; the next check tries again.
+     * @description Reads the latest status of a release and saves it, unless someone read it in the last
+     * RlySharedRead.FRESH_SECONDS. A failure to read keeps the release where it is, with the reason on the page; the next
+     * check tries again.
      * @param releaseId the release
      * @return the release as saved
      */
     public static RLY_Release__c advance(Id releaseId) {
+        return advanceWithin(releaseId, RlySharedRead.FRESH_SECONDS);
+    }
+
+    /**
+     * @description Reads the latest status of a release and saves it, unless it was read within the window. A release
+     * that looks stale is claimed first (RlySharedRead.claim: its row locked, no DML before the callouts), so two viewers
+     * never read it at once.
+     * @param releaseId the release
+     * @param freshFor the window in seconds (RlySharedRead.FRESH_SECONDS, or CHECK_NOW_SECONDS for Check now)
+     * @return the release as saved
+     */
+    public static RLY_Release__c advanceWithin(Id releaseId, Integer freshFor) {
         RLY_Release__c rel = RlyReleaseStore.release(releaseId);
         if (rel == null) {
             throw new RlyReleaseException('Release not found.');
@@ -32,6 +49,10 @@ public with sharing class RlyStatusReader {
         // In a sandbox copy of the hub the page only reads: no deploy, approval, run, sync, activation or Slack post.
         if (!OPEN_STATUSES.contains(rel.Status__c) || rel.Source_Org__c == null || !RlyHubGuard.isHub()) {
             return rel;
+        }
+        // Read by someone else a moment ago, or being read right now: everyone shares that read (no callouts, no save).
+        if (RlySharedRead.isFresh(rel, freshFor) || !RlySharedRead.claim(releaseId, freshFor)) {
+            return RlyReleaseStore.release(releaseId);
         }
         RlyGit git = RlyGit.forConnection(RlyReleaseStore.git());
         String oldStatus = rel.Status__c;
@@ -45,13 +66,7 @@ public with sharing class RlyStatusReader {
         RlyFlowActivation.afterRead(rel, oldStatus); // flows chosen Activate, in the org just deployed to (callouts)
         rel.Last_Synced__c = System.now();
         RlySlackCardSync.notifyChange(prior, rel); // the Slack callouts (the card is kept current) come before any DML
-        RlyReleaseStore.save(rel);
-        RlySlack.saveResults();
-        RlyAppendRun.saveItems(); // the components an add brought, once its run started
-        if (oldStatus != 'Deployed' && rel.Status__c == 'Deployed') {
-            RlyBackPromoteQueue.afterDeploy(rel);
-        }
-        return rel;
+        return RlySharedRead.save(rel, oldStatus); // a row lock held by another viewer returns the release as saved
     }
 
     /**

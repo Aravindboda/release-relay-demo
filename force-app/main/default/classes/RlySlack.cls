@@ -125,13 +125,23 @@ public with sharing class RlySlack {
         try {
             result = RlySlackDelivery.deliver(rel, event);
         } catch (Exception e) {
-            appProblem = 'Failed: ' + what + ': ' + e.getMessage();
+            appProblem = RlySlackApi.isRateLimited(e) ? busyResult(rel) : 'Failed: ' + what + ': ' + e.getMessage();
             result = RlySlackApi.isNotSetUp(e) ? null : appProblem;
         }
         if (result == null && event != APPROVED && String.isNotBlank(s.Webhook_URL__c)) {
             result = RlySlackMessage.postWebhook(s.Webhook_URL__c, RlySlackMessage.forRelease(rel, event), what);
         }
         record(s.Id, result == null ? appProblem : result);
+    }
+
+    /**
+     * @description The result kept when Slack is busy: nothing is retried now; the next change edits the card to its full
+     * current state.
+     * @param rel the release
+     * @return the result for Last_Result__c
+     */
+    public static String busyResult(RLY_Release__c rel) {
+        return RlySlackApi.BUSY_RESULT + ' (' + rel.Name + ')';
     }
 
     /**

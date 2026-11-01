@@ -145,4 +145,81 @@ private class RlySlackCardTest {
             System.assertEquals(1, RlySlackCardState.decisionBlocks(new RLY_Release__c(Status__c = 'Rejected'), null).size(), 'Rejected block');
         }
     }
+
+    private static String lastResult() {
+        return [SELECT Last_Result__c FROM RLY_Notification__c LIMIT 1].Last_Result__c;
+    }
+
+    // Moves the release from Deploying to Deployed (a quick deploy); returns it as it was.
+    private static RLY_Release__c deploy(RLY_Release__c rel) {
+        RLY_Release__c prior = rel.clone(true, true, true, true);
+        rel.Status__c = 'Deployed';
+        rel.Deploy_Status__c = 'Deployed';
+        rel.Approval_Status__c = 'Approved';
+        rel.Deploy_Result__c = '{"deployId":"0Af000000000001","quick":true}';
+        return prior;
+    }
+
+    @IsTest
+    static void busySlackIsRecordedAndNotRetried() {
+        System.runAs(RlyTestData.admin()) {
+            RlyReleaseTestData.slackOn('Raised');
+            RLY_Release__c rel = withCard('Deploying', 'Salesforce');
+            RlyHttpMock mock = new RlyHttpMock().match('POST', 'callout:RLY_Slack/').reply(429, '');
+            Test.setMock(HttpCalloutMock.class, mock);
+            Test.startTest();
+            RlySlackCardSync.notifyChange(deploy(rel), rel);
+            RLY_Release__c deployedOne = rel.clone(true, true, true, true);
+            rel.Status__c = 'Failed';
+            RlySlackCardSync.notifyChange(deployedOne, rel);
+            RlySlack.saveResults();
+            Test.stopTest();
+            System.assertEquals(1, mock.callLog().countMatches('chat.update'), 'No second call while Slack is busy: ' + mock.callLog());
+            System.assert(lastResult().startsWith(RlySlackApi.BUSY_RESULT) && lastResult().contains(rel.Name), lastResult());
+        }
+    }
+
+    @IsTest
+    static void ratelimitedEventSkipsTheThreadAndTheWebhook() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Notification__c s = RlyReleaseTestData.slackOn('Deployed');
+            update new RLY_Notification__c(Id = s.Id, Webhook_URL__c = 'https://hooks.slack.com/services/T000/B000/abcdWXYZ');
+            RLY_Release__c rel = withCard('Deploying', 'Salesforce');
+            RlyHttpMock mock = new RlyHttpMock().match('POST', 'callout:RLY_Slack/').reply(200, '{"ok":false,"error":"ratelimited"}')
+                .match('POST', 'hooks.slack.com').reply(200, 'ok');
+            Test.setMock(HttpCalloutMock.class, mock);
+            Test.startTest();
+            RlySlackCardSync.notifyChange(deploy(rel), rel);
+            RlySlack.saveResults();
+            Test.stopTest();
+            System.assertEquals(1, mock.calls.size(), 'Only the card edit was tried: ' + mock.callLog());
+            System.assert(!mock.callLog().contains('hooks.slack.com'), 'No webhook instead');
+            System.assert(lastResult().startsWith(RlySlackApi.BUSY_RESULT), lastResult());
+            System.assert(RlySlackApi.isRateLimited(new RlySlackApi.SlackException(RlySlackApi.RATE_LIMITED + ' (chat.update)')), 'Rate limit recognised');
+            System.assert(!RlySlackApi.isRateLimited(new RlySlackApi.SlackException('channel_not_found (chat.update)')), 'Other errors are not');
+        }
+    }
+
+    @IsTest
+    static void nextChangeSendsTheFullCurrentCard() {
+        System.runAs(RlyTestData.admin()) {
+            RlyReleaseTestData.slackOn('Raised');
+            RLY_Release__c rel = withCard('Deploying', 'Slack');
+            Test.setMock(HttpCalloutMock.class, new RlyHttpMock().match('POST', 'callout:RLY_Slack/').reply(429, ''));
+            Test.startTest();
+            RlySlackCardSync.notifyChange(deploy(rel), rel);
+            RlySlackApi.busy = false; // the next transaction
+            RlyHttpMock mock = slackMock();
+            RLY_Release__c deployedOne = rel.clone(true, true, true, true);
+            rel.Back_Merge_Result__c = '[{"branch":"sit","status":"Synced"}]';
+            RlySlackCardSync.notifyChange(deployedOne, rel);
+            RlySlack.saveResults();
+            Test.stopTest();
+            String card = mock.bodyFor('chat.update');
+            System.assertNotEquals(null, card, 'The card is edited on the next change: ' + mock.callLog());
+            System.assert(card.contains('"ts":"' + CARD_TS + '"') && card.contains('quick deploy') && card.contains('Branches merged back'),
+                'The whole current card, the missed deploy included: ' + card);
+            System.assert(lastResult().startsWith('Updated: '), lastResult());
+        }
+    }
 }

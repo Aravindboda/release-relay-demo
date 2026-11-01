@@ -40,7 +40,7 @@ public with sharing class RlySlackCardSync {
         try {
             result = RlySlackDelivery.refresh(rel);
         } catch (Exception e) {
-            result = 'Failed: ' + rel.Name + ' · card update: ' + e.getMessage();
+            result = RlySlackApi.isRateLimited(e) ? RlySlack.busyResult(rel) : 'Failed: ' + rel.Name + ' · card update: ' + e.getMessage();
         }
         RlySlack.record(s.Id, result);
     }

@@ -238,6 +238,20 @@ private class RlyCompareTest {
     }
 
     @IsTest
+    static void zipTooLargeIsRefusedBeforeDecoding() {
+        System.runAs(RlyTestData.admin()) {
+            String tooBig = 'A'.repeat(RlyCompareZip.MAX_ZIP_CHARS + 1);
+            String refusal;
+            try {
+                RlyCompareZip.read(tooBig, 'DEV1');
+            } catch (RlyReleaseException e) {
+                refusal = e.getMessage();
+            }
+            System.assertEquals(RlyCompareZip.TOO_BIG, refusal, 'Compare fewer at a time, instead of running out of heap');
+        }
+    }
+
+    @IsTest
     static void filesMapBetweenFormats() {
         System.runAs(RlyTestData.admin()) {
             System.assertEquals('Layout:Account-Account (Sales) Layout', RlyCompareFiles.keyOf('layouts/Account-Account %28Sales%29 Layout.layout'), 'Decoded');
