@@ -178,10 +178,22 @@ export default class RlyRollback extends LightningElement {
         return 'Apex is in this rollback, so production runs tests: ' + which + '. Salesforce\'s 75% coverage rule still applies.';
     }
 
+    /** Outside production there is no choice: Apex in the snapshot runs the release's own tests. */
+    get sandboxTestsHint() {
+        if (!this.preview || !this.preview.apex) {
+            return 'No Apex in this rollback, so no tests run.';
+        }
+        return this.releaseTests.length
+            ? 'Apex is in this rollback, so it runs this release\'s tests: ' + this.releaseTests.join(', ') + '.'
+            : 'Apex is in this rollback. This release has no test classes of its own.';
+    }
+
     // ---------- reason and actions ----------
 
+    /** Typing, pasting or a value set by a script: input and change both carry the latest text. */
     handleReason(event) {
-        this.reason = event.target.value || '';
+        const typed = event.detail && typeof event.detail.value === 'string' ? event.detail.value : event.target.value;
+        this.reason = typed || '';
     }
 
     get confirmDisabled() {
@@ -209,7 +221,7 @@ export default class RlyRollback extends LightningElement {
         try {
             await startRollback({
                 releaseId: this.releaseId,
-                requestJson: JSON.stringify({ orgId: this.orgId, reason: this.reason.trim(), tests: this.production ? this.tests : TESTS_ALL })
+                requestJson: JSON.stringify({ orgId: this.orgId, reason: this.reason.trim(), tests: this.production ? this.tests : TESTS_RELEASE })
             });
             this.dispatchEvent(new CustomEvent('started', { detail: { orgName: this.orgName } }));
         } catch (e) {

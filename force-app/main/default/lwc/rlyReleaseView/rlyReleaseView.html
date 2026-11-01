@@ -30,6 +30,9 @@
                         <template lwc:if={rel.Run_URL__c}>
                             <a class="slds-button slds-button_neutral" href={rel.Run_URL__c} target="_blank" rel="noopener">Pipeline run</a>
                         </template>
+                        <template lwc:if={canAppend}>
+                            <lightning-button label={appendLabel} icon-name="utility:add" onclick={openAppend} disabled={actBusy}></lightning-button>
+                        </template>
                         <lightning-button label={summaryLabel} onclick={copySummary}></lightning-button>
                         <template lwc:if={showRollback}>
                             <lightning-button variant="destructive-text" label="Roll back" onclick={openRollback} disabled={rollbackDisabled}
@@ -74,6 +77,16 @@
                         </div>
 
                         <template lwc:if={errorBanner}><div class={errorBannerCls} role="alert">{errorBanner}</div></template>
+                        <template lwc:if={hasRaiseConflicts}>
+                            <div class="rr-pad-all" role="group" aria-label="Files that clash">
+                                <p class="rr-small rr-weak">Files that clash</p>
+                                <ul class="rr-clash-list">
+                                    <template for:each={raiseConflicts} for:item="f">
+                                        <li key={f.key} class="rr-mono rr-small">{f.path}</li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </template>
 
                         <ol class="rr-steps" aria-live="polite">
                             <template for:each={steps} for:item="s">

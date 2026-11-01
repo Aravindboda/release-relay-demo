@@ -89,3 +89,13 @@
 
 /* while the org's mode is read (RlyHubGuard.getHubStatus) */
 .rr-wait { position: relative; min-height: 120px; }
+
+/* build 21 (board HubPromoteAddChanges 1-3): carried older releases, the newer one that blocks, the stage rule */
+.rr-row-carried td { background: #f7fbff; }
+.rr-row-block td { background: #fef1ee; }
+.rr-carried-box { display: inline-block; width: 16px; height: 16px; border: 1px dashed var(--rr-blue); border-radius: 3px; vertical-align: middle; }
+.rr-reason-go { color: var(--rr-link); }
+.rr-reason-bad { color: #ba0517; }
+.rr-rule { border: 1px solid var(--rr-line); border-radius: 4px; padding: 8px 12px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 8px; }
+.rr-add-chip { border: 1px solid var(--rr-blue); color: var(--rr-blue); background: #fff; border-radius: 14px; padding: 2px 12px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; flex: none; }
+.rr-add-chip:disabled { opacity: 0.5; cursor: default; }

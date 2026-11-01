@@ -304,4 +304,50 @@ private class RlyRollbackTest {
             System.assertEquals(0, RlyRollbackState.rowsOf(new Set<Id>()).size(), 'Nothing asked');
         }
     }
+
+    @IsTest
+    static void sandboxRollbackWithApexSendsTheReleaseTests() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = deployed();
+            RlyHttpMock m = mock();
+            Test.setMock(HttpCalloutMock.class, m);
+            Test.startTest();
+            // A sandbox has no tests choice: "all" sent by an older page is ignored there.
+            RlyRollbackController.startRollback(rel.Id, request(orgId('SIT'), 'Broken', RlyRollback.TESTS_ALL));
+            Test.stopTest();
+            System.assertEquals(new List<Object>{ 'AccountServiceTest' }, RlyReleaseTestData.dispatchedOptions(m).get('tests'),
+                'Apex in a sandbox snapshot runs the release\'s tests, never every org test');
+            RLY_Release__c saved = [SELECT Rollback_Result__c FROM RLY_Release__c WHERE Id = :rel.Id];
+            System.assert(saved.Rollback_Result__c.contains('"testsChoice":"release"'), saved.Rollback_Result__c);
+        }
+    }
+
+    @IsTest
+    static void rollbackWithoutApexSendsNoTests() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = deployed();
+            RlyHttpMock m = new RlyHttpMock()
+                .match('GET', '/manifest.json').reply(200, '{"request":"x","existing":["Layout:Account-Account Layout"],"added":[],"deleted":[]}')
+                .match('POST', '/dispatches').reply(204, '');
+            Test.setMock(HttpCalloutMock.class, m);
+            Test.startTest();
+            RlyRollbackController.startRollback(rel.Id, request(orgId('SIT'), 'Broken', RlyRollback.TESTS_RELEASE));
+            Test.stopTest();
+            System.assertEquals(null, RlyReleaseTestData.dispatchedOptions(m).get('tests'), 'No Apex: no tests');
+        }
+    }
+
+    @IsTest
+    static void unreadableManifestStillSendsTheReleaseTests() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = deployed();
+            RlyHttpMock m = new RlyHttpMock().match('POST', '/dispatches').reply(204, '');
+            Test.setMock(HttpCalloutMock.class, m);
+            Test.startTest();
+            RlyRollbackController.startRollback(rel.Id, request(orgId('SIT'), 'Broken', null));
+            Test.stopTest();
+            System.assertEquals(new List<Object>{ 'AccountServiceTest' }, RlyReleaseTestData.dispatchedOptions(m).get('tests'),
+                'The manifest couldn\'t be read: the release\'s tests are sent rather than none');
+        }
+    }
 }
