@@ -463,6 +463,19 @@ const SETUP_SECTIONS = [
                                 check: 'Connected orgs → Production: the PROD card shows Connected with the role Hub, and the tab says "Production holds one org: the hub."',
                                 links: [{ label: 'D. Each org: the sign-in app', to: 'setup-orgs' }],
                                 shot: { ill: 'hub-register', cap: 'Register the hub: role Hub, its own My Domain, branch prod.', alt: 'Drawing of Register an org for the hub with callouts 1 Org name PROD, 2 Role Hub, 3 My Domain URL, 4 Branch and Git environment prod.' }
+                            },
+                            {
+                                title: 'Give sign-ins room in Platform Cache',
+                                who: 'Salesforce admin',
+                                where: 'Setup → Platform Cache → RlyTokens → Edit',
+                                goal: 'The hub keeps each org\'s sign-in for 15 minutes and shares it between everyone using Release Relay, instead of signing in again on every page. With many users this keeps the hub well under Salesforce\'s sign-in limits.',
+                                items: [
+                                    'The partition `RlyTokens` comes with Release Relay, with no space yet.',
+                                    'Under **Org Cache Allocation**, give it **1 MB** (plenty: a sign-in takes well under 1 KB). Session cache: 0.',
+                                    'Press **Save**.'
+                                ],
+                                text: ['No free Platform Cache in your org (some editions have none)? Release Relay still works: it signs in once per request, as before. With 50 or more people using it daily, ask Salesforce for Platform Cache capacity.'],
+                                check: 'Platform Cache lists RlyTokens with 1 MB of org cache.'
                             }
                         ]
                     },
