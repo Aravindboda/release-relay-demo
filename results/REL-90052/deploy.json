@@ -1,0 +1,23 @@
+{
+ "request": "REL-90052",
+ "step": "deploy",
+ "status": "Deployed",
+ "sha": "a036ae544274085610a5c2d01bf42409f175dbf7",
+ "changed": 1,
+ "deleted": [],
+ "ok": true,
+ "testLevel": "NoTestRun",
+ "deployId": "0Afg800000K3N4bCAF",
+ "testsRun": 0,
+ "tests": [],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "quick": false,
+ "quickNote": "The validation ran no tests (NoTestRun), and production quick deploys only validations that ran tests, so it was deployed in full.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41278854936",
+ "finishedAt": "2026-11-01T05:58:18.797Z",
+ "excluded": [],
+ "selfUpdate": true
+}
