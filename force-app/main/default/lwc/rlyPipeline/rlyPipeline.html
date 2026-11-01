@@ -1,0 +1,642 @@
+<template>
+    <div class="rr-page slds-is-relative">
+        <template lwc:if={hubCopy}>
+            <div class="slds-notify slds-notify_alert slds-alert_warning" role="alert">
+                <lightning-icon icon-name="utility:warning" size="x-small" alternative-text="Warning" class="slds-m-right_x-small"></lightning-icon>
+                <h2>{hubCopyMessage}</h2>
+            </div>
+        </template>
+        <template lwc:if={loading}>
+            <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+        </template>
+
+        <!-- Page header -->
+        <section class="rr-card rr-head">
+            <span class="rr-icon rr-icon-app"><lightning-icon icon-name="utility:settings" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
+            <div class="rr-head-text">
+                <p class="rr-kicker">{appName}</p>
+                <h1 class="rr-title">Pipeline</h1>
+            </div>
+            <lightning-button label={setupLabel} onclick={toggleSetup}></lightning-button>
+            <template lwc:if={isAdmin}>
+                <lightning-button variant="brand" label="Register an org" onclick={startAdd} disabled={hubCopy}></lightning-button>
+            </template>
+        </section>
+
+        <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+
+        <template lwc:if={showSetup}>
+            <section class="rr-card rr-setup" aria-label="Setup steps">
+                <h2 class="rr-h2">Before you register an org</h2>
+                <p class="rr-weak rr-small">The hub signs in to each org itself, with a JWT signed by the hub's certificate. Each org needs this once. Menu names can differ slightly between Salesforce releases.</p>
+                <ol class="rr-steps">
+                    <li><strong>In this hub:</strong> Setup &gt; Certificate and Key Management. Use the certificate <span class="rr-mono">release_relay</span> (or create a self-signed one) and download its .crt file.</li>
+                    <li><strong>In the org:</strong> create an integration user with API Enabled, View Setup and Configuration, and Modify Metadata Through Metadata API Functions.</li>
+                    <li><strong>In the org:</strong> Setup &gt; External Client App Manager &gt; New External Client App. Turn on OAuth with the scopes api and refresh_token/offline_access, turn on the JWT bearer flow and upload the hub's .crt. Under policies, set Permitted Users to admin-approved users are pre-authorized and add the integration user's profile or permission set. Copy the consumer key.</li>
+                    <li><strong>In this hub:</strong> Setup &gt; Remote Site Settings &gt; New, with the org's My Domain URL, for example <span class="rr-mono">{remoteSite}</span>.</li>
+                    <li><strong>Here:</strong> Register an org, then Save (it tests the sign-in).</li>
+                </ol>
+                <p class="rr-weak rr-small">This hub is <span class="rr-mono">{hubDomain}</span>. Register it too, with the role Hub, so releases can be deployed to production.</p>
+            </section>
+        </template>
+
+        <!-- 1 · Where the code lives (read-only; Edit opens the modal) -->
+        <section class="rr-card" aria-label="Git connection">
+            <div class="rr-card-head rr-row">
+                <div class="rr-grow">
+                    <h2 class="rr-h2">1 · Where the code lives</h2>
+                    <p class="rr-sub">One Git connection for the whole pipeline. Saved as a record, never in custom metadata. The token stays in a Named Credential.</p>
+                </div>
+                <template lwc:if={hasGit}><span class={gitStatusCls}>{gitStatusText}</span></template>
+                <template lwc:if={isAdmin}>
+                    <lightning-button label="Edit" title="Edit Git connection" onclick={openGitEdit} disabled={hubCopy}></lightning-button>
+                </template>
+            </div>
+            <div class="rr-body">
+                <template lwc:if={hasGit}>
+                    <dl class="rr-ro">
+                        <template for:each={gitFacts} for:item="f">
+                            <div key={f.key} class={f.cls}>
+                                <dt class="slds-form-element__label">{f.label}</dt>
+                                <dd class="slds-form-element__control">
+                                    <div class="slds-form-element__static">
+                                        <template lwc:if={f.isFlag}>
+                                            <span class="rr-flag">
+                                                <template lwc:if={f.on}><lightning-icon icon-name="utility:check" size="xx-small" variant="success" alternative-text=""></lightning-icon></template>
+                                                <template lwc:else><lightning-icon icon-name="utility:dash" size="xx-small" alternative-text=""></lightning-icon></template>
+                                                <span>{f.value}</span>
+                                            </span>
+                                        </template>
+                                        <template lwc:else><span class={f.valueCls}>{f.value}</span></template>
+                                    </div>
+                                    <template lwc:if={f.hint}><p class="rr-kicker">{f.hint}</p></template>
+                                </dd>
+                            </div>
+                        </template>
+                    </dl>
+                    <div class="rr-row">
+                        <lightning-button label={gitCheckLabel} onclick={handleGitCheck} disabled={gitCantAct}></lightning-button>
+                    </div>
+                    <template lwc:if={gitMessage}><p class={gitMessageCls}>{gitMessage}</p></template>
+                    <template lwc:if={showFilesLine}>
+                        <div class="rr-files-line" role="status">
+                            <span class={filesPillCls}>{filesPill}</span>
+                            <span class="rr-files-text rr-grow">{filesText}</span>
+                            <template lwc:if={canUpdateFiles}>
+                                <lightning-button label="Update pipeline files" onclick={openFiles} disabled={filesCantOpen}></lightning-button>
+                            </template>
+                        </div>
+                        <template lwc:if={filesNote}><p class="rr-small rr-weak">{filesNote}</p></template>
+                    </template>
+                </template>
+                <template lwc:if={noGit}>
+                    <p class="rr-small rr-weak">No Git connection yet. Press Edit to choose the provider and repository.</p>
+                </template>
+            </div>
+        </section>
+
+        <!-- 2 · Route -->
+        <section class="rr-card" aria-label="Pipeline route">
+            <div class="rr-card-head rr-row rr-head-flat">
+                <h2 class="rr-h2 rr-grow">2 · Route</h2>
+                <template lwc:if={isAdmin}>
+                    <template lwc:if={editingRoute}>
+                        <lightning-button label="Cancel" onclick={cancelRouteEdit}></lightning-button>
+                        <lightning-button variant="brand" label="Save route" onclick={handleSaveRoute} disabled={routeCantSave}></lightning-button>
+                    </template>
+                    <template lwc:else>
+                        <template lwc:if={hasGit}>
+                            <lightning-button label="Create missing branches" onclick={handleCreateBranches} disabled={gitCantAct}></lightning-button>
+                        </template>
+                        <template lwc:if={canEditRoute}><lightning-button label="Edit route" onclick={startRouteEdit} disabled={hubCopy}></lightning-button></template>
+                    </template>
+                </template>
+            </div>
+            <template lwc:if={hasRoute}>
+                <div class="rr-route">
+                    <template lwc:if={hasDevelopers}>
+                        <div class="rr-route-devs" aria-label="Developer orgs" role="list">
+                            <template for:each={developerChips} for:item="d">
+                                <div key={d.id} class="rr-stop" role="listitem">
+                                    <div class="rr-row"><strong class="rr-stop-name">{d.name}</strong><span class={d.statusCls}>{d.status}</span></div>
+                                    <span class="rr-weak rr-small">{d.kind}<template for:each={d.facts} for:item="f"><span key={f.key}>{f.label}<span class="rr-mono">{f.value}</span></span></template></span>
+                                </div>
+                            </template>
+                        </div>
+                        <svg class="rr-arrow" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+                    </template>
+                    <ol class="rr-route-stages" aria-label="Stages in order">
+                        <template for:each={stageChips} for:item="s">
+                            <li key={s.id} class="rr-route-step">
+                                <div class="rr-stop rr-stop-stage">
+                                    <div class="rr-row">
+                                        <strong class="rr-stop-name">{s.name}</strong><span class={s.statusCls}>{s.status}</span>
+                                        <template lwc:if={editingRoute}>
+                                            <span class="rr-grow"></span>
+                                            <lightning-button-icon icon-name="utility:chevronleft" size="small" alternative-text={s.upLabel} title={s.upLabel}
+                                                data-id={s.id} data-dir="up" onclick={moveStage} disabled={s.cantUp}></lightning-button-icon>
+                                            <lightning-button-icon icon-name="utility:chevronright" size="small" alternative-text={s.downLabel} title={s.downLabel}
+                                                data-id={s.id} data-dir="down" onclick={moveStage} disabled={s.cantDown}></lightning-button-icon>
+                                        </template>
+                                    </div>
+                                    <span class="rr-weak rr-small">{s.kind} · branch <span class="rr-mono">{s.branch}</span></span>
+                                    <template lwc:if={s.extra}><span class="rr-weak rr-small">{s.extra}</span></template>
+                                </div>
+                                <template lwc:if={s.arrow}>
+                                    <svg class="rr-arrow" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+                                </template>
+                            </li>
+                        </template>
+                    </ol>
+                    <!-- back promote orgs: dashed, after the hub; they never send changes up the route -->
+                    <template lwc:if={hasBackPromoteNodes}>
+                        <span class="rr-arrow-side" aria-hidden="true">⤳</span>
+                        <ul class="rr-route-side" aria-label="Back promote orgs">
+                            <template for:each={backPromoteNodes} for:item="b">
+                                <li key={b.key} class="rr-stop rr-stop-side">
+                                    <strong class="rr-stop-name">{b.name}</strong>
+                                    <span class="rr-weak rr-small">{b.text}</span>
+                                </li>
+                            </template>
+                        </ul>
+                    </template>
+                </div>
+                <template lwc:if={hasBackPromoteNodes}><p class="rr-route-note rr-small rr-weak">{bpRouteNote}</p></template>
+            </template>
+            <template lwc:else>
+                <p class="rr-body rr-weak rr-small">No route yet. Register the developer orgs and the stages they deploy through.</p>
+            </template>
+            <template lwc:if={hasWarnings}>
+                <ul class="rr-warnings">
+                    <template for:each={warnings} for:item="w">
+                        <li key={w}>{w}</li>
+                    </template>
+                </ul>
+            </template>
+        </section>
+
+        <!-- Slack connection (read-only; Edit opens the modal) -->
+        <template lwc:if={showSlack}>
+            <section class="rr-card" aria-label="Slack connection">
+                <div class="rr-card-head rr-row">
+                    <span class="rr-icon rr-icon-slack" aria-hidden="true">#</span>
+                    <div class="rr-grow">
+                        <h2 class="rr-h2">Slack connection</h2>
+                        <p class="rr-kicker">One Slack app for the hub. Each org below picks its own channel.</p>
+                    </div>
+                    <span class={slackStatusCls}>{slackStatus}</span>
+                    <lightning-button label={slackTestLabel} onclick={handleSlackConnTest} disabled={slackCantTest}></lightning-button>
+                    <lightning-button label="Edit" title="Edit Slack connection" onclick={openSlackEdit} disabled={hubCopy}></lightning-button>
+                </div>
+                <template lwc:if={slackNotSetUp}>
+                    <div class="rr-body">
+                        <p class="rr-h4">Set up Slack (optional)</p>
+                        <p class="rr-small rr-weak">{appName} works without Slack. To post each release's card to a channel (and, if you like, approve there): create a Slack app with the chat:write scope, put its bot token in the Named Credential RLY_Slack, then press Edit, switch Slack on and press Test. Each org then picks its own channel.</p>
+                    </div>
+                </template>
+                <template lwc:else>
+                    <div class="rr-body">
+                        <dl class="rr-ro">
+                            <template for:each={slackFacts} for:item="f">
+                                <div key={f.key} class={f.cls}>
+                                    <dt class="slds-form-element__label">{f.label}</dt>
+                                    <dd class="slds-form-element__control">
+                                        <div class="slds-form-element__static">
+                                            <template lwc:if={f.isFlag}>
+                                                <span class="rr-flag">
+                                                    <template lwc:if={f.on}><lightning-icon icon-name="utility:check" size="xx-small" variant="success" alternative-text=""></lightning-icon></template>
+                                                    <template lwc:else><lightning-icon icon-name="utility:dash" size="xx-small" alternative-text=""></lightning-icon></template>
+                                                    <span>{f.value}</span>
+                                                </span>
+                                            </template>
+                                            <template lwc:else><span class={f.valueCls}>{f.value}</span></template>
+                                        </div>
+                                        <template lwc:if={f.hint}><p class="rr-kicker">{f.hint}</p></template>
+                                    </dd>
+                                </div>
+                            </template>
+                        </dl>
+                        <div class="rr-row">
+                            <lightning-button variant="base" label={approversToggleLabel} onclick={toggleApprovers}></lightning-button>
+                        </div>
+                    </div>
+                    <template lwc:if={slackLastText}><p class={slackLastCls}>{slackLastText}</p></template>
+                </template>
+
+                <template lwc:if={showApprovers}>
+                    <div class="rr-body rr-line-top">
+                        <p class="rr-small rr-weak">Only linked approvers can press Approve or Reject in Slack. Press Edit to link an approver's Slack member ID.</p>
+                        <template lwc:if={noApprovers}><p class="rr-small rr-weak">No approvers yet: assign the RLY_Approver permission set.</p></template>
+                        <template lwc:if={hasApprovers}>
+                            <div class="rr-scroll">
+                                <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table" aria-label="Approvers">
+                                    <thead><tr><th scope="col">Approver</th><th scope="col">Slack member ID</th></tr></thead>
+                                    <tbody>
+                                        <template for:each={approverRows} for:item="a">
+                                            <tr key={a.userId}>
+                                                <td>{a.name}<template lwc:if={a.linked}><span class="rr-pill rr-pill-ok rr-sp">Linked</span></template></td>
+                                                <td><span class="rr-mono">{a.memberText}</span></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </section>
+        </template>
+
+        <!-- Org cards (read-only; Edit opens the modal) -->
+        <template lwc:if={noOrgs}>
+            <div class="rr-empty">No orgs registered yet. Follow the setup steps, then register your first org.</div>
+        </template>
+
+        <template lwc:if={hasOrgs}>
+            <section class="rr-grid" aria-label="Registered orgs">
+                <template for:each={gridCards} for:item="o">
+                    <!-- Back promote: optional, off by default (board HubHotfixBackPromote) -->
+                    <template lwc:if={o.isSettings}>
+                        <article key={o.Id} class="rr-card rr-org" aria-label="Back promote">
+                            <div class="rr-card-head rr-row">
+                                <h3 class="rr-h3 rr-grow">Back promote</h3>
+                                <span class={bpPillCls}>{bpPill}</span>
+                            </div>
+                            <div class="rr-body">
+                                <dl class="rr-ro">
+                                    <template for:each={bpFacts} for:item="f">
+                                        <div key={f.key} class={f.cls}>
+                                            <dt class="slds-form-element__label">{f.label}</dt>
+                                            <dd class="slds-form-element__control">
+                                                <div class="slds-form-element__static">
+                                                    <span class="rr-flag">
+                                                        <template lwc:if={f.on}><lightning-icon icon-name="utility:check" size="xx-small" variant="success" alternative-text=""></lightning-icon></template>
+                                                        <template lwc:else><lightning-icon icon-name="utility:dash" size="xx-small" alternative-text=""></lightning-icon></template>
+                                                        <span>{f.value}</span>
+                                                    </span>
+                                                </div>
+                                            </dd>
+                                        </div>
+                                    </template>
+                                </dl>
+                                <p class="rr-kicker">{bpHelpLead}<strong>Back promote (after production)</strong>{bpHelpTail}</p>
+                                <template lwc:if={bpNoOrgs}><p class="rr-kicker">No back promote org registered yet.</p></template>
+                            </div>
+                            <template lwc:if={bpIsAdmin}>
+                                <div class="rr-org-foot">
+                                    <span class="rr-grow"></span>
+                                    <lightning-button label="Edit" title="Edit Back promote" onclick={openBpEdit} disabled={hubCopy}></lightning-button>
+                                </div>
+                            </template>
+                        </article>
+                    </template>
+                    <template lwc:if={o.isOrg}>
+                    <article key={o.Id} class="rr-card rr-org" aria-label={o.Name}>
+                        <div class="rr-card-head rr-row">
+                            <h3 class="rr-h3 rr-grow" title={o.My_Domain__c}>{o.Name}</h3>
+                            <span class={o.statusCls}>{o.statusText}</span>
+                            <span class={o.rolePillCls}>{o.rolePill}</span>
+                        </div>
+                        <div class="rr-body">
+                            <dl class="rr-ro">
+                                <template for:each={o.facts} for:item="f">
+                                    <div key={f.key} class={f.cls}>
+                                        <dt class="slds-form-element__label">{f.label}</dt>
+                                        <dd class="slds-form-element__control">
+                                            <div class="slds-form-element__static"><span class={f.valueCls}>{f.value}</span></div>
+                                        </dd>
+                                    </div>
+                                </template>
+                            </dl>
+                        </div>
+                        <template lwc:if={o.Status_Message__c}><p class={o.messageCls}>{o.Status_Message__c}</p></template>
+
+                        <template lwc:if={o.showSect}>
+                            <div class="rr-sect">
+                                <p class="rr-h4">{o.sectTitle}</p>
+                                <dl class="rr-ro">
+                                    <template for:each={o.settings} for:item="f">
+                                        <div key={f.key} class={f.cls}>
+                                            <dt class="slds-form-element__label">{f.label}</dt>
+                                            <dd class="slds-form-element__control">
+                                                <div class="slds-form-element__static">
+                                                    <template lwc:if={f.isFlag}>
+                                                        <span class="rr-flag">
+                                                            <template lwc:if={f.on}><lightning-icon icon-name="utility:check" size="xx-small" variant="success" alternative-text=""></lightning-icon></template>
+                                                            <template lwc:else><lightning-icon icon-name="utility:dash" size="xx-small" alternative-text=""></lightning-icon></template>
+                                                            <span>{f.value}</span>
+                                                        </span>
+                                                    </template>
+                                                    <template lwc:else><span class={f.valueCls}>{f.value}</span></template>
+                                                </div>
+                                                <template lwc:if={f.hint}><p class="rr-kicker">{f.hint}</p></template>
+                                            </dd>
+                                        </div>
+                                    </template>
+                                </dl>
+                                <template lwc:if={o.isBackPromote}>
+                                    <div class="rr-row">
+                                        <span class={o.bp.behindCls}>{o.bp.behindPill}</span>
+                                        <span class="rr-kicker rr-break">{o.bp.behindNames}</span>
+                                        <span class="rr-grow"></span>
+                                        <template lwc:if={bpIsAdmin}>
+                                            <lightning-button variant="brand" label={o.bp.syncLabel} data-id={o.Id} onclick={handleSyncNow} disabled={o.bp.cantSync}></lightning-button>
+                                        </template>
+                                    </div>
+                                    <template lwc:if={o.bp.lastText}>
+                                        <p class="rr-kicker">{o.bp.lastText}<template lwc:if={o.bp.syncStatus}><span class={o.bp.syncCls}>{o.bp.syncStatus}</span></template></p>
+                                    </template>
+                                    <template lwc:if={o.bp.offNote}><p class="rr-kicker">{o.bp.offNote}</p></template>
+                                </template>
+                                <template lwc:if={o.showHubNote}>
+                                    <div class="rr-msg rr-msg-info">Approved in Salesforce only: Slack shows the card with <strong>Open in {appName}</strong> instead of Approve.</div>
+                                </template>
+                                <template lwc:if={o.showEvents}>
+                                    <p class="rr-kicker">{eventsText}<template lwc:if={isAdmin}><lightning-button class="rr-sp" variant="base" label="Send test message" data-id={o.Id} onclick={handleOrgSlackTest} disabled={o.cantTest}></lightning-button></template></p>
+                                </template>
+                                <template lwc:if={o.showDevNote}>
+                                    <p class="rr-kicker">A release posts its card in the target's channel. A developer org can also get a copy, so the people working in {o.Name} see their own releases.<template lwc:if={isAdmin}><lightning-button class="rr-sp" variant="base" label="Send test message" data-id={o.Id} onclick={handleOrgSlackTest} disabled={o.cantTest}></lightning-button></template></p>
+                                </template>
+                            </div>
+                        </template>
+
+                        <div class="rr-org-foot">
+                            <span class="rr-weak rr-small rr-grow">{o.checkedText}</span>
+                            <template lwc:if={isAdmin}>
+                                <lightning-button label={o.checkLabel} data-id={o.Id} onclick={handleCheck} disabled={o.cantCheck}></lightning-button>
+                                <lightning-button label="Edit" title={o.editLabel} data-id={o.Id} onclick={handleEdit} disabled={hubCopy}></lightning-button>
+                            </template>
+                        </div>
+                    </article>
+                    </template>
+                </template>
+            </section>
+        </template>
+
+        <!-- Edit modal: one card's settings; nothing saves until Save -->
+        <template lwc:if={modalOpen}>
+            <section role="dialog" tabindex="-1" aria-modal="true" aria-label={modalTitle} class={modalCls} onkeydown={handleModalKey}>
+                <div class="slds-modal__container">
+                    <button type="button" class="slds-button slds-button_icon slds-modal__close" title="Close" onclick={closeModal}>
+                        <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
+                    </button>
+                    <div class="slds-modal__header">
+                        <h2 class="slds-modal__title slds-hyphenate">{modalTitle}</h2>
+                        <p class="rr-small rr-weak rr-files-sub">{modalSub}</p>
+                    </div>
+                    <div class="slds-modal__content slds-p-around_medium rr-modal-body">
+
+                        <!-- org -->
+                        <template lwc:if={isOrgModal}>
+                            <div class="slds-section slds-is-open">
+                                <h3 class="slds-section__title slds-theme_shade"><span class="slds-truncate slds-p-horizontal_small" title="Sign-in">Sign-in</span></h3>
+                                <div class="slds-section__content rr-fields">
+                                    <lightning-input class="rr-first" label="Org name" data-field="Name" value={form.Name} onchange={handleField} max-length="40" placeholder="Org name" required></lightning-input>
+                                    <lightning-combobox label="Role" data-field="Role__c" value={form.Role__c} options={roleOptions} onchange={handleField}></lightning-combobox>
+                                    <lightning-input class="rr-wide" label="My Domain URL" data-field="My_Domain__c" value={form.My_Domain__c} onchange={handleField}
+                                        placeholder="https://yourdomain.my.salesforce.com" field-level-help="Setup > My Domain in that org. Add the same URL as a Remote Site Setting in this hub." required></lightning-input>
+                                    <lightning-input label="Integration username" data-field="Username__c" value={form.Username__c} onchange={handleField} placeholder="relay@yourorg.dev" required></lightning-input>
+                                    <lightning-input type="password" label="Connected app consumer key" data-field="Consumer_Key__c" value={form.Consumer_Key__c} onchange={handleField}
+                                        placeholder={keyPlaceholder} autocomplete="off" required={keyRequired}
+                                        field-level-help="From the External Client App in that org. Saved encrypted and never shown again. Leave blank to keep the saved key."></lightning-input>
+                                    <lightning-input label="Hub certificate" data-field="Certificate__c" value={form.Certificate__c} onchange={handleField}
+                                        field-level-help="API name of the certificate in this hub that signs the login." required></lightning-input>
+                                    <lightning-input label="Git environment" data-field="Git_Environment__c" value={form.Git_Environment__c} onchange={handleField}
+                                        placeholder="environment-name" field-level-help="The environment in your Git provider that holds this org's login for the pipeline."></lightning-input>
+                                    <lightning-input label="Branch" data-field="Branch__c" value={form.Branch__c} onchange={handleField}
+                                        placeholder="branch-name" field-level-help="This org's Git branch: the stage's branch, or the developer org's own branch."></lightning-input>
+                                    <lightning-combobox label="Login type" data-field="Login_Type__c" value={form.Login_Type__c} options={loginOptions} onchange={handleField}></lightning-combobox>
+                                    <lightning-combobox label="Salesforce environment" data-field="Environment__c" value={form.Environment__c} options={environmentOptions} onchange={handleField}
+                                        field-level-help="The org's edition or sandbox type. New Release groups the orgs by it."></lightning-combobox>
+                                </div>
+                            </div>
+
+                            <template lwc:if={formIsTarget}>
+                                <div class="slds-section slds-is-open">
+                                    <h3 class="slds-section__title slds-theme_shade"><span class="slds-truncate slds-p-horizontal_small" title="Approval">Approval</span></h3>
+                                    <div class="slds-section__content rr-col">
+                                        <fieldset class="slds-form-element rr-rule" role="radiogroup" aria-required="true">
+                                            <legend class="slds-form-element__legend slds-form-element__label"><abbr class="slds-required" title="required">*</abbr>Approval rule</legend>
+                                            <div class="slds-form-element__control rr-rule-opts">
+                                                <template for:each={formRuleOptions} for:item="r">
+                                                    <div key={r.value} class="rr-col">
+                                                        <label class={r.cls}>
+                                                            <input type="radio" name="rr-approval-rule" value={r.value} checked={r.checked} disabled={r.disabled} onchange={handleRule}>
+                                                            <span class="rr-opt-text"><span>{r.label}</span><span class={r.helpCls}>{r.help}</span></span>
+                                                        </label>
+                                                        <template lwc:if={r.showTypes}>
+                                                            <div class="rr-types" role="group" aria-label={formTypesLabel}>
+                                                                <template for:each={formTypeOptions} for:item="t">
+                                                                    <lightning-input key={t.value} type="checkbox" label={t.label} checked={t.checked} data-value={t.value} onchange={handleRuleType}></lightning-input>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </fieldset>
+                                        <template lwc:if={ruleError}><p class="rr-rule-err" role="alert">{ruleError}</p></template>
+                                        <template lwc:if={formRuleSelected}><p class="rr-kicker">Anything else = layouts, reports, list views, static resources… everything not in the other boxes.</p></template>
+                                        <div class="rr-toggles" role="group" aria-label={formApproveGroupLabel}>
+                                            <lightning-input type="toggle" label="Approve in Salesforce" checked={form.Approve_In_Salesforce__c}
+                                                data-field="Approve_In_Salesforce__c" onchange={handleApproveToggle}
+                                                message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                                            <template lwc:if={slackAvailable}>
+                                                <lightning-input type="toggle" label="Approve in Slack" checked={form.Approve_In_Slack__c}
+                                                    data-field="Approve_In_Slack__c" onchange={handleApproveToggle}
+                                                    message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                                            </template>
+                                        </div>
+                                        <template lwc:if={formShowApproveHelp}><p class={formApproveHelpCls} role="status">Either is enough. At least one stays on.</p></template>
+                                        <template lwc:if={showGitReview}>
+                                            <lightning-input type="toggle" label={formGitReviewLabel} checked={form.Require_Git_Review__c}
+                                                data-field="Require_Git_Review__c" onchange={handleFormToggle}
+                                                message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                                        </template>
+                                        <lightning-input type="toggle" label={formTwoApproverLabel} checked={form.Hotfix_Two_Approvers__c}
+                                            data-field="Hotfix_Two_Approvers__c" onchange={handleFormToggle}
+                                            message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                                        <template lwc:if={formTwoApproverOn}><p class="rr-kicker">Two different approvers, and the person who raised the hotfix can't approve it.</p></template>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <template lwc:if={formShowSlack}>
+                                <div class="slds-section slds-is-open">
+                                    <h3 class="slds-section__title slds-theme_shade"><span class="slds-truncate slds-p-horizontal_small" title="Slack">Slack</span></h3>
+                                    <div class="slds-section__content rr-col">
+                                        <div class="rr-fields">
+                                            <lightning-input label="Slack channel" data-field="Slack_Channel__c" value={form.Slack_Channel__c} placeholder="#channel-name" max-length="80"
+                                                onchange={handleField}></lightning-input>
+                                            <lightning-input type="toggle" label={formPostLabel} checked={form.Slack_Post__c} data-field="Slack_Post__c"
+                                                onchange={handleFormToggle} message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                                        </div>
+                                        <p class="rr-kicker">{formSlackHelp}</p>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <template lwc:if={formShowBp}>
+                                <div class="slds-section slds-is-open">
+                                    <h3 class="slds-section__title slds-theme_shade"><span class="slds-truncate slds-p-horizontal_small" title="Back promote">Back promote</span></h3>
+                                    <div class="slds-section__content rr-col">
+                                        <lightning-radio-group type="button" label={formBpGroupLabel} options={bpWhenOptions} value={bpForm.whenValue}
+                                            onchange={handleBpWhen}></lightning-radio-group>
+                                        <lightning-input type="toggle" label="Approve before syncing" checked={bpForm.approval}
+                                            onchange={handleBpApproval} message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                                    </div>
+                                </div>
+                            </template>
+                            <template lwc:if={formBpNew}>
+                                <p class="rr-kicker">After you save, press Edit on the org's card to choose when it gets {hubName}'s changes.</p>
+                            </template>
+                        </template>
+
+                        <!-- Git connection -->
+                        <template lwc:if={isGitModal}>
+                            <div class="slds-section slds-is-open">
+                                <h3 class="slds-section__title slds-theme_shade"><span class="slds-truncate slds-p-horizontal_small" title="Provider">Provider</span></h3>
+                                <div class="slds-section__content">
+                                    <div class="rr-provs" role="group" aria-label="Provider">
+                                        <template for:each={providerTiles} for:item="p">
+                                            <button key={p.value} type="button" class={p.cls} aria-pressed={p.pressed} data-value={p.value} onclick={pickProvider}>
+                                                <strong class="rr-prov-name">{p.label}</strong><span class="rr-weak rr-small">{p.how}</span>
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="slds-section slds-is-open">
+                                <h3 class="slds-section__title slds-theme_shade"><span class="slds-truncate slds-p-horizontal_small" title="Repository">Repository</span></h3>
+                                <div class="slds-section__content rr-fields">
+                                    <lightning-input label="Repository" data-field="Repository__c" value={gitForm.Repository__c} onchange={handleGitField}
+                                        placeholder={gitProvider.repo} required></lightning-input>
+                                    <lightning-input label="Named Credential (token)" data-field="Named_Credential__c" value={gitForm.Named_Credential__c} onchange={handleGitField}
+                                        field-level-help="API name of the Named Credential that holds the provider token." required></lightning-input>
+                                    <lightning-input label={gitProvider.pipeLabel} data-field="Pipeline__c" value={gitForm.Pipeline__c} onchange={handleGitField}></lightning-input>
+                                    <lightning-input label="Pipeline branch" data-field="Pipeline_Branch__c" value={gitForm.Pipeline_Branch__c} onchange={handleGitField}
+                                        field-level-help="Branch the pipeline files live on, usually main. Missing route branches are created from it." required></lightning-input>
+                                    <lightning-input label="Source path" data-field="Source_Path__c" value={gitForm.Source_Path__c} onchange={handleGitField} required></lightning-input>
+                                    <div class="rr-col">
+                                        <lightning-input type="toggle" label="Code scan" data-field="Code_Scan__c" checked={gitForm.Code_Scan__c} onchange={handleGitField}
+                                            message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                                        <p class="rr-kicker">{scanHelp}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Slack connection -->
+                        <template lwc:if={isSlackModal}>
+                            <div class="slds-section slds-is-open">
+                                <h3 class="slds-section__title slds-theme_shade"><span class="slds-truncate slds-p-horizontal_small" title="Connection">Connection</span></h3>
+                                <div class="slds-section__content rr-fields">
+                                    <lightning-input class="rr-first" type="toggle" label="Slack" checked={slackForm.enabled} onchange={handleSlackEnabled}
+                                        message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                                    <lightning-input type="password" label="Signing secret" value={slackForm.signingSecret} onchange={handleSlackSecret}
+                                        placeholder={slackSecretPlaceholder} autocomplete="off"
+                                        field-level-help="Slack app > Basic Information > Signing Secret. Saved encrypted and never shown again. Needed for Approve in Slack. Leave blank to keep the saved one."></lightning-input>
+                                    <lightning-checkbox-group class="rr-wide" label="Send a message when a release is" options={slackEventOptions}
+                                        value={slackForm.events} onchange={handleSlackEvents}></lightning-checkbox-group>
+                                </div>
+                            </div>
+                            <div class="slds-section slds-is-open">
+                                <h3 class="slds-section__title slds-theme_shade"><span class="slds-truncate slds-p-horizontal_small" title="Approvers">Approvers</span></h3>
+                                <div class="slds-section__content rr-col">
+                                    <p class="rr-small rr-weak">Each approver's Slack member ID (Slack: profile &gt; More &gt; Copy member ID). Only linked approvers can press Approve or Reject in Slack. Leave blank to unlink.</p>
+                                    <template lwc:if={noApprovers}><p class="rr-small rr-weak">No approvers yet: assign the RLY_Approver permission set.</p></template>
+                                    <template lwc:if={hasApprovers}>
+                                        <div class="rr-scroll">
+                                            <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table" aria-label="Approvers">
+                                                <thead><tr><th scope="col">Approver</th><th scope="col">Slack member ID</th></tr></thead>
+                                                <tbody>
+                                                    <template for:each={approverRows} for:item="a">
+                                                        <tr key={a.userId}>
+                                                            <td>{a.name}<template lwc:if={a.linked}><span class="rr-pill rr-pill-ok rr-sp">Linked</span></template></td>
+                                                            <td>
+                                                                <lightning-input variant="label-hidden" label={a.inputLabel} value={a.memberId} placeholder="U0…" max-length="20"
+                                                                    data-id={a.userId} onchange={handleMemberInput}></lightning-input>
+                                                            </td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Back promote switch -->
+                        <template lwc:if={isBpModal}>
+                            <div class="slds-section slds-is-open">
+                                <h3 class="slds-section__title slds-theme_shade"><span class="slds-truncate slds-p-horizontal_small" title="Back promote">Back promote</span></h3>
+                                <div class="slds-section__content rr-col">
+                                    <lightning-input class="rr-first" type="toggle" label={bpToggleLabel} checked={bpSwitch} onchange={handleBpSwitch}
+                                        message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                                    <p class="rr-kicker">{bpHelpLead}<strong>Back promote (after production)</strong>{bpHelpTail}</p>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template lwc:if={modalError}><div class="rr-msg rr-msg-bad" role="alert">{modalError}</div></template>
+                    </div>
+                    <div class="slds-modal__footer">
+                        <lightning-button label="Cancel" onclick={closeModal} disabled={saving}></lightning-button>
+                        <lightning-button class="rr-sp" variant="brand" label={saveLabel} onclick={handleModalSave} disabled={modalCantSave}></lightning-button>
+                    </div>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+        </template>
+
+        <!-- Update pipeline files -->
+        <template lwc:if={filesOpen}>
+            <section role="dialog" tabindex="-1" aria-modal="true" aria-label={filesTitle} class="slds-modal slds-fade-in-open" onkeydown={handleFilesKey}>
+                <div class="slds-modal__container">
+                    <button type="button" class="slds-button slds-button_icon slds-modal__close rr-files-close" title="Close" onclick={closeFiles}>
+                        <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
+                    </button>
+                    <div class="slds-modal__header">
+                        <h2 class="slds-modal__title slds-hyphenate">{filesTitle}</h2>
+                        <p class="rr-small rr-weak rr-files-sub">{filesText}</p>
+                    </div>
+                    <div class="slds-modal__content slds-p-around_medium rr-files-body">
+                        <template lwc:if={filesNotDone}>
+                            <lightning-radio-group label="How" options={filesHowOptions} value={filesHow} onchange={handleFilesHow} disabled={filesBusy}></lightning-radio-group>
+                            <p class="rr-small rr-weak">{filesHowHelp}</p>
+                        </template>
+                        <div>
+                            <p class="rr-label">Files that will change</p>
+                            <template lwc:if={hasFilesToChange}>
+                                <ul class="rr-files-list" aria-label="Files that will change">
+                                    <template for:each={filesToChange} for:item="f">
+                                        <li key={f.key} class="rr-files-item">
+                                            <span class="rr-grow"><span class="rr-mono rr-files-name">{f.name}</span><span class="rr-mono rr-weak rr-files-path">{f.repoPath}</span></span>
+                                            <span class="rr-pill rr-pill-info">{f.change}</span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </template>
+                            <template lwc:else><p class="rr-small rr-weak">No files to change.</p></template>
+                        </div>
+                        <template lwc:if={filesUpdateError}><div class="rr-msg rr-msg-bad" role="alert">{filesUpdateError}</div></template>
+                        <template lwc:if={filesDone}>
+                            <div class="rr-msg rr-msg-ok" role="status">
+                                <span>{filesResult.message}</span>
+                                <template lwc:if={filesResult.url}> <a href={filesResult.url} target="_blank" rel="noopener noreferrer">{filesResultLabel}</a></template>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="slds-modal__footer">
+                        <lightning-button label={filesCancelLabel} onclick={closeFiles} disabled={filesBusy}></lightning-button>
+                        <template lwc:if={filesNotDone}>
+                            <lightning-button class="rr-sp" variant="brand" label={filesUpdateLabel} onclick={handleFilesUpdate} disabled={filesCantUpdate}></lightning-button>
+                        </template>
+                    </div>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+        </template>
+    </div>
+</template>

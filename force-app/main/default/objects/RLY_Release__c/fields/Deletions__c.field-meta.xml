@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Deletions__c</fullName>
+    <description>Hub: the components the release deletes, comma separated Type:Name (for example ApexClass:OldHelper). They are removed from the release branch and, on deploy, from the target org (destructiveChangesPost).</description>
+    <label>Deletions</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

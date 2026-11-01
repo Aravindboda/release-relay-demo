@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Certificate__c</fullName>
+    <description>API name of the hub certificate (Setup &gt; Certificate and Key Management) that signs the login. Its public key is uploaded to the org&apos;s External Client App.</description>
+    <externalId>false</externalId>
+    <label>Hub Certificate</label>
+    <length>80</length>
+    <required>false</required>
+    <trackHistory>true</trackHistory>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

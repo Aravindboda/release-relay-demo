@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Release_Type__c</fullName>
+    <description>Hub: Release (raised from a developer org), Promotion (a stage&apos;s deployed releases carried to its next stop) or Back promote (production&apos;s changes sent to a back promote org).</description>
+    <label>Release Type</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Release</fullName>
+                <default>true</default>
+                <label>Release</label>
+            </value>
+            <value>
+                <fullName>Promotion</fullName>
+                <default>false</default>
+                <label>Promotion</label>
+            </value>
+            <value>
+                <fullName>Back_Promote</fullName>
+                <default>false</default>
+                <label>Back promote</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
