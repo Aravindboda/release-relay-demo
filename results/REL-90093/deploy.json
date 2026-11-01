@@ -1,0 +1,31 @@
+{
+ "request": "REL-90093",
+ "step": "deploy",
+ "status": "Deployed",
+ "sha": "670c38c8c95e828f47c9dcc9fc42aacdbcb3a69c",
+ "changed": 1,
+ "deleted": [],
+ "ok": true,
+ "testLevel": "NoTestRun",
+ "deployId": "0Afg800000K7V5CCAV",
+ "testsRun": 0,
+ "tests": [],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "quick": false,
+ "quickNote": "The validation ran no tests (NoTestRun), and production quick deploys only validations that ran tests, so it was deployed in full.",
+ "snapshot": {
+  "skipped": "The hub updating itself (selfUpdate) takes no snapshot."
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41341744957",
+ "finishedAt": "2026-11-01T19:27:22.509Z",
+ "excluded": [],
+ "selfUpdate": true,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
+}
