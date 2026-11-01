@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Back_Merge_Result__c</fullName>
+    <description>Hub: how the branches were brought up to date after the merge, as JSON: [{branch, status (Synced, Conflict or Missing), message}].</description>
+    <label>Back Merge Result</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>
