@@ -12,6 +12,7 @@ import saveRoute from '@salesforce/apex/RlyRouteController.saveRoute';
 import getPipelineFiles from '@salesforce/apex/RlyRouteController.getPipelineFiles';
 import updatePipelineFiles from '@salesforce/apex/RlyRouteController.updatePipelineFiles';
 import getSlack from '@salesforce/apex/RlySlackController.getSlack';
+import readSiteCheck from '@salesforce/apex/RlySlackSiteCheck.read';
 import saveSlack from '@salesforce/apex/RlySlackController.saveSlack';
 import sendSlackTest from '@salesforce/apex/RlySlackController.sendSlackTest';
 import testSlack from '@salesforce/apex/RlySlackController.testSlack';
@@ -454,6 +455,8 @@ export default class RlyPipeline extends LightningElement {
     bpForm = { whenValue: 'Manual', approval: false };
     gitForm = blankGit();
     slackForm = { enabled: false, signingSecret: '', botToken: '', events: [] };
+    /** What the Site's guest user still needs for Approve in Slack (RlySlackSiteCheck.read). */
+    siteProblemList = [];
     slackAdvanced = false;
     memberEdits = {};
     bpSwitch = false;
@@ -1903,6 +1906,16 @@ export default class RlyPipeline extends LightningElement {
 
     applySlack(sl) {
         this.slack = sl || { isAdmin: false, events: [], allEvents: [], approvers: [] };
+        this.siteProblemList = [];
+        if (this.slack.actionsUrl) {
+            readSiteCheck()
+                .then((list) => {
+                    this.siteProblemList = list || [];
+                })
+                .catch(() => {
+                    this.siteProblemList = [];
+                });
+        }
     }
 
     get showSlack() { return this.isAdmin && this.slack.isAdmin; }
@@ -1936,7 +1949,7 @@ export default class RlyPipeline extends LightningElement {
             fact('ws', 'Workspace', this.slack.workspace, { empty: 'Not connected yet' }),
             fact('tok', 'Bot token', this.tokenSaved ? 'Saved · kept by Salesforce, never shown' : '', { empty: 'Not saved yet', hint: this.tokenSavedText }),
             fact('ev', 'Send a message when a release is', events.join(' · '), { empty: 'No events', wide: true }),
-            fact('site', 'Approve in Slack', this.approveInSlackReady ? 'Set up' : '', { empty: 'Not set up (optional)', hint: this.slackSecretText }),
+            fact('site', 'Approve in Slack', this.approveInSlackReady ? 'Set up' : '', { empty: this.siteProblemText ? 'Not ready' : 'Not set up (optional)', hint: this.siteProblemText || this.slackSecretText }),
             fact('ap', 'Approvers linked', this.approversText)
         ];
     }
@@ -1945,7 +1958,10 @@ export default class RlyPipeline extends LightningElement {
     get botTokenHint() { return this.slack.botTokenHint || ''; }
     /** A token is saved when Slack answers with it, or the hub has a masked hint of it. */
     get tokenSaved() { return !!(this.slack.connected || this.botTokenHint); }
-    get approveInSlackReady() { return !!(this.slack.signingSecretHint && this.slack.actionsUrl); }
+    get approveInSlackReady() { return !!(this.slack.signingSecretHint && this.slack.actionsUrl) && this.siteProblems.length === 0; }
+    /** What the Site's guest user still needs (Approve in Slack does nothing until it has it). */
+    get siteProblems() { return this.siteProblemList || []; }
+    get siteProblemText() { return this.siteProblems.length ? 'Site not ready: ' + this.siteProblems.join('; ') + '.' : null; }
     get anyOrgChannel() { return this.orgs.some((o) => !!(o.Slack_Channel__c || '').trim()); }
 
     /** Before Slack is set up: what's done and what's next (board HubPipelineSections 4). */
@@ -2147,10 +2163,16 @@ export default class RlyPipeline extends LightningElement {
         this.showApprovers = false;
     }
 
+    /** Cancel (and Escape): in the org window, asks first when something typed would be lost. */
     handleEditCancel() {
-        if (!this.saving) {
-            this.endEdit();
+        if (this.saving || this.confirming) {
+            return;
         }
+        this.askDiscard().then((ok) => {
+            if (ok) {
+                this.endEdit();
+            }
+        });
     }
 
     handleEditKey(event) {
