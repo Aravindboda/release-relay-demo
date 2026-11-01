@@ -1,0 +1,69 @@
+{
+ "request": "REL-90047",
+ "step": "scan",
+ "status": "Passed",
+ "total": 3,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Info": 3
+ },
+ "files": [
+  "force-app/main/default/classes/RlyHubGuard.cls",
+  "force-app/main/default/classes/RlyHubGuardTest.cls",
+  "force-app/main/default/classes/RlySandboxCopy.cls",
+  "force-app/main/default/classes/RlySandboxSwitch.cls",
+  "force-app/main/default/lwc/rlyOrgGate/rlyOrgGate.html",
+  "force-app/main/default/lwc/rlyOrgGate/rlyOrgGate.js",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+  "force-app/main/default/lwc/rlyPromote/rlyPromote.html",
+  "force-app/main/default/lwc/rlyPromote/rlyPromote.js",
+  "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.html",
+  "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/rlyReleaseGuide.html",
+  "force-app/main/default/lwc/rlyReleaseGuide/rlyReleaseGuide.js",
+  "force-app/main/default/lwc/rlyReleaseTracker/rlyReleaseTracker.html",
+  "force-app/main/default/lwc/rlyReleaseTracker/rlyReleaseTracker.js",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.html",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.js"
+ ],
+ "violations": [
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "DetectCopyPasteForJavascript",
+   "engine": "cpd",
+   "file": "force-app/main/default/lwc/rlyPromote/rlyPromote.js",
+   "line": 30,
+   "message": "Duplicate code detected for language 'javascript'. Found 2 code locations containing the same block of code consisting of 162 tokens across 29 lines.",
+   "url": "https://docs.pmd-code.org/latest/pmd_userdocs_cpd.html#refactoring-duplicates"
+  },
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "DetectCopyPasteForJavascript",
+   "engine": "cpd",
+   "file": "force-app/main/default/lwc/rlyPromote/rlyPromote.js",
+   "line": 30,
+   "message": "Duplicate code detected for language 'javascript'. Found 2 code locations containing the same block of code consisting of 160 tokens across 29 lines.",
+   "url": "https://docs.pmd-code.org/latest/pmd_userdocs_cpd.html#refactoring-duplicates"
+  },
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "DetectCopyPasteForJavascript",
+   "engine": "cpd",
+   "file": "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+   "line": 104,
+   "message": "Duplicate code detected for language 'javascript'. Found 2 code locations containing the same block of code consisting of 160 tokens across 29 lines.",
+   "url": "https://docs.pmd-code.org/latest/pmd_userdocs_cpd.html#refactoring-duplicates"
+  }
+ ],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41276995689",
+ "finishedAt": "2026-11-01T05:28:55.387Z"
+}
