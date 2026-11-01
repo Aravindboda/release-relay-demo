@@ -1,40 +1,34 @@
 {
  "request": "REL-00021",
  "step": "validate",
- "status": "Failed",
- "changed": 1,
+ "status": "Passed",
+ "changed": 2,
  "deleted": [
   "ApexClass:RlyDemoSearch",
   "ApexClass:RlyDemoSearchTest"
  ],
  "mergedWith": "ff3012c576f4116dad95762cc7600c7ebc0b8892",
- "validatedTree": "949d62b6bee82412e1c8ff3ff9418a2ef53f0909",
+ "validatedTree": "5a347e81077f642e0f30c8aac315f950e07d1a16",
  "environment": "sit",
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000cKsJJSA0",
+ "deployId": "0AfgL00000cKsmLSAS",
  "testsRun": 1,
  "tests": [
   "RlyDemoGreetingTest"
  ],
  "coverageWarnings": [],
  "componentErrors": [],
- "testFailures": [
-  {
-   "name": "RlyDemoGreetingTest",
-   "method": "greetsByName",
-   "message": "System.AssertException: Assertion Failed: Blank name: Expected: Welcome, friend, Actual: Welcome, friend!"
-  }
- ],
- "message": "1 test failure(s)",
+ "testFailures": [],
+ "message": "",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41320565441",
- "finishedAt": "2026-11-01T15:19:23.608Z",
- "attempt": "e366631fa2af160b1e666245e53027d6",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41320811429",
+ "finishedAt": "2026-11-01T15:21:45.852Z",
+ "attempt": "76ad085438c42931d20eedbf3f8f2cef",
  "excluded": [],
  "selfUpdate": false,
  "values": {
