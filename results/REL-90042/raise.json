@@ -1,0 +1,17 @@
+{
+ "request": "REL-90042",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rly-build17",
+ "target": "release-relay-hub",
+ "sha": "c52484fc442aab1ad50d7192b1943faabd5fc3ec",
+ "pr": 58,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/58",
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41272374478",
+ "finishedAt": "2026-11-01T04:16:13.877Z"
+}
