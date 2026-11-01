@@ -25,6 +25,7 @@ import readRepoSettings from '@salesforce/apex/RlyRepoSettings.read';
 import getSetupStatus from '@salesforce/apex/RlySetupStatus.getSetupStatus';
 import saveBotToken from '@salesforce/apex/RlySlackController.saveBotToken';
 import IS_ADMIN from '@salesforce/customPermission/RLY_Admin';
+import LightningConfirm from 'lightning/confirm';
 
 /** Modes of RlyHubGuard.getHubStatus in which this tab shows only the org gate. */
 const SANDBOX_MODES = ['sandbox', 'copy'];
@@ -101,6 +102,17 @@ const VALUE_MAX = 24;
 /** An org card's sections, in order; each has its own Edit. */
 const SECTION_TITLES = { signin: 'Sign-in', approval: 'Approval', bp: 'Back promote', slack: 'Slack' };
 const NEW_ORG = 'new';
+/** The org window's Edit: every section of the org at once (editing = org:<Id>:all). */
+const ALL_SECTIONS = 'all';
+/** Sign-in status as a dot on the compact org cards. */
+const DOT_CLS = { Connected: 'rr-dot rr-dot-ok', Failed: 'rr-dot rr-dot-bad', Refreshed: 'rr-dot rr-dot-wait' };
+/** Connected orgs: one tab per Salesforce environment (RLY_Org__c.Environment__c); an org without one goes under Other. */
+const OTHER_TAB = 'Not set';
+/** The page's sections, in order; each folds open or closed. Section 1 and Connected orgs start open. */
+const FOLD_DEFAULTS = { git: true, route: false, values: false, gates: false, slack: false, orgs: true };
+/** Where this browser remembers which sections are open, and the last Connected orgs tab (per viewer, best effort). */
+const FOLD_STORE = 'rly.pipeline.sections';
+const TAB_STORE = 'rly.pipeline.orgTab';
 const BOT_TOKEN_PREFIX = 'xoxb-';
 /** Where an admin puts the Slack bot token when this org can't save it from the page. */
 const TOKEN_SETUP_URL = '/lightning/setup/NamedCredential/home';
@@ -213,6 +225,53 @@ function fact(key, label, value, opts) {
 /** One read-only switch on a card: a check and "On", or a dash and "Off". */
 function flag(key, label, on, hint) {
     return { key, label, isFlag: true, on: on === true, value: on === true ? 'On' : 'Off', cls: READONLY_CLS, hint: hint || '' };
+}
+
+/** The sections' open / closed choice this browser remembers; the defaults when it has none or storage is blocked. */
+function readFolds() {
+    try {
+        const raw = window.localStorage.getItem(FOLD_STORE);
+        const saved = raw ? JSON.parse(raw) : {};
+        const folds = { ...FOLD_DEFAULTS };
+        Object.keys(FOLD_DEFAULTS).forEach((k) => {
+            if (saved && typeof saved[k] === 'boolean') {
+                folds[k] = saved[k];
+            }
+        });
+        return folds;
+    } catch {
+        return { ...FOLD_DEFAULTS };
+    }
+}
+
+function writeFolds(folds) {
+    try {
+        window.localStorage.setItem(FOLD_STORE, JSON.stringify(folds));
+    } catch {
+        // Storage blocked (private window, previews): the choice then lasts for this page only.
+    }
+}
+
+/** The Connected orgs tab this browser last used (undefined when none or storage is blocked). */
+function readTab() {
+    try {
+        return window.localStorage.getItem(TAB_STORE) || undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+function writeTab(value) {
+    try {
+        window.localStorage.setItem(TAB_STORE, value);
+    } catch {
+        // Storage blocked: the tab is remembered for this page only.
+    }
+}
+
+/** "1 value", "2 values". */
+function countText(n, word) {
+    return n + ' ' + word + (n === 1 ? '' : 's');
 }
 
 function trimOrNull(v) {
@@ -349,6 +408,22 @@ export default class RlyPipeline extends LightningElement {
     repoSettings;
     repoLoading = false;
     repoKey;
+    /** Which sections are open (remembered in this browser). */
+    folds = readFolds();
+    /** Connected orgs: the tab the user last picked (undefined: the tab with Stage 1). */
+    orgTab = readTab();
+    /** The tab to focus after an arrow key. */
+    focusTab;
+    /** The card just registered or saved: it lights up once. */
+    flashId;
+    /** The org whose window is open (read mode, or Edit for all its sections). */
+    dialogOrgId;
+    focusDialog = false;
+    /** The card whose window just closed: the focus goes back to it. */
+    focusTileId;
+    /** The forms as they were when Edit or Register opened them (Escape asks before dropping changes). */
+    formSnapshot;
+    confirming = false;
 
     connectedCallback() {
         this.readHubStatus();
@@ -361,6 +436,27 @@ export default class RlyPipeline extends LightningElement {
                 close.focus();
                 this.focusFiles = false;
             }
+        }
+        if (this.focusDialog) {
+            const close = this.template.querySelector('.rr-modal-close');
+            if (close) {
+                close.focus();
+            }
+            this.focusDialog = false;
+        }
+        if (this.focusTab) {
+            const tab = this.template.querySelector('button[data-value="' + this.focusTab + '"]');
+            if (tab) {
+                tab.focus();
+            }
+            this.focusTab = undefined;
+        }
+        if (this.focusTileId) {
+            const tile = this.template.querySelector('c-rly-org-tile[data-id="' + this.focusTileId + '"]');
+            if (tile) {
+                tile.focus();
+            }
+            this.focusTileId = undefined;
         }
         if (this.focusEdit) {
             // One try, right after Edit: the section's first field (or the first provider tile).
@@ -445,6 +541,7 @@ export default class RlyPipeline extends LightningElement {
                     this.loadPipeFiles();
                 }
                 this.loadRepoSettings();
+                this.openAttention();
             })
             .catch((e) => {
                 this.error = errorText(e);
@@ -464,13 +561,7 @@ export default class RlyPipeline extends LightningElement {
     get hasOrgs() { return this.orgs.length > 0; }
     get noOrgs() { return !this.loading && this.orgs.length === 0 && this.editing !== NEW_ORG; }
 
-    get cards() {
-        return [...this.orgs]
-            .sort((a, b) => (ROLE_ORDER[a.Role__c] - ROLE_ORDER[b.Role__c]) || (this.routeIndex(a) - this.routeIndex(b)) || a.Name.localeCompare(b.Name))
-            .map((o) => this.orgCard(o));
-    }
-
-    /** One org card: its pills, and its sections (Sign-in, Approval or Back promote, Slack), each read-only or being edited. */
+    /** An org as its window shows it: its pills, and its sections (Sign-in, Approval or Back promote, Slack), read-only. */
     orgCard(o) {
         const isDeveloper = o.Role__c === 'Developer';
         const isHub = o.Role__c === 'Hub';
@@ -479,13 +570,13 @@ export default class RlyPipeline extends LightningElement {
         const ap = approvals(o);
         const busy = this.orgSlackBusyId === o.Id;
         const bp = isBackPromote ? this.bpCard(o) : null;
-        const here = this.isEditingOrg(o.Id);
         return {
             ...o,
             statusText: o.Status__c || 'Not checked',
             statusCls: STATUS_CLS[o.Status__c] || STATUS_CLS['Not checked'],
             rolePill: this.rolePill(o),
             rolePillCls: isHub ? 'rr-pill rr-pill-info' : 'rr-pill rr-pill-none',
+            statusMessage: o.Status_Message__c || '',
             checkedText: o.Last_Checked__c ? 'Checked ' + new Date(o.Last_Checked__c).toLocaleString([], {
                 month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not checked yet',
             messageCls: o.Status__c === 'Failed' ? 'rr-msg rr-msg-bad' : 'rr-msg rr-msg-info',
@@ -494,11 +585,6 @@ export default class RlyPipeline extends LightningElement {
             checkLabel: this.checkingId === o.Id ? 'Signing in…' : 'Test sign-in',
             isDeveloper,
             isBackPromote,
-            isOrg: true,
-            isNew: false,
-            showFoot: true,
-            cardCls: here ? 'rr-card rr-org rr-org-editing' : 'rr-card rr-org',
-            flowText: here && this.flowOrgId === o.Id ? this.flowStepText : '',
             bp,
             sections: this.orgSections(o, { isDeveloper, isTarget, isBackPromote, ap, bp }),
             cantTest: !this.isAdmin || busy || this.slackBusy || this.hubCopy || !(o.Slack_Channel__c || '').trim(),
@@ -508,8 +594,465 @@ export default class RlyPipeline extends LightningElement {
         };
     }
 
-    /** Some section of this org's card is being edited. */
+    /** Some section of this org is being edited. */
     isEditingOrg(orgId) { return !!this.editing && this.editing.startsWith('org:' + orgId + ':'); }
+
+    // ---------- sections that fold (board HubPipelineLayout) ----------
+
+    /** The section being edited stays open and can't fold (chevron off until Cancel / Save). */
+    isLocked(key) {
+        return (key === 'git' && (this.isGitEditing || this.isBpEditing)) || (key === 'route' && this.editingRoute)
+            || (key === 'slack' && this.isSlackEditing);
+    }
+
+    /** A section is open when the user left it open (or it needs attention), or while something in it is being edited. */
+    isOpen(key) { return this.isLocked(key) || this.folds[key] === true; }
+
+    handleFold(event) {
+        const key = event.currentTarget.dataset.key;
+        if (this.isLocked(key)) {
+            return;
+        }
+        this.folds = { ...this.folds, [key]: !this.isOpen(key) };
+        writeFolds(this.folds);
+    }
+
+    /** A section with a Failed / Not found pill or warnings opens on load, even if it was left closed (not remembered). */
+    openAttention() {
+        const need = {
+            git: this.gitStatus === 'Failed' || this.filesPill === 'Not found' || !!this.pipeFilesError,
+            route: this.hasWarnings,
+            values: !!this.valuesError,
+            gates: !!this.gatesError,
+            slack: this.slackStatus.startsWith('Error')
+        };
+        const keys = Object.keys(need).filter((k) => need[k] && this.folds[k] !== true);
+        if (keys.length) {
+            const next = { ...this.folds };
+            keys.forEach((k) => {
+                next[k] = true;
+            });
+            this.folds = next;
+        }
+    }
+
+    /** Each section's open state, chevron, one-line summary (shown while closed) and status pill. */
+    get fold() {
+        const list = [
+            { key: 'git', title: '1 · Where the code lives', summary: this.gitSummary, pill: this.gitStatusText, pillCls: this.gitStatusCls },
+            { key: 'route', title: '2 · Route', summary: this.routeSummary },
+            { key: 'values', title: 'Per-org values', summary: this.valuesSummary, pill: this.missingText, pillCls: 'rr-pill rr-pill-wait' },
+            { key: 'gates', title: 'Quality gates', summary: this.gatesSummary },
+            { key: 'slack', title: 'Slack connection', summary: this.slackSummary, pill: this.slackStatus, pillCls: this.slackStatusCls },
+            { key: 'orgs', title: 'Connected orgs', summary: this.orgsSummary }
+        ];
+        const out = {};
+        list.forEach((s) => {
+            const open = this.isOpen(s.key);
+            out[s.key] = {
+                title: s.title,
+                summary: s.summary,
+                pill: open ? '' : (s.pill || ''),
+                pillCls: s.pillCls || 'rr-pill rr-pill-none',
+                open,
+                closed: !open,
+                locked: this.isLocked(s.key),
+                expanded: open ? 'true' : 'false',
+                headCls: open ? 'rr-sh rr-sh-open' : 'rr-sh',
+                foldLabel: (open ? 'Collapse ' : 'Expand ') + s.title
+            };
+        });
+        return out;
+    }
+
+    get gitSummary() {
+        if (!this.git) {
+            return 'No Git connection yet';
+        }
+        const p = PROVIDERS.find((x) => x.value === this.git.Provider__c) || PROVIDERS[0];
+        const parts = [p.label, this.git.Repository__c || 'no repository', this.gitStatus];
+        if (this.backPromote) {
+            parts.push('Back promote ' + (this.bpEnabled ? 'on' : 'off'));
+        }
+        return parts.join(' · ');
+    }
+
+    get routeSummary() {
+        if (!this.hasRoute) {
+            return 'No route yet';
+        }
+        const names = this.stages.map((s) => s.Name);
+        const branches = this.stages.map((s) => s.Branch__c || 'no branch');
+        if (this.developers.length) {
+            names.unshift(this.developers.map((d) => d.Name).join(', '));
+            branches.unshift(this.developers.map((d) => d.Branch__c || 'no branch').join(', '));
+        }
+        const bp = this.bpOrgs.length;
+        return [names.join(' → '), 'branches ' + branches.join(' → '),
+            bp ? countText(bp, 'back promote org') : 'no back promote orgs'].join(' · ');
+    }
+
+    /** The route orgs' cells without a value (the grey extra columns don't count). */
+    get missingValues() {
+        if (!this.repoOk) {
+            return 0;
+        }
+        const cols = this.valueColumns.filter((c) => !c.cls);
+        const keys = new Set(cols.map((c) => c.key));
+        return this.valueRows.reduce((n, r) => n + r.cells.filter((c) => keys.has(c.key) && !c.has).length, 0);
+    }
+    get missingText() { return this.missingValues ? countText(this.missingValues, 'missing value') : ''; }
+
+    /** "3 names · A, B, C · from main · read 10:41 AM", or why it wasn't read. */
+    get valuesSummary() {
+        if (!this.repoRead) {
+            return 'Reading the repository…';
+        }
+        if (this.repoMessage || this.valuesError) {
+            return this.repoMessage || this.valuesError;
+        }
+        const names = (this.repoSettings.values || []).map((v) => v.name);
+        if (!names.length) {
+            return 'No per-org values yet · ' + this.repoReadText;
+        }
+        return [countText(names.length, 'name'), names.join(', '), this.repoReadText].join(' · ');
+    }
+
+    /** "3 of 4 set · what each set gate says · from main". */
+    get gatesSummary() {
+        if (!this.repoRead) {
+            return 'Reading the repository…';
+        }
+        if (this.repoMessage || this.gatesError) {
+            return this.repoMessage || this.gatesError;
+        }
+        const gates = this.repoSettings.gates || [];
+        if (!gates.length) {
+            return 'No quality gates yet · Salesforce\'s own rules still apply';
+        }
+        const set = gates.filter((g) => g.isSet);
+        return [set.length + ' of ' + gates.length + ' set', ...set.map((g) => g.text), this.gatesReadText].filter((v) => !!v).join(' · ');
+    }
+
+    get slackSummary() {
+        return [
+            'Slack ' + (this.slack.enabled ? 'on' : 'off'),
+            this.tokenSaved ? 'bot token saved' : 'no bot token yet',
+            this.approveInSlackReady ? 'Approve in Slack set up' : 'Approve in Slack not set up',
+            this.approversText + ' approvers linked'
+        ].join(' · ');
+    }
+
+    get orgsSummary() {
+        if (!this.orgs.length) {
+            return 'No orgs registered yet';
+        }
+        const connected = this.orgs.filter((o) => o.Status__c === 'Connected').length;
+        const failed = this.orgs.filter((o) => o.Status__c === 'Failed').length;
+        return countText(this.orgs.length, 'org') + ' · ' + connected + ' connected' + (failed ? ' · ' + failed + ' failed' : '');
+    }
+    get orgsCountText() { return countText(this.orgs.length, 'org'); }
+
+    // ---------- Connected orgs: tabs by Salesforce environment, compact cards ----------
+
+    /** The environment tab an org belongs to (Not set when it has none). */
+    tabOf(o) { return o && ENVIRONMENT_LABELS[o.Environment__c] ? o.Environment__c : OTHER_TAB; }
+
+    /** One compact card: name, role, sign-in, branch, "Approval: … · Code scan: …" (developer orgs: Raises into …), last checked. */
+    orgTile(o) {
+        let approvalText;
+        if (o.Role__c === 'Developer') {
+            const first = this.stages.find((s) => s.Role__c !== 'Hub') || this.stages[0];
+            approvalText = first ? 'Raises into ' + (first.Branch__c || first.Name) : 'Raises releases';
+        } else if (o.Role__c === BACK_PROMOTE) {
+            const b = this.bpFor(o);
+            const when = this.bpWhenOptions.find((w) => w.value === (b.whenValue || 'Manual'));
+            approvalText = 'Back promote · ' + (when ? when.label : 'Manual');
+        } else {
+            approvalText = RULE_CARD_LABELS[ruleOf(o)] + ' · Code scan: ' + this.scanShort(o);
+        }
+        return {
+            id: o.Id,
+            name: o.Name,
+            domain: o.My_Domain__c || '',
+            rolePill: this.rolePill(o),
+            roleCls: o.Role__c === 'Hub' ? 'rr-pill rr-pill-info' : 'rr-pill rr-pill-none',
+            statusText: o.Status__c || 'Not checked',
+            dotCls: DOT_CLS[o.Status__c] || 'rr-dot',
+            branch: o.Branch__c || 'No branch',
+            branchCls: o.Branch__c ? 'rr-mono' : 'rr-weak',
+            approvalText,
+            checkedText: o.Last_Checked__c ? 'Checked ' + new Date(o.Last_Checked__c).toLocaleString([], {
+                month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not checked yet',
+            openLabel: 'Open ' + o.Name + ' to see or edit it',
+            flash: this.flashId === o.Id
+        };
+    }
+
+    /** The org's code scan choice in a few words, for its compact card. */
+    scanShort(o) {
+        const choice = scanChoiceOf(o);
+        if (choice === SCAN_ALWAYS) {
+            return 'Always';
+        }
+        if (choice === SCAN_NEVER) {
+            return 'Don\'t scan';
+        }
+        return 'Follows Git (' + (this.gitScanOn ? 'on' : 'off') + ')';
+    }
+
+    /** Every environment tab in the picklist's order (empty ones grey but clickable), then Not set only when an org has none. */
+    get orgGroups() {
+        const sorted = [...this.orgs].sort((a, b) => (ROLE_ORDER[a.Role__c] - ROLE_ORDER[b.Role__c])
+            || (this.routeIndex(a) - this.routeIndex(b)) || a.Name.localeCompare(b.Name));
+        const values = ENVIRONMENT_OPTIONS.map((e) => e.value);
+        if (sorted.some((o) => this.tabOf(o) === OTHER_TAB)) {
+            values.push(OTHER_TAB);
+        }
+        const active = this.orgTabValue;
+        return values.map((v) => {
+            const list = sorted.filter((o) => this.tabOf(o) === v);
+            const name = ENVIRONMENT_LABELS[v] || OTHER_TAB;
+            const selected = v === active;
+            let cls = 'slds-tabs_default__item rr-tab';
+            cls += selected ? ' slds-is-active' : '';
+            cls += list.length ? '' : ' rr-tab-zero';
+            return {
+                value: v,
+                name,
+                count: list.length,
+                cls,
+                selected: selected ? 'true' : 'false',
+                tabIndex: selected ? '0' : '-1',
+                tabId: 'rr-tab-' + v,
+                tiles: list.map((o) => this.orgTile(o))
+            };
+        });
+    }
+
+    /** The open tab: the user's last pick, else the tab with Stage 1, else the hub's, else the first that has orgs. */
+    get orgTabValue() {
+        const values = [...ENVIRONMENT_OPTIONS.map((e) => e.value), OTHER_TAB];
+        if (this.orgTab && values.includes(this.orgTab) && (this.orgTab !== OTHER_TAB || this.orgs.some((o) => this.tabOf(o) === OTHER_TAB))) {
+            return this.orgTab;
+        }
+        const firstStage = this.stages[0] && this.orgs.find((o) => o.Id === this.stages[0].Id);
+        const lead = firstStage || this.orgs.find((o) => o.Role__c === 'Hub') || this.orgs[0];
+        return lead ? this.tabOf(lead) : values[0];
+    }
+    get activeGroup() { return this.orgGroups.find((g) => g.selected === 'true') || { tiles: [], name: '', value: '' }; }
+    get activeTabEmpty() { return this.activeGroup.tiles.length === 0; }
+    get activeTabEmptyText() { return 'No orgs in ' + this.activeGroup.name + ' yet.'; }
+    get activeTabId() { return this.activeGroup.tabId; }
+    get registerTileHint() {
+        const v = this.activeGroup.value;
+        return v && v !== OTHER_TAB ? 'Opens with ' + this.activeGroup.name + ' chosen' : 'Choose its Salesforce environment';
+    }
+
+    pickTab(value) {
+        this.orgTab = value;
+        this.flashId = undefined;
+        writeTab(value);
+    }
+
+    handleOrgTab(event) {
+        this.pickTab(event.currentTarget.dataset.value);
+    }
+
+    /** Arrow keys, Home and End move between the tabs (and select them), as SLDS tabs do. */
+    handleTabKey(event) {
+        const values = this.orgGroups.map((g) => g.value);
+        const i = values.indexOf(this.orgTabValue);
+        const moves = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: values.length - 1 };
+        if (!(event.key in moves)) {
+            return;
+        }
+        event.preventDefault();
+        const j = (moves[event.key] + values.length) % values.length;
+        this.pickTab(values[j]);
+        this.focusTab = values[j];
+    }
+
+    // ---------- the org window (read mode; Edit turns every section into a form) ----------
+
+    openOrgDialog(event) {
+        const id = event.detail && event.detail.id;
+        if (!id || this.editing) {
+            return;
+        }
+        this.dialogOrgId = id;
+        this.flashId = undefined;
+        this.focusDialog = true;
+    }
+
+    /** The window shows: registering an org (one step at a time), or a saved org (read mode or editing all of it). */
+    get modalOpen() { return this.inFlow || (!!this.dialogOrgId && !!this.dialogOrg); }
+    get modalEditing() { return this.inFlow || this.editingKind === ALL_SECTIONS; }
+    get modalReading() { return !this.modalEditing; }
+    get modalEditAll() { return this.editingKind === ALL_SECTIONS; }
+    get dialogOrg() {
+        const o = this.orgs.find((x) => x.Id === this.dialogOrgId);
+        return o ? this.orgCard(o) : null;
+    }
+    get modalTitle() {
+        if (this.inFlow) {
+            return 'Register an org';
+        }
+        const name = this.dialogOrg ? this.dialogOrg.Name : this.formOrgName;
+        return this.modalEditAll ? 'Edit ' + name : name;
+    }
+    /** "Full Copy sandbox · branch sit · Checked Nov 1, 9:58 AM" (in Edit: "… · saved values shown"). */
+    get modalSub() {
+        const o = this.dialogOrg;
+        if (this.inFlow || !o) {
+            return '';
+        }
+        const parts = [ENVIRONMENT_LABELS[o.Environment__c] || 'Salesforce environment not set', 'branch ' + (o.Branch__c || 'not set')];
+        parts.push(this.modalEditAll ? 'saved values shown' : o.checkedText);
+        return parts.join(' · ');
+    }
+    get showModalPills() { return !this.inFlow && !!this.dialogOrg; }
+    get dialogHasSlack() { return !!this.dialogOrg && this.slackSetUp; }
+    get modalCantTest() { return !this.dialogOrg || this.dialogOrg.cantCheck || this.modalEditing; }
+    get modalFootNote() {
+        if (this.modalEditAll) {
+            return 'Saves all sections together. Changing Sign-in tests it again.';
+        }
+        return this.editNote;
+    }
+
+    /** Register an org: the steps as chips (1 Sign-in · 2 Approval · 3 Slack), the one being done in blue. */
+    get flowSteps() {
+        const at = this.flowIndex;
+        return this.flowKinds.map((k, i) => ({
+            key: k,
+            label: (i + 1) + ' ' + SECTION_TITLES[k],
+            cls: i === at ? 'rr-stp rr-stp-on' : 'rr-stp',
+            current: i === at ? 'step' : 'false'
+        }));
+    }
+
+    /** The forms in the window: the register step being done, or every section of the org (they follow the Role chosen). */
+    get formSections() {
+        const kinds = this.modalEditAll ? this.flowKindsFor(this.form.Role__c) : [this.editingKind];
+        return kinds.map((kind, i) => ({
+            key: 'form-' + kind,
+            kind,
+            title: SECTION_TITLES[kind],
+            cls: 'rr-msect rr-edit' + (i === 0 ? ' rr-msect-first' : ''),
+            isSignin: kind === 'signin',
+            isApproval: kind === 'approval',
+            isBp: kind === 'bp',
+            isSlack: kind === 'slack'
+        }));
+    }
+
+    /** Edit in the org window: every section becomes a form, with one Cancel / Save. */
+    handleDialogEdit() {
+        if (this.editLocked || !this.dialogOrgId) {
+            return;
+        }
+        this.beginSection(this.dialogOrgId, ALL_SECTIONS);
+    }
+
+    /** What the forms hold now, to tell whether anything was changed. */
+    formState() { return JSON.stringify({ f: this.form, b: this.bpForm }); }
+    get formDirty() { return this.modalEditing && this.formState() !== this.formSnapshot; }
+
+    /** Resolves true when the window may drop what is typed: nothing changed, or the user says to discard it. */
+    askDiscard() {
+        if (!this.formDirty) {
+            return Promise.resolve(true);
+        }
+        this.confirming = true;
+        return LightningConfirm.open({
+            label: 'Discard changes?',
+            message: 'You changed ' + this.formOrgName + '. Discard the changes?',
+            theme: 'warning'
+        }).then((ok) => ok === true).catch(() => false).finally(() => {
+            this.confirming = false;
+        });
+    }
+
+    /** ×: closes the window (asks first when something typed would be lost); the focus goes back to the org's card. */
+    handleModalClose() {
+        if (this.saving || this.confirming) {
+            return;
+        }
+        this.askDiscard().then((ok) => {
+            if (ok) {
+                this.closeModal();
+            }
+        });
+    }
+
+    /** Close: a form being filled is dropped; the focus goes back to the org's card. */
+    closeModal() {
+        if (this.saving) {
+            return;
+        }
+        if (this.modalEditing) {
+            this.endEdit();
+        }
+        this.focusTileId = this.dialogOrgId;
+        this.dialogOrgId = undefined;
+    }
+
+    /** Escape = Cancel: in Edit back to read mode, otherwise the window closes; asks first when changes would be lost. */
+    handleModalKey(event) {
+        if (event.key !== 'Escape') {
+            return;
+        }
+        event.stopPropagation();
+        if (this.saving || this.confirming) {
+            return;
+        }
+        this.askDiscard().then((ok) => {
+            if (!ok) {
+                return;
+            }
+            if (this.modalEditAll) {
+                this.endEdit();
+            } else {
+                this.closeModal();
+            }
+        });
+    }
+
+    /** Saves every section of the org in one go: saveOrg with all its fields, then its back promote settings when it has them. */
+    saveOrgAll() {
+        if (!this.editValid() || !this.ruleValid()) {
+            return;
+        }
+        const payload = this.orgPayload();
+        const check = this.signInChanged(payload);
+        const name = payload.Name || 'Org';
+        const withBp = this.formIsBackPromote && this.bpIsAdmin;
+        this.saving = true;
+        this.editError = undefined;
+        saveOrg({ orgJson: JSON.stringify(payload) })
+            .then((id) => {
+                const orgId = payload.Id || id;
+                if (!withBp) {
+                    return orgId;
+                }
+                const settings = { orgId, whenValue: this.bpForm.whenValue, approval: this.bpForm.approval };
+                return saveBackPromoteOrg({ settingsJson: JSON.stringify(settings) }).then(() => orgId);
+            })
+            .then((orgId) => {
+                this.saving = false;
+                return this.finishEdit(name + ': saved').then(() => {
+                    this.showOrgCard(orgId);
+                    return check && orgId ? this.runCheck(orgId) : null;
+                });
+            })
+            .catch((e) => {
+                this.editError = errorText(e);
+            })
+            .finally(() => {
+                this.saving = false;
+            });
+    }
 
     /** The card's sections: Sign-in; Approval (stages and the hub) or Back promote (back promote orgs); Slack once it's set up. */
     sectionKinds(c) {
@@ -526,29 +1069,18 @@ export default class RlyPipeline extends LightningElement {
         return kinds;
     }
 
+    /** The org window's sections, read-only (Edit in the window turns them all into forms). */
     orgSections(o, c) {
-        const here = this.isEditingOrg(o.Id);
-        return this.sectionKinds(c).map((kind) => {
-            const key = 'org:' + o.Id + ':' + kind;
-            const isEditing = this.editing === key;
-            const isDim = here && !isEditing;
-            let cls = 'rr-sect';
-            if (isEditing) {
-                cls += ' rr-sect-edit rr-edit';
-            } else if (isDim) {
-                cls += ' rr-sect-dim';
-            }
+        return this.sectionKinds(c).map((kind, i) => {
             const title = SECTION_TITLES[kind];
             return {
-                key, kind, orgId: o.Id, title, isEditing, isDim, cls,
-                isView: !here,
+                key: 'org:' + o.Id + ':' + kind, kind, orgId: o.Id, title,
+                cls: 'rr-msect' + (i === 0 ? ' rr-msect-first' : ''),
                 isSignin: kind === 'signin',
                 isApproval: kind === 'approval',
                 isBp: kind === 'bp',
                 isSlack: kind === 'slack',
                 facts: this.sectionFacts(o, kind, c),
-                summary: this.sectionSummary(o, kind, c),
-                editLabel: 'Edit ' + o.Name + ' ' + title.toLowerCase(),
                 ariaLabel: o.Name + ': ' + title
             };
         });
@@ -565,22 +1097,6 @@ export default class RlyPipeline extends LightningElement {
             return this.bpSectionFacts(c.bp);
         }
         return this.orgSlackFacts(o, c.isDeveloper);
-    }
-
-    /** One line for a section while another section of the same card is being edited. */
-    sectionSummary(o, kind, c) {
-        if (kind === 'signin') {
-            return [ENVIRONMENT_LABELS[o.Environment__c], o.Branch__c, o.Username__c].filter((v) => !!v).join(' · ') || 'Not set';
-        }
-        if (kind === 'approval') {
-            return ruleText(o) + ' · Code scan: ' + this.scanText(o);
-        }
-        if (kind === 'bp') {
-            const when = this.bpWhenOptions.find((w) => w.value === c.bp.whenValue);
-            return (when ? when.label : c.bp.whenValue) + ' · approve before syncing ' + (c.bp.approval ? 'on' : 'off');
-        }
-        const channel = (o.Slack_Channel__c || '').trim();
-        return (channel || 'No channel') + ' · ' + (c.isDeveloper ? 'Also post here ' : 'Post to Slack ') + (o.Slack_Post__c ? 'on' : 'off');
     }
 
     /** Sign-in and environment facts for an org card. */
@@ -650,6 +1166,7 @@ export default class RlyPipeline extends LightningElement {
             })
             .finally(() => {
                 this.repoLoading = false;
+                this.openAttention();
             });
     }
 
@@ -753,33 +1270,6 @@ export default class RlyPipeline extends LightningElement {
             flag('post', isDeveloper ? 'Also post here' : 'Post to Slack', !!o.Slack_Post__c)
         ];
     }
-
-    /** The org cards (a new org's card first while registering one), with the Back promote card just before the back promote orgs. */
-    get gridCards() {
-        const cards = this.cards;
-        const lead = this.editing === NEW_ORG ? [this.newOrgCard] : [];
-        if (!this.backPromote) {
-            return [...lead, ...cards];
-        }
-        const at = cards.findIndex((c) => c.isBackPromote);
-        const settings = { Id: 'rr-back-promote', isSettings: true };
-        return at < 0 ? [...lead, ...cards, settings] : [...lead, ...cards.slice(0, at), settings, ...cards.slice(at)];
-    }
-
-    /** Register an org: the Sign-in section of a card that isn't saved yet. */
-    get newOrgCard() {
-        return {
-            Id: 'rr-new-org', Name: 'Register an org', isOrg: true, isNew: true, showFoot: false,
-            cardCls: 'rr-card rr-org rr-org-editing rr-org-new',
-            flowText: this.flowStepText,
-            sections: [{
-                key: 'new:signin', kind: 'signin', title: SECTION_TITLES.signin, isEditing: true, isDim: false, isView: false,
-                isSignin: true, cls: 'rr-sect rr-sect-edit rr-edit rr-sect-first', facts: [], summary: '', editLabel: '', ariaLabel: 'Register an org'
-            }]
-        };
-    }
-
-    get showGrid() { return this.hasOrgs || this.editing === NEW_ORG || !!this.backPromote; }
 
     /** The org's place on the route (stages in route order), so the cards follow the route. */
     routeIndex(o) {
@@ -918,6 +1408,7 @@ export default class RlyPipeline extends LightningElement {
             })
             .finally(() => {
                 this.pipeFilesLoading = false;
+                this.openAttention();
             });
     }
 
@@ -1150,12 +1641,34 @@ export default class RlyPipeline extends LightningElement {
     get bpPill() { return this.bpEnabled ? 'On' : 'Off by default'; }
     get bpPillCls() { return this.bpEnabled ? 'rr-pill rr-pill-ok' : 'rr-pill rr-pill-none'; }
     get bpToggleLabel() { return 'Send ' + this.hubName + '\'s changes to other orgs after a deploy'; }
-    get bpFacts() { return [flag('bp', this.bpToggleLabel, this.bpEnabled)]; }
     get bpHelpLead() { return 'Register an org with the role '; }
     get bpHelpTail() {
         return ', then choose when it gets ' + this.hubName + '\'s changes. Metadata only: users and records in that org stay as they are.';
     }
     get bpNoOrgs() { return this.bpOrgs.length === 0; }
+    /** Back promote beside the Git connection (compact): when the orgs get the changes, and how many orgs. */
+    get bpWhenText() {
+        const whens = [...new Set(this.bpOrgs.map((b) => b.whenValue || 'Manual'))];
+        if (!whens.length) {
+            return '';
+        }
+        if (whens.length > 1) {
+            return 'Set per org';
+        }
+        const w = this.bpWhenOptions.find((x) => x.value === whens[0]);
+        return w ? w.label : whens[0];
+    }
+    get bpOnText() { return this.bpEnabled ? 'On' : 'Off'; }
+    get bpCountText() { return this.bpOrgs.length + ' registered'; }
+    get bpOrgNames() { return this.bpOrgs.map((b) => b.name).join(', '); }
+    get bpCompactFacts() {
+        return [
+            fact('bpw', 'When', this.bpWhenText, { empty: 'When an admin clicks Sync now' }),
+            fact('bpn', 'Back promote orgs', this.bpCountText, { hint: this.bpOrgNames })
+        ];
+    }
+    get hasBackPromoteBox() { return !!this.backPromote; }
+    get gitRowCls() { return this.hasBackPromoteBox ? 'rr-git-row' : 'rr-git-row rr-git-row-solo'; }
 
     /** Dashed nodes after the hub on the route: "Back promote · matches <hub>" or "· n releases behind". */
     get backPromoteNodes() {
@@ -1203,7 +1716,7 @@ export default class RlyPipeline extends LightningElement {
             lastText,
             syncStatus: b.syncStatus || '',
             syncCls: SYNC_STATUS_CLS[b.syncStatus] || 'rr-pill rr-pill-none',
-            offNote: this.bpEnabled ? '' : 'Back promote is off. Switch it on in the Back promote card to sync this org.',
+            offNote: this.bpEnabled ? '' : 'Back promote is off. Switch it on under Back promote, next to the Git connection, to sync this org.',
             cantSync: !this.bpIsAdmin || busy || !this.bpEnabled || this.hubCopy,
             syncLabel: busy ? 'Starting…' : 'Sync now'
         };
@@ -1234,7 +1747,7 @@ export default class RlyPipeline extends LightningElement {
         }
     }
 
-    get routeCardCls() { return this.editingRoute ? 'rr-card rr-card-edit' : 'rr-card'; }
+    get routeCardCls() { return this.editingRoute ? 'rr-sec rr-card-edit' : 'rr-sec'; }
 
     cancelRouteEdit() {
         this.load();
@@ -1322,7 +1835,7 @@ export default class RlyPipeline extends LightningElement {
             { key: 'app', title: 'Slack app created', text: 'You do this in Slack (Guide → Set up → Slack).', done: this.tokenSaved },
             { key: 'tok', title: 'Bot token saved', text: 'Paste it with Edit → Bot token.', done: this.tokenSaved },
             { key: 'test', title: 'Test', text: 'Checks the token and shows your workspace name.', done: !!this.slack.connected },
-            { key: 'ch', title: 'Pick a channel per org', text: 'On each org card → Slack → Edit.', done: this.anyOrgChannel }
+            { key: 'ch', title: 'Pick a channel per org', text: 'Connected orgs → open the org → Edit → Slack.', done: this.anyOrgChannel }
         ];
         const next = items.findIndex((i) => !i.done);
         return items.map((i, n) => {
@@ -1434,9 +1947,10 @@ export default class RlyPipeline extends LightningElement {
     get slackViewing() { return !this.isSlackEditing; }
     get isBpEditing() { return this.editing === 'bp'; }
     get bpViewing() { return !this.isBpEditing; }
-    get gitCardCls() { return this.isGitEditing ? 'rr-card rr-card-edit rr-edit' : 'rr-card'; }
-    get slackCardCls() { return this.isSlackEditing ? 'rr-card rr-card-edit rr-edit' : 'rr-card'; }
-    get bpCardCls() { return this.isBpEditing ? 'rr-card rr-org rr-card-edit rr-edit' : 'rr-card rr-org'; }
+    get gitCardCls() { return this.isGitEditing ? 'rr-sec rr-card-edit' : 'rr-sec'; }
+    get gitBoxCls() { return this.isGitEditing ? 'rr-git-main rr-edit' : 'rr-git-main'; }
+    get slackCardCls() { return this.isSlackEditing ? 'rr-sec rr-card-edit rr-edit' : 'rr-sec'; }
+    get bpCardCls() { return this.isBpEditing ? 'rr-box rr-box-edit rr-edit' : 'rr-box'; }
     get isOrgEditing() { return this.editing === NEW_ORG || (this.editing || '').startsWith('org:'); }
 
     get saveLabel() {
@@ -1462,7 +1976,7 @@ export default class RlyPipeline extends LightningElement {
         if (this.isSlackEditing) {
             return 'Save then Test: shows the workspace name.';
         }
-        if (this.editingKind === 'signin') {
+        if (this.editingKind === 'signin' || this.editingKind === ALL_SECTIONS) {
             return this.inFlow ? 'Next tests the sign-in.' : 'Save tests the sign-in again when it changes.';
         }
         return '';
@@ -1474,14 +1988,6 @@ export default class RlyPipeline extends LightningElement {
     get flowKinds() { return this.flowKindsFor(this.form.Role__c); }
     get flowIndex() { return Math.max(0, this.flowKinds.indexOf(this.editingKind)); }
     get flowIsLast() { return this.flowIndex >= this.flowKinds.length - 1; }
-    get flowStepText() {
-        if (!this.inFlow) {
-            return '';
-        }
-        const kinds = this.flowKinds;
-        return 'Step ' + (this.flowIndex + 1) + ' of ' + kinds.length + ' · ' + kinds.map((k) => SECTION_TITLES[k]).join(' → ');
-    }
-
     /** The sections a new org with this role is walked through (the same ones its card shows). */
     flowKindsFor(role) {
         const kinds = ['signin'];
@@ -1501,6 +2007,16 @@ export default class RlyPipeline extends LightningElement {
         this.editing = key;
         this.editError = undefined;
         this.focusEdit = true;
+        this.formSnapshot = this.formState();
+    }
+
+    /** Connected orgs shows the org's tab, and its card lights up once. */
+    showOrgCard(orgId) {
+        const o = this.orgs.find((x) => x.Id === orgId);
+        if (o) {
+            this.pickTab(this.tabOf(o));
+            this.flashId = orgId;
+        }
     }
 
     endEdit() {
@@ -1544,6 +2060,8 @@ export default class RlyPipeline extends LightningElement {
             this.saveSlackEdit();
         } else if (this.isBpEditing) {
             this.saveBpEdit();
+        } else if (this.editingKind === ALL_SECTIONS) {
+            this.saveOrgAll();
         } else if (this.editingKind === 'bp') {
             this.saveBpOrg();
         } else {
@@ -1553,23 +2071,24 @@ export default class RlyPipeline extends LightningElement {
 
     // ----- org sections -----
 
-    startAdd() {
+    /** Register an org (page header, or a tab's "+ Register an org" tile: that tab's environment comes chosen). */
+    handleRegister(event) {
+        const env = event && event.currentTarget && event.currentTarget.dataset ? event.currentTarget.dataset.env : undefined;
+        this.startAdd(ENVIRONMENT_LABELS[env] ? env : undefined);
+    }
+
+    /** Opens the Register an org window at its first step (Sign-in), empty fields with grey hints. */
+    startAdd(env) {
         if (this.editLocked) {
             return;
         }
         this.editOrg = undefined;
         this.flowOrgId = undefined;
-        this.form = blankForm();
+        this.dialogOrgId = undefined;
+        this.form = { ...blankForm(), Environment__c: env || null };
         this.bounced = false;
         this.ruleError = undefined;
         this.startEdit(NEW_ORG);
-    }
-
-    handleSectionEdit(event) {
-        if (this.editLocked) {
-            return;
-        }
-        this.beginSection(event.currentTarget.dataset.id, event.currentTarget.dataset.kind);
     }
 
     /** Opens one section of a saved org for editing, with its saved values. */
@@ -1831,6 +2350,8 @@ export default class RlyPipeline extends LightningElement {
         }
         this.endEdit();
         this.toast((o ? o.Name : 'Org') + ' is registered', 'success');
+        this.showOrgCard(orgId);
+        this.focusTileId = orgId;
     }
 
     handleEditSkip() {
