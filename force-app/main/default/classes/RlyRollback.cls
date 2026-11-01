@@ -47,7 +47,9 @@ public with sharing class RlyRollback {
         if (org.hasSnapshot != true) {
             throw new RlyReleaseException(org.orgName + ' can\'t be rolled back: ' + org.why + '.');
         }
-        List<String> tests = testsFor(org, req.tests);
+        Boolean apex = snapshotHasApex(releaseId, org);
+        String testsChoice = isAllLocal(org, req.tests) ? TESTS_ALL : (apex ? TESTS_RELEASE : 'none');
+        List<String> tests = testsChoice == TESTS_RELEASE ? org.tests : new List<String>();
         String token = RlyPipelineRun.newToken();
         RlyGit.forConnection(RlyReleaseStore.git()).startPipeline(inputs(org, token, tests)); // the callout, before any DML
         RLY_Release__c row = new RLY_Release__c(Id = releaseId, Rollback_Status__c = RlyRollbackState.RUNNING, Rollback_Org__c = org.orgId,
@@ -55,7 +57,7 @@ public with sharing class RlyRollback {
             Rollback_Token__c = token, Rollback_Result__c = JSON.serialize(new Map<String, Object>{ 'request' => org.ownerName,
                 'snapshot' => org.snapshotPath, 'environment' => org.environment, 'branch' => org.branch,
                 'production' => org.production, 'byPromotion' => org.byPromotion, 'tests' => tests,
-                'testsChoice' => choiceOf(org, req.tests) }));
+                'testsChoice' => testsChoice }));
         row.Rollback_Org__r = new RLY_Org__c(Id = org.orgId, Name = org.orgName);
         RlyRollbackRun.record(row, null);
     }
@@ -76,18 +78,21 @@ public with sharing class RlyRollback {
         return reason.trim();
     }
 
-    // What the dialog chose for tests: none in a sandbox, else the release's tests (default) or all local tests.
-    private static String choiceOf(RlyRollbackPlan.OrgChoice org, String choice) {
-        if (org.production != true) {
-            return 'none';
-        }
-        return choice == TESTS_ALL ? TESTS_ALL : TESTS_RELEASE;
+    // All local tests only when chosen in production (only production shows the choice; the pipeline then runs
+    // RunLocalTests). Otherwise the release's tests (the snapshot owner's) run whenever Apex is in the snapshot, in any
+    // org, so a rollback never runs every org test unasked; without Apex none run.
+    private static Boolean isAllLocal(RlyRollbackPlan.OrgChoice org, String choice) {
+        return org.production == true && choice == TESTS_ALL;
     }
 
-    // The release's tests in production when chosen; none for "All local tests" (the pipeline runs RunLocalTests when
-    // Apex is in a production rollback) and none in a sandbox.
-    private static List<String> testsFor(RlyRollbackPlan.OrgChoice org, String choice) {
-        return org.production == true && choice != TESTS_ALL ? org.tests : new List<String>();
+    // Whether Apex is in the snapshot (its manifest, a callout before any DML). A manifest that can't be read counts as
+    // Apex, so the release's tests are sent rather than none.
+    private static Boolean snapshotHasApex(Id releaseId, RlyRollbackPlan.OrgChoice org) {
+        try {
+            return RlyRollbackPreview.preview(releaseId, org.orgId).apex == true;
+        } catch (Exception e) {
+            return !org.tests.isEmpty();
+        }
     }
 
     // Same as a deploy dispatch with mode rollback: branch, target and title are required by the pipeline but unused.

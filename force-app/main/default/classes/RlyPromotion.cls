@@ -110,14 +110,17 @@ public with sharing class RlyPromotion {
         return req.title.trim();
     }
 
-    // The picked releases, each still waiting in the stage, oldest deploy first.
+    // The picked releases, each still waiting in the stage, plus the older waiting releases that changed the same
+    // components (RlyPromoteOverlap: the next stop gets each file as it is in the stage), oldest deploy first. A newer
+    // waiting release that changed the same component blocks it.
     private static List<RLY_Release__c> picked(Request req, RLY_Org__c stage) {
-        Map<Id, RLY_Release__c> ready = new Map<Id, RLY_Release__c>(RlyPromoteStore.readyIn(new Set<Id>{ stage.Id }));
+        List<RLY_Release__c> waiting = RlyPromoteStore.readyIn(new Set<Id>{ stage.Id });
+        Map<Id, RLY_Release__c> ready = new Map<Id, RLY_Release__c>(waiting);
         Set<Id> ids = new Set<Id>(req.releaseIds);
         if (!ready.keySet().containsAll(ids)) {
             throw new RlyReleaseException('Some of these releases aren\'t waiting in ' + stage.Name + ' any more. Reload the list.');
         }
-        return RlyPromoteStore.byIds(ids);
+        return RlyPromoteStore.byIds(RlyPromoteOverlap.withCarried(waiting, ids));
     }
 
     private static RLY_Release__c build(RLY_Org__c stage, RLY_Org__c nextOrg, RLY_Git_Connection__c conn) {
@@ -155,7 +158,8 @@ public with sharing class RlyPromotion {
 
     /**
      * @description Starts a queued promotion's first run (mode promote): the pipeline makes the branch from the next
-     * stop's branch and picks the carried merge commits onto it. Callouts only: the caller saves the release.
+     * stop's branch and takes each file the carried merge commits changed as it is in the stage's branch
+     * (options.stageBranch, RlyPipelineOptions). Callouts only: the caller saves the release.
      * @param rel the promotion (Submitted)
      * @param git the Git provider
      */

@@ -47,6 +47,8 @@ const MANUAL_ONLY = 'Manual steps only';
 const NOT_NEEDED = 'Not needed: manual steps only';
 const NO_GIT_PATH = ['pr', 'checks'];
 const RELEASES_TAB = 'RLY_My_Releases';
+/** New Release: opened in append mode (state c__appendTo) to add changes to an open release. */
+const BUILDER_TAB = 'RLY_New_Release';
 const BRANCH_OK = 'Synced';
 /** RLY_Release_Event__c.Event_Type__c: the History card's title and icon per event (board HubApprovalFlowsEvidence 3). */
 const EVENT_LOOK = {
@@ -570,7 +572,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             return 'Bypassed by ' + (r.Scan_Bypassed_By__r ? r.Scan_Bypassed_By__r.Name : '') + ': ' + r.Scan_Bypass_Reason__c;
         }
         if (r.Scan_Status__c === 'Not configured') {
-            return 'Code scan is off for this repository.';
+            // The target org's own choice (RlyScanRule: Off) names the org; following the connection's switch, the repository.
+            const choice = r.Target_Org__r ? r.Target_Org__r.Code_Scan__c : null;
+            return choice === 'Off' ? 'Code scan is off for ' + this.targetName + '.' : 'Code scan is off for this repository.';
         }
         if (r.Scan_Status__c === 'Pending') {
             return r.PR_Number__c ? 'Salesforce Code Analyzer is running…' : '';
@@ -785,6 +789,31 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         return out;
     }
     get hasProblems() { return this.problems.length > 0; }
+
+    /**
+     * The files a promotion clashed on (raise.json conflicts, kept as Validation_Result__c raiseConflicts): the next
+     * stop has a change to them that the stage doesn't. Listed under the message; no conflict editor.
+     */
+    get raiseConflicts() {
+        const files = this.validation.raiseConflicts;
+        return Array.isArray(files) ? files.map((f, i) => ({ key: 'rc' + i, path: typeof f === 'string' ? f : (f && f.file) || String(f) })) : [];
+    }
+    get hasRaiseConflicts() { return this.raiseConflicts.length > 0; }
+
+    // ---------- add changes to an open release ----------
+
+    /** Detail.canAppend: a normal release, Checks failed or Ready for approval, not approved, nothing running, raiser or admin. */
+    get canAppend() { return !!(this.detail && this.detail.canAppend) && !this.running; }
+    get appendLabel() { return 'Add changes from ' + ((this.detail && this.detail.sourceName) || 'the developer org'); }
+
+    /** Opens New Release in append mode for this release (it starts at Select, with the release's components locked). */
+    openAppend() {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__navItemPage',
+            attributes: { apiName: BUILDER_TAB },
+            state: { c__appendTo: this._releaseId }
+        });
+    }
 
     /** Error_Message__c whatever the status (for example a rejected release whose pull request couldn't be closed). */
     get errorBanner() {
