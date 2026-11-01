@@ -952,7 +952,7 @@ const SETUP_SECTIONS = [
                                 where: 'Slack → the org\'s channel',
                                 goal: 'See the buttons work before you rely on them.',
                                 items: [
-                                    'The Slack connection shows **Approve in Slack: Set up** (signing secret saved and the Site found).',
+                                    'The Slack connection shows **Approve in Slack: Set up** (signing secret saved, the Site found, and its guest user has Read on User External Credentials and the Git principal). **Not ready** names what the guest user still needs.',
                                     'Raise a small release (or use one already waiting) so that it is **Ready for approval** in an org with Approve in Slack on.',
                                     'Its card in that org\'s channel shows **Approve** and **Reject**. A linked approver presses **Approve**: the card updates to Deploying, and the release page says it was approved in Slack. **Reject** opens a form, **Why are you rejecting?**, then **Reject release**.'
                                 ],
@@ -2261,7 +2261,7 @@ const USE_SECTIONS = [
                                 where: 'Pipeline → Slack connection',
                                 items: [
                                     'Until Slack answers it shows a checklist: Slack app created, Bot token saved, Check connection, Pick a channel per org.',
-                                    'Once connected: workspace, bot token (saved, never shown), the events, Approve in Slack (Set up, or Not set up (optional)) and approvers linked. **Show approvers** lists them; **Check connection** checks Slack again; the last message and its result are under it.',
+                                    'Once connected: workspace, bot token (saved, never shown), the events, Approve in Slack (Set up, Not ready with what the Site\'s guest user still needs, or Not set up (optional)) and approvers linked. **Show approvers** lists them; **Check connection** checks Slack again; the last message and its result are under it.',
                                     '**Edit**: Slack on or off, bot token, events, and **Approve in Slack (optional, advanced)** with the signing secret, the Interactivity URL to paste in Slack and the approvers\' Slack member IDs. **Save and test** saves and checks.'
                                 ],
                                 links: [{ label: 'Set up: E. Slack', to: 'setup-slack' }]
@@ -2371,9 +2371,9 @@ const REF_SECTIONS = [
                         type: 'table',
                         cols: ['Permission set', 'Gives'],
                         rows: [
-                            ['`RLY_Developer`', 'New Release, Releases and Guide tabs: raise and follow releases, read their history, download evidence and export CSV.'],
-                            ['`RLY_Approver`', 'Approvals and Promote tabs: approve, reject, bypass a code scan, resolve conflicts, promote what is deployed to a stage. Linked to a Slack member ID, approve from the Slack card.'],
-                            ['`RLY_Deploy_Team`', 'Release Relay Deployment Team: Approvals and Releases tabs; tick manual steps done or not needed in each org, **Open org ▾** / **Log in to <org>**, and roll a deployed release back.'],
+                            ['`RLY_Developer`', 'New Release, Releases, Guide and What\'s built tabs: raise and follow releases, read their history, download evidence and export CSV.'],
+                            ['`RLY_Approver`', 'Approvals, Releases and Promote tabs (Releases for following releases and Export CSV): approve, reject, bypass a code scan, resolve conflicts, promote what is deployed to a stage. Linked to a Slack member ID, approve from the Slack card.'],
+                            ['`RLY_Deploy_Team`', 'Release Relay Deployment Team: Approvals, Releases and Promote tabs (Promote read-only: what waits in each stage); tick manual steps done or not needed in each org, **Open org ▾** / **Log in to <org>**, and roll a deployed release back.'],
                             ['`RLY_Admin`', 'Pipeline tab: Git connection, orgs, route, approval rules, Slack, linked approvers, back promote. Promote tab. Includes Hotfix and the deployment team (so admins can roll back too). Shows the Set up sections of this Guide.'],
                             ['`RLY_Slack_Site`', 'For the Site guest user only, so Approve in Slack can reach the hub (with your Git credential\'s principal added, and Read on User External Credentials on the guest profile: Set up → E). Needed only when an org is approved in Slack.'],
                             ['Your Git access permission set', 'External Credential Principal Access to `RLY_GitHub` (or your provider\'s credential), for everyone who uses Release Relay. See Set up → B. Hub org.']
