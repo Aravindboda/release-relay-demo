@@ -417,7 +417,7 @@ const SETUP_SECTIONS = [
                                     'Press **Save**.'
                                 ],
                                 text: ['The Slack principal (`RLY_Slack - Bot`) is already in the Release Relay permission sets.'],
-                                check: 'Pipeline → Git connection → Test connection shows Connected (after step 12).',
+                                check: 'Pipeline → Git connection → Check connection shows Connected (after step 12).',
                                 problems: [['"Named Credential RLY_GitHub wasn\'t found or you can\'t use it. Check it exists, and that your permission set has its principal under External Credential Principal Access."', 'Do this step for the user who saw it, and check the Named Credential\'s name.']],
                                 shot: { ill: 'perm-principal', cap: 'External Credential Principal Access: enable RLY_GitHub - GitHub.', alt: 'Drawing of the External Credential Principal Access edit page with callouts 1 RLY_GitHub - GitHub in Enabled, 2 Save.' }
                             },
@@ -683,18 +683,18 @@ const SETUP_SECTIONS = [
                                     'Hub certificate: `release_relay`.',
                                     'Branch: the org\'s branch, for example `sit` or `dev1`.',
                                     'Git environment: the environment holding its login (C. Git provider, step 5), usually the same as the branch.',
-                                    'Press **Test sign-in and next**: it saves, signs in and reads the Org Id, sandbox name and Metadata API version. The window then walks you through Approval and Slack (Skip leaves the defaults).'
+                                    'Press **Check connection and next**: it saves, signs in and reads the Org Id, sandbox name and Metadata API version. The window then walks you through Approval and Slack (Skip leaves the defaults).'
                                 ],
                                 check: 'Connected orgs → the org\'s environment tab: its card shows Connected.',
                                 problems: SIGN_IN_PROBLEMS,
                                 shot: { ill: 'register-org', cap: 'Register an org: the eleven things to fill in, then Save.', alt: 'Drawing of the Register an org window with callouts 1 Org name, 2 Role, 3 Salesforce environment, 4 My Domain URL, 5 Login type, 6 Integration username, 7 Connected app consumer key, 8 Hub certificate, 9 Branch, 10 Git environment, 11 Save.' }
                             },
                             {
-                                title: 'Test sign-in any time',
+                                title: 'Check connection any time',
                                 who: 'Release Relay admin',
-                                where: 'Release Relay → Pipeline → Connected orgs → click the org → Test sign-in',
+                                where: 'Release Relay → Pipeline → Connected orgs → click the org → Check connection',
                                 goal: 'Proves the hub can still sign in (after a sandbox refresh, a new certificate or a changed user).',
-                                items: ['Click the org\'s card and press **Test sign-in** in its window. On a failure the Sign-in section names the fix (table above).'],
+                                items: ['Click the org\'s card and press **Check connection** in its window. On a failure the Sign-in section names the fix (table above).'],
                                 check: 'Connected, with the time it was checked.',
                                 shot: { name: 'register', cap: 'Example: Register an org. The consumer key is saved encrypted and shown as ••••.' }
                             },
@@ -705,7 +705,7 @@ const SETUP_SECTIONS = [
                                 goal: 'A refresh copies production\'s setup, so the sandbox\'s app and user may change.',
                                 items: [
                                     'Check the integration user is active in the sandbox, and the External Client App is there with the hub certificate.',
-                                    'If the consumer key changed: Pipeline → the org\'s card → Edit → paste it → Save. Then Test sign-in.'
+                                    'If the consumer key changed: Pipeline → the org\'s card → Edit → paste it → Save. Then Check connection.'
                                 ]
                             }
                         ]
@@ -773,7 +773,7 @@ const SETUP_SECTIONS = [
                                 who: 'Release Relay admin',
                                 where: 'Release Relay → Pipeline → Slack connection → Edit',
                                 goal: 'Choose what Slack hears about.',
-                                items: ['Switch **Slack** on, tick the events under **Send a message when a release is**, press Save, then **Test**.'],
+                                items: ['Switch **Slack** on, tick the events under **Send a message when a release is**, press Save, then **Check connection**.'],
                                 check: 'The card shows the workspace name.'
                             },
                             {
@@ -1117,7 +1117,7 @@ const USE_SECTIONS = [
                                     'Search and pick your developer org. Under it the page shows where the release **goes to**.',
                                     'Press **Next: find changes**.'
                                 ],
-                                problems: [['Your org isn\'t listed', 'An admin registers it on the Pipeline tab (role Developer org).'], ['A sign-in error on the org', 'An admin presses Test sign-in on its card; the message names the fix.']]
+                                problems: [['Your org isn\'t listed', 'An admin registers it on the Pipeline tab (role Developer org).'], ['A sign-in error on the org', 'An admin presses Check connection on its card; the message names the fix.']]
                             },
                             {
                                 title: 'Select the components',
@@ -1974,7 +1974,7 @@ const USE_SECTIONS = [
                                 goal: 'Add a developer org, a stage, the hub or a back promote org.',
                                 items: [
                                     '**Register an org** opens a window. From a tab\'s **+ Register an org** card, that tab\'s Salesforce environment comes chosen.',
-                                    'Step 1 Sign-in: fill in the fields (the grey text shows examples) and press **Test sign-in and next**. If the sign-in fails, the window says why and stays on Sign-in.',
+                                    'Step 1 Sign-in: fill in the fields (the grey text shows examples) and press **Check connection and next**. If the sign-in fails, the window says why and stays on Sign-in.',
                                     'Next steps: Approval (stages and the hub), Back promote (back promote orgs), Slack (once Slack is set up). **Skip** keeps the defaults.',
                                     'When it is done, the window closes and Connected orgs shows the new org\'s tab, with its card lit up.'
                                 ],
@@ -1989,12 +1989,12 @@ const USE_SECTIONS = [
                                     'Connected orgs has one tab per Salesforce environment (Developer sandbox, Developer Pro sandbox, Partial Copy sandbox, Full Copy sandbox, Production), each with how many orgs it has. An org with no environment is under **Not set**. Arrow keys move between the tabs.',
                                     'Each card shows the org\'s name, role (Developer, Stage 1, Hub, Back promote), sign-in status, branch, approval rule and code scan, and when it was last checked.',
                                     'Click a card (or press Enter on it) to open the org\'s window: Sign-in, Approval (with code scan and the two-approver rule), Back promote for those orgs, and Slack.',
-                                    '**Test sign-in** checks the hub can still sign in. **Send test message** posts to the org\'s Slack channel.',
+                                    '**Check connection** checks the hub can still sign in. **Send test message** posts to the org\'s Slack channel.',
                                     '**Edit** turns every section of the window into a form at once. Connected app consumer key: leave it blank to keep the saved key.',
                                     'Press **Save** (all sections are saved together; a changed sign-in is tested again) or **Cancel**. Escape asks before it drops changes. **Close** goes back to the cards.'
                                 ],
                                 problems: SIGN_IN_PROBLEMS,
-                                shot: { ill: 'org-edit', cap: 'An org\'s window (read-only) and the same window after Edit.', alt: 'Drawing of an org card and its Edit window with callouts 1 Test sign-in, 2 Edit, 3 consumer key left blank, 4 Slack channel, 5 Post to Slack, 6 Save.' }
+                                shot: { ill: 'org-edit', cap: 'An org\'s window (read-only) and the same window after Edit.', alt: 'Drawing of an org card and its Edit window with callouts 1 Check connection, 2 Edit, 3 consumer key left blank, 4 Slack channel, 5 Post to Slack, 6 Save.' }
                             },
                             {
                                 title: 'Back promote',
@@ -2181,7 +2181,7 @@ const REF_SECTIONS = [
                         cols: ['You see', 'Do this'],
                         rows: [
                             ['"No COMPONENT named …" after an update', 'Reload the page without cache (Ctrl+Shift+R), or log out and in. While building, turn browser caching off (Set up → F).'],
-                            ['A sign-in error on an org', 'The message names the fix (Remote Site, certificate, consumer key, pre-authorized user, login type, username). See Set up → D. Each org; an admin uses Test sign-in on the Pipeline tab.'],
+                            ['A sign-in error on an org', 'The message names the fix (Remote Site, certificate, consumer key, pre-authorized user, login type, username). See Set up → D. Each org; an admin uses Check connection on the Pipeline tab.'],
                             ['Git connection: check failed', 'The token is missing a permission or expired, the repository name is wrong, or the pipeline files aren\'t on the pipeline branch (Set up → B and C).'],
                             ['"Named Credential … wasn\'t found or you can\'t use it"', 'Give the user\'s permission set the credential\'s principal under External Credential Principal Access (Set up → B).'],
                             ['"couldn\'t close the pull request"', 'The Git token needs pull request (merge request) write access.'],

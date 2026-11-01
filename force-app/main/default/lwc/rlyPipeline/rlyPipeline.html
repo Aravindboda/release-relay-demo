@@ -47,7 +47,7 @@
                                 <li><strong>In the org:</strong> create an integration user with API Enabled, View Setup and Configuration, and Modify Metadata Through Metadata API Functions.</li>
                                 <li><strong>In the org:</strong> Setup &gt; External Client App Manager &gt; New External Client App. Turn on OAuth with the scopes api and refresh_token/offline_access, turn on the JWT bearer flow and upload the hub's .crt. Under policies, set Permitted Users to admin-approved users are pre-authorized and add the integration user's profile or permission set. Copy the consumer key.</li>
                                 <li><strong>In this hub:</strong> Setup &gt; Remote Site Settings &gt; New, with the org's My Domain URL, for example <span class="rr-mono">{remoteSite}</span>.</li>
-                                <li><strong>Here:</strong> Register an org, then Test sign-in and next.</li>
+                                <li><strong>Here:</strong> Register an org, then Check connection and next.</li>
                             </ol>
                             <p class="rr-weak rr-small">This hub is <span class="rr-mono">{hubDomain}</span>. Register it too, with the role Hub, so releases can be deployed to production.</p>
                         </section>
@@ -668,8 +668,8 @@
                 <template lwc:if={modalOpen}>
                     <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="rr-modal-title" class="slds-modal slds-fade-in-open slds-modal_medium rr-modal" onkeydown={handleModalKey}>
                         <div class="slds-modal__container">
-                            <button type="button" class="slds-button slds-button_icon slds-button_icon-inverse slds-modal__close rr-modal-close" title="Close" onclick={handleModalClose}>
-                                <lightning-icon icon-name="utility:close" size="small" variant="inverse" alternative-text="Close"></lightning-icon>
+                            <button type="button" class="slds-button slds-button_icon slds-modal__close rr-modal-close" title="Close" onclick={handleModalClose}>
+                                <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
                             </button>
                             <div class="slds-modal__header rr-mh">
                                 <h2 id="rr-modal-title" class="slds-modal__title slds-hyphenate rr-mh-title">{modalTitle}</h2>
