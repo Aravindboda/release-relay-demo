@@ -1,5 +1,11 @@
 <template>
     <div class="rr-page slds-is-relative">
+        <template lwc:if={hubCopy}>
+            <div class="slds-notify slds-notify_alert slds-alert_warning" role="alert">
+                <lightning-icon icon-name="utility:warning" size="x-small" alternative-text="Warning" class="slds-m-right_x-small"></lightning-icon>
+                <h2>{hubCopyMessage}</h2>
+            </div>
+        </template>
         <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
 
         <!-- header (board HubPromoteProd) -->
@@ -97,6 +103,24 @@
                                 <div class="rr-body">
                                     <p><strong>{s.countText}</strong>{s.componentText}</p>
                                     <p>{s.testsLead}<span class="rr-mono">{s.testsList}</span>{s.testsTail}</p>
+                                    <!-- carried manual steps (board HubManualSteps, 3) -->
+                                    <template lwc:if={s.hasManual}>
+                                        <div class="rr-manual">
+                                            <p class="rr-cap">{s.manualTitle}</p>
+                                            <ol class="rr-ms-list">
+                                                <template for:each={s.manualSteps} for:item="m">
+                                                    <li key={m.key} class="rr-ms">
+                                                        <span class="rr-no" aria-hidden="true">{m.no}</span>
+                                                        <span class="rr-ms-body">
+                                                            <span class="rr-row"><strong>{m.title}</strong><span class={m.timingCls}>{m.timingLabel}</span></span>
+                                                            <span class="rr-small rr-weak">{m.fromRelease}</span>
+                                                        </span>
+                                                    </li>
+                                                </template>
+                                            </ol>
+                                            <div class="rr-msg rr-msg-info">{s.manualNote}</div>
+                                        </div>
+                                    </template>
                                     <template lwc:if={s.aloneNote}><div class="rr-msg rr-msg-warn">{s.aloneNote}</div></template>
                                     <lightning-input label="Title" value={s.title} max-length="200" required data-stage={s.stageId}
                                         onchange={handleTitle} disabled={s.locked}></lightning-input>

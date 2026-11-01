@@ -101,6 +101,7 @@ public with sharing class RlyRouteController {
      */
     @AuraEnabled
     public static RLY_Git_Connection__c checkGit() {
+        RlyHubGuard.requireHub();
         requireAdmin();
         Data data = new Data();
         RLY_Git_Connection__c g = requireGit(data);
@@ -114,6 +115,7 @@ public with sharing class RlyRouteController {
      */
     @AuraEnabled
     public static List<String> createBranches() {
+        RlyHubGuard.requireHub();
         requireAdmin();
         Data data = new Data();
         RLY_Git_Connection__c g = requireGit(data);
@@ -166,6 +168,7 @@ public with sharing class RlyRouteController {
      */
     @AuraEnabled
     public static RlyPipelineFiles.UpdateResult updatePipelineFiles(String how) {
+        RlyHubGuard.requireHub();
         requireAdmin();
         return RlyPipelineFiles.updateRepository(how);
     }
@@ -210,6 +213,7 @@ public with sharing class RlyRouteController {
      */
     @AuraEnabled
     public static Id syncNow(Id orgId) {
+        RlyHubGuard.requireHub();
         return RlyBackPromoteQueue.queueSync(orgId);
     }
 

@@ -334,6 +334,46 @@
         <type>Text</type>
         <unique>false</unique>
     </fields>
+    <fields>
+        <fullName>Approval_Rule__c</fullName>
+        <description>When releases into this org need an approver: Always, only when the release contains one of the Approval Types, or Never (deploys when the checks pass). The hub (production) is never Never.</description>
+        <label>Approval Rule</label>
+        <required>false</required>
+        <trackHistory>false</trackHistory>
+        <type>Picklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Always</fullName><default>true</default><label>Always</label></value>
+                <value><fullName>Selected_Types</fullName><default>false</default><label>Only when the release contains…</label></value>
+                <value><fullName>Never</fullName><default>false</default><label>Never: deploy when the checks pass</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>Approval_Types__c</fullName>
+        <description>With the approval rule Only when the release contains…: the kinds of change that need an approver.</description>
+        <label>Approval Types</label>
+        <required>false</required>
+        <trackHistory>false</trackHistory>
+        <type>MultiselectPicklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Apex</fullName><default>false</default><label>Apex classes and triggers</label></value>
+                <value><fullName>Flows</fullName><default>false</default><label>Flows</label></value>
+                <value><fullName>Profiles_Permissions</fullName><default>false</default><label>Profiles and permission sets</label></value>
+                <value><fullName>Objects_Fields</fullName><default>false</default><label>Objects and fields</label></value>
+                <value><fullName>Deletions</fullName><default>false</default><label>Deletions</label></value>
+                <value><fullName>Manual_Steps</fullName><default>false</default><label>Manual steps</label></value>
+                <value><fullName>Hotfix</fullName><default>false</default><label>Hotfixes</label></value>
+                <value><fullName>Other</fullName><default>false</default><label>Anything else</label></value>
+            </valueSetDefinition>
+        </valueSet>
+        <visibleLines>6</visibleLines>
+    </fields>
     <label>Release Relay Org</label>
     <nameField>
         <label>Org Name</label>

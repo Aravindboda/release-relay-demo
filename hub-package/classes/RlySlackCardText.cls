@@ -1,7 +1,8 @@
 /**
  * @description The text a release's Slack card adds for hotfixes and promotions (RlySlackCard): the title ("Hotfix: "
  * first for a hotfix), "Why: <reason>" for a hotfix, "Promotes REL-…, REL-…" for a promotion and "Deletes: …" (the first
- * five, then "and n more") for a release that deletes components.
+ * five, then "and n more") for a release that deletes components, and "Manual steps: 1 before deploy, 1 after deploy"
+ * for a deploy with manual steps.
  */
 public with sharing class RlySlackCardText {
 
@@ -31,6 +32,10 @@ public with sharing class RlySlackCardText {
         String deletes = RlyDeletions.summary(rel);
         if (deletes != null) {
             out += RlySlackMessage.esc(deletes) + '\n';
+        }
+        String manual = RlyManualStepText.slackLine(RlyManualStepGate.counts(rel));
+        if (manual != null) {
+            out += RlySlackMessage.esc(manual) + '\n';
         }
         return out;
     }

@@ -8,6 +8,8 @@ import listTracked from '@salesforce/apex/RlyChangesController.listTracked';
 import detectTests from '@salesforce/apex/RlyChangesController.detectTests';
 import findDeletions from '@salesforce/apex/RlyChangesController.findDeletions';
 import raiseRelease from '@salesforce/apex/RlyReleasesController.raiseRelease';
+import flowVersions from '@salesforce/apex/RlyChangesController.flowVersions';
+import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 
 const TYPES_PER_CALL = 24;
 const PARALLEL = 4;
@@ -29,6 +31,27 @@ const TYPE_GROUPS = [
     ['Data model', ['CustomObject', 'CustomField', 'StandardValueSet', 'GlobalValueSet', 'RecordType', 'ValidationRule', 'BusinessProcess', 'CustomMetadata']],
     ['Access and UI', ['Layout', 'FlexiPage', 'PermissionSet', 'PermissionSetGroup', 'Profile', 'CustomTab', 'CustomApplication', 'ListView', 'QuickAction', 'CompactLayout']]
 ];
+
+/** RaiseRequest.flowChoices[].choice: what happens to a flow after it's deployed into each org. */
+const FLOW_KEEP = 'Keep';
+const FLOW_ACTIVATE = 'Activate';
+const FLOW_INACTIVE = 'Inactive';
+const FLOW_STATUS_CLS = { Active: 'rr-pill rr-pill-info', Draft: 'rr-pill rr-pill-wait', InvalidDraft: 'rr-pill rr-pill-bad', Obsolete: 'rr-pill rr-pill-none' };
+const FLOW_STATUS_LABEL = { Active: 'Active', Draft: 'Draft', InvalidDraft: 'Invalid draft', Obsolete: 'Obsolete' };
+/**
+ * Approval preview on Review (board HubApprovalFlowsEvidence 2). The hub decides with RlyApprovalRules when the checks
+ * pass; this mirrors its buckets only to tell the user early. Anything not listed is "Other".
+ */
+const TYPE_BUCKETS = {
+    ApexClass: 'Apex', ApexTrigger: 'Apex', Flow: 'Flows', FlowDefinition: 'Flows',
+    Profile: 'Profiles_Permissions', PermissionSet: 'Profiles_Permissions', PermissionSetGroup: 'Profiles_Permissions',
+    CustomPermission: 'Profiles_Permissions', MutingPermissionSet: 'Profiles_Permissions',
+    CustomObject: 'Objects_Fields', CustomField: 'Objects_Fields', RecordType: 'Objects_Fields', ValidationRule: 'Objects_Fields'
+};
+const BUCKET_WORDS = {
+    Apex: 'an Apex class', Flows: 'a Flow', Profiles_Permissions: 'a Profile or permission set', Objects_Fields: 'an object or field',
+    Deletions: 'deletions', Manual_Steps: 'manual steps', Hotfix: 'a hotfix', Other: 'other changes'
+};
 
 function errorText(e) {
     return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
@@ -76,6 +99,22 @@ const ENVIRONMENTS = [
 ];
 
 export default class RlyReleaseBuilder extends LightningElement {
+    /** RlyHubGuard.getHubStatus: whether this org is a sandbox copy of the hub (then a banner, and the actions are off). */
+    hubStatus;
+    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
+    get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
+
+    /** Reads the hub status once. A failed read shows nothing: the server refuses the actions anyway. */
+    readHubStatus() {
+        getHubStatus()
+            .then((status) => {
+                this.hubStatus = status;
+            })
+            .catch(() => {
+                this.hubStatus = undefined;
+            });
+    }
+
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
     get appName() { return APP_NAME; }
     windows = WINDOWS;
@@ -122,6 +161,7 @@ export default class RlyReleaseBuilder extends LightningElement {
     deletionResultBad = false;
 
     connectedCallback() {
+        this.readHubStatus();
         this.loading = true;
         getStart()
             .then((s) => {
@@ -775,6 +815,7 @@ export default class RlyReleaseBuilder extends LightningElement {
     goReview() {
         this.drawerOpen = false;
         this.step = 'review';
+        this.readFlows();
     }
 
     backToSelect() {
@@ -829,6 +870,8 @@ export default class RlyReleaseBuilder extends LightningElement {
     description = '';
     hotfix = false;
     hotfixReason = '';
+    /** Manual steps for the release (RaiseRequest.manualSteps), from c-rly-manual-steps. */
+    manualSteps = [];
     raising = false;
     raiseError;
     raisedId;
@@ -858,7 +901,7 @@ export default class RlyReleaseBuilder extends LightningElement {
         return this.isHotfix ? 'Raise hotfix' : 'Raise ' + this.crWord;
     }
     get cantRaise() {
-        return this.raising || this.noneSelected || this.ruleBlocked || this.bothItems.length > 0 || !(this.title || '').trim()
+        return this.raising || this.hubCopy || this.noneSelected || this.ruleBlocked || this.bothItems.length > 0 || !(this.title || '').trim()
             || (this.isHotfix && !(this.hotfixReason || '').trim());
     }
     get reviewKicker() { return 'New release · step 4 of 5 · Review'; }
@@ -888,6 +931,15 @@ export default class RlyReleaseBuilder extends LightningElement {
     handleHotfixReason(event) {
         this.hotfixReason = event.target.value;
     }
+    // ---------- manual steps ----------
+
+    /** The route's orgs (stages and the hub), offered under Pick orgs for a manual step. */
+    get routeOrgNames() {
+        return ((this.start && this.start.routeStops) || []).map((o) => o.Name);
+    }
+    handleManualSteps(event) {
+        this.manualSteps = event.detail.steps || [];
+    }
     get testRunCls() { return 'rr-msg ' + (this.ruleBlocked || this.bothItems.length ? 'rr-msg-bad' : 'rr-msg-info'); }
 
     handleTitle(event) { this.title = event.target.value; }
@@ -909,6 +961,156 @@ export default class RlyReleaseBuilder extends LightningElement {
         return 'Runs ' + this.testItems.map((t) => t.name).join(', ') + ' (RunSpecifiedTests) in every org it deploys to. Each Apex class and trigger needs 75% coverage.';
     }
 
+    // ---------- flows: versions and the After deploy choice (board HubApprovalFlowsEvidence 2) ----------
+
+    /** RlyChangesController.flowVersions: FlowInfo by flow name, read from the source org when Review opens. */
+    flowInfo = {};
+    flowsLoading = false;
+    flowsError;
+    /** The After deploy choice per flow name (Keep by default), sent as RaiseRequest.flowChoices. */
+    flowPicks = {};
+
+    get flowNames() {
+        return [...new Set(this.addedItems.filter((c) => c.type === 'Flow').map((c) => c.name))].sort();
+    }
+    get hasFlows() { return this.flowNames.length > 0; }
+    get flowCountText() { const n = this.flowNames.length; return n + (n === 1 ? ' flow' : ' flows'); }
+
+    readFlows() {
+        const names = this.flowNames;
+        if (!names.length || !this.orgId) {
+            return;
+        }
+        this.flowsLoading = true;
+        this.flowsError = undefined;
+        flowVersions({ orgId: this.orgId, names })
+            .then((list) => {
+                const next = {};
+                (list || []).forEach((f) => {
+                    next[f.name] = f;
+                });
+                this.flowInfo = next;
+            })
+            .catch((e) => {
+                this.flowInfo = {};
+                this.flowsError = 'Couldn\'t read the flow versions from ' + this.sourceName + ': ' + errorText(e);
+            })
+            .finally(() => {
+                this.flowsLoading = false;
+            });
+    }
+
+    /** The stages and the hub the release deploys to, in route order. */
+    get routeTargets() {
+        return ((this.start && this.start.routeStops) || []).filter((o) => o.Role__c === 'Stage' || o.Role__c === 'Hub')
+            .map((o) => ({ name: o.Name, order: o.Role__c === 'Hub' ? Number.MAX_SAFE_INTEGER : Number(o.Stage_Order__c || 0) }))
+            .sort((a, b) => a.order - b.order)
+            .map((o) => o.name);
+    }
+    get routeTargetsText() {
+        const names = this.routeTargets;
+        if (names.length < 2) {
+            return names[0] || 'each org';
+        }
+        return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+    }
+    get flowsKicker() {
+        const from = this.flowsLoading ? 'Reading versions from ' + this.sourceName + '…' : 'Versions read from ' + this.sourceName + ' just now.';
+        return from + ' Choose what happens to each flow after it\'s deployed to ' + this.routeTargetsText + '.';
+    }
+    get flowChoiceOptions() {
+        const src = this.sourceName || 'the developer org';
+        return [
+            { label: 'Keep as in ' + src, value: FLOW_KEEP },
+            { label: 'Activate in each org', value: FLOW_ACTIVATE },
+            { label: 'Leave inactive: add a manual step to activate', value: FLOW_INACTIVE }
+        ];
+    }
+
+    get flowRows() {
+        return this.flowNames.map((name) => {
+            const f = this.flowInfo[name];
+            const choice = this.flowPicks[name] || FLOW_KEEP;
+            const status = f && f.latestStatus;
+            const draft = !!f && status !== 'Active';
+            let where = 'in ' + this.sourceName;
+            if (draft) {
+                where += f.active ? ' · active: Version ' + f.active : ' · no active version';
+            }
+            return {
+                name,
+                choice,
+                versionText: f ? 'Version ' + f.latest + ' · ' + (FLOW_STATUS_LABEL[status] || status || 'Unknown') : (this.flowsLoading ? 'Reading…' : 'Version unknown'),
+                versionCls: (f && FLOW_STATUS_CLS[status]) || 'rr-pill rr-pill-none',
+                where: f ? where : '',
+                draftText: draft && choice !== FLOW_ACTIVATE
+                    ? 'Version ' + f.latest + ' is a draft. It deploys inactive: ' + this.routeTargetsText + ' keep running their current version unless you choose Activate.'
+                    : '',
+                stepText: choice === FLOW_INACTIVE
+                    ? 'Adds manual step “Activate flow ' + name + '” · Setup · After deploy · every org. It shows on the release\'s Manual steps once raised.'
+                    : '',
+                groupLabel: 'After deploy: ' + name
+            };
+        });
+    }
+
+    handleFlowChoice(event) {
+        this.flowPicks = { ...this.flowPicks, [event.target.dataset.name]: event.detail.value };
+    }
+
+    /** RaiseRequest.flowChoices: one {name, choice} per selected flow. */
+    get flowChoices() {
+        return this.flowNames.map((name) => ({ name, choice: this.flowPicks[name] || FLOW_KEEP }));
+    }
+
+    // ---------- approval preview: the first stage's approval rule (RLY_Org__c.Approval_Rule__c / Approval_Types__c) ----------
+
+    get targetStop() {
+        const name = this.start && this.start.targetName;
+        return ((this.start && this.start.routeStops) || []).find((o) => o.Name === name);
+    }
+
+    /** The release's kinds of change, as RlyApprovalRules buckets them. */
+    get releaseBuckets() {
+        const out = new Set(this.addedItems.map((c) => TYPE_BUCKETS[c.type] || 'Other'));
+        if (this.deletionItems.length) {
+            out.add('Deletions');
+        }
+        if ((this.manualSteps || []).length || this.flowChoices.some((f) => f.choice === FLOW_INACTIVE)) {
+            out.add('Manual_Steps');
+        }
+        if (this.isHotfix) {
+            out.add('Hotfix');
+        }
+        return out;
+    }
+
+    get approvalPreview() {
+        const t = this.targetStop;
+        if (!t || !t.Approval_Rule__c) {
+            return '';
+        }
+        if (t.Approval_Rule__c === 'Never') {
+            return 'Approved automatically when the checks pass (' + t.Name + '\'s rule: Never).';
+        }
+        if (t.Approval_Rule__c !== 'Selected_Types') {
+            return 'Always needs approval in ' + t.Name + '.';
+        }
+        const ticked = String(t.Approval_Types__c || '').split(';');
+        const hits = Object.keys(BUCKET_WORDS).filter((b) => ticked.includes(b) && this.releaseBuckets.has(b)).map((b) => BUCKET_WORDS[b]);
+        if (!hits.length) {
+            return 'Approved automatically when the checks pass: nothing in this release needs approval in ' + t.Name + '.';
+        }
+        const list = hits.length > 1 ? hits.slice(0, -1).join(', ') + ' and ' + hits[hits.length - 1] : hits[0];
+        return 'Needs approval: contains ' + list + '.';
+    }
+    get approvalPreviewLead() { return 'Approval in ' + (this.targetStop ? this.targetStop.Name : '') + ': '; }
+    get approvalPreviewRule() {
+        const t = this.targetStop;
+        const labels = { Always: 'Always', Selected_Types: 'Only when the release contains…', Never: 'Never' };
+        return t ? ' (' + t.Name + '\'s rule: ' + (labels[t.Approval_Rule__c] || t.Approval_Rule__c) + ')' : '';
+    }
+
     async raise() {
         this.raising = true;
         this.raiseError = undefined;
@@ -923,7 +1125,9 @@ export default class RlyReleaseBuilder extends LightningElement {
                 deletions,
                 testClasses: this.testItems.map((t) => t.name),
                 isHotfix: this.isHotfix,
-                hotfixReason: this.isHotfix ? this.hotfixReason.trim() : null
+                hotfixReason: this.isHotfix ? this.hotfixReason.trim() : null,
+                manualSteps: this.manualSteps,
+                flowChoices: this.flowChoices
             };
             this.raisedId = await raiseRelease({ requestJson: JSON.stringify(request) });
             this.step = 'raise';
@@ -940,6 +1144,9 @@ export default class RlyReleaseBuilder extends LightningElement {
         this.description = '';
         this.hotfix = false;
         this.hotfixReason = '';
+        this.manualSteps = [];
+        this.flowPicks = {};
+        this.flowInfo = {};
         this.raisedId = undefined;
         this.step = 'source';
     }

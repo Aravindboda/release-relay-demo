@@ -1,8 +1,8 @@
 /**
  * @description What the release page shows about a release's links to others: hotfix and type, the releases a promotion
  * carries, the promotion carrying it, how the branches were merged back after the merge (Back_Merge_Result__c, stage
- * branches then developer branches), where a deploy to the hub was sent (back promote), the second-approver state and
- * the components it deletes.
+ * branches then developer branches), where a deploy to the hub was sent (back promote), the second-approver state,
+ * the components it deletes and its manual steps.
  */
 public with sharing class RlyReleaseLinks {
 
@@ -28,6 +28,15 @@ public with sharing class RlyReleaseLinks {
         d.needsSecondApprover = RlyTwoApprovers.waitsForSecond(rel);
         d.firstApprover = d.needsSecondApprover && rel.Approved_By__r != null ? rel.Approved_By__r.Name : null;
         d.deletions = RlyDeletions.of(rel);
+        fillManual(d);
+    }
+
+    // The manual steps of its deploy into its target (RlyManualStepGate).
+    private static void fillManual(RlyReleasesController.Detail d) {
+        RlyManualSteps.Counts c = RlyManualStepGate.counts(d.release);
+        d.manualOpen = c.open();
+        d.manualBeforeOpen = c.beforeOpen;
+        d.manualSummary = RlyManualStepText.summary(c);
     }
 
     private static RlyReleasesController.CarriedRelease toCarried(RLY_Release__c r) {

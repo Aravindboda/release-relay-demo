@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Manual steps</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px}
+.hd{padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;gap:8px}
+.hd h2{margin:0;font-size:15px;flex:1}
+.bd{padding:12px 16px;display:flex;flex-direction:column;gap:10px;font-size:13px}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.lab{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5C5C5C}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap;width:max-content}
+.hot{background:#FEDED8;color:#8E030F}.ok{background:#EBF7E6;color:#2E844A}.info{background:#EEF4FF;color:#014486}.none{background:#F3F3F3;color:#444}.wait{background:#FEF1CD;color:#8C4B02}.cat{background:#F3F3F3;color:#444;font-weight:400}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tg{display:inline-flex;width:44px;height:24px;border-radius:12px;background:#0176D3;position:relative;flex:none}.tg::after{content:"";position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.tg.off{background:#939393}.tg.off::after{right:auto;left:3px}
+.cb{width:16px;height:16px;border-radius:3px;background:#0176D3;color:#fff;font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.cb.o{background:#fff;border:1px solid #939393}.cb.na{background:#F3F3F3;border:1px solid #C9C9C9;color:#5C5C5C}
+.in{border:1px solid #C9C9C9;border-radius:4px;padding:8px 10px;min-height:20px;color:#181818}
+.fl{display:flex;flex-direction:column;gap:4px}.fl>span{font-size:12px;color:#444}
+.btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #0176D3;background:#0176D3;color:#fff;font:inherit;font-size:13px}
+.btn2{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px}
+.ic{width:28px;height:28px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font-size:13px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.ic.dis{color:#C9C9C9}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg{display:inline-flex;border:1px solid #C9C9C9;border-radius:4px;overflow:hidden}.seg span{padding:6px 12px;border-right:1px solid #C9C9C9}.seg span:last-child{border-right:0}.seg .s{background:#0176D3;color:#fff}
+.tabs{display:flex;gap:0;border-bottom:1px solid #E5E5E5;margin:0 -16px;padding:0 16px}
+.tabs span{padding:8px 14px;font-size:13px;border-bottom:3px solid transparent;display:inline-flex;gap:6px;align-items:center}
+.tabs .on{border-bottom-color:#0176D3;font-weight:700}
+.ms{display:flex;gap:10px;padding:10px 0;border-top:1px solid #F3F3F3;align-items:flex-start}.ms:first-child{border-top:0}
+.no{width:22px;height:22px;border-radius:50%;background:#F3F3F3;color:#444;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+.ms .body{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.instr{background:#FAFAF9;border:1px solid #E5E5E5;border-radius:4px;padding:6px 10px;font-size:12px}
+.msg{padding:8px 12px;border-radius:4px;font-size:12px;line-height:1.45}
+.msg.warn{background:#FEF1CD;color:#5E3600}.msg.info{background:#EEF4FF;color:#014486}
+.lnk{color:#0B5CAB}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:8px 10px;border-top:1px solid #E5E5E5;font-size:13px}th{border-top:0;background:#FAFAF9;font-size:12px;color:#5C5C5C}
+</style>
+</helmet>
+<div style="padding:12px;display:flex;flex-direction:column;gap:12px">
+
+<p class="lab">Manual steps = changes that can't be deployed as metadata (profile access, data, setup). Added to the release, they follow it through every org in order, and the deployment team checks each one off per org</p>
+<div class="grid">
+  <section class="card">
+    <div class="hd"><h2>1 · New Release, step 4 (Review): Manual steps</h2><span class="pill none">2 steps</span></div>
+    <div class="bd">
+      <p class="k">Things the deployment team does by hand in each org, in this order. They follow the release to SIT, PROD and back promote orgs.</p>
+      <div class="ms"><span class="no">1</span><div class="body">
+        <div class="row"><strong>Give Sales User access to Account.Region__c</strong><span class="pill wait">Before deploy</span><span class="pill cat">Profile or permission access</span></div>
+        <p class="k">All orgs on the route · also in back promote orgs</p>
+      </div><span class="ic dis">▲</span><span class="ic">▼</span><span class="ic">✎</span><span class="ic">✕</span></div>
+      <div class="ms"><span class="no">2</span><div class="body">
+        <div class="row"><strong>Load region values for existing accounts</strong><span class="pill info">After deploy</span><span class="pill cat">Data</span></div>
+        <p class="k">PROD only</p>
+      </div><span class="ic">▲</span><span class="ic dis">▼</span><span class="ic">✎</span><span class="ic">✕</span></div>
+      <div class="card" style="background:#FAFAF9">
+        <div class="bd">
+          <p class="lab" style="margin:0">Add a manual step</p>
+          <label class="fl"><span>* Title</span><div class="in">Start the nightly region sync job</div></label>
+          <div class="grid2">
+            <label class="fl"><span>Category</span><div class="in">Setup configuration ▾</div></label>
+            <div class="fl"><span>When</span><div class="seg"><span>Before deploy</span><span class="s">After deploy</span></div></div>
+          </div>
+          <label class="fl"><span>Instructions</span><div class="in" style="min-height:44px">Setup → Scheduled Jobs → schedule RegionSync daily at 01:00.</div></label>
+          <div class="row"><span class="tg"></span><span>Also in back promote orgs</span></div>
+          <div class="fl"><span>Orgs</span><div class="seg"><span class="s">All orgs on the route</span><span>Pick orgs</span></div></div>
+          <div class="row" style="justify-content:flex-end"><button class="btn2">Cancel</button><button class="btn">Add step</button></div>
+        </div>
+      </div>
+      <div class="row"><button class="btn2">+ Add a manual step</button><span style="flex:1"></span><button class="btn">Raise pull request</button></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="hd"><h2>2 · Release page: Manual steps card</h2><span class="pill wait">2 manual steps open</span></div>
+    <div class="bd">
+      <div class="tabs"><span class="on">SIT <span class="pill wait">2 open</span></span><span>PROD <span class="pill none">2</span></span><span>TRAINING <span class="pill none">1</span></span></div>
+      <div class="msg warn">Approved. Deploys when the deployment team finishes 1 manual step before deploy.</div>
+      <div class="ms"><span class="cb o"></span><span class="no">1</span><div class="body">
+        <div class="row"><strong>Give Sales User access to Account.Region__c</strong><span class="pill wait">Before deploy</span><span class="pill cat">Profile or permission access</span></div>
+        <div class="instr">Profile Sales User: Account.Region__c read/edit. Permission set Region Admin: edit.</div>
+        <div class="row"><button class="btn2" style="height:28px">Done</button><button class="btn2" style="height:28px">Not needed</button><span class="k">REL-00029</span></div>
+      </div></div>
+      <div class="ms"><span class="cb">✓</span><span class="no">2</span><div class="body">
+        <div class="row"><strong>Load region values for existing accounts</strong><span class="pill info">After deploy</span><span class="pill cat">Data</span><span class="pill ok">Done</span></div>
+        <p class="k"><span class="lnk">Show instructions</span> · Done by Priya Shah · Oct 30, 5:21 PM</p>
+      </div></div>
+      <div class="ms"><span class="cb na">–</span><span class="no">3</span><div class="body">
+        <div class="row"><strong>Start the nightly region sync job</strong><span class="pill info">After deploy</span><span class="pill cat">Setup configuration</span><span class="pill none">Not needed</span></div>
+        <p class="k">Not needed: “job already scheduled in SIT” · Priya Shah · Oct 30, 5:24 PM</p>
+      </div></div>
+      <p class="k">Only the deployment team (RLY Deploy Team or admin) ticks steps. The raiser can add, edit and reorder them until the first deploy.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="hd"><h2>3 · Promote SIT → PROD: carried manual steps</h2></div>
+    <div class="bd">
+      <p><strong>2 releases</strong> · 7 components</p>
+      <p>Tests in PROD: <span class="mono">RegionTest</span> (RunSpecifiedTests, 75% each)</p>
+      <p class="lab" style="margin:4px 0 0">Manual steps in PROD, in this order · 3</p>
+      <div class="ms"><span class="no">1</span><div class="body"><div class="row"><strong>Give Sales User access to Account.Region__c</strong><span class="pill wait">Before deploy</span></div><p class="k">REL-00029</p></div></div>
+      <div class="ms"><span class="no">2</span><div class="body"><div class="row"><strong>Load region values for existing accounts</strong><span class="pill info">After deploy</span></div><p class="k">REL-00029</p></div></div>
+      <div class="ms"><span class="no">3</span><div class="body"><div class="row"><strong>Turn on Case escalation emails</strong><span class="pill info">After deploy</span></div><p class="k">REL-00031</p></div></div>
+      <div class="msg info">The promotion carries them in deploy order. PROD's deploy waits for its before deploy steps.</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="hd"><h2>4 · Approvals and Releases: manual steps pill</h2></div>
+    <div class="bd">
+      <table>
+        <tr><th>Release</th><th>Route</th><th>Waiting</th><th></th></tr>
+        <tr><td><strong>REL-00029</strong> Region field on Account <span class="pill wait">2 manual steps</span></td><td>DEV1 → SIT</td><td>2 h</td><td><button class="btn2" style="height:28px">Review</button></td></tr>
+        <tr><td><strong>REL-00030</strong> Quote PDF layout</td><td>DEV2 → SIT</td><td>3 h</td><td><button class="btn2" style="height:28px">Review</button></td></tr>
+      </table>
+      <p class="k">The pill counts the steps still open for the release's target org. The Slack card adds “Manual steps: 1 before deploy, 1 after deploy”.</p>
+      <div class="row"><span class="pill info">Deployed</span><span class="pill wait">1 manual step open</span><span class="k">header of the release page after the deploy</span></div>
+    </div>
+  </section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1100}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

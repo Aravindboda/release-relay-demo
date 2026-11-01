@@ -194,7 +194,7 @@ const SECTIONS = [
                             { title: 'Pull request', text: 'Pipeline converts and opens it' },
                             { title: 'Checks', text: 'Scan + check-only deploy, merged with the target' },
                             { title: 'Conflict?', text: 'Choose per file, checks run again' },
-                            { title: 'Approve', text: 'In Salesforce, Slack or the Git provider' },
+                            { title: 'Approve', text: 'In Salesforce, Slack or Git, or by the org\'s rule' },
                             { title: 'Deploy', text: 'Merge, deploy, update dev branches' }
                         ],
                         shots: [
@@ -357,7 +357,9 @@ const SECTIONS = [
                                 where: 'New Release → Review',
                                 text: [
                                     'Check the list (remove anything that shouldn\'t go), give the release a title, and raise it. The release page opens and follows the release step by step.',
-                                    'With the Hotfix permission you also see **This is a hotfix**. Tick it for an urgent fix and say why: the button becomes **Raise hotfix** (see Hotfix).'
+                                    'With the Hotfix permission you also see **This is a hotfix**. Tick it for an urgent fix and say why: the button becomes **Raise hotfix** (see Hotfix).',
+                                    'Flows in the release show their version in your org (for example **Version 8 · Draft**) and an **After deploy** choice per flow (see Flows). Add manual steps for anything that can\'t be deployed (see Manual steps).',
+                                    'Above the button the page tells you whether the first stage will ask for approval, from that org\'s approval rule (see Approval rules).'
                                 ],
                                 shot: { name: 'review', cap: 'Example: Review, what goes in and which tests run.' }
                             },
@@ -415,7 +417,8 @@ const SECTIONS = [
                                 ]
                             }
                         ]
-                    }
+                    },
+                    { type: 'note', text: 'An org whose approval rule is **Only when the release contains…** with **Deletions** ticked always asks for approval when a release deletes something. The evidence PDF lists the deletions per release.' }
                 ]
             }
         ]
@@ -430,7 +433,7 @@ const SECTIONS = [
                 title: 'Approve',
                 aside: SHOT_NOTE,
                 blocks: [
-                    { type: 'text', paras: ['You decide what goes into each stage. You need the `RLY_Approver` permission set. Each org card on the Pipeline tab sets where releases into that org are approved: **In Salesforce**, **In Slack** or **In** your Git provider.'] },
+                    { type: 'text', paras: ['You decide what goes into each stage. You need the `RLY_Approver` permission set. Each org card on the Pipeline tab sets **whether** a release into that org needs you (its approval rule, see Approval rules) and **where** it is approved: **In Salesforce**, **In Slack** or **In** your Git provider.'] },
                     {
                         type: 'steps',
                         steps: [
@@ -455,7 +458,7 @@ const SECTIONS = [
                             },
                             {
                                 title: 'Hotfixes that need 2 approvers',
-                                text: ['An org card on the Pipeline tab can say **Hotfixes into <org> need 2 approvers**. Then a hotfix into that org needs two different approvers, and the person who raised it can\'t approve it. After the first approval the release page shows who approved and waits for the second. Approval is never skipped.']
+                                text: ['An org card on the Pipeline tab can say **Hotfixes into <org> need 2 approvers**. Then a hotfix into that org needs two different approvers, and the person who raised it can\'t approve it. After the first approval the release page shows who approved and waits for the second. To make sure every hotfix into an org waits for approvers, give that org the rule **Always**, or tick **Hotfixes** under Only when the release contains….']
                             },
                             {
                                 title: 'Approve in Slack or in the Git provider',
@@ -463,6 +466,151 @@ const SECTIONS = [
                                     '**In Slack**: the release card in the org\'s channel shows Approve and Reject, for approvers whose Slack account is linked (see Slack).',
                                     '**In the Git provider**: when the checks pass the hub starts the merge, and your provider\'s own reviewers and branch rules approve it.'
                                 ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'approvalrules',
+        group: 'daily',
+        label: 'Approval rules',
+        cards: [
+            {
+                key: 'ar-main',
+                title: 'Approval rules per org',
+                blocks: [
+                    { type: 'text', paras: ['Each org on the route decides when a release into it needs a person to approve it. The scan, the check-only deploy and the tests always have to pass first: a rule only decides what happens after that. An admin sets it on the Pipeline tab: **Edit** on the org\'s card → **Approval** → **Approval rule**. The card shows the rule.'] },
+                    {
+                        type: 'table',
+                        cols: ['Approval rule', 'What happens when the checks pass'],
+                        rows: [
+                            ['**Always** (the default)', 'The release waits for an approver, as before.'],
+                            ['**Only when the release contains…**', 'It waits for an approver only if it has one of the ticked kinds of change. Otherwise it is approved automatically and deploys.'],
+                            ['**Never: deploy when the checks pass**', 'Approved automatically and deployed. Not allowed for production (the hub org): pick Always or Only when….']
+                        ]
+                    },
+                    {
+                        type: 'table',
+                        cols: ['Kind of change', 'Counts'],
+                        rows: [
+                            ['Apex classes and triggers', 'Apex classes, Apex triggers'],
+                            ['Flows', 'Flows and flow definitions'],
+                            ['Profiles and permission sets', 'Profiles, permission sets, permission set groups, custom permissions, muting permission sets'],
+                            ['Objects and fields', 'Objects, fields, record types, validation rules'],
+                            ['Deletions', 'The release deletes something'],
+                            ['Manual steps', 'The release has manual steps (including Leave inactive on a flow)'],
+                            ['Hotfixes', 'The release is a hotfix'],
+                            ['Anything else', 'Everything not in another box: layouts, reports, list views, static resources, Lightning components…']
+                        ]
+                    },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Approved automatically',
+                                where: 'The release page and Slack',
+                                items: [
+                                    'The release is approved by the rule (Approved via **Rule**, no approver) with the comment **Approved automatically:** and the reason, then deploys exactly as after an approval.',
+                                    'The Approval step and the Slack card show why, for example **Needs approval: contains a Flow and a Profile** or **Approved automatically: only reports and list views**.',
+                                    'Manual steps before deploy still hold the deploy until the deployment team finishes them.'
+                                ]
+                            },
+                            {
+                                title: 'Each stop decides for itself',
+                                text: ['A release into the first stage follows that org\'s rule; a promotion into production follows production\'s rule. For example (an example only): a test stage set to Never, and production set to Always.']
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'flows',
+        group: 'daily',
+        label: 'Flows',
+        cards: [
+            {
+                key: 'fl-main',
+                title: 'Flows: versions and activation',
+                blocks: [
+                    { type: 'text', paras: ['A flow is deployed as the version that is newest in your developer org. Whether that version is then **active** in each org is your choice on the review step.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Check the version',
+                                where: 'New Release → Review → Flows',
+                                items: [
+                                    'Each flow shows its newest version in your org and its status, for example **Version 9 · Active** or **Version 4 · Draft · active: Version 3**.',
+                                    'A draft deploys inactive: the orgs keep running their current version unless you choose Activate.'
+                                ]
+                            },
+                            {
+                                title: 'Choose what happens after deploy',
+                                where: 'New Release → Review → Flows → After deploy',
+                                items: [
+                                    '**Keep as in** your org (the default): deployed with the status it has in your org.',
+                                    '**Activate in each org**: after each successful deploy (and each back promote sync) the hub makes the deployed version the active one in that org.',
+                                    '**Leave inactive: add a manual step to activate**: deployed inactive, and the release gets the manual step **Activate flow <name>** (Setup, After deploy) in every org, for the deployment team.'
+                                ]
+                            },
+                            {
+                                title: 'See the result',
+                                where: 'The release page → Flows',
+                                items: [
+                                    'One line per flow and org, for example `SIT v9 active · PROD v9 active` (an example only), or why activation failed.',
+                                    'A promotion carries the choices of the releases it carries: Activate wins over Keep.'
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        type: 'note',
+                        text: 'Production: with **Deploy processes and flows as active** on (Setup → Process Automation Settings), an active flow version deploys active, and Salesforce then requires the Apex tests that run in the deploy to cover it (flow test coverage). With it off, flows arrive in production inactive and Activate in each org activates them after the deploy. Activating needs the org\'s integration user to have the **Manage Flow** permission.'
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'evidence',
+        group: 'daily',
+        label: 'History and evidence',
+        cards: [
+            {
+                key: 'ev-main',
+                title: 'History and evidence',
+                blocks: [
+                    { type: 'text', paras: ['Release Relay records every step of a release as it happens: raised, pull request, scan, check-only deploy, approvals (or approved automatically), manual steps, deploys, flow activation, merged back, promoted and back promoted. Nobody can edit or delete these records.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'History',
+                                where: 'The release page → History',
+                                text: ['A timeline of the release, newest last: who did what, when, and how (Salesforce, Slack, Git, Rule or Pipeline), with deploy ids and links.']
+                            },
+                            {
+                                title: 'Download evidence (PDF)',
+                                where: 'The release page → header',
+                                items: [
+                                    'Builds a PDF for the change request or code review: the release and its route, components and deletions, the pull request, the scan summary and findings, validation per org (tests run, coverage warnings, deploy ids), approvals (who, when, how, comment, second approver), manual steps per org (done by, when, notes), flow results, deploys per org, merged back, and the full history.',
+                                    'Each PDF is saved to the release\'s **Files** (for example `REL-00034 evidence 2026-10-31 16:05.pdf`, an example only) and downloads straight away. Press it again later for a newer copy; the older ones stay.'
+                                ]
+                            },
+                            {
+                                title: 'Copy summary',
+                                where: 'The release page → header',
+                                text: ['Copies a short plain-text summary (route, components, scan, tests, approval, status, flows, manual steps, pull request link) to paste into a change request. It also shows on the page, in case the browser blocks copying.']
+                            },
+                            {
+                                title: 'Export CSV',
+                                where: 'Releases tab',
+                                text: ['Exports the releases that match the filters (Raised by, status, search) to `releases-<date>.csv`: release, title, route, raised by and on, status, approved by and on, approved via, comment, second approver, deployed to, deploy ids and pull request link.']
                             }
                         ]
                     }
@@ -529,12 +677,12 @@ const SECTIONS = [
                             {
                                 title: 'Approve it first',
                                 where: 'Approvals tab and Slack',
-                                text: ['Hotfixes are listed first, with the reason. The Slack card starts with **Hotfix:** and shows **Why:**.']
+                                text: ['Hotfixes are listed first, with the reason. The Slack card starts with **Hotfix:** and shows **Why:**. Whether an approver is needed follows the org\'s approval rule: give the org **Always**, or tick **Hotfixes**, so every hotfix waits for one.']
                             },
                             {
                                 title: 'Promote it on its own',
                                 where: 'Promote tab',
-                                text: ['When the hotfix is deployed to the stage, it waits on the Promote tab, ticked on its own: **Promote hotfix to** the next stop sends only its changes. Other work waiting in the stage stays there. Into production it is approved again (2 approvers if the production org card asks for it).']
+                                text: ['When the hotfix is deployed to the stage, it waits on the Promote tab, ticked on its own: **Promote hotfix to** the next stop sends only its changes. Other work waiting in the stage stays there. Into production it goes through production\'s approval rule again (production can\'t be Never; 2 approvers if the production org card asks for it).']
                             },
                             {
                                 title: 'Merged back down',
@@ -576,7 +724,64 @@ const SECTIONS = [
                             {
                                 title: 'Follow it',
                                 where: 'The release page',
-                                text: ['The promotion lists what it **Carries**; each carried release shows **Promoted in** with a link. If the promotion is rejected or fails, the releases it carried are ready to promote again.']
+                                text: ['The promotion lists what it **Carries**; each carried release shows **Promoted in** with a link. It carries their manual steps and flow choices too (Activate wins over Keep). Whether it waits for an approver follows the next stop\'s approval rule. If the promotion is rejected or fails, the releases it carried are ready to promote again.']
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'manual',
+        group: 'daily',
+        label: 'Manual steps',
+        cards: [
+            {
+                key: 'ms-main',
+                title: 'Manual steps',
+                blocks: [
+                    { type: 'text', paras: ['Some changes can\'t be deployed as metadata: profile or permission access, data loads, setup settings, a connected app setting, a scheduled job to start. Add them to the release as **manual steps**. They travel with the release through every org on the route and to back promote orgs, in order, and the **deployment team** checks each one off per org.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Add them when you raise',
+                                where: 'New Release → Review → Manual steps',
+                                items: [
+                                    'Press **Add a manual step**: a title, the category (Profile or permission access, Data, Setup configuration, Other), **When** (Before deploy or After deploy) and the exact instructions, for example `Profile Sales User: Account.Region__c read/edit`.',
+                                    '**Also in back promote orgs** is on by default. **Orgs**: all orgs on the route, or pick the orgs it applies to.',
+                                    'Order them with the up and down arrows: the deployment team does them in that order. Up to 50 steps.',
+                                    'A flow set to **Leave inactive** adds the step **Activate flow <name>** (Setup, After deploy, every org) for you.',
+                                    'Until the release is first deployed, the person who raised it (or an admin) can add, edit, reorder and delete steps on the release page.'
+                                ]
+                            },
+                            {
+                                title: 'Before deploy and after deploy',
+                                where: 'The release page → Manual steps',
+                                items: [
+                                    '**Before deploy**: the deploy into an org doesn\'t start until that org\'s before deploy steps are done. An approved release waits with **Approved. Deploys when the deployment team finishes n manual steps before deploy.** The last tick starts the deploy.',
+                                    '**After deploy**: shown as open work in that org after the deploy. The release and the Approvals tab show **n manual steps** while any are open.',
+                                    'An org whose approval rule ticks **Manual steps** always asks for approval when a release has any.'
+                                ]
+                            },
+                            {
+                                title: 'The deployment team checks them off',
+                                where: 'The release page → Manual steps → one tab per org',
+                                items: [
+                                    'Only users with the `RLY_Deploy_Team` permission set (Release Relay Deployment Team) or `RLY_Admin` tick steps.',
+                                    'Tick a step when it is done: the page records who did it and when. **Not needed** asks for a note (for example: already set in this org). **Reopen** puts it back to do.',
+                                    '**Show instructions** opens what exactly to do.'
+                                ]
+                            },
+                            {
+                                title: 'They follow promote and back promote',
+                                where: 'Promote tab and back promote orgs',
+                                items: [
+                                    'A promotion carries the manual steps of every release it carries, in deploy order (the releases in the order they are promoted, then each step\'s order). The Promote tab lists them under the bundle.',
+                                    'A back promote sync carries the steps with **Also in back promote orgs** of every release the org is behind, in deploy order.',
+                                    'Steps scoped to some orgs only show up in those orgs.'
+                                ]
                             }
                         ]
                     }
@@ -618,7 +823,7 @@ const SECTIONS = [
                             },
                             {
                                 title: 'What a sync does',
-                                text: ['A sync is a release of type Back promote from the hub to that org. The pipeline merges production\'s branch into the org\'s branch, deploys what changed, and only then pushes the branch. A conflict or a failed deploy stops it, and nothing is pushed.']
+                                text: ['A sync is a release of type Back promote from the hub to that org. The pipeline merges production\'s branch into the org\'s branch, deploys what changed, and only then pushes the branch. A conflict or a failed deploy stops it, and nothing is pushed. Flows set to Activate in each org are activated in the org after the sync.']
                             }
                         ]
                     }
@@ -698,9 +903,9 @@ const SECTIONS = [
                             ['Validating', 'Code scan and check-only deploy are running.', 'Wait, or Check now.'],
                             ['Resolving conflicts', 'Your conflict choices were committed; the pipeline merges the target and checks again.', 'Wait.'],
                             ['Checks failed', 'The code scan blocked it, the validation failed, or it conflicts with the target.', 'Fix and raise again, resolve the conflict, or ask an approver to bypass the scan.'],
-                            ['Ready for approval', 'All checks passed (or the scan was bypassed).', 'An approver approves or rejects, where the target org says (Salesforce, Slack or the Git provider).'],
+                            ['Ready for approval', 'All checks passed (or the scan was bypassed) and the target org\'s approval rule asks for an approver.', 'An approver approves or rejects, where the target org says (Salesforce, Slack or the Git provider). When the rule needs no approver, the release is approved automatically and deploys.'],
                             ['Deploying', 'Merging the pull request and deploying.', 'Wait.'],
-                            ['Deployed', 'In the target org; developer branches updated.', 'Nothing.'],
+                            ['Deployed', 'In the target org; developer branches updated; flows set to Activate activated.', 'Nothing. Download evidence (PDF) if the change request needs it.'],
                             ['Deploy failed', 'The merge or the deploy failed.', 'Read the reason; raise a new release.'],
                             ['Rejected', 'An approver rejected it; the pull request was closed.', 'Read the comment; raise again.'],
                             ['Closed', 'The pull request was closed in the Git provider.', 'Raise again if still needed.'],
@@ -726,10 +931,55 @@ const SECTIONS = [
                         type: 'table',
                         cols: ['Permission set', 'Gives'],
                         rows: [
-                            ['`RLY_Developer`', 'New Release, Releases and Guide tabs: raise and follow releases.'],
+                            ['`RLY_Developer`', 'New Release, Releases and Guide tabs: raise and follow releases, read their history, download evidence and export CSV.'],
                             ['`RLY_Approver`', 'Approvals and Promote tabs: approve, reject, bypass a code scan, promote what is deployed to a stage.'],
-                            ['`RLY_Admin`', 'Pipeline tab: Git connection, orgs, route, Slack, linked approvers, back promote. Promote tab. Includes Hotfix. Shows the admin sections of this Guide.'],
+                            ['`RLY_Admin`', 'Pipeline tab: Git connection, orgs, route, approval rules, Slack, linked approvers, back promote. Promote tab. Includes Hotfix. Shows the admin sections of this Guide.'],
                             ['`RLY_Slack_Site`', 'For the Site guest user only, so Approve in Slack can reach the hub. Needed only when an org is approved in Slack.']
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'sandboxcopy',
+        group: 'ref',
+        label: 'Sandbox copies of the hub',
+        cards: [
+            {
+                key: 'sc-main',
+                title: 'Sandbox copies of the hub',
+                blocks: [
+                    { type: 'text', paras: ['A sandbox refreshed from production copies Release Relay with everything in it: the orgs, the route, the Git connection, Slack and the approval rules. Left alone, that copy could raise, approve and deploy releases into the real orgs as if it were production. So Release Relay only acts in the org registered as the hub.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'What happens in a copy',
+                                where: 'Every Release Relay tab',
+                                items: [
+                                    'A warning at the top of each tab says it is a copy of the hub, not production.',
+                                    'Raise, approve, reject, check again, resolve conflicts, promote, sync now, manual step check-offs and the Pipeline tab\'s edits and tests are switched off, and the hub refuses them too (also from Slack).',
+                                    'Reading still works: the release lists and pages, History, Download evidence (PDF), Copy summary and Export CSV.'
+                                ]
+                            },
+                            {
+                                title: 'Use a copy on purpose',
+                                who: 'Admin',
+                                where: 'Pipeline tab in the sandbox',
+                                items: [
+                                    'To run Release Relay in the sandbox (for example to try a new route), register that sandbox as its own hub: its org record with the role **Hub** and the sandbox\'s own Org Id, its own Git repository or branches, and its own Slack channels.',
+                                    'Never point a copy at production\'s repository or orgs.'
+                                ]
+                            },
+                            {
+                                title: 'Optional: switch things off at refresh',
+                                who: 'Admin',
+                                where: 'Setup → Sandboxes → New Sandbox (or Refresh)',
+                                items: [
+                                    'In **Apex Class**, pick `RlySandboxCopy`. When the copy is ready it switches Slack off and marks the Git connection Not checked, so nothing posts or runs from the copy before an admin looks at it.'
+                                ]
+                            }
                         ]
                     }
                 ]
@@ -757,6 +1007,10 @@ const SECTIONS = [
                             ['Slack: Not set up or Error', 'Check the Named Credential `RLY_Slack` holds the bot token, then Test on the Slack connection card.'],
                             ['Slack test message fails with not_in_channel', 'Invite the Slack app to that channel.'],
                             ['Approve in Slack says you can\'t approve', 'An admin links your Slack member ID (Slack connection → Approvers linked), and you need `RLY_Approver`.'],
+                            ['A flow: activation failed', 'The org\'s integration user needs the **Manage Flow** permission, or the flow version has errors in that org. Activate it in Setup → Flows, or raise again.'],
+                            ['Approved automatically, but you expected an approver', 'Check the target org\'s approval rule on the Pipeline tab: Always, or tick the kind of change under Only when the release contains….'],
+                            ['Download evidence (PDF) fails', 'The toast says why. Try again later; Copy summary and the History card still work meanwhile.'],
+                            ['A warning: this is a copy of the hub (sandbox), not production', 'The sandbox was copied from production. Actions are off here on purpose; see Sandbox copies of the hub.'],
                             ['Waiting for approval in the Git provider', 'The target org is set to approve in Git: approve the pull request there, or change Approved in on its org card.']
                         ]
                     }

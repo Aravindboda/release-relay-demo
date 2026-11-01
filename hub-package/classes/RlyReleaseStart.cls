@@ -97,7 +97,7 @@ public with sharing class RlyReleaseStart {
          */
         public List<RLY_Org__c> orgs() {
             return [SELECT Id, Name, Role__c, Branch__c, Stage_Order__c, Git_Environment__c, Status__c, Source_Tracking__c,
-                           Org_Type__c, Is_Sandbox__c, Environment__c
+                           Org_Type__c, Is_Sandbox__c, Environment__c, Approval_Rule__c, Approval_Types__c
                     FROM RLY_Org__c WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }
 

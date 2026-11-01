@@ -38,7 +38,7 @@ public with sharing class RlySlackCard {
      */
     public static Map<String, Object> card(RLY_Release__c rel, String approverName) {
         String title = RlySlackCardText.title(rel);
-        String body = '*' + RlySlackMessage.esc(title) + '*\n' + RlySlackCardText.aboutLines(rel) + statusLine(rel, approverName) + '\n' + stepsLine(rel);
+        String body = '*' + RlySlackMessage.esc(title) + '*\n' + RlySlackCardText.aboutLines(rel) + statusLine(rel, approverName) + '\n' + stepsLine(rel) + RlyReleaseHistory.slackLine(rel);
         List<Object> blocks = new List<Object>{
             new Map<String, Object>{ 'type' => 'section', 'text' => new Map<String, Object>{ 'type' => 'mrkdwn', 'text' => body.left(2900) } },
             new Map<String, Object>{ 'type' => 'actions', 'block_id' => 'rly_actions', 'elements' => buttons(rel) }
@@ -94,7 +94,7 @@ public with sharing class RlySlackCard {
 
     private static String deployLine(RLY_Release__c rel) {
         if (rel.Status__c == 'Deployed') {
-            return DONE + ' Deployed to ' + RlySlackMessage.esc(targetName(rel));
+            return DONE + ' Deployed to ' + RlySlackMessage.esc(targetName(rel) + RlyManualStepText.stillOpen(rel, targetName(rel)));
         }
         return waitingInGit(rel) ? WAITING + ' Waiting for ' + RlySlackMessage.esc(RlyGitName.reviewers()) + ' reviewers before deploying'
             : ':rocket: Deploying to ' + RlySlackMessage.esc(targetName(rel));

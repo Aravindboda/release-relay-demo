@@ -71,11 +71,8 @@ public with sharing class RlyBackPromote {
         for (RLY_Org__c o : RlyPromoteStore.backPromoteOrgs()) {
             BackPromoteOrg x = toOrg(o);
             x.lastSyncId = lastSync.containsKey(o.Id) ? lastSync.get(o.Id).Id : null;
-            Datetime since = o.Synced_On__c == null ? o.CreatedDate : o.Synced_On__c;
-            for (RLY_Release__c r : deployed) {
-                if (r.Last_Synced__c != null && (since == null || r.Last_Synced__c > since)) {
-                    x.behindNames.add(r.Name);
-                }
+            for (RLY_Release__c r : RlyBackPromoteSteps.behind(o, deployed)) {
+                x.behindNames.add(r.Name);
             }
             x.behind = x.behindNames.size();
             b.orgs.add(x);

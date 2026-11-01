@@ -3,7 +3,10 @@
     <types>
         <members>RLY_Git_Connection__c</members>
         <members>RLY_Notification__c</members>
+        <members>RLY_Manual_Step__c</members>
+        <members>RLY_Manual_Step_Run__c</members>
         <members>RLY_Org__c</members>
+        <members>RLY_Release_Event__c</members>
         <name>CustomObject</name>
     </types>
     <types>
@@ -25,6 +28,8 @@
         <members>RLY_Release__c.Deletions__c</members>
         <members>RLY_Release_Item__c.Is_Deletion__c</members>
         <members>User.RLY_Slack_Member_Id__c</members>
+        <members>RLY_Release__c.Flow_Actions__c</members>
+        <members>RLY_Release__c.Flow_Results__c</members>
         <name>CustomField</name>
     </types>
     <types>
@@ -137,10 +142,47 @@
         <members>RlyPromoteTest</members>
         <members>RlyBackPromoteTest</members>
         <members>RlyTwoApproversTest</members>
+        <members>RlyManualSteps</members>
+        <members>RlyManualStepStore</members>
+        <members>RlyManualStepRules</members>
+        <members>RlyManualStepRuns</members>
+        <members>RlyManualStepGate</members>
+        <members>RlyManualStepCheck</members>
+        <members>RlyManualStepBoard</members>
+        <members>RlyManualStepEdit</members>
+        <members>RlyManualStepController</members>
+        <members>RlyManualStepsTest</members>
+        <members>RlyManualStepGateTest</members>
+        <members>RlyManualStepScope</members>
+        <members>RlyManualStepText</members>
+        <members>RlyBackPromoteSteps</members>
+        <members>RlyApprovalRuleOrg</members>
+        <members>RlyApprovalRules</members>
+        <members>RlyApprovalRulesTest</members>
+        <members>RlyApprovalWords</members>
+        <members>RlyAutoApproval</members>
+        <members>RlyEvidenceController</members>
+        <members>RlyEvidenceHtml</members>
+        <members>RlyEvidenceTables</members>
+        <members>RlyEvidenceTest</members>
+        <members>RlyEvidenceText</members>
+        <members>RlyFlowActivation</members>
+        <members>RlyFlowActivationTest</members>
+        <members>RlyFlowChoices</members>
+        <members>RlyFlowResults</members>
+        <members>RlyFlowVersions</members>
+        <members>RlyHubGuard</members>
+        <members>RlyHubGuardTest</members>
+        <members>RlyReleaseHistory</members>
+        <members>RlyReleaseLog</members>
+        <members>RlyReleaseOutcomes</members>
+        <members>RlyReleaseTransitions</members>
+        <members>RlySandboxCopy</members>
         <name>ApexClass</name>
     </types>
     <types>
         <members>rlyApprovalQueue</members>
+        <members>rlyManualSteps</members>
         <members>rlyMergeConflicts</members>
         <members>rlyPipeline</members>
         <members>rlyPromote</members>
@@ -165,12 +207,14 @@
     </types>
     <types>
         <members>RLY_Admin</members>
+        <members>RLY_Deploy_Team</members>
         <members>RLY_Hotfix</members>
         <name>CustomPermission</name>
     </types>
     <types>
         <members>RLY_Admin</members>
         <members>RLY_Approver</members>
+        <members>RLY_Deploy_Team</members>
         <members>RLY_Developer</members>
         <members>RLY_Slack_Site</members>
         <name>PermissionSet</name>

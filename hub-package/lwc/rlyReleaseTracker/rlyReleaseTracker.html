@@ -1,5 +1,11 @@
 <template>
     <div class="rr-page">
+        <template lwc:if={hubCopy}>
+            <div class="slds-notify slds-notify_alert slds-alert_warning" role="alert">
+                <lightning-icon icon-name="utility:warning" size="x-small" alternative-text="Warning" class="slds-m-right_x-small"></lightning-icon>
+                <h2>{hubCopyMessage}</h2>
+            </div>
+        </template>
         <!-- header: icon, eyebrow, title, primary action -->
         <section class="rr-head">
             <span class="rr-head-icon"><lightning-icon icon-name={icon} size="small" variant="inverse" alternative-text=""></lightning-icon></span>
@@ -31,6 +37,13 @@
                 <lightning-input type="search" label="Search releases" variant="label-hidden" placeholder={searchPlaceholder}
                     value={search} onchange={handleSearch} oncommit={handleSearchCommit}></lightning-input>
             </div>
+            <template lwc:if={isReleases}>
+                <div class="rr-export">
+                    <lightning-button icon-name="utility:download" label={exportLabel} onclick={exportReleases} disabled={exporting}
+                        title="Exports the releases matching these filters: release, title, route, raised by and on, status, approval, deploys and pull request link"></lightning-button>
+                    <template lwc:if={csvHref}><a class="rr-csv rr-small" href={csvHref} download={csvName}>{csvName}</a></template>
+                </div>
+            </template>
         </section>
 
         <template lwc:if={showLive}>
@@ -61,6 +74,7 @@
                                 <template lwc:if={r.typeLabel}><span class="rr-pill rr-pill-run">{r.typeLabel}</span></template>
                                 <span class="rr-no">{r.name}</span>
                                 <template lwc:if={r.deletesText}><span class="rr-pill rr-pill-bad">{r.deletesText}</span></template>
+                                <template lwc:if={r.manualText}><span class="rr-pill rr-pill-wait">{r.manualText}</span></template>
                                 <span class={r.pillCls}>{r.status}</span>
                                 <span class="rr-grow"></span>
                                 <span class="rr-weak rr-small">{r.when}</span>

@@ -20,6 +20,7 @@ import getBackPromote from '@salesforce/apex/RlyRouteController.getBackPromote';
 import setBackPromote from '@salesforce/apex/RlyRouteController.setBackPromote';
 import saveBackPromoteOrg from '@salesforce/apex/RlyRouteController.saveBackPromoteOrg';
 import syncNow from '@salesforce/apex/RlyRouteController.syncNow';
+import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 
 const LOGIN_OPTIONS = [
     { label: 'Production or Developer Edition', value: 'Production' },
@@ -55,6 +56,28 @@ const ORG_FIELDS = ['Name', 'Role__c', 'Environment__c', 'My_Domain__c', 'Login_
 const SIGN_IN_FIELDS = ['My_Domain__c', 'Login_Type__c', 'Username__c', 'Certificate__c'];
 const GIT_STATUS_CLS = { Connected: 'rr-pill rr-pill-ok', Failed: 'rr-pill rr-pill-bad', 'Not checked': 'rr-pill rr-pill-none' };
 const READONLY_CLS = 'slds-form-element slds-form-element_readonly rr-ro-item';
+/** RLY_Org__c.Approval_Rule__c: when a release into the org needs a person to approve it. */
+const RULE_ALWAYS = 'Always';
+const RULE_SELECTED = 'Selected_Types';
+const RULE_NEVER = 'Never';
+const APPROVAL_RULES = [
+    { value: RULE_ALWAYS, label: 'Always' },
+    { value: RULE_SELECTED, label: 'Only when the release contains…' },
+    { value: RULE_NEVER, label: 'Never: deploy when the checks pass' }
+];
+/** RLY_Org__c.Approval_Types__c: the kinds of change that need approval under Selected_Types. */
+const APPROVAL_TYPES = [
+    { value: 'Apex', label: 'Apex classes and triggers' },
+    { value: 'Flows', label: 'Flows' },
+    { value: 'Profiles_Permissions', label: 'Profiles and permission sets' },
+    { value: 'Objects_Fields', label: 'Objects and fields' },
+    { value: 'Deletions', label: 'Deletions' },
+    { value: 'Manual_Steps', label: 'Manual steps' },
+    { value: 'Hotfix', label: 'Hotfixes' },
+    { value: 'Other', label: 'Anything else' }
+];
+const HUB_NEVER_TEXT = 'Production always needs approval: pick Always or Only when…';
+const NO_TYPE_TEXT = 'Tick at least one kind of change.';
 
 function errorText(e) {
     return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
@@ -65,8 +88,31 @@ function blankForm() {
         Id: null, Name: '', Role__c: 'Developer', Environment__c: 'Developer', My_Domain__c: '', Login_Type__c: 'Production',
         Username__c: '', Consumer_Key__c: '', Certificate__c: 'release_relay', Git_Environment__c: '', Branch__c: '',
         Approve_In_Salesforce__c: true, Approve_In_Slack__c: false, Require_Git_Review__c: false, Slack_Channel__c: '', Slack_Post__c: false,
-        Hotfix_Two_Approvers__c: false
+        Hotfix_Two_Approvers__c: false, Approval_Rule__c: RULE_ALWAYS, approvalTypes: []
     };
+}
+
+/** The org's approval rule; an org saved before rules existed always needs approval. */
+function ruleOf(o) {
+    const v = o && o.Approval_Rule__c;
+    return v === RULE_SELECTED || v === RULE_NEVER ? v : RULE_ALWAYS;
+}
+
+/** The ticked kinds of change (multi-select picklist "Apex;Flows") as a list, in the picklist's order. */
+function typesOf(o) {
+    const raw = (o && o.Approval_Types__c) || '';
+    const picked = String(raw).split(';').map((t) => t.trim());
+    return APPROVAL_TYPES.map((t) => t.value).filter((v) => picked.includes(v));
+}
+
+/** The approval rule as one line on the org card. */
+function ruleText(o) {
+    const rule = ruleOf(o);
+    if (rule === RULE_SELECTED) {
+        const labels = typesOf(o).map((v) => APPROVAL_TYPES.find((t) => t.value === v).label);
+        return 'Only when the release contains: ' + (labels.length ? labels.join(', ') : 'nothing ticked yet');
+    }
+    return APPROVAL_RULES.find((r) => r.value === rule).label;
 }
 
 /** The approval toggles as the org has them; an org saved before the toggles existed approves in Salesforce. */
@@ -110,6 +156,22 @@ function trimOrNull(v) {
 }
 
 export default class RlyPipeline extends LightningElement {
+    /** RlyHubGuard.getHubStatus: whether this org is a sandbox copy of the hub (then a banner, and the actions are off). */
+    hubStatus;
+    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
+    get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
+
+    /** Reads the hub status once. A failed read shows nothing: the server refuses the actions anyway. */
+    readHubStatus() {
+        getHubStatus()
+            .then((status) => {
+                this.hubStatus = status;
+            })
+            .catch(() => {
+                this.hubStatus = undefined;
+            });
+    }
+
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
     get appName() { return APP_NAME; }
     loginOptions = LOGIN_OPTIONS;
@@ -162,6 +224,8 @@ export default class RlyPipeline extends LightningElement {
     modalOrg;
     form = blankForm();
     bounced = false;
+    /** The Approval rule's error under the radio group ("Tick at least one kind of change."). */
+    ruleError;
     bpForm = { whenValue: 'Manual', approval: false };
     gitForm = blankGit();
     slackForm = { enabled: false, signingSecret: '', events: [] };
@@ -169,6 +233,7 @@ export default class RlyPipeline extends LightningElement {
     bpSwitch = false;
 
     connectedCallback() {
+        this.readHubStatus();
         this.load();
     }
 
@@ -249,6 +314,7 @@ export default class RlyPipeline extends LightningElement {
                         month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not checked yet',
                     messageCls: o.Status__c === 'Failed' ? 'rr-msg rr-msg-bad rr-pad' : 'rr-msg rr-msg-info rr-pad',
                     checking: this.checkingId === o.Id,
+                    cantCheck: this.checkingId === o.Id || this.hubCopy,
                     checkLabel: this.checkingId === o.Id ? 'Signing in…' : 'Test sign-in',
                     editLabel: 'Edit ' + o.Name,
                     isDeveloper,
@@ -256,7 +322,7 @@ export default class RlyPipeline extends LightningElement {
                     isOrg: true,
                     bp,
                     sectTitle: this.sectTitle(o, isDeveloper),
-                    cantTest: !this.isAdmin || busy || this.slackBusy || !(o.Slack_Channel__c || '').trim(),
+                    cantTest: !this.isAdmin || busy || this.slackBusy || this.hubCopy || !(o.Slack_Channel__c || '').trim(),
                     showHubNote: isTarget && this.slackSetUp && !ap.slack && !!o.Slack_Post__c,
                     showEvents: this.slackSetUp && !isDeveloper && (!!o.Slack_Post__c || ap.slack),
                     showDevNote: this.slackSetUp && isDeveloper,
@@ -294,6 +360,7 @@ export default class RlyPipeline extends LightningElement {
     orgSettings(o, c) {
         const list = [];
         if (c.isTarget) {
+            list.push(fact('rule', 'Approval rule', ruleText(o), { wide: true }));
             list.push(flag('asf', 'Approve in Salesforce', c.ap.sf || !(this.slackAvailable && c.ap.slack)));
             if (this.slackAvailable) {
                 list.push(flag('asl', 'Approve in Slack', c.ap.slack));
@@ -558,7 +625,8 @@ export default class RlyPipeline extends LightningElement {
         return this.filesResult.how === 'commit' ? 'Open the commit' : 'Open the ' + this.filesRequestWord;
     }
     get filesUpdateLabel() { return this.filesBusy ? 'Updating…' : 'Update'; }
-    get filesCantUpdate() { return this.filesBusy || !this.hasFilesToChange; }
+    get filesCantUpdate() { return this.filesBusy || this.hubCopy || !this.hasFilesToChange; }
+    get filesCantOpen() { return this.filesBusy || this.hubCopy; }
     get filesCancelLabel() { return this.filesDone ? 'Close' : 'Cancel'; }
 
     openFiles() {
@@ -614,7 +682,11 @@ export default class RlyPipeline extends LightningElement {
     get hasWarnings() { return this.warnings.length > 0; }
     get hasDevelopers() { return this.developers.length > 0; }
     get canEditRoute() { return this.stages.filter((s) => s.Role__c !== 'Hub').length > 1; }
-    get routeCantSave() { return this.routeBusy || !this.routeDirty; }
+    get routeCantSave() { return this.routeBusy || this.hubCopy || !this.routeDirty; }
+    /** Git sign-in check and Create missing branches: off while one runs, and on a sandbox copy of the hub. */
+    get gitCantAct() { return this.gitBusy || this.hubCopy; }
+    get slackCantTest() { return this.slackBusy || this.hubCopy; }
+    get modalCantSave() { return this.saving || this.hubCopy; }
 
     /** The org as getOrgs has it (sandbox, approval toggles), falling back to the route's copy. */
     orgFor(r) { return this.orgs.find((x) => x.Id === r.Id) || r; }
@@ -749,7 +821,7 @@ export default class RlyPipeline extends LightningElement {
             syncStatus: b.syncStatus || '',
             syncCls: SYNC_STATUS_CLS[b.syncStatus] || 'rr-pill rr-pill-none',
             offNote: this.bpEnabled ? '' : 'Back promote is off. Switch it on in the Back promote card to sync this org.',
-            cantSync: !this.bpIsAdmin || busy || !this.bpEnabled,
+            cantSync: !this.bpIsAdmin || busy || !this.bpEnabled || this.hubCopy,
             syncLabel: busy ? 'Starting…' : 'Sync now'
         };
     }
@@ -1000,6 +1072,7 @@ export default class RlyPipeline extends LightningElement {
         this.modalOrg = undefined;
         this.form = blankForm();
         this.bounced = false;
+        this.ruleError = undefined;
         this.openModal('org');
     }
 
@@ -1015,8 +1088,10 @@ export default class RlyPipeline extends LightningElement {
         this.form = {
             ...blankForm(), Environment__c: null, ...o, Consumer_Key__c: '',
             Approve_In_Salesforce__c: ap.sf || !(this.slackAvailable && ap.slack), Approve_In_Slack__c: ap.slack, Require_Git_Review__c: ap.git,
-            Slack_Channel__c: o.Slack_Channel__c || '', Slack_Post__c: !!o.Slack_Post__c, Hotfix_Two_Approvers__c: o.Hotfix_Two_Approvers__c === true
+            Slack_Channel__c: o.Slack_Channel__c || '', Slack_Post__c: !!o.Slack_Post__c, Hotfix_Two_Approvers__c: o.Hotfix_Two_Approvers__c === true,
+            Approval_Rule__c: ruleOf(o), approvalTypes: typesOf(o)
         };
+        this.ruleError = undefined;
         this.bpForm = { whenValue: b.whenValue || 'Manual', approval: b.approval === true };
         this.bounced = false;
         this.openModal('org');
@@ -1039,6 +1114,65 @@ export default class RlyPipeline extends LightningElement {
             : 'Releases into ' + this.formOrgName + ' post their card in this channel.';
     }
     get formShowSlack() { return this.slackSetUp; }
+
+    // Approval rule (board HubApprovalFlowsEvidence 1): Always / Only when the release contains… / Never.
+    get formIsHub() { return this.form.Role__c === 'Hub'; }
+    get formRuleSelected() { return this.form.Approval_Rule__c === RULE_SELECTED; }
+    get formRuleOptions() {
+        const org = this.formOrgName;
+        const help = {
+            [RULE_ALWAYS]: 'Every release into ' + org + ' waits for an approver.',
+            [RULE_SELECTED]: 'Ask for approval only if the release has one of the ticked kinds of change.',
+            [RULE_NEVER]: this.formIsHub ? HUB_NEVER_TEXT : 'The scan, check-only deploy and tests still have to pass.'
+        };
+        return APPROVAL_RULES.map((r) => {
+            const disabled = r.value === RULE_NEVER && this.formIsHub;
+            return {
+                ...r,
+                help: help[r.value],
+                checked: this.form.Approval_Rule__c === r.value,
+                disabled,
+                cls: 'rr-opt' + (disabled ? ' rr-opt-off' : ''),
+                helpCls: disabled ? 'rr-msg rr-msg-wait' : 'rr-kicker',
+                showTypes: r.value === RULE_SELECTED && this.form.Approval_Rule__c === RULE_SELECTED
+            };
+        });
+    }
+    get formTypeOptions() {
+        const picked = this.form.approvalTypes || [];
+        return APPROVAL_TYPES.map((t) => ({ ...t, checked: picked.includes(t.value) }));
+    }
+    get formTypesLabel() { return 'Kinds of change that need approval in ' + this.formOrgName; }
+
+    handleRule(event) {
+        this.form = { ...this.form, Approval_Rule__c: event.target.value };
+        this.ruleError = undefined;
+    }
+
+    handleRuleType(event) {
+        const value = event.target.dataset.value;
+        const rest = (this.form.approvalTypes || []).filter((v) => v !== value);
+        const next = event.target.checked ? [...rest, value] : rest;
+        this.form = { ...this.form, approvalTypes: APPROVAL_TYPES.map((t) => t.value).filter((v) => next.includes(v)) };
+        this.ruleError = undefined;
+    }
+
+    /** Selected_Types needs a ticked kind; the hub (production) can't be Never. */
+    ruleValid() {
+        if (!this.formIsTarget) {
+            return true;
+        }
+        if (this.formRuleSelected && !(this.form.approvalTypes || []).length) {
+            this.ruleError = NO_TYPE_TEXT;
+            return false;
+        }
+        if (this.formIsHub && this.form.Approval_Rule__c === RULE_NEVER) {
+            this.ruleError = HUB_NEVER_TEXT;
+            return false;
+        }
+        this.ruleError = undefined;
+        return true;
+    }
     /** Back promote settings belong to a registered back promote org (getBackPromote has it). */
     get formShowBp() { return this.formIsBackPromote && !!this.form.Id && this.bpIsAdmin; }
     get formBpNew() { return this.formIsBackPromote && !this.form.Id; }
@@ -1063,6 +1197,9 @@ export default class RlyPipeline extends LightningElement {
         // The hub is the production org.
         if (field === 'Role__c' && value === 'Hub') {
             next.Environment__c = 'Production';
+            if (next.Approval_Rule__c === RULE_NEVER) {
+                next.Approval_Rule__c = RULE_ALWAYS;
+            }
         }
         this.form = next;
         this.modalError = undefined;
@@ -1113,6 +1250,11 @@ export default class RlyPipeline extends LightningElement {
         payload.Slack_Channel__c = trimOrNull(f.Slack_Channel__c);
         payload.Slack_Post__c = f.Slack_Post__c === true;
         payload.Hotfix_Two_Approvers__c = f.Hotfix_Two_Approvers__c === true;
+        if (this.formIsTarget) {
+            const rule = f.Approval_Rule__c || RULE_ALWAYS;
+            payload.Approval_Rule__c = rule;
+            payload.Approval_Types__c = rule === RULE_SELECTED ? (f.approvalTypes || []).join(';') : null;
+        }
         return payload;
     }
 
@@ -1128,7 +1270,8 @@ export default class RlyPipeline extends LightningElement {
     }
 
     saveOrgModal() {
-        if (!this.modalValid()) {
+        const ruleOk = this.ruleValid();
+        if (!this.modalValid() || !ruleOk) {
             return;
         }
         const payload = this.orgPayload();

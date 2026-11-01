@@ -52,6 +52,8 @@ public with sharing class RlyPromoteController {
         @AuraEnabled public Integer componentCount;
         /** @description Its number of deletions. */
         @AuraEnabled public Integer deletionCount;
+        /** @description Its number of manual steps (they travel with it; getSteps lists them). */
+        @AuraEnabled public Integer manualSteps = 0;
     }
 
     /**
@@ -72,8 +74,12 @@ public with sharing class RlyPromoteController {
                     byStage.put(s.stageId, s);
                 }
             }
-            for (RLY_Release__c r : RlyPromoteStore.readyIn(byStage.keySet())) {
-                byStage.get(r.Target_Org__c).ready.add(toReady(r));
+            List<RLY_Release__c> waiting = RlyPromoteStore.readyIn(byStage.keySet());
+            Map<Id, Integer> stepCounts = RlyManualStepStore.stepCounts(new Map<Id, RLY_Release__c>(waiting).keySet());
+            for (RLY_Release__c r : waiting) {
+                Ready x = toReady(r);
+                x.manualSteps = stepCounts.containsKey(r.Id) ? stepCounts.get(r.Id) : 0;
+                byStage.get(r.Target_Org__c).ready.add(x);
             }
             return board;
         } catch (Exception e) {
@@ -88,6 +94,7 @@ public with sharing class RlyPromoteController {
      */
     @AuraEnabled
     public static Id promote(String requestJson) {
+        RlyHubGuard.requireHub();
         try {
             if (!canPromote()) {
                 throw new RlyReleaseException('Only approvers can promote releases (permission set Release Relay Approver).');

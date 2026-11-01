@@ -3,7 +3,8 @@
  * bypass a blocking code scan, or run the checks again. Approving, rejecting and bypassing need the
  * RLY_Approver (or RLY_Admin) custom permission; approveAs and rejectAs act for an approver the caller checked
  * (RlySlackAction checks a linked Slack user's permission sets). A hotfix into an org that needs two approvers waits for
- * a second one (RlyTwoApprovers). Callouts come first (Slack too, when the new status is an event)
+ * a second one (RlyTwoApprovers). A deploy whose manual steps before deploy aren't done yet is approved but waits
+ * (RlyManualStepGate); the deployment team's last check starts it (RlyManualStepCheck). Callouts come first (Slack too, when the new status is an event)
  * and the saves last.
  */
 public with sharing class RlyApprovalService {
@@ -23,6 +24,7 @@ public with sharing class RlyApprovalService {
      * @return the release as saved
      */
     public static RLY_Release__c acceptScanFindings(Id releaseId, String reason) {
+        RlyHubGuard.requireHub();
         requireApprover();
         RLY_Release__c rel = RlyReleaseStore.release(releaseId);
         if (rel == null || rel.Status__c != 'Checks failed' || (rel.Scan_Status__c != 'Failed' && rel.Scan_Status__c != 'Error')) {
@@ -36,6 +38,7 @@ public with sharing class RlyApprovalService {
         rel.Scan_Bypassed_By__c = UserInfo.getUserId();
         rel.Scan_Bypass_Reason__c = reason.trim().left(2000);
         RlyCheckReader.decide(rel);
+        RlyAutoApproval.afterBypass(rel, oldStatus);
         saveAndNotify(rel, oldStatus);
         return rel;
     }
@@ -46,6 +49,7 @@ public with sharing class RlyApprovalService {
      * @return the release as saved
      */
     public static RLY_Release__c rerunChecks(Id releaseId) {
+        RlyHubGuard.requireHub();
         RLY_Release__c rel = RlyReleaseStore.release(releaseId);
         if (rel == null || (rel.Status__c != 'Checks failed' && rel.Status__c != 'Ready for approval') || rel.PR_Number__c == null) {
             throw new RlyReleaseException('Checks can run again on an open pull request that isn\'t approved yet.');
@@ -70,18 +74,20 @@ public with sharing class RlyApprovalService {
     /**
      * @description Approves the release for an approver the caller has already checked (the current user, or a linked
      * Slack user). When the target branch moved after the checks passed, the checks run again instead of the merge.
+     * When manual steps before deploy are still to do, the approval is recorded and the release waits for them.
      * @param releaseId the release
      * @param who who approves, and where
      * @return the release as saved
      */
     public static RLY_Release__c approveAs(Id releaseId, RlyApprover who) {
+        RlyHubGuard.requireHub();
         RLY_Release__c rel = RlyReleaseStore.release(releaseId);
         if (rel == null || rel.Status__c != 'Ready for approval') {
             throw new RlyReleaseException('Only a release that\'s ready for approval can be approved.');
         }
         String oldStatus = rel.Status__c;
-        if (RlyTwoApprovers.recordsFirst(rel, who)) {
-            RlyReleaseStore.save(rel); // the first of two approvals: it keeps waiting, no event
+        if (RlyManualStepGate.waitsInstead(rel, who)) {
+            RlyReleaseStore.save(rel); // the first of two approvals, or the deploy waits for manual steps: no event
             return rel;
         }
         RLY_Release__c prior = rel.clone(true, true, true, true);
@@ -115,6 +121,7 @@ public with sharing class RlyApprovalService {
      * @return the release as saved
      */
     public static RLY_Release__c rejectAs(Id releaseId, RlyApprover who) {
+        RlyHubGuard.requireHub();
         RLY_Release__c rel = RlyReleaseStore.release(releaseId);
         if (rel == null || (rel.Status__c != 'Ready for approval' && rel.Status__c != 'Checks failed')) {
             throw new RlyReleaseException('Only a release waiting for approval can be rejected.');

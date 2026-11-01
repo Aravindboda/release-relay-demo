@@ -2,6 +2,10 @@ import APP_NAME from '@salesforce/label/c.RLY_App_Name';
 import { LightningElement } from 'lwc';
 import getPromote from '@salesforce/apex/RlyPromoteController.getPromote';
 import promote from '@salesforce/apex/RlyPromoteController.promote';
+import getSteps from '@salesforce/apex/RlyManualStepController.getSteps';
+import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
+
+const TIMING_LABEL = { Before_Deploy: 'Before deploy', After_Deploy: 'After deploy' };
 
 function errorText(e) {
     return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
@@ -21,6 +25,22 @@ function plural(n, one, many) {
  * release that runs the usual checks and approval into the next stop.
  */
 export default class RlyPromote extends LightningElement {
+    /** RlyHubGuard.getHubStatus: whether this org is a sandbox copy of the hub (then a banner, and the actions are off). */
+    hubStatus;
+    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
+    get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
+
+    /** Reads the hub status once. A failed read shows nothing: the server refuses the actions anyway. */
+    readHubStatus() {
+        getHubStatus()
+            .then((status) => {
+                this.hubStatus = status;
+            })
+            .catch(() => {
+                this.hubStatus = undefined;
+            });
+    }
+
     board;
     loading = false;
     error;
@@ -32,8 +52,11 @@ export default class RlyPromote extends LightningElement {
     errors = {};
     busyStage;
     promotedId;
+    /** releaseId → its manual steps (StepRow, in sequence), read for releases with Ready.manualSteps. */
+    stepsByRelease = {};
 
     connectedCallback() {
+        this.readHubStatus();
         this.load();
     }
 
@@ -50,6 +73,52 @@ export default class RlyPromote extends LightningElement {
         } finally {
             this.loading = false;
         }
+        this.loadSteps();
+    }
+
+    /** The manual steps of the releases waiting (only those that have some), to list them in the bundle panel. */
+    async loadSteps() {
+        const ids = this.stages.flatMap((s) => (s.ready || []).filter((r) => Number(r.manualSteps) > 0).map((r) => r.id));
+        const found = {};
+        await Promise.all(ids.map(async (id) => {
+            try {
+                const board = await getSteps({ releaseId: id });
+                found[id] = [...((board && board.steps) || [])].sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+            } catch {
+                found[id] = null;
+            }
+        }));
+        this.stepsByRelease = found;
+    }
+
+    /**
+     * The manual steps the promotion carries into the next stop, in deploy order (the releases in the order they are
+     * promoted, then each step's sequence). Steps scoped to other orgs are left out.
+     */
+    manualFor(chosen, nextName) {
+        let count = 0;
+        const list = [];
+        chosen.forEach((r) => {
+            const steps = this.stepsByRelease[r.id];
+            if (!Array.isArray(steps)) {
+                count += Number(r.manualSteps) || 0;
+                return;
+            }
+            steps.filter((st) => {
+                const names = (st.orgScope || '').split(',').map((x) => x.trim()).filter((x) => x);
+                return names.length === 0 || names.includes(nextName);
+            }).forEach((st) => {
+                list.push({
+                    key: r.id + '-' + st.id,
+                    title: st.title,
+                    timingLabel: TIMING_LABEL[st.timing] || st.timing || '',
+                    timingCls: 'rr-pill ' + (st.timing === 'Before_Deploy' ? 'rr-pill-wait' : 'rr-pill-info'),
+                    fromRelease: st.fromRelease || r.name
+                });
+            });
+        });
+        count += list.length;
+        return { count, list: list.map((x, i) => ({ ...x, no: i + 1 })) };
     }
 
     reload() {
@@ -93,6 +162,7 @@ export default class RlyPromote extends LightningElement {
         const locked = !this.canPromote || busy;
         const title = this.titles[s.stageId] !== undefined ? this.titles[s.stageId] : this.suggestTitle(s, chosen, onlyHotfixes);
         const others = ready.length - chosen.length;
+        const manual = this.manualFor(chosen, s.nextName);
         return {
             key: 'st-' + s.stageId,
             stageId: s.stageId,
@@ -136,12 +206,16 @@ export default class RlyPromote extends LightningElement {
                 ? 'Only the hotfix\'s changes go to ' + s.nextName + '. Other work waiting in ' + s.stageName + ' isn\'t included.' : '',
             approvalNote: chosen.some((r) => r.isHotfix)
                 ? ' A hotfix can need a 2nd approver into ' + s.nextName + ', and the person who raised it can\'t approve it.' : '',
+            hasManual: manual.count > 0,
+            manualTitle: 'Manual steps in ' + s.nextName + ', in this order · ' + manual.count,
+            manualSteps: manual.list,
+            manualNote: 'The promotion carries them in deploy order. ' + s.nextName + '\'s deploy waits for its before deploy steps.',
             title,
             branchText: 'promote/rel-…',
             error: this.errors[s.stageId],
             barText: plural(chosen.length, 'release', 'releases') + ' selected · ' + plural(tests.length, 'test class', 'test classes'),
             buttonLabel: this.buttonLabel(s, chosen, onlyHotfixes, busy),
-            cantPromote: locked || chosen.length === 0 || !(title || '').trim()
+            cantPromote: locked || this.hubCopy || chosen.length === 0 || !(title || '').trim()
         };
     }
 

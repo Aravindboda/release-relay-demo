@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>A manual step of a release: work that can't be deployed as metadata (profile or permission access, a data load, a setup setting). It travels with the release through every org on the route, in order, and to back promote orgs; the deployment team checks it off per org (Release Relay Manual Step Run).</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>false</enableHistory>
+    <enableReports>true</enableReports>
+    <enableSearch>false</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <fields>
+        <fullName>Release__c</fullName>
+        <deleteConstraint>Restrict</deleteConstraint>
+        <description>The release that defined the step.</description>
+        <label>Release</label>
+        <referenceTo>RLY_Release__c</referenceTo>
+        <relationshipLabel>Manual Steps</relationshipLabel>
+        <relationshipName>Manual_Steps</relationshipName>
+        <required>true</required>
+        <type>Lookup</type>
+    </fields>
+    <fields>
+        <fullName>Title__c</fullName>
+        <description>What the step is, in a few words.</description>
+        <externalId>false</externalId>
+        <label>Title</label>
+        <length>120</length>
+        <required>true</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Instructions__c</fullName>
+        <description>What exactly to do, for example: Profile Sales User: Account.Region__c read/edit.</description>
+        <label>Instructions</label>
+        <length>32768</length>
+        <type>LongTextArea</type>
+        <visibleLines>5</visibleLines>
+    </fields>
+    <fields>
+        <fullName>Category__c</fullName>
+        <description>What kind of work the step is.</description>
+        <label>Category</label>
+        <required>false</required>
+        <type>Picklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Permissions</fullName><default>true</default><label>Profile or permission access</label></value>
+                <value><fullName>Data</fullName><default>false</default><label>Data</label></value>
+                <value><fullName>Setup</fullName><default>false</default><label>Setup configuration</label></value>
+                <value><fullName>Other</fullName><default>false</default><label>Other</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>Timing__c</fullName>
+        <description>Before deploy: the deploy into an org waits until it's done there. After deploy: open work once the deploy is done.</description>
+        <label>Timing</label>
+        <required>false</required>
+        <type>Picklist</type>
+        <valueSet>
+            <restricted>true</restricted>
+            <valueSetDefinition>
+                <sorted>false</sorted>
+                <value><fullName>Before_Deploy</fullName><default>false</default><label>Before deploy</label></value>
+                <value><fullName>After_Deploy</fullName><default>true</default><label>After deploy</label></value>
+            </valueSetDefinition>
+        </valueSet>
+    </fields>
+    <fields>
+        <fullName>Sequence__c</fullName>
+        <description>The step's order within its release (1, 2, 3...).</description>
+        <externalId>false</externalId>
+        <label>Sequence</label>
+        <precision>4</precision>
+        <required>false</required>
+        <scale>0</scale>
+        <type>Number</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
+        <fullName>Back_Promote__c</fullName>
+        <defaultValue>true</defaultValue>
+        <description>Also do the step in back promote orgs when production's changes are sent there.</description>
+        <label>Back Promote</label>
+        <type>Checkbox</type>
+    </fields>
+    <fields>
+        <fullName>Org_Scope__c</fullName>
+        <description>Blank: every org on the route. Otherwise the names of the registered orgs it applies to, comma separated.</description>
+        <externalId>false</externalId>
+        <label>Org Scope</label>
+        <length>255</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <label>Release Relay Manual Step</label>
+    <nameField>
+        <displayFormat>MS-{00000}</displayFormat>
+        <label>Manual Step Number</label>
+        <trackHistory>false</trackHistory>
+        <type>AutoNumber</type>
+    </nameField>
+    <pluralLabel>Release Relay Manual Steps</pluralLabel>
+    <searchLayouts/>
+    <sharingModel>ReadWrite</sharingModel>
+</CustomObject>

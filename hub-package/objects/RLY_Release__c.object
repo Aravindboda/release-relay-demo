@@ -152,4 +152,20 @@
         <type>LongTextArea</type>
         <visibleLines>3</visibleLines>
     </fields>
+    <fields>
+        <fullName>Flow_Actions__c</fullName>
+        <description>Hub: what happens to each flow after a deploy, as JSON: [{name, choice (Keep, Activate or Inactive)}]. A promotion carries the union of its releases' choices (Activate wins over Keep).</description>
+        <label>Flow Actions</label>
+        <length>32768</length>
+        <type>LongTextArea</type>
+        <visibleLines>3</visibleLines>
+    </fields>
+    <fields>
+        <fullName>Flow_Results__c</fullName>
+        <description>Hub: flow activation after a deploy, per org and flow, as JSON: [{org, flow, version, status (Activated, Already active or Failed), message}].</description>
+        <label>Flow Results</label>
+        <length>32768</length>
+        <type>LongTextArea</type>
+        <visibleLines>3</visibleLines>
+    </fields>
 </CustomObject>

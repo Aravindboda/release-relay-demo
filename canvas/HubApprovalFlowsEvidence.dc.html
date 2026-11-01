@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Approval rules, flows and evidence</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px}
+.hd{padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;gap:8px}
+.hd h2{margin:0;font-size:15px;flex:1}.hd h3{margin:0;font-size:14px;flex:1}
+.bd{padding:12px 16px;display:flex;flex-direction:column;gap:10px;font-size:13px}
+.sect{border-top:1px solid #E5E5E5;padding:12px 16px;background:#FAFAF9;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.sect h4{margin:0;font-size:13px}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.lab{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5C5C5C}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap;width:max-content}
+.hot{background:#FEDED8;color:#8E030F}.ok{background:#EBF7E6;color:#2E844A}.info{background:#EEF4FF;color:#014486}.none{background:#F3F3F3;color:#444}.wait{background:#FEF1CD;color:#8C4B02}.cat{background:#F3F3F3;color:#444;font-weight:400}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cb{width:16px;height:16px;border-radius:3px;background:#0176D3;color:#fff;font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.cb.o{background:#fff;border:1px solid #939393}
+.in{border:1px solid #C9C9C9;border-radius:4px;padding:6px 10px;min-height:20px;font-size:13px;background:#fff}
+.in.sel::after{content:"▾";float:right;color:#5C5C5C}
+.btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #0176D3;background:#0176D3;color:#fff;font:inherit;font-size:13px}
+.btn2{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:12px}
+.note{font-size:12px;color:#014486;background:#EEF4FF;border-radius:4px;padding:8px 10px;margin:0}
+.msg{padding:8px 12px;border-radius:4px;font-size:12px;line-height:1.45}
+.msg.warn{background:#FEF1CD;color:#5E3600}.msg.info{background:#EEF4FF;color:#014486}.msg.ok{background:#EBF7E6;color:#194E31}
+.lnk{color:#0B5CAB}
+/* read-only card fields */
+.ro{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 20px;margin:0}
+.ro div{min-width:0}.ro dt{font-size:12px;color:#5C5C5C;padding-top:4px}.ro dd{margin:0;padding:2px 0 6px;border-bottom:1px solid #E5E5E5;font-size:13px;overflow-wrap:anywhere}
+.ro .w{grid-column:1/-1}
+.on::before{content:"✓";color:#2E844A;font-weight:700;margin-right:6px}
+/* SLDS modal */
+.shade{background:rgba(8,7,7,.6);border-radius:4px;padding:22px 20px}
+.modal{background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.mh{padding:14px 16px;border-bottom:1px solid #E5E5E5;text-align:center;position:relative}
+.mh h2{margin:0;font-size:20px;font-weight:400}.mh .x{position:absolute;right:12px;top:12px;width:28px;height:28px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#5C5C5C}
+.mb{padding:16px;display:flex;flex-direction:column;gap:10px}
+.st{margin:0;background:#F3F3F3;border-radius:4px;padding:6px 12px;font-size:14px;font-weight:400}
+.mf{padding:12px 16px;border-top:1px solid #E5E5E5;background:#F3F3F3;display:flex;justify-content:flex-end;gap:8px}
+.collapsed{font-size:12px;color:#5C5C5C;padding:0 4px}
+/* SLDS radio group + checkbox group */
+fieldset{border:0;margin:0;padding:0 4px;display:flex;flex-direction:column;gap:6px}
+legend{font-size:12px;color:#444;padding:0;margin-bottom:4px}legend b{color:#BA0517;margin-right:2px}
+.opt{display:flex;align-items:flex-start;gap:8px;font-size:13px}
+.opt .t{display:flex;flex-direction:column;gap:1px}
+.rd{width:16px;height:16px;border-radius:50%;border:1px solid #939393;background:#fff;flex:none;margin-top:1px;box-sizing:border-box}
+.rd.s{border:5px solid #0176D3}
+.rd.dis{background:#F3F3F3;border-color:#C9C9C9}
+.opt.dis{color:#939393}
+.cbg{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;padding:8px 10px;margin-left:24px;border-left:2px solid #0176D3;background:#FAFAF9;border-radius:0 4px 4px 0}
+.err{font-size:12px;color:#BA0517;margin:0}
+/* flow rows on Review */
+.fr{display:flex;flex-direction:column;gap:8px;padding:10px 0;border-top:1px solid #F3F3F3}.fr:first-of-type{border-top:0}
+.fr .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vs{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:#444}
+.seg{display:inline-flex;border:1px solid #C9C9C9;border-radius:4px;overflow:hidden;font-size:12px}.seg span{padding:6px 10px;border-right:1px solid #C9C9C9;background:#fff}.seg span:last-child{border-right:0}.seg .s{background:#0176D3;color:#fff}
+/* release page */
+.hdr{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fff;border:1px solid #E5E5E5;border-radius:4px}
+.ico{width:32px;height:32px;border-radius:4px;background:#0176D3;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex:none}
+.hdr h1{margin:0;font-size:18px;font-weight:700}
+.page{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:12px;align-items:start}
+.flt{display:flex;flex-direction:column;gap:2px;padding:8px 0;border-top:1px solid #F3F3F3}.flt:first-of-type{border-top:0}
+/* SLDS activity timeline */
+.tl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.tl li{display:flex;gap:10px;position:relative;padding-bottom:12px}
+.tl li::before{content:"";position:absolute;left:11px;top:24px;bottom:0;width:2px;background:#E5E5E5}
+.tl li:last-child::before{display:none}.tl li:last-child{padding-bottom:0}
+.tli{width:24px;height:24px;border-radius:4px;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;flex:none;position:relative;z-index:1}
+.c-raise{background:#0176D3}.c-git{background:#444}.c-scan{background:#3BA755}.c-val{background:#06A59A}.c-appr{background:#2E844A}.c-auto{background:#7526E3}.c-dep{background:#0B5CAB}.c-man{background:#DD7A01}.c-flow{background:#9050E9}.c-fail{background:#BA0517}
+.tlb{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tlb .l1{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.tlb .when{margin-left:auto;font-size:12px;color:#5C5C5C;white-space:nowrap}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:8px 10px;border-top:1px solid #E5E5E5;font-size:13px}th{border-top:0;background:#FAFAF9;font-size:12px;color:#5C5C5C}
+.toast{display:flex;gap:10px;align-items:center;background:#2E844A;color:#fff;border-radius:4px;padding:10px 14px;font-size:13px;width:max-content;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.pre{background:#FAFAF9;border:1px solid #E5E5E5;border-radius:4px;padding:8px 10px;font-family:ui-monospace,Menlo,monospace;font-size:11px;line-height:1.5;white-space:pre-wrap;margin:0;color:#181818}
+</style>
+</helmet>
+<div style="padding:12px;display:flex;flex-direction:column;gap:12px">
+
+<p class="lab">Build 15 · each org decides when a release needs a person to approve it · flows get a version check and an "after deploy" choice · every step is logged, and the history can be saved as a PDF for the change request</p>
+
+<div class="grid">
+  <!-- 1 · Approval rule per org -->
+  <section class="card">
+    <div class="hd"><h2>1 · Pipeline tab: approval rule per org</h2><span class="sm weak">admins only</span></div>
+    <div class="bd">
+      <p class="lab" style="margin:0">Edit on the SIT card · Approval section of the modal</p>
+      <div class="shade">
+        <div class="modal" role="dialog" aria-label="Edit SIT">
+          <div class="mh"><button class="x" aria-label="Close">✕</button><h2>Edit SIT</h2><p class="k" style="margin-top:4px">Nothing changes until you press Save.</p></div>
+          <div class="mb">
+            <p class="collapsed">Sign-in ▸ (unchanged)</p>
+            <h3 class="st">Approval</h3>
+            <fieldset role="radiogroup">
+              <legend><b>*</b>Approval rule</legend>
+              <div class="opt"><span class="rd"></span><span class="t">Always<span class="k">Every release into SIT waits for an approver.</span></span></div>
+              <div class="opt"><span class="rd s"></span><span class="t">Only when the release contains…<span class="k">Ask for approval only if the release has one of the ticked kinds of change.</span></span></div>
+              <div class="cbg" role="group" aria-label="Kinds of change that need approval">
+                <div class="opt"><span class="cb">✓</span>Apex classes and triggers</div>
+                <div class="opt"><span class="cb">✓</span>Flows</div>
+                <div class="opt"><span class="cb">✓</span>Profiles and permission sets</div>
+                <div class="opt"><span class="cb o"></span>Objects and fields</div>
+                <div class="opt"><span class="cb">✓</span>Deletions</div>
+                <div class="opt"><span class="cb o"></span>Manual steps</div>
+                <div class="opt"><span class="cb">✓</span>Hotfixes</div>
+                <div class="opt"><span class="cb o"></span>Anything else</div>
+              </div>
+              <div class="opt"><span class="rd"></span><span class="t">Never: deploy when the checks pass<span class="k">The scan, check-only deploy and tests still have to pass.</span></span></div>
+            </fieldset>
+            <p class="k" style="padding:0 4px">Anything else = layouts, reports, list views, static resources… everything not in the other boxes.</p>
+            <p class="collapsed">Approve in Salesforce · Approve in Slack · GitHub reviewers · Hotfixes need 2 approvers (unchanged)</p>
+          </div>
+          <div class="mf"><button class="btn2">Cancel</button><button class="btn">Save</button></div>
+        </div>
+      </div>
+      <div class="msg warn"><strong>Edit PROD</strong> (the hub): <span class="rd dis" style="display:inline-block;vertical-align:-3px"></span> Never is greyed out. “Production always needs approval: pick Always or Only when…”</div>
+      <p class="err">Only when… with no box ticked: “Tick at least one kind of change.” (Save stays on the modal)</p>
+
+      <p class="lab" style="margin:6px 0 0">Read-only on the org card</p>
+      <div class="card">
+        <div class="hd"><h3>SIT</h3><span class="pill ok">Connected</span><span class="pill none">Stage 1</span></div>
+        <div class="sect" style="border-top:0">
+          <h4>Approval and Slack for releases into SIT</h4>
+          <dl class="ro">
+            <div class="w"><dt>Approval rule</dt><dd>Only when the release contains: Apex classes and triggers, Flows, Profiles and permission sets, Deletions, Hotfixes</dd></div>
+            <div><dt>Approve in Salesforce</dt><dd class="on">On</dd></div>
+            <div><dt>Approve in Slack</dt><dd class="on">On</dd></div>
+          </dl>
+        </div>
+      </div>
+      <div class="row"><span class="k">Other cards:</span><span class="pill none">PROD · Always</span><span class="pill none">UAT · Never: deploy when the checks pass</span></div>
+    </div>
+  </section>
+
+  <div class="stack">
+    <!-- 2 · Review: flows -->
+    <section class="card">
+      <div class="hd"><h2>2 · New Release, step 4 (Review): Flows</h2><span class="pill none">3 flows</span></div>
+      <div class="bd">
+        <p class="k">Versions read from DEV1 just now. Choose what happens to each flow after it's deployed to SIT and PROD.</p>
+
+        <div class="fr">
+          <div class="top"><strong>Case_Escalation</strong><span class="vs"><span class="pill info">Version 9 · Active</span>in DEV1</span></div>
+          <div class="row"><span class="k" style="width:86px">After deploy</span><div class="seg"><span>Keep as in DEV1</span><span class="s">Activate in each org</span><span>Leave inactive: add a manual step to activate</span></div></div>
+        </div>
+
+        <div class="fr">
+          <div class="top"><strong>Lead_Assignment</strong><span class="vs"><span class="pill wait">Version 4 · Draft</span>in DEV1 · active: Version 3</span></div>
+          <div class="msg warn">Version 4 is a draft. It deploys inactive: SIT and PROD keep running their current version unless you choose Activate.</div>
+          <div class="row"><span class="k" style="width:86px">After deploy</span><div class="seg"><span class="s">Keep as in DEV1</span><span>Activate in each org</span><span>Leave inactive: add a manual step to activate</span></div></div>
+        </div>
+
+        <div class="fr">
+          <div class="top"><strong>Quote_Approval_Notify</strong><span class="vs"><span class="pill info">Version 2 · Active</span>in DEV1</span></div>
+          <div class="row"><span class="k" style="width:86px">After deploy</span><div class="seg"><span>Keep as in DEV1</span><span>Activate in each org</span><span class="s">Leave inactive: add a manual step to activate</span></div></div>
+          <p class="k">Adds manual step “Activate flow Quote_Approval_Notify” · Setup · After deploy · every org. It shows in Manual steps below.</p>
+        </div>
+
+        <div class="msg info">Approval in SIT: <strong>Needs approval: contains a Flow and an Apex class.</strong> (SIT's rule: Only when the release contains…)</div>
+        <div class="row" style="justify-content:flex-end"><button class="btn2">Back</button><button class="btn">Raise pull request</button></div>
+      </div>
+    </section>
+
+    <!-- 4 · Releases tab: Export CSV -->
+    <section class="card">
+      <div class="hd"><h2>4 · Releases tab: Export CSV</h2></div>
+      <div class="bd">
+        <div class="row"><div class="in sel" style="width:150px">Status: Deployed</div><div class="in sel" style="width:140px">Target: PROD</div><div class="in sel" style="width:150px">Last 30 days</div><span style="flex:1"></span><button class="btn2">⤓ Export CSV</button></div>
+        <table>
+          <tr><th>Release</th><th>Route</th><th>Approved</th><th>Status</th></tr>
+          <tr><td><strong>REL-00034</strong> Case escalation rules</td><td>SIT → PROD</td><td>Dana Lee · Salesforce</td><td><span class="pill ok">Deployed</span></td></tr>
+          <tr><td><strong>REL-00033</strong> Sales list views</td><td>DEV2 → SIT</td><td><span class="pill info">Rule</span> automatically</td><td><span class="pill ok">Deployed</span></td></tr>
+          <tr><td><strong>REL-00031</strong> <span class="pill hot">Hotfix</span> Stop duplicate emails</td><td>SIT → PROD</td><td>Dana Lee + Sam Ortiz · Slack</td><td><span class="pill ok">Deployed</span></td></tr>
+        </table>
+        <p class="k">Exports the releases matching the filters above to <span class="mono">releases-2026-10-31.csv</span>: release, title, route, raised by / on, status, approved by / on, approved via, comment, second approver, deployed to, deploy ids, pull request link.</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- 3 · Release page -->
+<p class="lab" style="margin-top:8px">3 · Release page after the deploy: approval reason, flow results, history, evidence</p>
+<div class="hdr">
+  <span class="ico">R</span>
+  <div style="flex:1;min-width:0"><p class="k">Release</p><h1>REL-00034 · Case escalation rules</h1></div>
+  <span class="pill ok">Deployed to PROD</span>
+  <button class="btn2">Copy summary</button>
+  <button class="btn">⤓ Download evidence (PDF)</button>
+</div>
+<div class="page">
+  <div class="stack">
+    <section class="card">
+      <div class="hd"><h3>Approval</h3></div>
+      <div class="bd">
+        <div class="row"><strong>SIT</strong><span class="pill info">Approved automatically</span></div>
+        <div class="msg ok">Approved automatically: SIT's rule asks for approval only for Apex, flows, profiles, deletions and hotfixes, and this release had none when it reached SIT.</div>
+        <div class="row"><strong>PROD</strong><span class="pill ok">Approved</span><span class="k">Dana Lee · Oct 31, 3:40 PM · Salesforce</span></div>
+        <p class="k">“Always needs approval in PROD.” Comment: “Reviewed with the support lead, OK for today's window.”</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="hd"><h3>Flows</h3><span class="pill ok">2 activated</span><span class="pill hot">1 failed</span></div>
+      <div class="bd">
+        <div class="flt"><div class="row"><strong>Case_Escalation</strong><span class="k">Activate in each org</span></div><p class="k">SIT v9 active · PROD v9 active</p></div>
+        <div class="flt"><div class="row"><strong>Lead_Assignment</strong><span class="k">Keep as in DEV1</span></div><p class="k">SIT v4 inactive (v3 active) · PROD v4 inactive (v3 active)</p></div>
+        <div class="flt"><div class="row"><strong>Escalation_Reminder</strong><span class="k">Activate in each org</span></div><p class="k">SIT v2 active · <span style="color:#BA0517">PROD failed: “The integration user needs the Manage Flow permission.”</span> <span class="lnk">Try again</span></p></div>
+      </div>
+    </section>
+
+    <div class="toast">✓ Evidence saved to the release's Files: REL-00034 evidence 2026-10-31 16:05.pdf</div>
+
+    <section class="card">
+      <div class="hd"><h3>Copy summary</h3><span class="sm weak">for the change request</span></div>
+      <div class="bd">
+<pre class="pre">REL-00034 Case escalation rules
+Route: DEV1 → SIT → PROD · raised by Priya Shah, Oct 30
+Components: 6 (2 Apex classes, 2 flows, 1 field, 1 layout)
+Scan: passed, 0 high · Tests: 14 run, 92% coverage
+SIT: approved automatically (rule) · deployed Oct 30, 5:18 PM
+PROD: approved by Dana Lee, Oct 31, 3:40 PM (Salesforce)
+      deployed Oct 31, 3:58 PM, quick deploy 0Af5g00000AbCdE
+Flows: Case_Escalation v9 active in SIT and PROD
+Manual steps: 2 of 2 done in PROD
+Pull request: github.com/acme/salesforce/pull/212</pre>
+        <p class="k">Copied as plain text. The toast says “Summary copied”.</p>
+      </div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="hd"><h3>History</h3><span class="pill none">13 events</span></div>
+    <div class="bd">
+      <ul class="tl">
+        <li><span class="tli c-raise">＋</span><div class="tlb"><div class="l1"><strong>Raised</strong><span class="k">Priya Shah · Salesforce</span><span class="when">Oct 30, 4:41 PM</span></div><p class="k">DEV1 → SIT · 6 components, 3 flows</p></div></li>
+        <li><span class="tli c-git">⎇</span><div class="tlb"><div class="l1"><strong>Pull request opened</strong><span class="k">Git</span><span class="when">4:41 PM</span></div><p class="k"><span class="lnk">#212</span> dev1 → sit</p></div></li>
+        <li><span class="tli c-scan">✓</span><div class="tlb"><div class="l1"><strong>Scan passed</strong><span class="k">Git</span><span class="when">4:47 PM</span></div><p class="k">0 high, 2 low findings</p></div></li>
+        <li><span class="tli c-val">✓</span><div class="tlb"><div class="l1"><strong>Check-only deploy passed in SIT</strong><span class="when">5:02 PM</span></div><p class="k">14 tests run · 92% coverage · <span class="mono">0Af5g00000XyZ12</span></p></div></li>
+        <li><span class="tli c-auto">⚙</span><div class="tlb"><div class="l1"><strong>Approved automatically</strong><span class="k">Rule</span><span class="when">5:04 PM</span></div><p class="k">SIT: only a field and a layout</p></div></li>
+        <li><span class="tli c-dep">⇪</span><div class="tlb"><div class="l1"><strong>Deployed to SIT</strong><span class="when">5:18 PM</span></div><p class="k">Quick deploy · <span class="mono">0Af5g00000XyZ34</span></p></div></li>
+        <li><span class="tli c-flow">⟳</span><div class="tlb"><div class="l1"><strong>Flow activated in SIT</strong><span class="when">5:19 PM</span></div><p class="k">Case_Escalation v9 · Escalation_Reminder v2</p></div></li>
+        <li><span class="tli c-git">⎇</span><div class="tlb"><div class="l1"><strong>Promoted SIT → PROD</strong><span class="k">Dana Lee · Pipeline</span><span class="when">Oct 31, 3:12 PM</span></div><p class="k">With REL-00033</p></div></li>
+        <li><span class="tli c-appr">✓</span><div class="tlb"><div class="l1"><strong>Approved for PROD</strong><span class="k">Dana Lee · Salesforce</span><span class="when">3:40 PM</span></div><p class="k">“Reviewed with the support lead, OK for today's window.”</p></div></li>
+        <li><span class="tli c-man">☑</span><div class="tlb"><div class="l1"><strong>Manual step done in PROD</strong><span class="k">Sam Ortiz</span><span class="when">3:52 PM</span></div><p class="k">Give Support User access to Case.Escalation_Level__c</p></div></li>
+        <li><span class="tli c-dep">⇪</span><div class="tlb"><div class="l1"><strong>Deployed to PROD</strong><span class="when">3:58 PM</span></div><p class="k">Quick deploy · <span class="mono">0Af5g00000AbCdE</span></p></div></li>
+        <li><span class="tli c-fail">!</span><div class="tlb"><div class="l1"><strong>Flow activation failed in PROD</strong><span class="when">3:59 PM</span></div><p class="k">Escalation_Reminder: the integration user needs the Manage Flow permission</p></div></li>
+        <li><span class="tli c-git">⎇</span><div class="tlb"><div class="l1"><strong>Merged back to sit</strong><span class="k">Git</span><span class="when">4:00 PM</span></div><p class="k"><span class="lnk">#215</span> main → sit</p></div></li>
+      </ul>
+      <p class="k">Newest last. Recorded by Release Relay only; nobody can edit or delete an event. The PDF holds this full list plus components, scan findings, tests, approvals, manual steps, flow results and deploy ids.</p>
+    </div>
+  </section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":2000}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

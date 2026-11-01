@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 10
+// Release Relay pipeline files: version 11
 /*
  * Release Relay: one script for every pipeline job, on GitHub, GitLab, Bitbucket or Azure DevOps.
  *
@@ -49,6 +49,12 @@
  * TARGET's lines where they conflict (-X theirs); without it a conflict is reported, never forced.
  * The deploy step quick deploys the release's validation (no tests run again) when the merge is exactly
  * what was validated; {"quickDeploy":false} always deploys in full. deploy.json says which: quick, quickNote.
+ *
+ * Release Relay's own metadata (Rly* classes, rly* LWCs, RLY_* objects, tabs, permission sets, ...) is never
+ * deployed or deleted by validate, deploy (full or quick) or sync: the globs in .relay/exclude (read from the
+ * pipeline's own commit, like this script; built-in defaults when the file is missing) are left out of every
+ * deployment and listed in validate.json, deploy.json and sync.json as "excluded". {"selfUpdate":true} (the hub
+ * updating itself, from the release-relay-hub branch) ignores the list.
  *
  * Every input arrives as an environment variable and is validated here. Commands run with
  * execFileSync and argument arrays, never through a shell, so input can't inject commands.
@@ -208,6 +214,15 @@ const SHA_RE = /^[0-9a-f]{40}$/;
 const SCAN_EXT = ['.cls', '.trigger', '.page', '.component', '.cmp', '.js', '.html', '.flow-meta.xml'];
 const TEST_LEVELS = ['NoTestRun', 'RunLocalTests', 'RunAllTestsInOrg'];
 const WORK_DIR = '.relay';
+const EXCLUDE_FILE = path.join(WORK_DIR, 'exclude');
+// Used when the pipeline's commit has no .relay/exclude. Globs relative to SOURCE_PATH; a glob matching a folder
+// covers everything in it. "only-labels:<glob>" excludes a labels file only when every label in it matches.
+const DEFAULT_EXCLUDES = [
+    'classes/Rly*', 'triggers/Rly*', 'lwc/rly*', 'aura/rly*', 'objects/RLY_*', 'objects/User/fields/RLY_*',
+    'tabs/RLY_*', 'permissionsets/RLY_*', 'customPermissions/RLY_*', 'staticresources/RLY_*',
+    'applications/Release_Relay.app-meta.xml', 'namedCredentials/RLY_*', 'externalCredentials/RLY_*',
+    'flexipages/RLY_*', 'layouts/RLY_*', 'labels/CustomLabels.labels-meta.xml only-labels:RLY_*'
+];
 const PROVIDER = (env.RELAY_PROVIDER || 'github').toLowerCase();
 
 /** A plain input: empty for unset, '-' (Azure's empty marker) or an unexpanded $(NAME) macro. */
@@ -347,6 +362,10 @@ function writeResult(name, data) {
     if (runToken) {
         result.attempt = runToken;
     }
+    if (['validate', 'deploy', 'sync'].includes(name)) {
+        result.excluded = deployExcluded.slice(0, 1000);
+        result.selfUpdate = selfUpdate();
+    }
     const json = JSON.stringify(result, null, 1);
     summary('```json\n' + json.slice(0, 4000) + '\n```');
     if (env.RELAY_LOCAL_RESULTS === 'true') {
@@ -473,12 +492,135 @@ function componentFor(file) {
     return null;
 }
 
+// ---------- Release Relay's own metadata: the exclude list ----------
+
+let excludeRules = [];
+let excludeSource = '';
+let deployExcluded = []; // the files the last buildDeployment left out, for the result
+const selfUpdate = () => options.selfUpdate === true;
+
+function globRegex(glob) {
+    let re = '';
+    for (let i = 0; i < glob.length; i++) {
+        const c = glob[i];
+        if (c === '*' && glob[i + 1] === '*') {
+            re += '.*';
+            i++;
+        } else if (c === '*') {
+            re += '[^/]*';
+        } else if (c === '?') {
+            re += '[^/]';
+        } else {
+            re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+        }
+    }
+    return new RegExp('^' + re + '$');
+}
+
+/** Reads .relay/exclude from the pipeline's commit (the job starts there, before any checkout), else the defaults. */
+function loadExcludes() {
+    let lines = DEFAULT_EXCLUDES;
+    excludeSource = 'built-in defaults';
+    try {
+        if (fs.existsSync(EXCLUDE_FILE)) {
+            lines = fs.readFileSync(EXCLUDE_FILE, 'utf8').split(/\r?\n/);
+            excludeSource = EXCLUDE_FILE;
+        }
+    } catch (e) {
+        // unreadable: keep the defaults
+    }
+    excludeRules = [];
+    for (const raw of lines) {
+        const line = raw.replace(/(^|\s)#.*$/, '').trim();
+        if (!line) {
+            continue;
+        }
+        const [glob, ...mods] = line.split(/\s+/);
+        const rule = { glob: glob.replace(/^\/+/, '').replace(/\/+$/, ''), labels: null };
+        for (const m of mods) {
+            if (m.startsWith('only-labels:') && m.length > 12) {
+                rule.labels = globRegex(m.slice(12));
+            } else {
+                console.log(`::warning::${excludeSource}: "${m}" isn't understood; "${rule.glob}" is excluded without it.`);
+            }
+        }
+        if (rule.glob) {
+            rule.re = globRegex(rule.glob);
+            excludeRules.push(rule);
+        }
+    }
+}
+
+/** True when every label in a labels file (at head, or at base when deleted) matches the rule's name glob. */
+function labelsAllMatch(file, base, nameRe) {
+    const text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : gitQuiet(['show', `${base}:${file}`]);
+    const names = [...String(text || '').matchAll(/<fullName>\s*([^<]*?)\s*<\/fullName>/g)].map((m) => m[1]);
+    return names.length > 0 && names.every((n) => nameRe.test(n));
+}
+
+/** Whether a changed repo file is Release Relay's own metadata, which normal releases never deploy or delete. */
+function isExcluded(file, base) {
+    if (selfUpdate()) {
+        return false;
+    }
+    const rel = path.relative(sourcePath(), file).split(path.sep).join('/');
+    if (!rel || rel.startsWith('..')) {
+        return false;
+    }
+    const parts = rel.split('/');
+    return excludeRules.some((rule) => {
+        let hit = false;
+        for (let i = parts.length; i >= 1 && !hit; i--) {
+            hit = rule.re.test(parts.slice(0, i).join('/'));
+        }
+        return hit && (!rule.labels || labelsAllMatch(file, base, rule.labels));
+    });
+}
+
+// The exclude list also goes into .forceignore for the run (restored on exit), so the CLI never picks an excluded
+// file up as part of another component (an RLY_ field when the User object itself is deployed).
+let forceIgnoreOriginal;
+function applyForceIgnore() {
+    const globs = excludeRules.filter((r) => !r.labels).map((r) => `${sourcePath()}/${r.glob}`);
+    if (selfUpdate() || !globs.length || forceIgnoreOriginal !== undefined) {
+        return;
+    }
+    forceIgnoreOriginal = fs.existsSync('.forceignore') ? fs.readFileSync('.forceignore', 'utf8') : null;
+    fs.writeFileSync('.forceignore', (forceIgnoreOriginal ? forceIgnoreOriginal.replace(/\n?$/, '\n') : '')
+        + '# Release Relay exclude list (this run only)\n' + globs.join('\n') + '\n');
+    process.on('exit', () => {
+        try {
+            if (forceIgnoreOriginal === null) {
+                fs.rmSync('.forceignore', { force: true });
+            } else {
+                fs.writeFileSync('.forceignore', forceIgnoreOriginal);
+            }
+        } catch (e) {
+            // the job ends anyway
+        }
+    });
+}
+
+/** A sentence for result messages when files were left out, or ''. */
+function excludedNote() {
+    return deployExcluded.length ? ` ${deployExcluded.length} Release Relay file(s) were left out (exclude list).` : '';
+}
+
 /**
  * Builds .relay/package.xml (+ destructiveChangesPost.xml) for the changes between two commits,
  * using the files as they are at head. Returns null when nothing deployable changed.
  */
 function buildDeployment(base, head) {
-    const files = changedFiles(base, head);
+    const all = changedFiles(base, head);
+    const skipped = new Set(all.filter((f) => isExcluded(f.file, base)).map((f) => f.file));
+    const files = all.filter((f) => !skipped.has(f.file));
+    deployExcluded = [...skipped].sort();
+    if (selfUpdate()) {
+        summary('**Self-update:** the exclude list is ignored; Release Relay\'s own files are deployed.');
+    } else if (deployExcluded.length) {
+        summary(`**Excluded:** ${deployExcluded.length} Release Relay file(s) matching ${excludeSource} were not deployed or deleted:\n`
+            + deployExcluded.slice(0, 30).map((f) => `- \`${f}\``).join('\n') + (deployExcluded.length > 30 ? '\n- ...' : ''));
+    }
     const sourceDirs = new Set();
     const deletions = new Map();
     const unknown = [];
@@ -521,8 +663,10 @@ function buildDeployment(base, head) {
     if (!sourceDirs.size && !deletions.size) {
         return null;
     }
-    fs.rmSync(WORK_DIR, { recursive: true, force: true });
+    // Only the generated manifests: .relay/exclude lives in the same folder.
     fs.mkdirSync(WORK_DIR, { recursive: true });
+    ['package.xml', 'destructiveChangesPost.xml'].forEach((f) => fs.rmSync(path.join(WORK_DIR, f), { force: true }));
+    applyForceIgnore();
     const pkg = path.join(WORK_DIR, 'package.xml');
     const existing = [...sourceDirs].filter((d) => fs.existsSync(d));
     if (existing.length) {
@@ -1342,7 +1486,7 @@ async function stepValidate() {
         plan = buildDeployment(base, 'HEAD');
         validatedTree = git(['rev-parse', 'HEAD^{tree}']); // a quick deploy needs exactly this tree
         if (!plan) {
-            writeResult('validate', { status: 'Skipped', message: 'Nothing deployable changed under ' + sourcePath() + '.' });
+            writeResult('validate', { status: 'Skipped', message: 'Nothing deployable changed under ' + sourcePath() + '.' + excludedNote() });
             return;
         }
         login('target-org');
@@ -1588,7 +1732,7 @@ async function stepDeploy() {
         git(['checkout', '-q', '--detach', sha]);
         plan = buildDeployment(`${sha}^1`, sha);
         if (!plan) {
-            writeResult('deploy', { status: 'Deployed', sha, message: 'Nothing deployable changed under ' + sourcePath() + '.' });
+            writeResult('deploy', { status: 'Deployed', sha, message: 'Nothing deployable changed under ' + sourcePath() + '.' + excludedNote() });
             return;
         }
         login('target-org');
@@ -1673,6 +1817,10 @@ function quickDeployCheck(sha) {
     }
     if (val.status !== 'Passed' || val.ok !== true || typeof val.deployId !== 'string' || !/^[A-Za-z0-9]{15,18}$/.test(val.deployId)) {
         return { note: `The validation didn't pass with a deployment id (${val.status || 'no status'}), so it was deployed in full.` };
+    }
+    // The validation must have used the same exclude setting: an older pipeline's validation included every file.
+    if ((val.selfUpdate === true) !== selfUpdate() || (!selfUpdate() && !Array.isArray(val.excluded) && deployExcluded.length)) {
+        return { note: 'The validation used a different exclude list setting (selfUpdate, or a pipeline before version 11), so it was deployed in full.' };
     }
     if (val.environment && val.environment !== targetEnv) {
         return { note: `The validation ran against ${val.environment}, not ${targetEnv}, so it was deployed in full.` };
@@ -1783,7 +1931,7 @@ async function stepSync() {
             result('Nothing to deploy', { sha: head, message: !oldHead
                 ? `Made ${target} from ${branch}. The org is taken to match ${branch} already, so nothing was deployed; later syncs deploy what changes.`
                 : oldHead === head ? `${target} already includes ${branch}.`
-                    : `Nothing deployable changed under ${sourcePath()}. ${target} now includes ${branch}.` });
+                    : `Nothing deployable changed under ${sourcePath()}. ${target} now includes ${branch}.${excludedNote()}` });
             return;
         }
         login('target-org');
@@ -1804,7 +1952,7 @@ async function stepSync() {
             message: `Deployed to ${targetEnv}, but pushing ${target} failed (branch rules?). The next sync deploys these changes again: ${String(e.message || e).slice(0, 500)}` });
     }
     result('Deployed', { sha: head, deployId: r.deployId || null, testsRun: r.testsRun || 0,
-        message: `Deployed ${plan.changed} change(s)${plan.deleted ? ` and ${plan.deleted} deletion(s)` : ''} from ${branch} (${r.testLevel}).` });
+        message: `Deployed ${plan.changed} change(s)${plan.deleted ? ` and ${plan.deleted} deletion(s)` : ''} from ${branch} (${r.testLevel}).${excludedNote()}` });
 }
 
 // ---------- step: auto (one job runs everything MODE needs) ----------
@@ -1858,6 +2006,10 @@ async function main() {
         return;
     }
     checkCommonInputs();
+    loadExcludes();
+    if (selfUpdate() && target !== 'release-relay-hub') {
+        summary(`**Note:** selfUpdate is set but the target is ${target}; the hub's own updates belong on release-relay-hub.`);
+    }
     if (!STEPS[step]) {
         fail('STEP must be raise, scan, validate, merge, deploy, sync or auto.');
     }

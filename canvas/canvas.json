@@ -173,6 +173,30 @@
       "w": 1280,
       "x": 0,
       "y": 11100
+    },
+    "HubPipelineEdit.dc.html": {
+      "expand": "fill",
+      "h": 1000,
+      "title": "Pipeline tab: read-only cards, Edit opens an SLDS window (Sign-in, Approval, Slack, Back promote)",
+      "w": 1280,
+      "x": 1360,
+      "y": 11100
+    },
+    "HubReleasesFilters.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "title": "Releases: Raised by lookup, Open (default) · Deployed · Failed · Rejected · All, live check every 30 s",
+      "w": 1280,
+      "x": 0,
+      "y": 12500
+    },
+    "HubManualSteps.dc.html": {
+      "expand": "fill",
+      "h": 1300,
+      "title": "Manual steps: add on New Release, checklist per org for the deployment team, deploy waits for before-deploy steps, in sequence through promote and back promote",
+      "w": 1280,
+      "x": 1360,
+      "y": 12500
     }
   },
   "createdOnFiles": {
@@ -241,7 +265,10 @@
     "HubPipelineFiles.dc.html",
     "HubSourceEnvironments.dc.html",
     "HubHotfixBackPromote.dc.html",
-    "HubDeletions.dc.html"
+    "HubDeletions.dc.html",
+    "HubPipelineEdit.dc.html",
+    "HubReleasesFilters.dc.html",
+    "HubManualSteps.dc.html"
   ],
   "pages": [],
   "title": "Release Relay app shell"

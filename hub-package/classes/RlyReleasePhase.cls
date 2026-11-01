@@ -1,7 +1,7 @@
 /**
  * @description What the release page and the Slack card say about where a release is: the phase (the status, or
- * Resolving conflicts while a resolve run checks it), a notice (the target moved so the checks run again, or the
- * merge waits for the Git provider's reviewers) and the Slack card's link.
+ * Resolving conflicts while a resolve run checks it), a notice (the target moved so the checks run again, a second
+ * approver or the deployment team's manual steps are awaited, or the merge waits for the Git provider's reviewers) and the Slack card's link.
  */
 public with sharing class RlyReleasePhase {
 
@@ -24,9 +24,9 @@ public with sharing class RlyReleasePhase {
             String target = rel.Target_Org__r == null ? rel.Target_Branch__c : rel.Target_Org__r.Name;
             return target + ' changed after the checks passed, so they are running again.';
         }
-        String secondNotice = RlyTwoApprovers.notice(rel);
-        if (secondNotice != null) {
-            return secondNotice;
+        String heldNotice = held(rel);
+        if (heldNotice != null) {
+            return heldNotice;
         }
         if (rel.Status__c == RlyPromotion.QUEUED) {
             return 'Starting the pipeline run.';
@@ -35,6 +35,12 @@ public with sharing class RlyReleasePhase {
             return 'Waiting for ' + RlyGitName.reviewers() + ' reviewers before deploying.';
         }
         return null;
+    }
+
+    // Waiting for a second approver, or for the deployment team's manual steps before deploy.
+    private static String held(RLY_Release__c rel) {
+        String secondNotice = RlyTwoApprovers.notice(rel);
+        return secondNotice != null ? secondNotice : RlyManualStepGate.notice(rel);
     }
 
     /**

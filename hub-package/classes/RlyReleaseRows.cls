@@ -4,15 +4,17 @@
 public with sharing class RlyReleaseRows {
 
     /**
-     * @description One row per release, with the release numbers a promotion carries.
+     * @description One row per release, with the release numbers a promotion carries and its manual steps still to do.
      * @param rels the releases, as RlyReleaseStore or RlyReleaseQuery read them
      * @return the rows, in the same order
      */
     public static List<RlyReleasesController.Row> build(List<RLY_Release__c> rels) {
         List<RlyReleasesController.Row> out = new List<RlyReleasesController.Row>();
         Map<Id, String> names = RlyReleaseLinks.carriedNames(rels);
+        Map<Id, Integer> manualOpen = RlyManualStepStore.openCounts(new Map<Id, RLY_Release__c>(rels).keySet());
         for (RLY_Release__c r : rels) {
             RlyReleasesController.Row row = toRow(r);
+            row.manualOpen = manualOpen.containsKey(r.Id) ? manualOpen.get(r.Id) : 0;
             for (Id carriedId : RlyCarried.ids(r)) {
                 if (names.containsKey(carriedId)) {
                     row.carried.add(names.get(carriedId));

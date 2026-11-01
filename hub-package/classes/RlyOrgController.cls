@@ -27,6 +27,12 @@ public with sharing class RlyOrgController {
         @AuraEnabled public Boolean slackAvailable = false;
         /** @description The Git provider's name (for the "also require reviewers" toggle), or null without a Git connection. */
         @AuraEnabled public String gitProvider;
+        /** @description The org Edit modal's approval rules (Approval_Rule__c values and labels). */
+        @AuraEnabled public List<ApprovalOption> approvalRuleOptions = new List<ApprovalOption>();
+        /** @description The kinds of change an approval rule can pick (Approval_Types__c values and labels). */
+        @AuraEnabled public List<ApprovalOption> approvalTypeOptions = new List<ApprovalOption>();
+        /** @description Org Id to its card's read-only approval rule line. */
+        @AuraEnabled public Map<Id, String> approvalRules = new Map<Id, String>();
     }
 
     /** @description One choice for Approval_In__c. */
@@ -64,6 +70,7 @@ public with sharing class RlyOrgController {
         p.approvalOptions = approvalOptions();
         p.slackAvailable = RlySlack.isConnected();
         p.gitProvider = RlyGitName.labelFor(RlyReleaseStore.git());
+        RlyApprovalRuleOrg.fill(p);
         return p;
     }
 
@@ -107,6 +114,7 @@ public with sharing class RlyOrgController {
         }
         RLY_Org__c row = buildRow(input);
         RlyOrgSettings.apply(row, orgJson);
+        RlyApprovalRuleOrg.apply(row, orgJson, saved);
         applyStatus(row, saved);
         data.save(row);
         return row.Id;
@@ -182,6 +190,7 @@ public with sharing class RlyOrgController {
      */
     @AuraEnabled
     public static RLY_Org__c checkOrg(Id orgId) {
+        RlyHubGuard.requireHub();
         if (!isAdmin()) {
             throw new AuraHandledException('Checking orgs needs the Release Relay Admin permission set.');
         }
@@ -214,7 +223,7 @@ public with sharing class RlyOrgController {
         public List<RLY_Org__c> allOrgs() {
             return [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Environment__c, Username__c, Certificate__c,
                            Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c,
-                           Hotfix_Two_Approvers__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c, Org_Id__c, Org_Type__c, Is_Sandbox__c, Api_Version__c, Source_Tracking__c,
+                           Hotfix_Two_Approvers__c, Approval_Rule__c, Approval_Types__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c, Org_Id__c, Org_Type__c, Is_Sandbox__c, Api_Version__c, Source_Tracking__c,
                            Status__c, Status_Message__c, Last_Checked__c
                     FROM RLY_Org__c WITH SYSTEM_MODE ORDER BY Role__c, Name LIMIT 200];
         }
@@ -235,7 +244,7 @@ public with sharing class RlyOrgController {
         public RLY_Org__c byId(Id orgId) {
             List<RLY_Org__c> rows = [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Environment__c, Username__c, Consumer_Key__c, Client_Id__c,
                                             Certificate__c, Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c,
-                           Hotfix_Two_Approvers__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c, Org_Id__c, Org_Type__c,
+                           Hotfix_Two_Approvers__c, Approval_Rule__c, Approval_Types__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c, Org_Id__c, Org_Type__c,
                                             Is_Sandbox__c, Api_Version__c, Source_Tracking__c, Status__c, Status_Message__c, Last_Checked__c
                                      FROM RLY_Org__c WHERE Id = :orgId WITH SYSTEM_MODE];
             if (rows.isEmpty()) {
@@ -252,7 +261,7 @@ public with sharing class RlyOrgController {
         public RLY_Org__c view(Id orgId) {
             return [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Environment__c, Username__c, Certificate__c,
                            Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c,
-                           Hotfix_Two_Approvers__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c, Org_Id__c, Org_Type__c, Is_Sandbox__c, Api_Version__c,
+                           Hotfix_Two_Approvers__c, Approval_Rule__c, Approval_Types__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c, Org_Id__c, Org_Type__c, Is_Sandbox__c, Api_Version__c,
                            Source_Tracking__c, Status__c, Status_Message__c, Last_Checked__c
                     FROM RLY_Org__c WHERE Id = :orgId WITH SYSTEM_MODE LIMIT 1];
         }
