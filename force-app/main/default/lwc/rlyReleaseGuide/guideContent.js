@@ -1150,6 +1150,36 @@ const START_SECTIONS = [
 
 const USE_SECTIONS = [
     {
+        key: 'home',
+        group: 'daily',
+        label: 'Home',
+        cards: [
+            {
+                key: 'home-main',
+                title: 'Home: what needs you today',
+                blocks: [
+                    { type: 'text', paras: [
+                        '**Home** is the first tab of Release Relay and opens when you start the app. It reads only what is already saved in the hub (no calls to Git, Slack or your orgs), so it opens fast. Press **Refresh** to read it again, **New release** to raise one.',
+                        'The greeting says how many things need you. The **Health** line shows the last saved checks: Git connection, pipeline files, Slack, approving in Slack and the code scan. When all is fine it shows one line, **All connections OK**; admins open **Pipeline ›** to check again.'
+                    ] },
+                    { type: 'table', cols: ['Part', 'What it shows', 'Click it to'], rows: [
+                        ['Tiles', 'Open releases, Waiting for approval, Checks failed, Deployed this week, Rollbacks in 30 days, and the average days from raising a release to its first deploy.', 'Open Releases or Approvals with the matching chip picked.'],
+                        ['Needs you', 'One group per role you have: **Waiting for your approval** (approvers), **Manual steps to do** (deployment team), **Your releases with a problem** (failed checks or deploys, conflicts to review).', 'Open the release with **Open** or its number.'],
+                        ['Deploys · last 8 weeks', 'Deployed and failed deploys per week, the success rate, and this week per org.', '**Releases ›** lists deployed releases.'],
+                        ['Route', 'Each stop of the route with its connection, the last release raised or deployed there, and what waits: open releases, releases ready to promote, approvals.', '**Releases**, **Promote** or **Approvals**.'],
+                        ['Recent activity', 'The last 50 events of every release, newest first.', 'Open the release from its number.']
+                    ] },
+                    { type: 'list', items: [
+                        'The lists keep their header in view and scroll inside their card. Type in the search box to filter them as you type (release, title or event, org, person); matches are highlighted and the box shows how many are left, for example **7 of 50**. **Esc** or **×** clears it.',
+                        'Recent activity has chips: **All**, **Deploys**, **Approvals**, **Failures**, **Rollbacks**. Search works within the chip you picked.',
+                        'On a phone or a narrow window the page shows one column and the lists show two lines per row.'
+                    ] },
+                    { type: 'note', text: 'In a sandbox, or a production org before setup, Home shows the same notice as the other tabs instead of the page.' }
+                ]
+            }
+        ]
+    },
+    {
         key: 'raise',
         group: 'daily',
         label: 'Raise a release',

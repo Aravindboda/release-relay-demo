@@ -2,6 +2,7 @@ import APP_NAME from '@salesforce/label/c.RLY_App_Name';
 import { LightningElement, api, wire } from 'lwc';
 import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
 import getStart from '@salesforce/apex/RlyChangesController.getStart';
+import { highlightParts, searchTerm } from 'c/rlyListSearch';
 import describeTypes from '@salesforce/apex/RlyChangesController.describeTypes';
 import listChanges from '@salesforce/apex/RlyChangesController.listChanges';
 import listFolderChanges from '@salesforce/apex/RlyChangesController.listFolderChanges';
@@ -182,6 +183,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
             if (this.windowChoice === 'date') {
                 this.windowChoice = '7';
             }
+            this.search = '';
             this.step = 'select';
             this.scan(false);
         } catch (e) {
@@ -462,8 +464,13 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         return hits === all ? all + (all === 1 ? ' org' : ' orgs') : hits + ' of ' + all + ' orgs';
     }
     handleOrgSearch(event) {
-        this.orgSearch = event.target.value || '';
+        this.orgSearch = (event.detail && event.detail.value) || '';
     }
+    get orgShown() { return this.matchingOrgs.length; }
+    get orgTotal() { return this.envOrgs.length; }
+    get orgOverLimit() { return this.matchingOrgs.length > ORG_LIMIT; }
+    /** Without the search box (6 orgs or fewer) the count shows as text. */
+    get showOrgCount() { return !this.showOrgSearch && !this.orgOverLimit; }
 
     get noDevelopers() { return this.start && (this.start.developers || []).length === 0; }
 
@@ -513,6 +520,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     }
 
     goSelect() {
+        this.search = '';
         this.step = 'select';
         this.scan(false);
     }
@@ -674,10 +682,31 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         this.shown = PAGE;
     }
 
+    /** rlySearchBox above the table: filters the scanned changes on the page (paging and the type list stay). */
     handleSearch(event) {
-        this.search = (event.target.value || '').trim().toLowerCase();
+        this.search = searchTerm(event.detail && event.detail.value);
         this.shown = PAGE;
     }
+
+    /** "Clear search" in the empty table. */
+    clearSearch() {
+        const box = this.template.querySelector('c-rly-search-box.rr-search');
+        if (box) {
+            box.clear();
+        }
+        this.search = '';
+        this.shown = PAGE;
+    }
+
+    /** The changes under the type filter, before the search (the count's total). */
+    get typePool() {
+        return this.pool.filter((c) => this.typeFilter === 'all' || c.type === this.typeFilter || (this.typeFilter === 'deleted' && c.deleted));
+    }
+    get searchShown() { return this.filtered.length; }
+    get searchTotal() { return this.typePool.length; }
+    get searchNoMatch() { return this.noRows && !!this.search && this.typePool.length > 0; }
+    get searchNoMatchText() { return 'No changes match \u2018' + this.search + '\u2019.'; }
+    get plainNoRows() { return this.noRows && !this.searchNoMatch; }
 
     get filtered() {
         const q = this.search;
@@ -694,6 +723,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
             const changed = [c.modifiedOn ? new Date(c.modifiedOn).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '', c.modifiedBy || ''].join(' ').trim();
             return {
                 ...c,
+                nameParts: highlightParts(c.name, this.search),
                 checked: on,
                 rowCls: (inRelease ? 'rr-row-locked' : (on ? 'rr-row-on' : '')) + (c.deleted ? ' rr-row-del' : ''),
                 inRelease,
@@ -967,6 +997,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     }
 
     backToSelect() {
+        this.search = '';
         this.step = 'select';
     }
 

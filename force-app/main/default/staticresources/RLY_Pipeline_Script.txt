@@ -618,9 +618,9 @@ function login(alias) {
 
 function apiVersion() {
     try {
-        return JSON.parse(fs.readFileSync('sfdx-project.json', 'utf8')).sourceApiVersion || '62.0';
+        return JSON.parse(fs.readFileSync('sfdx-project.json', 'utf8')).sourceApiVersion || '65.0';
     } catch (e) {
-        return '62.0';
+        return '65.0';
     }
 }
 
