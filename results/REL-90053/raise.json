@@ -1,0 +1,18 @@
+{
+ "request": "REL-90053",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rly-b19-sitcheck",
+ "target": "rly-sit-install",
+ "sha": "ae00f869bbdf7be3285aabacdf148c456f638b00",
+ "pr": 74,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/74",
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41308375830",
+ "finishedAt": "2026-11-01T12:50:56.077Z"
+}
