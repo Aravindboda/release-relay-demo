@@ -2,8 +2,10 @@
  * @description The Slack card of a release (one message per release, edited as it moves) and the one-line replies
  * in its thread. The card: a title line (REL · title, "Hotfix: " first for a hotfix), "Why: <reason>" for a hotfix and
  * "Promotes REL-…" for a promotion, a status line (emoji, status, route, who raised or approved
- * it), a steps line (manual steps only: no Git or pipeline steps), Approve and Reject while it's ready for approval into an org approved in Slack, and a button
- * that opens the release in the hub. Emoji are Slack short codes. The thread replies are RlySlackReply.
+ * it), a steps line (manual steps only: no Git or pipeline steps), Approve and Reject while it waits for an approver's
+ * decision into an org approved in Slack (once it's approved or rejected a line says who, instead: RlySlackCardState),
+ * and a button that opens the release in the hub. The card always shows the release's current state (RlySlack edits it
+ * on every change it shows). Emoji are Slack short codes. The thread replies are RlySlackReply.
  */
 public with sharing class RlySlackCard {
 
@@ -38,17 +40,19 @@ public with sharing class RlySlackCard {
      */
     public static Map<String, Object> card(RLY_Release__c rel, String approverName) {
         String title = RlySlackCardText.title(rel);
-        String body = '*' + RlySlackMessage.esc(title) + '*\n' + RlySlackCardText.aboutLines(rel) + statusLine(rel, approverName) + '\n' + stepsLine(rel) + RlyReleaseHistory.slackLine(rel);
+        String body = '*' + RlySlackMessage.esc(title) + '*\n' + RlySlackCardText.aboutLines(rel) + statusLine(rel, approverName)
+            + RlySlackCardState.mergedBackLine(rel) + '\n' + stepsLine(rel) + RlyReleaseHistory.slackLine(rel);
         List<Object> blocks = new List<Object>{
-            new Map<String, Object>{ 'type' => 'section', 'text' => new Map<String, Object>{ 'type' => 'mrkdwn', 'text' => body.left(2900) } },
-            new Map<String, Object>{ 'type' => 'actions', 'block_id' => 'rly_actions', 'elements' => buttons(rel) }
+            new Map<String, Object>{ 'type' => 'section', 'text' => new Map<String, Object>{ 'type' => 'mrkdwn', 'text' => body.left(2900) } }
         };
+        blocks.addAll(RlySlackCardState.decisionBlocks(rel, approverName));
+        blocks.add(new Map<String, Object>{ 'type' => 'actions', 'block_id' => 'rly_actions', 'elements' => buttons(rel) });
         return new Map<String, Object>{ 'text' => (title + ': ' + rel.Status__c).left(300), 'blocks' => blocks };
     }
 
     private static List<Object> buttons(RLY_Release__c rel) {
         List<Object> out = new List<Object>();
-        if (rel.Status__c == 'Ready for approval' && RlyApprover.inSlack(rel.Target_Org__r)) {
+        if (RlySlackCardState.awaitsApprover(rel) && RlyApprover.inSlack(rel.Target_Org__r)) {
             Map<String, Object> approve = button('Approve', APPROVE_ACTION, rel.Id);
             approve.put('style', 'primary');
             Map<String, Object> reject = button('Reject', REJECT_ACTION, rel.Id);
@@ -86,7 +90,11 @@ public with sharing class RlySlackCard {
             return STOPPED + ' Rejected' + byWhom(approverName) + ': “' + RlySlackMessage.esc(text(rel.Approval_Comment__c).left(300)) + '”';
         }
         if (status == 'Deploying' || status == 'Deployed') {
-            return deployLine(rel) + ' · ' + route(rel) + approvedLine(rel, approverName);
+            return deployLine(rel) + ' · ' + route(rel) + ' · ' + RlySlackCardState.approvedText(rel, approverName);
+        }
+        String held = RlySlackCardState.heldOrFailedLine(rel, approverName);
+        if (held != null) {
+            return held;
         }
         String emoji = STATUS_EMOJI.containsKey(status) ? STATUS_EMOJI.get(status) : WAITING;
         return emoji + ' ' + RlyReleasePhase.phase(rel) + ' · ' + route(rel) + ' · raised by ' + RlySlackMessage.esc(raisedBy(rel));
@@ -94,14 +102,11 @@ public with sharing class RlySlackCard {
 
     private static String deployLine(RLY_Release__c rel) {
         if (rel.Status__c == 'Deployed') {
-            return DONE + ' Deployed to ' + RlySlackMessage.esc(targetName(rel) + RlyManualStepText.stillOpen(rel, targetName(rel)));
+            return DONE + ' Deployed to ' + RlySlackMessage.esc(targetName(rel)) + RlySlackCardState.deployHow(rel)
+                + RlySlackMessage.esc(RlyManualStepText.stillOpen(rel, targetName(rel)));
         }
         return waitingInGit(rel) ? WAITING + ' Waiting for ' + RlySlackMessage.esc(RlyGitName.reviewers()) + ' reviewers before deploying'
             : ':rocket: Deploying to ' + RlySlackMessage.esc(targetName(rel));
-    }
-
-    private static String approvedLine(RLY_Release__c rel, String approverName) {
-        return ' · approved' + byWhom(approverName) + (String.isBlank(rel.Approved_Via__c) ? '' : ' in ' + RlySlackMessage.esc(rel.Approved_Via__c));
     }
 
     /**
@@ -136,7 +141,7 @@ public with sharing class RlySlackCard {
             rel.PR_Number__c != null ? DONE + ' PR #' + rel.PR_Number__c.intValue() : NOT_YET + ' PR',
             emoji(rel.Scan_Status__c) + ' Scan' + findings(rel),
             emoji(rel.Validation_Status__c) + ' Validation',
-            (rel.Status__c == 'Ready for approval' ? WAITING : emoji(rel.Approval_Status__c)) + ' Approval',
+            (RlySlackCardState.awaitsApprover(rel) ? WAITING : emoji(rel.Approval_Status__c)) + ' Approval',
             emoji(rel.Deploy_Status__c) + (rel.Deploy_Status__c == 'Deployed' ? ' Deployed' : ' Deploy')
         };
         return String.join(steps, '   ');
