@@ -1,7 +1,9 @@
 /**
  * @description Slack notifications for releases. The hub's RLY_Notification__c record (channel Slack) turns Slack on
  * and picks the events; each target org picks its channel (Slack_Channel__c, Slack_Post__c). The Slack app (Named
- * Credential RLY_Slack) posts one card per release and edits it as the release moves (RlySlackDelivery); the old
+ * Credential RLY_Slack) posts one card per release and edits it as the release moves (RlySlackDelivery). The card is
+ * edited on every change it shows (RlySlackCardState), whatever events are selected: the events only choose the extra
+ * messages (the card's first post, thread replies, the developer org's copy). The old
  * incoming webhook is used only when the app isn't set up. Slack is optional: with no record, or Slack off, nothing
  * is called. Sending never throws: the result is kept for Last_Result__c and saved by saveResults(), which callers
  * run after all their callouts (a callout can't follow DML in the same transaction).
@@ -18,7 +20,6 @@ public with sharing class RlySlack {
     public static final String APPROVED = 'Approved';
 
     private static final Set<String> STATUS_EVENTS = new Set<String>{ 'Ready for approval', 'Checks failed', 'Deployed', 'Deploy failed', 'Rejected' };
-    private static final Integer TIMEOUT_MS = 10000;
     // Raised: from collecting (or queued) to the first run.
     private static final Set<String> RAISED_FROM = new Set<String>{ 'Retrieving', 'Submitted' };
     private static final Set<String> RAISED_TO = new Set<String>{ 'Workflow running', 'Deploying' };
@@ -45,15 +46,14 @@ public with sharing class RlySlack {
     }
 
     /**
-     * @description Tells Slack about a release whose status changed (when that change is an event). Never throws.
+     * @description Tells Slack about a release whose status changed: see RlySlackCardSync.notifyChange. Never throws.
      * @param rel the release, as RlyReleaseStore reads it, with its new status
      * @param oldStatus its status before
      */
     public static void notifyTransition(RLY_Release__c rel, String oldStatus) {
-        String event = eventFor(oldStatus, rel.Status__c);
-        if (event != null) {
-            notify(rel, event);
-        }
+        RLY_Release__c prior = rel.clone(true, true, true, true);
+        prior.Status__c = oldStatus;
+        RlySlackCardSync.notifyChange(prior, rel);
     }
 
     /**
@@ -106,9 +106,19 @@ public with sharing class RlySlack {
      */
     public static void notify(RLY_Release__c rel, String event) {
         RLY_Notification__c s = settings();
-        if (!wanted(s, event)) {
-            return;
+        if (wanted(s, event)) {
+            deliverEvent(s, rel, event);
         }
+    }
+
+    /**
+     * @description Sends an event's card and messages through the Slack app, or through the legacy webhook when the app
+     * sent nothing. Never throws: the result is kept for saveResults().
+     * @param s the Slack record
+     * @param rel the release, as RlyReleaseStore reads it
+     * @param event the event, one of EVENTS or APPROVED
+     */
+    public static void deliverEvent(RLY_Notification__c s, RLY_Release__c rel, String event) {
         String what = rel.Name + ' · ' + event;
         String result;
         String appProblem;
@@ -119,33 +129,19 @@ public with sharing class RlySlack {
             result = RlySlackApi.isNotSetUp(e) ? null : appProblem;
         }
         if (result == null && event != APPROVED && String.isNotBlank(s.Webhook_URL__c)) {
-            result = send(s, RlySlackMessage.forRelease(rel, event), what);
+            result = RlySlackMessage.postWebhook(s.Webhook_URL__c, RlySlackMessage.forRelease(rel, event), what);
         }
         record(s.Id, result == null ? appProblem : result);
     }
 
-    private static Boolean wanted(RLY_Notification__c s, String event) {
+    /**
+     * @description Whether a Slack record sends an event (Slack on and the event selected; Approved whenever on).
+     * @param s the Slack record, or null
+     * @param event the event
+     * @return true when it is sent
+     */
+    public static Boolean wanted(RLY_Notification__c s, String event) {
         return s != null && s.Enabled__c && (event == APPROVED || selected(s).contains(event));
-    }
-
-    // Legacy webhook post; the result is kept for saveResults(). Never throws.
-    private static String send(RLY_Notification__c s, String payload, String what) {
-        String result;
-        try {
-            HttpRequest req = new HttpRequest();
-            req.setMethod('POST');
-            req.setEndpoint(s.Webhook_URL__c.trim());
-            req.setTimeout(TIMEOUT_MS);
-            req.setHeader('Content-Type', 'application/json');
-            req.setBody(payload);
-            HttpResponse res = new Http().send(req);
-            Integer code = res.getStatusCode();
-            result = code >= 200 && code < 300 ? 'Sent: ' + what
-                : 'Failed: HTTP ' + code + ' for ' + what + ' ' + String.valueOf(res.getBody()).left(120);
-        } catch (Exception e) {
-            result = 'Failed: ' + what + ': ' + e.getMessage();
-        }
-        return result;
     }
 
     /**
