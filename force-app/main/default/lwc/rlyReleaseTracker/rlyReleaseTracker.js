@@ -31,6 +31,7 @@ const APPROVAL_CHIPS = [
 const STATE_CHIPS = [
     { id: 'open', label: 'Open', title: 'Running, checks failed or waiting for approval' },
     { id: 'deployed', label: 'Deployed', title: 'Deployed to the target org' },
+    { id: 'rolledback', label: 'Rolled back', title: 'Rolled back in an org from its snapshot (Git is not changed)' },
     { id: 'failed', label: 'Failed', title: 'The run or the deploy failed' },
     { id: 'closed', label: 'Rejected', title: 'Rejected or closed without deploying' },
     { id: 'all', label: 'All', title: 'Every status' }
@@ -38,6 +39,7 @@ const STATE_CHIPS = [
 const EMPTY_STATE = {
     open: 'No open releases',
     deployed: 'No deployed releases',
+    rolledback: 'No rolled back releases',
     failed: 'No failed releases',
     closed: 'No rejected or closed releases',
     all: 'No releases'
@@ -48,6 +50,22 @@ const TIME = { hour: 'numeric', minute: '2-digit', second: '2-digit' };
 const TAB = 'RLY_My_Releases';
 const TYPE_LABEL = { Promotion: 'Promotion', Back_Promote: 'Back promote' };
 const NEW_RELEASE_TAB = 'RLY_New_Release';
+/** Row.rollbackStatus (RLY_Release__c.Rollback_Status__c): what the list shows (board HubRollbackValuesGates 3). */
+const ROLLBACK_SHOWN = { Rolled_Back: { status: 'Rolled back', tone: 'wait' }, Running: { status: 'Rolling back', tone: 'run' } };
+
+/** The list's pill text and tone: "Rolled back" (the org is in the meta line), "Rolling back", else the status. */
+function shownStatus(r) {
+    const rb = r && ROLLBACK_SHOWN[r.rollbackStatus];
+    return rb ? rb : { status: r ? r.status : '', tone: tone(r ? r.status : '') };
+}
+
+/** "rolled back in PROD by Ana Admin", for the meta line. */
+function rollbackMeta(r) {
+    if (r.rollbackStatus !== 'Rolled_Back') {
+        return '';
+    }
+    return 'rolled back in ' + (r.rolledBackIn || 'an org') + (r.rolledBackBy ? ' by ' + r.rolledBackBy : '');
+}
 
 function errorText(e) {
     return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
@@ -553,7 +571,12 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
             const manualOnly = r.manualOnly === true;
             const meta = [manualOnly ? '' : count + (count === 1 ? ' component' : ' components')
                 + (deletions ? ' · ' + deletions + (deletions === 1 ? ' deletion' : ' deletions') : ''),
-                this.isMine(r) ? 'You' : r.raisedBy].filter((x) => x);
+                this.isMine(r) ? 'You' : r.raisedBy, rollbackMeta(r)].filter((x) => x);
+            const shown = shownStatus(r);
+            const rolledBack = r.rollbackStatus === 'Rolled_Back';
+            if (rolledBack && steps.length) {
+                steps[steps.length - 1] = { ...steps[steps.length - 1], cls: 'rr-seg rr-seg-rb' };
+            }
             return {
                 id: r.id,
                 name: r.name,
@@ -565,9 +588,10 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
                 manualText: manual ? manual + (manual === 1 ? ' manual step' : ' manual steps') : '',
                 typeLabel: TYPE_LABEL[r.releaseType] || '',
                 carriesText: r.releaseType === 'Promotion' && carried.length ? 'Carries ' + carried.join(', ') : '',
-                status: r.status,
-                pillCls: 'rr-pill rr-pill-' + tone(r.status),
-                when: relative(r.raisedOn),
+                status: shown.status,
+                pillCls: 'rr-pill rr-pill-' + shown.tone,
+                rollbackFailed: r.rollbackStatus === 'Failed',
+                when: relative(rolledBack && r.rolledBackOn ? r.rolledBackOn : r.raisedOn),
                 steps,
                 pathLabel: 'Progress: ' + steps.map((s) => s.label + ' ' + STATE_TEXT[s.state]).join(', '),
                 route: (r.source || '') + ' → ' + (r.target || ''),
@@ -620,10 +644,10 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
         return this.selected ? this.selected.name : '';
     }
     get selectedStatus() {
-        return this.selected ? this.selected.status : '';
+        return this.selected ? shownStatus(this.selected).status : '';
     }
     get selectedPillCls() {
-        return 'rr-pill rr-pill-' + tone(this.selectedStatus);
+        return 'rr-pill rr-pill-' + (this.selected ? shownStatus(this.selected).tone : tone(''));
     }
     get showList() {
         return !this.wide;
@@ -650,6 +674,13 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
             return;
         }
         this.rows = this.rows.map((r) => (r.id === row.id ? { ...r, status } : r));
+        if (!this.checking) {
+            this.load();
+        }
+    }
+
+    /** A rollback of the selected release started or ended: the rows (pill, chip counts) are read again. */
+    handleRollbackChanged() {
         if (!this.checking) {
             this.load();
         }

@@ -125,7 +125,7 @@ public with sharing class RlyPromotion {
             Status__c = QUEUED, Source_Org__c = stage.Id, Target_Org__c = nextOrg.Id, Org_Label__c = stage.Name.left(40),
             Target_Branch__c = nextOrg.Branch__c.trim(), Source_Environment__c = stage.Git_Environment__c,
             Target_Environment__c = nextOrg.Git_Environment__c, Deletion_Count__c = 0,
-            Scan_Status__c = conn.Code_Scan__c ? 'Pending' : 'Not configured',
+            Scan_Status__c = RlyScanRule.statusFor(conn, nextOrg),
             Validation_Status__c = String.isBlank(nextOrg.Git_Environment__c) ? 'Not configured' : 'Pending',
             Approval_Status__c = 'Pending', Deploy_Status__c = 'Pending', Last_Synced__c = System.now());
     }
