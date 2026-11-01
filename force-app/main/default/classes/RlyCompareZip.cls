@@ -6,6 +6,11 @@
  */
 public with sharing class RlyCompareZip {
 
+    /** @description The largest retrieve zip (base64 characters, about 3.5 MB) compare decodes; more would run out of heap. */
+    public static final Integer MAX_ZIP_CHARS = 3500000;
+    /** @description Shown when the zip is larger than MAX_ZIP_CHARS. */
+    public static final String TOO_BIG = 'These components are too large to compare together. Compare fewer at a time.';
+
     private static final String BINARY = 'Binary file: compare isn\'t available for it.';
 
     /**
@@ -13,13 +18,14 @@ public with sharing class RlyCompareZip {
      * @param zipBase64 the retrieve zip, base64
      * @param sourceName the developer org's name (for the reasons)
      * @return files by Type:Name in lower case, right side set
+     * @throws RlyReleaseException when the zip is larger than MAX_ZIP_CHARS (it isn't decoded)
      */
     public static Map<String, List<RlyCompareFiles.FileDiff>> read(String zipBase64, String sourceName) {
         Map<String, List<RlyCompareFiles.FileDiff>> out = new Map<String, List<RlyCompareFiles.FileDiff>>();
         if (String.isBlank(zipBase64)) {
             return out;
         }
-        Compression.ZipReader reader = new Compression.ZipReader(EncodingUtil.base64Decode(zipBase64));
+        Compression.ZipReader reader = opened(zipBase64);
         Integer chars = 0;
         for (Compression.ZipEntry e : reader.getEntries()) {
             String entryName = e.getName();
@@ -37,6 +43,14 @@ public with sharing class RlyCompareZip {
             out.get(key.toLowerCase()).add(f);
         }
         return out;
+    }
+
+    // The zip, decoded only when it is small enough to read within the heap.
+    private static Compression.ZipReader opened(String zipBase64) {
+        if (zipBase64.length() > MAX_ZIP_CHARS) {
+            throw new RlyReleaseException(TOO_BIG);
+        }
+        return new Compression.ZipReader(EncodingUtil.base64Decode(zipBase64));
     }
 
     // The file's text, or null with the file marked unsupported (binary, too large).

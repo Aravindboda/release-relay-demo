@@ -59,6 +59,8 @@ const PAGE_FILTERS = {
 const SERVER_ROWS = 200;
 /** At most this many running releases are read per check, the least recently checked first. */
 const PER_CYCLE = 5;
+/** The list checks again every 60 s (while the tab is visible), and only reads running releases checked longer ago. */
+const CHECK_SECONDS = 60;
 const TIME = { hour: 'numeric', minute: '2-digit', second: '2-digit' };
 const TAB = 'RLY_My_Releases';
 const TYPE_LABEL = { Promotion: 'Promotion', Back_Promote: 'Back promote' };
@@ -203,7 +205,8 @@ function relative(value) {
 /** Running releases to read, the least recently checked first (never checked first), at most PER_CYCLE. */
 function dueForCheck(rows, skipId) {
     const stamp = (r) => (r.lastChecked ? new Date(r.lastChecked).getTime() : 0);
-    return rows.filter((r) => RUNNING.includes(r.status) && r.id !== skipId)
+    const before = Date.now() - CHECK_SECONDS * 1000;
+    return rows.filter((r) => RUNNING.includes(r.status) && r.id !== skipId && stamp(r) < before)
         .sort((a, b) => stamp(a) - stamp(b))
         .slice(0, PER_CYCLE);
 }
@@ -252,7 +255,6 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
     wide = false;
     loading = false;
     loaded = false;
-    catchingUp = false;
     error;
     /** Each load gets a number; an answer to an older load is ignored. */
     loadSeq = 0;
@@ -261,6 +263,10 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
     nextAt;
     checking = false;
     lastChecked;
+    /** The tab was hidden when a check was due: it checks as soon as the tab is visible again. */
+    paused = false;
+    /** The visibilitychange listener, kept so it can be removed. */
+    visibilityHandler;
 
     /** A link such as /lightning/n/RLY_My_Releases?c__release=<Id> (from Slack) opens with that release selected. */
     @wire(CurrentPageReference)
@@ -305,6 +311,8 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
         if (!this.filter) {
             this.filter = this.isApprovals ? 'all' : 'open';
         }
+        this.visibilityHandler = () => this.handleVisibility();
+        document.addEventListener('visibilitychange', this.visibilityHandler);
         this.readHubStatus();
     }
 
@@ -315,6 +323,20 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
 
     disconnectedCallback() {
         this.stop();
+        document.removeEventListener('visibilitychange', this.visibilityHandler);
+    }
+
+    /** Hidden tab: no checks (the countdown stops). Visible again: checks straight away, then counts down as before. */
+    handleVisibility() {
+        if (document.hidden) {
+            if (this.nextAt) {
+                this.stop();
+                this.paused = true;
+            }
+        } else if (this.paused) {
+            this.paused = false;
+            this.checkNow();
+        }
     }
 
     get isApprovals() {
@@ -354,9 +376,7 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
         if (!this.selectedId && this.shown.length) {
             this.selectedId = this.shown[0].id;
         }
-        if (this.isApprovals) {
-            this.catchUpApprovals();
-        } else {
+        if (this.isReleases) {
             this.schedule();
         }
     }
@@ -424,38 +444,28 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
         }
     }
 
-    /** Releases tab, first load: reads the latest status of running releases straight away instead of in 30 s. */
+    /**
+     * Releases tab, first load: shows the saved statuses, and reads straight away only the running releases nobody
+     * checked in the last 60 s. Approvals reads records only (no Git calls); the release opened beside the list keeps
+     * its own checks.
+     */
     firstCheck() {
         if (this.isReleases && dueForCheck(this.rows, this.selectedId).length) {
             this.checkNow();
         }
     }
 
-    /** Approvals: reads the latest status of releases that are still running (one call each, in turn), then shows the list again. */
-    async catchUpApprovals() {
-        const open = this.rows.filter((r) => RUNNING.includes(r.status) && r.id !== this.selectedId).slice(0, 10);
-        if (!open.length || this.catchingUp) {
-            return;
-        }
-        this.catchingUp = true;
-        try {
-            await open.reduce((previous, r) => previous.then(() => refreshRelease({ releaseId: r.id })), Promise.resolve());
-            this.rows = (await listReleases({ view: 'approvals' })) || [];
-        } catch {
-            // the list still shows the last known status
-        } finally {
-            this.catchingUp = false;
-        }
-    }
-
     // ---------- live check (Releases tab) ----------
 
-    /** Counts down to the next check while the list shows an open release; stops otherwise. */
+    /** Counts down to the next check while the list shows an open release and the tab is visible; stops otherwise. */
     schedule() {
-        if (!this.checking && this.rows.some((r) => OPEN.includes(r.status))) {
-            this.startCountdown();
-        } else {
+        if (this.checking || !this.rows.some((r) => OPEN.includes(r.status))) {
             this.stop();
+        } else if (document.hidden) {
+            this.stop();
+            this.paused = true;
+        } else {
+            this.startCountdown();
         }
     }
 
@@ -465,26 +475,36 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
     }
 
     /**
-     * Starts the next countdown. The bar is a CSS animation of 30 s (no JavaScript timers);
+     * Starts the next countdown. The bar is a CSS animation of CHECK_SECONDS (no JavaScript timers);
      * when it ends, handleCountdownEnd checks again.
      */
     startCountdown() {
         this.cycle += 1;
-        this.nextAt = new Date(Date.now() + 30000);
+        this.nextAt = new Date(Date.now() + CHECK_SECONDS * 1000);
     }
 
     handleCountdownEnd() {
-        if (this.nextAt) {
+        if (!this.nextAt) {
+            return;
+        }
+        if (document.hidden) {
+            this.stop();
+            this.paused = true;
+        } else {
             this.checkNow();
         }
     }
 
-    /** Reads the latest status of up to PER_CYCLE running releases (in turn, least recently checked first), then reloads the list. */
+    /**
+     * Reads the latest status of up to PER_CYCLE running releases not checked in the last CHECK_SECONDS (in turn, least
+     * recently checked first), then reloads the list with the statuses as saved (other viewers' checks included).
+     */
     async checkNow() {
         if (this.checking) {
             return;
         }
         this.stop();
+        this.paused = false;
         this.checking = true;
         try {
             const due = dueForCheck(this.rows, this.selectedId);
