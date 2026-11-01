@@ -1,0 +1,346 @@
+/**
+ * @description Releases and Approvals tabs, and the last step of New Release (raising it). A release page asks for its
+ * latest status every few seconds while something is running (refreshRelease), which moves it along
+ * (RlyStatusReader.advance).
+ */
+public with sharing class RlyReleasesController {
+
+    /** @description What a list row says about a release's kind (Row extends it). */
+    public virtual class RowKind {
+        /** @description A hotfix. */
+        @AuraEnabled public Boolean isHotfix;
+        /** @description Why it's a hotfix, or null. */
+        @AuraEnabled public String hotfixReason;
+        /** @description Release, Promotion or Back_Promote. */
+        @AuraEnabled public String releaseType;
+        /** @description For a promotion: the release numbers it carries. */
+        @AuraEnabled public List<String> carried = new List<String>();
+        /** @description Number of components it deletes. */
+        @AuraEnabled public Integer deletionCount;
+    }
+
+    /** @description One row of the release list. */
+    public class Row extends RowKind {
+        /** @description Release Id. */
+        @AuraEnabled public Id id;
+        /** @description Release number. */
+        @AuraEnabled public String name;
+        /** @description Title. */
+        @AuraEnabled public String title;
+        /** @description Status. */
+        @AuraEnabled public String status;
+        /** @description Developer org. */
+        @AuraEnabled public String source;
+        /** @description Target org and branch. */
+        @AuraEnabled public String target;
+        /** @description Who raised it. */
+        @AuraEnabled public String raisedBy;
+        /** @description When it was raised. */
+        @AuraEnabled public Datetime raisedOn;
+        /** @description Number of components. */
+        @AuraEnabled public Decimal components;
+        /** @description Code scan status. */
+        @AuraEnabled public String scan;
+        /** @description Validation status. */
+        @AuraEnabled public String validation;
+        /** @description A hotfix (same as isHotfix; kept for older pages). */
+        @AuraEnabled public Boolean hotfix;
+    }
+
+    /** @description A release a promotion carries. */
+    public class CarriedRelease {
+        /** @description The release. */
+        @AuraEnabled public Id id;
+        /** @description Its number. */
+        @AuraEnabled public String name;
+        /** @description Its title. */
+        @AuraEnabled public String title;
+        /** @description A hotfix. */
+        @AuraEnabled public Boolean isHotfix;
+    }
+
+    /** @description How one branch was brought up to date after the merge. */
+    public class BranchSync {
+        /** @description The branch. */
+        @AuraEnabled public String branch;
+        /** @description Synced, Conflict or Missing. */
+        @AuraEnabled public String status;
+        /** @description What happened. */
+        @AuraEnabled public String message;
+        /** @description Stage (a stage branch) or Developer (a developer branch). */
+        @AuraEnabled public String kind;
+    }
+
+    /** @description What a release page shows about the release's links to others (Detail extends it; RlyReleaseLinks fills it). */
+    public virtual class DetailLinks {
+        /** @description A hotfix. */
+        @AuraEnabled public Boolean isHotfix;
+        /** @description Why it's a hotfix, or null. */
+        @AuraEnabled public String hotfixReason;
+        /** @description Release, Promotion or Back_Promote. */
+        @AuraEnabled public String releaseType;
+        /** @description For a promotion: the releases it carries, oldest deploy first. */
+        @AuraEnabled public List<CarriedRelease> carried = new List<CarriedRelease>();
+        /** @description The promotion carrying this release, or null. */
+        @AuraEnabled public String promotedInName;
+        /** @description Its Id, or null. */
+        @AuraEnabled public Id promotedInId;
+        /** @description How the branches were brought up to date after the merge (stage branches, then developer branches). */
+        @AuraEnabled public List<BranchSync> backMerge = new List<BranchSync>();
+        /** @description After a deploy to the hub: Off, or where its changes were sent (each back promote org). */
+        @AuraEnabled public String backPromote;
+        /** @description A hotfix with its first approval, waiting for a second approver. */
+        @AuraEnabled public Boolean needsSecondApprover;
+        /** @description The first approver's name while it waits for the second, or null. */
+        @AuraEnabled public String firstApprover;
+        /** @description The components it deletes, as Type:Name. */
+        @AuraEnabled public List<String> deletions = new List<String>();
+    }
+
+    /** @description One release, as its page shows it. */
+    public class Detail extends DetailLinks {
+        /** @description The release. */
+        @AuraEnabled public RLY_Release__c release;
+        /** @description Its components. */
+        @AuraEnabled public List<RLY_Release_Item__c> items;
+        /** @description The current user approves releases. */
+        @AuraEnabled public Boolean isApprover;
+        /** @description Something is running: the page keeps checking. */
+        @AuraEnabled public Boolean running;
+        /** @description Developer org name. */
+        @AuraEnabled public String sourceName;
+        /** @description Target org name. */
+        @AuraEnabled public String targetName;
+        /** @description The current user may resolve conflicts (raised it, or approves releases). */
+        @AuraEnabled public Boolean canResolve;
+        /** @description The status pill: Resolving conflicts while a resolve run checks it, otherwise the status. */
+        @AuraEnabled public String phase;
+        /** @description An info line above the timeline, or null. */
+        @AuraEnabled public String notice;
+        /** @description Link to the release's Slack card, or null. */
+        @AuraEnabled public String slackUrl;
+        /** @description Where releases into the target org are approved: Salesforce, Slack, or Salesforce or Slack. */
+        @AuraEnabled public String approvedIn;
+        /** @description The release can be approved here in Salesforce. */
+        @AuraEnabled public Boolean approveHere;
+        /** @description The release's test classes. */
+        @AuraEnabled public List<String> tests;
+        /** @description The Git provider's name, for example GitHub. */
+        @AuraEnabled public String gitProvider;
+        /** @description The Slack channel the release card was posted to, or null. */
+        @AuraEnabled public String slackChannel;
+    }
+
+    /**
+     * @description The release list.
+     * @param view mine, all or approvals
+     * @return the rows, newest first
+     */
+    @AuraEnabled
+    public static List<Row> listReleases(String view) {
+        List<Row> out = new List<Row>();
+        List<RLY_Release__c> rels = RlyReleaseStore.releases(view);
+        Map<Id, String> names = RlyReleaseLinks.carriedNames(rels);
+        for (RLY_Release__c r : rels) {
+            Row row = toRow(r);
+            for (Id carriedId : RlyCarried.ids(r)) {
+                if (names.containsKey(carriedId)) {
+                    row.carried.add(names.get(carriedId));
+                }
+            }
+            out.add(row);
+        }
+        return out;
+    }
+
+    private static Row toRow(RLY_Release__c r) {
+        Row row = new Row();
+        row.id = r.Id;
+        row.name = r.Name;
+        row.title = r.Title__c;
+        row.status = r.Status__c;
+        row.source = r.Source_Org__r.Name;
+        row.target = r.Target_Org__r.Name + ' · ' + r.Target_Branch__c;
+        row.raisedBy = r.CreatedBy.Name;
+        row.raisedOn = r.CreatedDate;
+        row.components = r.Component_Count__c;
+        row.scan = r.Scan_Status__c;
+        row.validation = r.Validation_Status__c;
+        row.hotfix = RlyHotfix.isHotfix(r);
+        row.isHotfix = row.hotfix;
+        row.hotfixReason = r.Hotfix_Reason__c;
+        row.releaseType = RlyPromotion.typeOf(r);
+        row.deletionCount = r.Deletion_Count__c == null ? 0 : r.Deletion_Count__c.intValue();
+        return row;
+    }
+
+    /**
+     * @description Whether the current user approves releases.
+     * @return true for approvers and admins
+     */
+    @AuraEnabled
+    public static Boolean isApprover() {
+        return RlyApprovalService.canApprove();
+    }
+
+    /**
+     * @description The release as it is now, without reading its latest status.
+     * @param releaseId the release
+     * @return the release
+     */
+    @AuraEnabled
+    public static Detail getRelease(Id releaseId) {
+        try {
+            return detail(releaseId);
+        } catch (Exception e) {
+            throw handled(e);
+        }
+    }
+
+    /**
+     * @description Reads the latest status first (callouts), then returns the release. A release with nothing running
+     * starts or reads the queued and running back promote syncs instead (RlyBackPromoteRun.catchUp).
+     * @param releaseId the release
+     * @return the release
+     */
+    @AuraEnabled
+    public static Detail refreshRelease(Id releaseId) {
+        try {
+            if (RlyStatusReader.isOpen(RlyReleaseStore.release(releaseId))) {
+                RlyStatusReader.advance(releaseId);
+            } else {
+                RlyBackPromoteRun.catchUp();
+            }
+            return detail(releaseId);
+        } catch (Exception e) {
+            throw handled(e);
+        }
+    }
+
+    /**
+     * @description Raises the release: starts the retrieve in the developer org and saves it.
+     * @param requestJson a RlyRaiseService.RaiseRequest as JSON
+     * @return the release Id
+     */
+    @AuraEnabled
+    public static Id raiseRelease(String requestJson) {
+        try {
+            RlyRaiseService.RaiseRequest req = (RlyRaiseService.RaiseRequest) JSON.deserialize(requestJson, RlyRaiseService.RaiseRequest.class);
+            return RlyRaiseService.raise(req);
+        } catch (Exception e) {
+            throw handled(e);
+        }
+    }
+
+    /**
+     * @description An approver accepts a blocking code scan's findings.
+     * @param releaseId the release
+     * @param reason why the findings are accepted
+     * @return the release
+     */
+    @AuraEnabled
+    public static Detail bypassScan(Id releaseId, String reason) {
+        try {
+            RlyApprovalService.acceptScanFindings(releaseId, reason);
+            return detail(releaseId);
+        } catch (Exception e) {
+            throw handled(e);
+        }
+    }
+
+    /**
+     * @description Runs the code scan and validation again.
+     * @param releaseId the release
+     * @return the release
+     */
+    @AuraEnabled
+    public static Detail checkAgain(Id releaseId) {
+        try {
+            RlyApprovalService.rerunChecks(releaseId);
+            return detail(releaseId);
+        } catch (Exception e) {
+            throw handled(e);
+        }
+    }
+
+    /**
+     * @description Approves the release: merge and deploy.
+     * @param releaseId the release
+     * @param comment the approver's comment
+     * @return the release
+     */
+    @AuraEnabled
+    public static Detail approve(Id releaseId, String comment) {
+        try {
+            RlyApprovalService.approveRelease(releaseId, comment);
+            return detail(releaseId);
+        } catch (Exception e) {
+            throw handled(e);
+        }
+    }
+
+    /**
+     * @description Rejects the release with a comment.
+     * @param releaseId the release
+     * @param comment why it's rejected
+     * @return the release
+     */
+    @AuraEnabled
+    public static Detail reject(Id releaseId, String comment) {
+        try {
+            RlyApprovalService.rejectRelease(releaseId, comment);
+            return detail(releaseId);
+        } catch (Exception e) {
+            throw handled(e);
+        }
+    }
+
+    /**
+     * @description Resolves the release's conflicts with its target and checks it again (mode resolve).
+     * @param releaseId the release
+     * @param resolutionsJson {"resolutions":[{"file","choice":"mine"|"theirs"|"edit","content" (edit only)}]}
+     * @return the release
+     */
+    @AuraEnabled
+    public static Detail resolveConflicts(Id releaseId, String resolutionsJson) {
+        try {
+            RlyConflictService.commitResolutions(releaseId, resolutionsJson);
+            return detail(releaseId);
+        } catch (Exception e) {
+            throw handled(e);
+        }
+    }
+
+    private static Detail detail(Id releaseId) {
+        Detail d = new Detail();
+        d.release = RlyReleaseStore.release(releaseId);
+        if (d.release == null) {
+            throw new RlyReleaseException('Release not found.');
+        }
+        d.items = RlyReleaseStore.items(releaseId);
+        d.isApprover = RlyApprovalService.canApprove();
+        d.running = RlyStatusReader.OPEN_STATUSES.contains(d.release.Status__c);
+        d.sourceName = d.release.Source_Org__r.Name;
+        d.targetName = d.release.Target_Org__r.Name;
+        d.canResolve = RlyConflictService.mayResolve(d.release);
+        d.phase = RlyReleasePhase.phase(d.release);
+        d.notice = RlyReleasePhase.notice(d.release);
+        d.slackUrl = RlyReleasePhase.slackUrl(d.release);
+        d.approvedIn = RlyApprover.approvalIn(d.release.Target_Org__r);
+        d.approveHere = RlyApprover.inSalesforce(d.release.Target_Org__r);
+        d.tests = RlyReleasePhase.tests(d.release);
+        d.gitProvider = RlyGitName.labelFor(RlyReleaseStore.git());
+        d.slackChannel = RlyReleasePhase.slackChannel(d.release);
+        RlyReleaseLinks.fill(d);
+        return d;
+    }
+
+    private static AuraHandledException handled(Exception e) {
+        if (e instanceof AuraHandledException) {
+            return (AuraHandledException) e;
+        }
+        AuraHandledException ex = new AuraHandledException(e.getMessage());
+        ex.setMessage(e.getMessage());
+        return ex;
+    }
+}

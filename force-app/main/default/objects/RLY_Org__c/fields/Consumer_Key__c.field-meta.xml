@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Consumer_Key__c</fullName>
+    <description>Consumer key of the External Client App in that org (the JWT issuer). Encrypted at rest, never sent to the browser, and shown masked (last four characters); only Apex reads it to sign in.</description>
+    <externalId>false</externalId>
+    <label>Consumer Key</label>
+    <length>175</length>
+    <maskChar>asterisk</maskChar>
+    <maskType>lastFour</maskType>
+    <required>false</required>
+    <type>EncryptedText</type>
+</CustomField>
