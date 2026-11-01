@@ -1,4 +1,4 @@
-<!-- Release Relay pipeline files: version 10 -->
+<!-- Release Relay pipeline files: version 11 -->
 # Release Relay pipelines for GitLab, Bitbucket and Azure DevOps
 
 These files do what `.github/workflows/release-relay.yml` does on GitHub, with the same modes
@@ -54,7 +54,8 @@ branch merged with the target), `attempt` (the run's token, echoed in every resu
 `merge`: `syncBranches` (the branches to bring the target into after the merge, in order; after a deploy to
 production every stage branch, then every developer branch) and `stageWins` (true: the first listed branch takes
 the target's lines where they conflict; otherwise a conflict is reported for that branch, never forced), and
-`quickDeploy` (false: always deploy in full; see Quick deploy).
+`quickDeploy` (false: always deploy in full; see Quick deploy), and `selfUpdate` (true: the hub updating itself;
+the exclude list is ignored, see Release Relay's own metadata).
 
 **Result files** on `release-relay-results`, `results/<REQUEST_ID>/<step>.json`, each with `request`, `step`,
 `status`, `runUrl`, `finishedAt` and `attempt`:
@@ -65,6 +66,8 @@ the target's lines where they conflict; otherwise a conflict is reported for tha
   from the branch; `[]` otherwise), `message`.
 - `validate.json` and `deploy.json` list `deleted` (`Type:Name`): the components deployed as
   `destructiveChangesPost.xml` because their files were removed.
+- `validate.json`, `deploy.json` and `sync.json` list `excluded` (repo paths): changed or deleted files that match
+  `.relay/exclude` and were neither deployed nor deleted, and `selfUpdate` (true when the list was ignored).
 - `scan.json`: as before. `validate.json` also records `mergedWith` (the target commit validated against),
   `validatedTree` (the merged files' tree) and `environment`.
 - `deploy.json`: as before, plus `quick` (true when the validation was quick deployed) and `quickNote` (why it
@@ -94,6 +97,45 @@ is a sandbox, since production quick deploys only validations that ran tests); a
 validated (the merge commit's target-side parent is `mergedWith` and its tree is `validatedTree`, so the target
 didn't move and the branch didn't change). If Salesforce refuses the quick deploy (expired, or another deploy
 since), the step deploys in full and says so in `message` and `quickNote`.
+
+**Release Relay's own metadata.** The hub's own components (`Rly*` Apex classes, `rly*` LWCs, `RLY_*` objects,
+tabs, permission sets, custom permissions, static resources, named and external credentials, the `RLY_Slack_Member_Id__c`
+User field, the `Release_Relay` app and the `RLY_App_Name` label) must never reach the route's orgs through a normal
+release. `.relay/exclude` (repo root, one glob per line relative to `SOURCE_PATH`, `#` comments) lists them;
+validate, deploy (full and quick) and sync leave every matching file out of `package.xml` and
+`destructiveChangesPost.xml` (and out of the CLI's view, through `.forceignore` for the run), list them as
+`excluded` in the result and in the step summary. A labels file is excluded only when every label in it matches
+(`only-labels:RLY_*`); a file that also holds your own labels is deployed as usual. The list is read from the
+pipeline's own commit (the default branch), like the script; without the file the script uses the same defaults.
+A deploy quick deploys a validation only when it used the same setting (a version 10 validation of a change with
+excluded files is deployed in full).
+
+**The hub's own updates go to `release-relay-hub`.** Until version 10 the hub's own metadata was deployed through
+`prod`, so merging `prod` back (`syncBranches`) copied it into the stage and developer branches. From version 11 the
+hub deploys its own updates from a dedicated branch, `release-relay-hub` (not `prod`, and never in `syncBranches`),
+with `{"selfUpdate":true}` in the options: those runs ignore the exclude list. Merge-back then never carries new
+Release Relay files.
+
+**Existing Release Relay files in `prod`, the stage and developer branches** are not removed by the pipeline:
+removing them in a release would become destructive changes. With the exclude list in place they are harmless (never
+deployed), and removing them by hand from the stage and developer branches is safe, because excluded paths are
+never deleted in the orgs:
+
+```sh
+git checkout sit
+git rm -r -q force-app/main/default/classes/Rly* force-app/main/default/lwc/rly* \
+  force-app/main/default/objects/RLY_* force-app/main/default/objects/User/fields/RLY_* \
+  force-app/main/default/tabs/RLY_* force-app/main/default/permissionsets/RLY_* \
+  force-app/main/default/customPermissions/RLY_* force-app/main/default/staticresources/RLY_* \
+  force-app/main/default/applications/Release_Relay.app-meta.xml \
+  force-app/main/default/namedCredentials/RLY_* force-app/main/default/externalCredentials/RLY_*
+# and labels/CustomLabels.labels-meta.xml if it holds only RLY_ labels
+git commit -m "Remove Release Relay's own files (excluded from deployments)" && git push origin sit
+```
+
+Repeat for each developer branch. Remove them from `prod` only after the hub's updates come from
+`release-relay-hub`; otherwise the next merge-back from `prod` would bring the deletions to the other branches
+(still harmless to the orgs, since they are excluded).
 
 **Mode `sync` (back promote).** `branch` = the hub's production branch, `target` = the back-promote org's branch,
 `environment` = the production org's environment, `target_environment` = the back-promote org's environment
