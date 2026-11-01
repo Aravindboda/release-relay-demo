@@ -1,0 +1,41 @@
+{
+ "request": "REL-90078",
+ "step": "scan",
+ "status": "Passed",
+ "total": 1,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Moderate": 1
+ },
+ "files": [
+  "force-app/main/default/lwc/rlyOrgTile/rlyOrgTile.html",
+  "force-app/main/default/lwc/rlyOrgTile/rlyOrgTile.js",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js"
+ ],
+ "violations": [
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@salesforce-ux/slds/modal-close-button-issue",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+   "line": 671,
+   "message": "Remove the slds-button_icon-inverse class from the modal close button in components that use the SLDS modal blueprint.",
+   "url": "https://developer.salesforce.com/docs/platform/slds-linter/guide/reference-rules.html#modal-close-button-issue"
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41332160541",
+ "finishedAt": "2026-11-01T17:35:14.028Z"
+}
