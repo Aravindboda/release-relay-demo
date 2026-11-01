@@ -1,0 +1,224 @@
+<template>
+    <div class="rr-page slds-is-relative">
+        <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+        <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+
+        <template lwc:if={detail}>
+            <!-- header: icon, eyebrow, title, phase, links; path; highlights -->
+            <section class="rr-card" aria-label="Release">
+                <div class="rr-hd">
+                    <span class="rr-icon rr-icon-release"><lightning-icon icon-name="utility:upload" size="small" variant="inverse" alternative-text=""></lightning-icon></span>
+                    <div class="rr-head-text">
+                        <p class="rr-kicker">{eyebrow}</p>
+                        <h1 class="rr-title">{rel.Title__c}</h1>
+                    </div>
+                    <template lwc:if={isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
+                    <template lwc:if={typeLabel}><span class="rr-pill rr-pill-info">{typeLabel}</span></template>
+                    <span class={phaseCls}>{phase}</span>
+                    <template lwc:if={detail.slackUrl}>
+                        <a class="slds-button slds-button_neutral" href={detail.slackUrl} target="_blank" rel="noopener">Open in Slack</a>
+                    </template>
+                    <template lwc:if={rel.PR_URL__c}>
+                        <a class="slds-button slds-button_neutral" href={rel.PR_URL__c} target="_blank" rel="noopener">{prLabel}</a>
+                    </template>
+                    <template lwc:if={rel.Run_URL__c}>
+                        <a class="slds-button slds-button_neutral" href={rel.Run_URL__c} target="_blank" rel="noopener">Pipeline run</a>
+                    </template>
+                </div>
+
+                <ol class="rr-path" aria-label="Release path">
+                    <template for:each={pathSteps} for:item="p">
+                        <li key={p.key} class={p.cls} aria-current={p.current}>{p.label}<span class="slds-assistive-text">: {p.stateText}</span></li>
+                    </template>
+                </ol>
+
+                <div class="rr-hl">
+                    <div>
+                        <p class="rr-kicker">Route</p>
+                        <p><strong>{detail.sourceName}</strong><span class="rr-arrow" aria-label="to">→</span><strong>{detail.targetName}</strong><span class="rr-small rr-weak rr-sp">{rel.Target_Branch__c}</span></p>
+                    </div>
+                    <div><p class="rr-kicker">Raised by</p><p>{raisedBy}</p></div>
+                    <div><p class="rr-kicker">Raised</p><p>{raisedOn}</p></div>
+                    <div><p class="rr-kicker">Tests</p><p class="rr-break">{testsText}</p></div>
+                    <div><p class="rr-kicker">Approved in</p><p>{approvedInText}</p></div>
+                </div>
+            </section>
+
+            <div class="rr-cols">
+                <!-- Progress -->
+                <section class="rr-card" aria-label="Progress">
+                    <div class="rr-hd rr-hd-line">
+                        <h2 class="rr-h2 rr-grow">Progress</h2>
+                        <span class="rr-small rr-weak" aria-live="off">{syncedText}</span>
+                        <template lwc:if={counting}>
+                            <span class="rr-meter" aria-hidden="true">
+                                <template for:each={cycles} for:item="c">
+                                    <span key={c.key} class="rr-meter-fill" onanimationend={handleCountdownEnd}></span>
+                                </template>
+                            </span>
+                        </template>
+                        <lightning-button label="Check now" onclick={refresh} disabled={checking}></lightning-button>
+                    </div>
+
+                    <template lwc:if={errorBanner}><div class={errorBannerCls} role="alert">{errorBanner}</div></template>
+
+                    <ol class="rr-steps" aria-live="polite">
+                        <template for:each={steps} for:item="s">
+                            <li key={s.key} class="rr-step">
+                                <span class={s.dotCls} aria-hidden="true">{s.badge}</span>
+                                <div class="rr-step-body">
+                                    <p><strong>{s.title}</strong><template lwc:if={s.stateLabel}><span class={s.pillCls}>{s.stateLabel}</span></template></p>
+                                    <template lwc:if={s.text}><p class="rr-small rr-weak">{s.text}</p></template>
+                                    <template lwc:if={s.hasSync}>
+                                        <ul class="rr-sync-list" aria-label={s.syncLabel}>
+                                            <template for:each={s.sync} for:item="b">
+                                                <li key={b.key}><span class={b.cls}>{b.label}</span><span class="rr-small rr-sp">{b.text}</span></li>
+                                            </template>
+                                        </ul>
+                                    </template>
+                                </div>
+                            </li>
+                        </template>
+                    </ol>
+
+                    <template lwc:if={detail.notice}><div class="rr-msg rr-msg-warn rr-notice" role="status">{detail.notice}</div></template>
+                    <template lwc:if={secondApproverNotice}><div class="rr-msg rr-msg-info rr-notice" role="status">{secondApproverNotice}</div></template>
+
+                    <template lwc:if={hasConflicts}>
+                        <div class="rr-pad-all rr-line-top">
+                            <c-rly-merge-conflicts result-json={rel.Validation_Result__c} source-name={detail.sourceName} target-name={detail.targetName}
+                                target-branch={rel.Target_Branch__c} can-resolve={canResolve} busy={busy} onresolve={handleResolve}></c-rly-merge-conflicts>
+                        </div>
+                    </template>
+
+                    <template lwc:if={hasViolations}>
+                        <div class="rr-pad-all rr-line-top">
+                            <p class="rr-label">Code scan findings</p>
+                            <div class="rr-scroll">
+                                <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table">
+                                    <thead><tr><th scope="col">Severity</th><th scope="col">Rule</th><th scope="col">Where</th><th scope="col">Finding</th></tr></thead>
+                                    <tbody>
+                                        <template for:each={violations} for:item="v">
+                                            <tr key={v.key}>
+                                                <td><span class={v.sevCls}>{v.severityLabel}</span></td>
+                                                <td class="rr-small">{v.rule}</td>
+                                                <td class="rr-mono">{v.where}</td>
+                                                <td class="rr-small rr-wrap">{v.message}</td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template lwc:if={hasProblems}>
+                        <div class="rr-pad-all rr-line-top">
+                            <p class="rr-label">Deployment errors</p>
+                            <ul class="rr-problems">
+                                <template for:each={problems} for:item="p">
+                                    <li key={p.key}><span class="rr-mono">{p.what}</span><span class="rr-small rr-sp">{p.message}</span></li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
+
+                    <template lwc:if={showDecision}>
+                        <div class="rr-decide">
+                            <template lwc:if={canBypass}>
+                                <div class="rr-col">
+                                    <p class="rr-small"><strong>Code scan blocked this release.</strong> As an approver you can accept the findings with a reason.<template lwc:if={validationBlocks}> The validation failed too, and that can't be bypassed: fix it and raise again.</template></p>
+                                    <lightning-textarea label="Why the findings are accepted" value={reason} onchange={handleReason} max-length="2000"></lightning-textarea>
+                                    <div><lightning-button label="Bypass code scan" onclick={doBypass} disabled={busy}></lightning-button></div>
+                                </div>
+                            </template>
+                            <template lwc:if={canReject}>
+                                <lightning-textarea label="Approval comment" value={comment} onchange={handleComment} max-length="2000"
+                                    placeholder="Required to reject"></lightning-textarea>
+                            </template>
+                        </div>
+                    </template>
+                </section>
+
+                <!-- Details + Components -->
+                <section class="rr-card" aria-label="Details">
+                    <div class="rr-hd rr-hd-line"><h2 class="rr-h2">Details</h2></div>
+                    <dl class="rr-dl">
+                        <dt>Status</dt><dd><span class={phaseCls}>{phase}</span></dd>
+                        <dt>Code scan</dt><dd><span class={scanPillCls}>{scanLabel}</span><span class="rr-sp">{scanSummary}</span></dd>
+                        <dt>Validation</dt><dd><span class={validationPillCls}>{validationLabel}</span></dd>
+                        <dt>Branch</dt><dd><span class="rr-small rr-break">{rel.Source_Branch__c}</span></dd>
+                        <template lwc:if={hotfixReason}>
+                            <dt>Why it's a hotfix</dt><dd class="rr-break">{hotfixReason}</dd>
+                        </template>
+                        <template lwc:if={hasCarried}>
+                            <dt>Carries</dt>
+                            <dd>
+                                <ul class="rr-carried">
+                                    <template for:each={carried} for:item="c">
+                                        <li key={c.key}>
+                                            <a href={c.href} data-id={c.id} onclick={openRelease}>{c.name}</a>
+                                            <template lwc:if={c.isHotfix}><span class="rr-pill rr-pill-bad rr-sp">Hotfix</span></template>
+                                            <span class="rr-small rr-weak rr-sp">{c.title}</span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </dd>
+                        </template>
+                        <template lwc:if={hasDeletions}>
+                            <dt class="rr-del">Deletes</dt>
+                            <dd>
+                                <ul class="rr-carried rr-deletes" aria-label={deletesLabel}>
+                                    <template for:each={deletions} for:item="d">
+                                        <li key={d.key}><span class="rr-mono">{d.name}</span><span class="rr-small rr-sp">{d.type}</span></li>
+                                    </template>
+                                </ul>
+                            </dd>
+                        </template>
+                        <template lwc:if={promotedIn}>
+                            <dt>Promoted in</dt><dd><a href={promotedIn.href} data-id={promotedIn.id} onclick={openRelease}>{promotedIn.name}</a></dd>
+                        </template>
+                        <template lwc:if={detail.slackUrl}>
+                            <dt>Slack</dt><dd><template lwc:if={detail.slackChannel}><span class="rr-small">{detail.slackChannel} · </span></template><a href={detail.slackUrl} target="_blank" rel="noopener">Open</a></dd>
+                        </template>
+                    </dl>
+                    <div class="rr-hd rr-hd-top">
+                        <h2 class="rr-h2 rr-grow">Components</h2>
+                        <span class="rr-pill rr-pill-none">{itemCount}</span>
+                    </div>
+                    <dl class="rr-dl rr-items">
+                        <template for:each={items} for:item="i">
+                            <dt key={i.dtKey}>{i.type}</dt>
+                            <dd key={i.key} class="rr-break">{i.name}</dd>
+                        </template>
+                    </dl>
+                    <template lwc:if={hasDeletions}>
+                        <p class="rr-del-head">{deletesLabel}</p>
+                        <dl class="rr-dl rr-items rr-del-items">
+                            <template for:each={deletions} for:item="d">
+                                <dt key={d.dtKey}>{d.type}</dt>
+                                <dd key={d.key} class="rr-break"><span class="rr-pill rr-pill-bad">Delete</span><span class="rr-sp">{d.name}</span></dd>
+                            </template>
+                        </dl>
+                    </template>
+                </section>
+            </div>
+
+            <!-- actions -->
+            <template lwc:if={showFooter}>
+                <div class="rr-card rr-foot">
+                    <span class="rr-small rr-weak rr-grow">{footNote}</span>
+                    <template lwc:if={showCheckAgain}>
+                        <lightning-button label="Check again" onclick={doCheckAgain} disabled={checkAgainDisabled}></lightning-button>
+                    </template>
+                    <template lwc:if={showReject}>
+                        <lightning-button variant="destructive-text" label="Reject" onclick={doReject} disabled={rejectDisabled}></lightning-button>
+                    </template>
+                    <template lwc:if={showApprove}>
+                        <lightning-button variant="brand" label="Approve and deploy" onclick={doApprove} disabled={approveDisabled}></lightning-button>
+                    </template>
+                </div>
+            </template>
+        </template>
+    </div>
+</template>

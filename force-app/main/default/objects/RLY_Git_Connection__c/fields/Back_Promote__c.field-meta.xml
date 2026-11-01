@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Back_Promote__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Send production&apos;s changes to the back promote orgs (metadata only). Off by default.</description>
+    <label>Back Promote</label>
+    <type>Checkbox</type>
+</CustomField>
