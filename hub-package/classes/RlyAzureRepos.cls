@@ -13,7 +13,7 @@ public with sharing class RlyAzureRepos extends RlyGit {
      * @description The shape of an Azure DevOps repository.
      * @return organization/project/repository
      */
-    public override Pattern repositoryPattern() {
+    protected override Pattern repositoryPattern() {
         return REPO;
     }
 

@@ -82,6 +82,19 @@ public with sharing class RlyCarried {
     }
 
     /**
+     * @description How many of these items add or change a component (the rest are deletions).
+     * @param items the items
+     * @return the count
+     */
+    public static Integer addedCount(List<RLY_Release_Item__c> items) {
+        Integer n = 0;
+        for (RLY_Release_Item__c i : items) {
+            n += i.Is_Deletion__c == true ? 0 : 1;
+        }
+        return n;
+    }
+
+    /**
      * @description The carried releases' deletions, each once, oldest deploy first.
      * @param carried the carried releases, with Deletions__c
      * @return Type:Name of each

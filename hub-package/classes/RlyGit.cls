@@ -90,7 +90,7 @@ public abstract with sharing class RlyGit {
      * @description The shape a repository name must have.
      * @return the pattern
      */
-    public abstract Pattern repositoryPattern();
+    protected abstract Pattern repositoryPattern();
 
     /**
      * @description The shape a repository name must have, in words.

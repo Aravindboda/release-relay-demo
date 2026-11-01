@@ -66,7 +66,7 @@ public with sharing class RlyPromotion {
         fill(promotion, carried);
         List<RLY_Release_Item__c> items = RlyCarried.items(carried);
         List<String> deletions = RlyCarried.deletions(carried);
-        promotion.Component_Count__c = items.size() - deletions.size();
+        promotion.Component_Count__c = RlyCarried.addedCount(items);
         promotion.Deletion_Count__c = deletions.size();
         promotion.Deletions__c = deletions.isEmpty() ? null : String.join(deletions, ',').left(RlyDeletions.MAX_LENGTH);
         RlyPromoteStore.insertPromotion(promotion, items, new Map<Id, RLY_Release__c>(carried).keySet());

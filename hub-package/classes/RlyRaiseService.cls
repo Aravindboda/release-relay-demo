@@ -48,8 +48,8 @@ public with sharing class RlyRaiseService {
         RlyRaiseRules.checkRequest(req);
         String hotfixReason = RlyHotfix.reason(req);
         RlyRaiseRules.Route route = RlyRaiseRules.route(req.sourceOrgId);
-        List<Item> added = RlyRaiseRules.added(req);
-        List<String> deletions = RlyRaiseRules.deletions(req, route.source);
+        List<Item> added = RlyDeletionRules.added(req);
+        List<String> deletions = RlyDeletionRules.deletions(req, route.source);
         Set<String> tests = RlyTestRule.testNames(req.testClasses);
         Map<String, Set<String>> byType = RlyRaiseRules.byType(added, route.source);
         RlyTestRule.checkTests(added, byType, tests);

@@ -4,7 +4,6 @@
  *   listed       Metadata API listMetadata for the given types, changed since a date
  *   inFolders    the same for a folder type (Report, Dashboard, EmailTemplate, Document)
  *   testClasses  which Apex classes are tests (@IsTest in the body)
- *   deletion     a deletion candidate (RlyDeletionFinder: on the org's branch but not in the org)
  * Each change is tagged Custom or Standard. Managed-package components are left out.
  */
 public with sharing class RlyChangeFinder {
@@ -121,18 +120,6 @@ public with sharing class RlyChangeFinder {
             }
         }
         return out;
-    }
-
-    /**
-     * @description A component to delete: on the developer org's branch but not in the org.
-     * @param type metadata type
-     * @param name full name
-     * @return the change, with deleted = true
-     */
-    public static Change deletion(String type, String name) {
-        Change c = makeChange(type, name);
-        c.deleted = true;
-        return c;
     }
 
     private static Change makeChange(String type, String name) {

@@ -11,7 +11,7 @@ public with sharing class RlyGitHub extends RlyGit {
      * @description The shape of a GitHub repository name.
      * @return owner/repository
      */
-    public override Pattern repositoryPattern() {
+    protected override Pattern repositoryPattern() {
         return REPO;
     }
 
@@ -160,21 +160,8 @@ public with sharing class RlyGitHub extends RlyGit {
      */
     public override List<String> listFiles(String branch, String path) {
         HttpResponse res = send('GET', repo() + '/git/trees/' + encPath(branch) + '?recursive=1', null);
-        if (res.getStatusCode() == 404) {
-            throw new GitException('Branch ' + branch + ' wasn\'t found in ' + conn.Repository__c + '.');
-        }
         assertOk(res, 'Listing the files on ' + branch);
-        String prefix = String.isBlank(path) ? '' : path.trim().removeEnd('/') + '/';
-        Object tree = ((Map<String, Object>) parse(res)).get('tree');
-        List<String> out = new List<String>();
-        for (Object o : tree == null ? new List<Object>() : (List<Object>) tree) {
-            Map<String, Object> entry = (Map<String, Object>) o;
-            String filePath = String.valueOf(entry.get('path'));
-            if (String.valueOf(entry.get('type')) == 'blob' && filePath.startsWith(prefix)) {
-                out.add(filePath);
-            }
-        }
-        return out;
+        return RlyDeletionPaths.blobs(parse(res), path);
     }
 
     /**

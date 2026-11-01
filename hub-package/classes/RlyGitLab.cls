@@ -10,7 +10,7 @@ public with sharing class RlyGitLab extends RlyGit {
      * @description The shape of a GitLab project path.
      * @return group/project, with optional subgroups
      */
-    public override Pattern repositoryPattern() {
+    protected override Pattern repositoryPattern() {
         return REPO;
     }
 

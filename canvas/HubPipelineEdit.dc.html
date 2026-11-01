@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pipeline tab: read-only cards, Edit in a modal</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px;box-shadow:0 2px 2px rgba(0,0,0,.05);display:flex;flex-direction:column}
+.hd{padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;gap:8px}
+.hd h3{margin:0;font-size:14px;flex:1}
+.bd{padding:12px 16px;display:flex;flex-direction:column;gap:10px;font-size:13px}
+.sect{border-top:1px solid #E5E5E5;padding:12px 16px;background:#FAFAF9;display:flex;flex-direction:column;gap:10px}
+.sect h4{margin:0;font-size:13px}
+.ft{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid #E5E5E5;margin-top:auto}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.lab{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5C5C5C}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.ok{background:#EBF7E6;color:#2E844A}.info{background:#EEF4FF;color:#014486}.none{background:#F3F3F3;color:#444}.wait{background:#FEF1CD;color:#8C4B02}
+.ro{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 20px;margin:0}
+.ro div{min-width:0}.ro dt{font-size:12px;color:#5C5C5C;padding-top:4px}.ro dd{margin:0;padding:2px 0 6px;border-bottom:1px solid #E5E5E5;font-size:13px;overflow-wrap:anywhere}
+.ro .w{grid-column:1/-1}
+.on::before{content:"✓";color:#2E844A;font-weight:700;margin-right:6px}.off{color:#5C5C5C}.off::before{content:"–";margin-right:6px}
+.btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #0176D3;background:#0176D3;color:#fff;font:inherit;font-size:13px}
+.btn2{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px}
+.lnk{border:0;background:none;color:#0B5CAB;font:inherit;font-size:12px;padding:0}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:16px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:12px}
+.note{font-size:12px;color:#014486;background:#EEF4FF;border-radius:4px;padding:8px 10px}
+/* SLDS modal */
+.shade{background:rgba(8,7,7,.6);border-radius:4px;padding:28px 24px}
+.modal{background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.mh{padding:16px;border-bottom:1px solid #E5E5E5;text-align:center;position:relative}
+.mh h2{margin:0;font-size:20px;font-weight:400}.mh .x{position:absolute;right:12px;top:12px;width:28px;height:28px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#5C5C5C}
+.mb{padding:16px;display:flex;flex-direction:column;gap:12px;max-height:none}
+.st{margin:0;background:#F3F3F3;border-radius:4px;padding:6px 12px;font-size:14px;font-weight:400}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;padding:4px}
+.fe label{display:block;font-size:12px;color:#444;margin-bottom:2px}.fe label b{color:#BA0517;margin-right:2px}
+.in{border:1px solid #C9C9C9;border-radius:4px;padding:6px 10px;min-height:20px;font-size:13px;background:#fff}
+.in.ph{color:#939393}.in.sel::after{content:"▾";float:right;color:#5C5C5C}
+.wide{grid-column:1/-1}
+/* SLDS checkbox toggle: label, faux track, On/Off */
+.tgl{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#444}
+.tgl .r{display:flex;align-items:center;gap:8px;color:#181818}
+.faux{width:48px;height:24px;border-radius:15rem;background:#0176D3;position:relative;flex:none}.faux::after{content:"";position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.faux.o{background:#C9C9C9}.faux.o::after{right:auto;left:3px}
+.toggles{display:flex;flex-wrap:wrap;gap:12px 32px;padding:4px}
+.mf{padding:12px 16px;border-top:1px solid #E5E5E5;background:#F3F3F3;display:flex;justify-content:flex-end;gap:8px}
+</style>
+</helmet>
+<div style="padding:12px;display:flex;flex-direction:column;gap:12px">
+
+<p class="lab">Pipeline tab · every card is read-only · Edit (admins only) opens that card's settings in a modal · nothing saves until Save</p>
+<div class="cols">
+  <div class="stack">
+    <p class="lab">Org cards: values as text, on/off as ✓ On / – Off</p>
+    <section class="card">
+      <div class="hd"><h3>SIT</h3><span class="pill ok">Connected</span><span class="pill none">Stage 1</span></div>
+      <div class="bd">
+        <dl class="ro">
+          <div><dt>Salesforce environment</dt><dd>Full Copy sandbox</dd></div>
+          <div><dt>Branch</dt><dd class="mono">sit</dd></div>
+          <div><dt>Git environment</dt><dd class="mono">sit</dd></div>
+          <div><dt>Login type</dt><dd>Sandbox</dd></div>
+          <div class="w"><dt>My Domain</dt><dd class="mono">https://acme--sit.sandbox.my.salesforce.com</dd></div>
+        </dl>
+      </div>
+      <div class="sect">
+        <h4>Approval and Slack for releases into SIT</h4>
+        <dl class="ro">
+          <div><dt>Approve in Salesforce</dt><dd class="on">On</dd></div>
+          <div><dt>Approve in Slack</dt><dd class="on">On</dd></div>
+          <div><dt>Also require GitHub reviewers</dt><dd class="off">Off</dd></div>
+          <div><dt>Hotfixes need 2 approvers</dt><dd class="off">Off</dd></div>
+          <div><dt>Slack channel</dt><dd class="mono">#release-sit</dd></div>
+          <div><dt>Post to Slack</dt><dd class="on">On</dd></div>
+        </dl>
+        <p class="k">Events: Raised · Approved · Deployed · Failed <button class="lnk">Send test message</button></p>
+      </div>
+      <div class="ft"><span class="sm weak" style="flex:1">Checked Oct 31, 4:12 PM</span><button class="btn2">Test sign-in</button><button class="btn2">Edit</button></div>
+    </section>
+
+    <section class="card">
+      <div class="hd"><h3>PROD</h3><span class="pill ok">Connected</span><span class="pill info">Hub</span></div>
+      <div class="bd">
+        <dl class="ro">
+          <div><dt>Salesforce environment</dt><dd>Production</dd></div>
+          <div><dt>Branch</dt><dd class="mono">main</dd></div>
+          <div><dt>Deploys with</dt><dd>This org (the hub)</dd></div>
+          <div><dt>Login type</dt><dd>Production or Developer Edition</dd></div>
+        </dl>
+      </div>
+      <div class="sect">
+        <h4>Approval and Slack for releases into PROD</h4>
+        <dl class="ro">
+          <div><dt>Approve in Salesforce</dt><dd class="on">On</dd></div>
+          <div><dt>Approve in Slack</dt><dd class="off">Off</dd></div>
+          <div class="w"><dt>Hotfixes need 2 approvers</dt><dd class="on">On<p class="k" style="margin-top:2px">Two different approvers, and the person who raised the hotfix can't approve it.</p></dd></div>
+          <div><dt>Slack channel</dt><dd class="mono">#release-prod</dd></div>
+          <div><dt>Post to Slack</dt><dd class="on">On</dd></div>
+        </dl>
+      </div>
+      <div class="ft"><span class="sm weak" style="flex:1">Checked Oct 31, 4:10 PM</span><button class="btn2">Test sign-in</button><button class="btn2">Edit</button></div>
+    </section>
+
+    <section class="card">
+      <div class="hd"><h3>DEV1</h3><span class="pill wait">Refreshed</span><span class="pill none">Developer</span></div>
+      <div class="bd">
+        <dl class="ro">
+          <div><dt>Salesforce environment</dt><dd>Developer sandbox</dd></div>
+          <div><dt>Branch</dt><dd class="mono">dev1</dd></div>
+          <div><dt>Deploys with</dt><dd>Fast: source tracking</dd></div>
+          <div><dt>API version</dt><dd>62.0</dd></div>
+        </dl>
+      </div>
+      <div class="sect">
+        <h4>Slack for DEV1's developers (optional)</h4>
+        <dl class="ro">
+          <div><dt>Slack channel</dt><dd class="weak">None</dd></div>
+          <div><dt>Also post here</dt><dd class="off">Off</dd></div>
+        </dl>
+      </div>
+      <div class="ft"><span class="sm weak" style="flex:1">Not checked yet</span><button class="btn2">Test sign-in</button><button class="btn2">Edit</button></div>
+    </section>
+    <p class="note">Non-admins see the same cards with no Edit and no Test sign-in. The Git connection, Slack connection and Back promote cards work the same way: read-only, with Edit opening their own modal. Register an org opens this modal empty, titled "Register an org".</p>
+  </div>
+
+  <div class="stack">
+    <p class="lab">Edit on the SIT card: SLDS modal in place, focus on Org name, Escape or Cancel closes</p>
+    <div class="shade">
+      <div class="modal" role="dialog" aria-label="Edit SIT">
+        <div class="mh"><button class="x" aria-label="Close">✕</button><h2>Edit SIT</h2><p class="k" style="margin-top:4px">Nothing changes until you press Save.</p></div>
+        <div class="mb">
+          <h3 class="st">Sign-in</h3>
+          <div class="fields">
+            <div class="fe"><label><b>*</b>Org name</label><div class="in" style="border-color:#0176D3;box-shadow:0 0 3px #0176D3">SIT</div></div>
+            <div class="fe"><label>Role</label><div class="in sel">Stage (an org on the route)</div></div>
+            <div class="fe wide"><label><b>*</b>My Domain URL</label><div class="in">https://acme--sit.sandbox.my.salesforce.com</div></div>
+            <div class="fe"><label><b>*</b>Integration username</label><div class="in">relay@acme.sit</div></div>
+            <div class="fe"><label>Connected app consumer key</label><div class="in ph">Saved (ends ••••7Q2k). Leave blank to keep it.</div></div>
+            <div class="fe"><label><b>*</b>Hub certificate</label><div class="in">release_relay</div></div>
+            <div class="fe"><label>Git environment</label><div class="in">sit</div></div>
+            <div class="fe"><label>Branch</label><div class="in">sit</div></div>
+            <div class="fe"><label>Login type</label><div class="in sel">Sandbox</div></div>
+            <div class="fe wide"><label>Salesforce environment</label><div class="in sel">Full Copy sandbox</div></div>
+          </div>
+          <h3 class="st">Approval</h3>
+          <div class="toggles">
+            <div class="tgl">Approve in Salesforce<span class="r"><span class="faux"></span>On</span></div>
+            <div class="tgl">Approve in Slack<span class="r"><span class="faux"></span>On</span></div>
+          </div>
+          <p class="k" style="padding:0 4px">Either is enough. At least one stays on.</p>
+          <div class="toggles">
+            <div class="tgl">Also require GitHub reviewers before deploying<span class="r"><span class="faux o"></span>Off</span></div>
+            <div class="tgl">Hotfixes into SIT need 2 approvers<span class="r"><span class="faux o"></span>Off</span></div>
+          </div>
+          <h3 class="st">Slack</h3>
+          <div class="fields">
+            <div class="fe"><label>Slack channel</label><div class="in">#release-sit</div></div>
+            <div class="tgl">Post to Slack<span class="r"><span class="faux"></span>On</span></div>
+          </div>
+          <p class="k" style="padding:0 4px">Releases into SIT post their card in this channel.</p>
+          <p class="k" style="padding:0 4px">A back promote org also gets a <b>Back promote</b> section here: When (After every PROD deploy / When an admin clicks Sync now) and Approve before syncing.</p>
+        </div>
+        <div class="mf"><button class="btn2">Cancel</button><button class="btn">Save</button></div>
+      </div>
+    </div>
+    <p class="note">Save calls saveOrg with the full org (sign-in, approval, Slack, 2 approvers; a blank key keeps the saved one), then saveBackPromoteOrg for a back promote org. The modal closes, a toast confirms, the page reloads, and a changed sign-in is tested again.</p>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1500}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

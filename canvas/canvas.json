@@ -165,6 +165,14 @@
       "w": 1280,
       "x": 1360,
       "y": 9680
+    },
+    "HubDeletions.dc.html": {
+      "expand": "fill",
+      "h": 1300,
+      "title": "Deletions: find deleted components, pick them, Deleted from <target>, Deletes on release / approvals / promote",
+      "w": 1280,
+      "x": 0,
+      "y": 11100
     }
   },
   "createdOnFiles": {
@@ -232,7 +240,8 @@
     "HubConflictReview.dc.html",
     "HubPipelineFiles.dc.html",
     "HubSourceEnvironments.dc.html",
-    "HubHotfixBackPromote.dc.html"
+    "HubHotfixBackPromote.dc.html",
+    "HubDeletions.dc.html"
   ],
   "pages": [],
   "title": "Release Relay app shell"

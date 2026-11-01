@@ -19,7 +19,7 @@ public with sharing class RlyDeletionFinder {
         }
         String branch = branchOf(org);
         String sourcePath = String.isBlank(conn.Source_Path__c) ? '' : conn.Source_Path__c.trim().removeEnd('/');
-        List<String> keys = RlyDeletions.keysOf(RlyGit.forConnection(conn).listFiles(branch, sourcePath), sourcePath);
+        List<String> keys = RlyDeletionPaths.keysOf(RlyGit.forConnection(conn).listFiles(branch, sourcePath), sourcePath);
         Map<String, List<String>> byType = new Map<String, List<String>>();
         for (String k : keys) {
             String t = k.substringBefore(':');
@@ -60,17 +60,33 @@ public with sharing class RlyDeletionFinder {
         return out;
     }
 
-    private static List<RlyChangeFinder.Change> missing(Map<String, List<String>> byType, Set<String> present) {
+    private static List<RlyChangeFinder.Change> missing(Map<String, List<String>> byType, Set<String> inOrg) {
         List<RlyChangeFinder.Change> out = new List<RlyChangeFinder.Change>();
         for (String t : byType.keySet()) {
             for (String n : byType.get(t)) {
                 String name = n.contains('%') ? EncodingUtil.urlDecode(n.replace('+', '%2B'), 'UTF-8') : n;
-                if (!present.contains((t + ':' + name).toLowerCase()) && out.size() < RlyChangeFinder.MAX_ITEMS) {
-                    addUnlessStandard(out, RlyChangeFinder.deletion(t, name));
+                if (!inOrg.contains((t + ':' + name).toLowerCase()) && out.size() < RlyChangeFinder.MAX_ITEMS) {
+                    addUnlessStandard(out, deletion(t, name));
                 }
             }
         }
         return out;
+    }
+
+    private static RlyChangeFinder.Change deletion(String type, String name) {
+        RlyChangeFinder.Change c = new RlyChangeFinder.Change();
+        c.type = type;
+        c.name = name;
+        c.key = type + ':' + name;
+        c.deleted = true;
+        c.standard = isStandard(type, name);
+        return c;
+    }
+
+    // A standard object (Account) or field (Account.Industry): it can't be deleted.
+    private static Boolean isStandard(String type, String name) {
+        String own = type == 'CustomField' ? name.substringAfter('.') : name;
+        return (type == 'CustomObject' || type == 'CustomField') && !own.contains('__');
     }
 
     private static void addUnlessStandard(List<RlyChangeFinder.Change> out, RlyChangeFinder.Change c) {

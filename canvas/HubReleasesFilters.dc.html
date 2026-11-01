@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Releases tab: Raised by, open by default, live check</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px;box-shadow:0 2px 2px rgba(0,0,0,.05)}
+.hd{padding:12px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}
+.h1{margin:0;font-size:18px;font-weight:700}
+.lab{margin:0;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5C5C5C}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.ok{background:#EBF7E6;color:#2E844A}.bad{background:#FEDED8;color:#8E030F}.wait{background:#FEF1CD;color:#8C4B02}.none{background:#F3F3F3;color:#444}.info{background:#EEF4FF;color:#014486}
+.btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px;cursor:pointer}
+.brand{background:#0176D3;border-color:#0176D3;color:#fff}
+.icon{width:32px;height:32px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:#2347D6}
+.filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 12px}
+.field{display:flex;flex-direction:column;gap:4px;width:260px}
+.field label{font-size:12px;color:#444}
+.lookup{height:32px;border:1px solid #C9C9C9;border-radius:4px;background:#fff;display:flex;align-items:center;gap:8px;padding:0 8px;font-size:13px}
+.lookup .av{width:20px;height:20px;border-radius:50%;background:#2347D6;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.lookup .x{margin-left:auto;color:#747474}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{height:32px;padding:0 12px;border-radius:16px;border:1px solid #C9C9C9;background:#fff;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.chip .n{font-size:11px;font-weight:700;padding:1px 6px;border-radius:8px;background:#F3F3F3;color:#444}
+.chip.on{background:#0176D3;border-color:#0176D3;color:#fff}.chip.on .n{background:#fff;color:#014486}
+.search{flex:1 1 220px;display:flex;justify-content:flex-end}
+.search div{width:100%;max-width:320px;height:32px;border:1px solid #C9C9C9;border-radius:4px;background:#fff;display:flex;align-items:center;padding:0 10px;font-size:13px;color:#747474}
+.live{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 12px}
+.meter{height:4px;background:#E5E5E5;border-radius:2px;overflow:hidden;width:200px}.meter i{display:block;height:100%;width:40%;background:#0176D3}
+.body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:12px;align-items:start}
+.list{display:flex;flex-direction:column;gap:8px}
+.rc{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.rc.on{border-color:#0176D3;box-shadow:0 0 0 1px #0176D3}.rc.hot{background:#FFF7F5}
+.top{display:flex;align-items:center;gap:8px}.no{font-size:12px;font-weight:700;color:#0B5CAB}.grow{flex:1}
+.t{font-size:14px;font-weight:600}
+.segs{display:flex;gap:3px}.segs i{flex:1;height:4px;border-radius:3px;background:#E5E5E5}.segs .d{background:#2E844A}.segs .c{background:#0176D3}.segs .f{background:#BA0517}
+.route{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:4px;background:#F3F3F3;font-size:11px;color:#444;font-family:ui-monospace,Menlo,monospace}
+.fail{padding:8px 10px;border-radius:4px;background:#FEF1EE;color:#8E030F;font-size:12px}
+.note{padding:8px 12px;border-radius:4px;font-size:12px;line-height:1.45;background:#FEF1CD;color:#5E3600}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.notes .card{padding:12px 16px;font-size:13px;line-height:1.5}
+.notes h3{margin:0 0 4px;font-size:13px}
+</style>
+</helmet>
+<div style="min-height:100vh;padding:12px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+  <p class="lab">Releases tab · default view: my open releases</p>
+
+  <section class="card hd">
+    <span class="icon">≡</span>
+    <div style="flex:1 1 240px"><p class="k">Releases</p><h1 class="h1">My Releases</h1></div>
+    <button class="btn brand">New release</button>
+  </section>
+
+  <section class="filters">
+    <div class="field"><label>Raised by</label><div class="lookup"><span class="av">AB</span>Aravind Reddy Boda<span class="x">✕</span></div></div>
+    <div class="chips">
+      <span class="chip on">Open <span class="n">4</span></span>
+      <span class="chip">Deployed <span class="n">23</span></span>
+      <span class="chip">Failed <span class="n">3</span></span>
+      <span class="chip">Rejected <span class="n">2</span></span>
+      <span class="chip">All <span class="n">32</span></span>
+    </div>
+    <div class="search"><div>🔍&nbsp; Search release number or title, then press Enter</div></div>
+  </section>
+
+  <section class="card live">
+    <span class="sm weak">⟳ Last checked 7:05:12 PM · next check in</span><div class="meter"><i></i></div>
+    <span class="grow"></span><button class="btn">Check now</button>
+  </section>
+
+  <div class="body">
+    <div class="list">
+      <div class="card rc hot on">
+        <div class="top"><span class="pill bad">Hotfix</span><span class="no">REL-00031</span><span class="pill info">Deploying</span><span class="grow"></span><span class="sm weak">4 min ago</span></div>
+        <div class="t">Duplicate emails on case close</div>
+        <div class="sm weak">Production customers get two emails per case</div>
+        <div class="segs"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="c"></i></div>
+        <div class="top"><span class="route">DEV1 → SIT · sit</span><span class="sm weak">3 components · You</span></div>
+      </div>
+      <div class="card rc">
+        <div class="top"><span class="no">REL-00030</span><span class="pill info">Validating</span><span class="grow"></span><span class="sm weak">12 min ago</span></div>
+        <div class="t">Region field on Account</div>
+        <div class="segs"><i class="d"></i><i class="d"></i><i class="d"></i><i class="c"></i><i></i><i></i><i></i></div>
+        <div class="top"><span class="route">DEV1 → SIT · sit</span><span class="sm weak">2 components · You</span></div>
+      </div>
+      <div class="card rc">
+        <div class="top"><span class="no">REL-00028</span><span class="pill wait">Ready for approval</span><span class="grow"></span><span class="sm weak">1 h ago</span></div>
+        <div class="t">Greeting says Welcome, friend</div>
+        <div class="segs"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="c"></i><i></i><i></i></div>
+        <div class="top"><span class="route">DEV1 → SIT · sit</span><span class="sm weak">2 components · You</span></div>
+      </div>
+      <div class="card rc">
+        <div class="top"><span class="no">REL-00027</span><span class="pill bad">Checks failed</span><span class="grow"></span><span class="sm weak">Today, 4:12 PM</span></div>
+        <div class="t">Case flow updates</div>
+        <div class="segs"><i class="d"></i><i class="d"></i><i class="d"></i><i class="f"></i><i></i><i></i><i></i></div>
+        <div class="top"><span class="route">DEV1 → SIT · sit</span><span class="sm weak">5 components · You</span></div>
+        <div class="fail"><strong>Validation failed.</strong> The check-only deploy in the target org failed. Open it to see the errors.</div>
+      </div>
+    </div>
+    <div class="card" style="min-height:420px">
+      <div class="hd" style="border-bottom:1px solid #E5E5E5"><span class="no" style="color:#5C5C5C">REL-00031</span><span class="pill info">Deploying</span><span class="grow"></span><button class="btn">🔗</button><button class="btn">⤢</button></div>
+      <div style="padding:16px" class="sm weak">The selected release's page (rlyReleaseView), unchanged: it keeps checking itself every 30 s.</div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <div class="card"><h3>Open is the default</h3>Open = still needs something: Submitted, Retrieving, Workflow running, Validating, Deploying, plus Checks failed and Ready for approval (waiting for the developer or an approver). Deployed, Failed (Failed, Deploy failed) and Rejected (Rejected, Closed) move to their own chips.</div>
+    <div class="card"><h3>Raised by replaces Mine</h3>A User lookup, set to you. Pick anyone, or clear it (✕) for everyone; the heading turns to Releases. Chip counts follow the Raised by user. Filtering runs on the server (listReleasesFor, up to 200, newest first, hotfixes first in Open).</div>
+    <div class="card"><h3>Live, no reload</h3>While the list shows an open release, it re-checks every 30 s: up to 5 running releases (least recently checked first, one by one), then the list and counts reload. Check now runs it straight away. The line disappears when nothing open is shown.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1100}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

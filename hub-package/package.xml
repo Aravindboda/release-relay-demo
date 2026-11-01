@@ -83,6 +83,9 @@
         <members>RlyReleaseStore</members>
         <members>RlyReleaseTestData</members>
         <members>RlyReleasesController</members>
+        <members>RlyReleasesFilterTest</members>
+        <members>RlyReleaseQuery</members>
+        <members>RlyReleaseRows</members>
         <members>RlyRetrieve</members>
         <members>RlyRouteController</members>
         <members>RlyRouteControllerTest</members>
@@ -120,6 +123,8 @@
         <members>RlyCarried</members>
         <members>RlyDeletionFinder</members>
         <members>RlyDeletionFinderTest</members>
+        <members>RlyDeletionPaths</members>
+        <members>RlyDeletionRules</members>
         <members>RlyDeletions</members>
         <members>RlyOrgSettings</members>
         <members>RlyPromoteController</members>
