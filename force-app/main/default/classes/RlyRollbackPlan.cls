@@ -93,7 +93,7 @@ public with sharing class RlyRollbackPlan {
         c.ownerId = owner.Id;
         c.ownerName = owner.Name;
         c.byPromotion = owner.Id != releaseId;
-        c.tests = RlyReleasePhase.tests(owner);
+        c.tests = RlyDeletions.withoutDeletedTests(RlyReleasePhase.tests(owner), owner);
         c.busy = owner.Status__c == DEPLOYING;
         c.approvedOn = owner.Approved_On__c;
         Map<String, Object> deploy = RlyEvidenceText.parse(owner.Deploy_Result__c);
@@ -146,7 +146,7 @@ public with sharing class RlyRollbackPlan {
         public RLY_Release__c readRelease(Id releaseId) {
             List<RLY_Release__c> rows = [SELECT Id, Name, Status__c, Release_Type__c, Promoted_In__c, Target_Org__c, Target_Branch__c,
                     Target_Org__r.Name, Target_Org__r.Role__c, Target_Org__r.Environment__c, Target_Org__r.Git_Environment__c,
-                    Target_Org__r.Branch__c, Deploy_Result__c, Test_Classes__c, Approved_On__c
+                    Target_Org__r.Branch__c, Deploy_Result__c, Test_Classes__c, Deletions__c, Approved_On__c
                 FROM RLY_Release__c WHERE Id = :releaseId WITH SYSTEM_MODE];
             return rows.isEmpty() ? null : rows[0];
         }

@@ -13,6 +13,30 @@ public with sharing class RlyDeletions {
     private static final Set<String> APEX_TYPES = new Set<String>{ 'ApexClass', 'ApexTrigger' };
 
     /**
+     * @description The test classes a run can use: a test class the release deletes (ApexClass:Name in its deletions)
+     * is left out, since the org won't have it after the deploy (a promotion carries the deletions of the releases it
+     * promotes, and a rollback restores them only from its own snapshot).
+     * @param tests the test class names
+     * @param rel the release, with Deletions__c
+     * @return the names the run can use, in the same order
+     */
+    public static List<String> withoutDeletedTests(List<String> tests, RLY_Release__c rel) {
+        Set<String> deleted = new Set<String>();
+        for (String key : of(rel)) {
+            if (key.startsWithIgnoreCase('ApexClass:')) {
+                deleted.add(key.substringAfter(':').trim().toLowerCase());
+            }
+        }
+        List<String> out = new List<String>();
+        for (String name : tests == null ? new List<String>() : tests) {
+            if (String.isNotBlank(name) && !deleted.contains(name.trim().toLowerCase())) {
+                out.add(name.trim());
+            }
+        }
+        return out;
+    }
+
+    /**
      * @description The deletions of a release, in order.
      * @param rel the release (with Deletions__c, when it has any)
      * @return Type:Name of each (empty when there are none)
