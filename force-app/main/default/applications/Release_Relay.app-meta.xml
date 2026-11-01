@@ -11,6 +11,7 @@
     <isNavTabPersistenceDisabled>false</isNavTabPersistenceDisabled>
     <label>Release Relay</label>
     <navType>Standard</navType>
+    <tabs>RLY_Home</tabs>
     <tabs>RLY_New_Release</tabs>
     <tabs>RLY_My_Releases</tabs>
     <tabs>RLY_Approvals</tabs>

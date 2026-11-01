@@ -27,7 +27,10 @@ import getSetupStatus from '@salesforce/apex/RlySetupStatus.getSetupStatus';
 import saveBotToken from '@salesforce/apex/RlySlackController.saveBotToken';
 import IS_ADMIN from '@salesforce/customPermission/RLY_Admin';
 import LightningConfirm from 'lightning/confirm';
+import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
 
+/** A list shows its search box from this many rows (or while a search is typed); Connected orgs from more than 6 orgs. */
+const SEARCH_FROM = 7;
 /** Modes of RlyHubGuard.getHubStatus in which this tab shows only the org gate. */
 const SANDBOX_MODES = ['sandbox', 'copy'];
 
@@ -902,7 +905,85 @@ export default class RlyPipeline extends LightningElement {
         return lead ? this.tabOf(lead) : values[0];
     }
     get activeGroup() { return this.orgGroups.find((g) => g.selected === 'true') || { tiles: [], name: '', value: '' }; }
-    get activeTabEmpty() { return this.activeGroup.tiles.length === 0; }
+    get activeTabEmpty() { return this.activeGroup.tiles.length === 0 && !this.terms.orgs; }
+
+    // ---------- search in the long lists (build 27) ----------
+
+    /** Search text per list (values, gates, orgs, approvers), normalised. */
+    terms = { values: '', gates: '', orgs: '', approvers: '' };
+
+    /** rlySearchBox above a list; data-list names the list. */
+    handleListSearch(event) {
+        const name = event.currentTarget.dataset.list;
+        this.terms = { ...this.terms, [name]: searchTerm(event.detail && event.detail.value) };
+    }
+
+    /** "Clear search" under a list; data-list names the list (every box of that list is cleared). */
+    clearListSearch(event) {
+        const name = event.currentTarget.dataset.list;
+        [...this.template.querySelectorAll('c-rly-search-box')].filter((b) => b.dataset.list === name).forEach((b) => b.clear());
+        this.terms = { ...this.terms, [name]: '' };
+    }
+
+    /** Connected orgs: the search box shows from 7 orgs. */
+    get showOrgSearch() { return this.orgs.length > 6 || !!this.terms.orgs; }
+    /** An org tile matches on its name, domain, role, branch, status or approval line. */
+    tileMatches(t) {
+        return matchesSearch([t.name, t.domain, t.rolePill, t.branch, t.statusText, t.approvalText], this.terms.orgs);
+    }
+    /** The open tab's tiles after the search. */
+    get shownTiles() { return this.activeGroup.tiles.filter((t) => this.tileMatches(t)); }
+    get orgsShown() { return this.orgGroups.reduce((n, g) => n + g.tiles.filter((t) => this.tileMatches(t)).length, 0); }
+    get orgsTotal() { return this.orgs.length; }
+    get orgsNoMatch() { return !!this.terms.orgs && this.shownTiles.length === 0; }
+    get orgsNoMatchText() {
+        const elsewhere = this.orgsShown;
+        const tail = elsewhere ? ' ' + elsewhere + (elsewhere === 1 ? ' match is' : ' matches are') + ' under other tabs.' : '';
+        return 'No orgs in ' + this.activeGroup.name + ' match \u2018' + this.terms.orgs + '\u2019.' + tail;
+    }
+    /** The tabs with their counts: the matches while a search is typed. */
+    get orgTabs() {
+        if (!this.terms.orgs) {
+            return this.orgGroups;
+        }
+        return this.orgGroups.map((g) => ({ ...g, count: g.tiles.filter((t) => this.tileMatches(t)).length }));
+    }
+
+    /** Per-org values after the search (name or any value). */
+    get shownValueRows() {
+        const q = this.terms.values;
+        return this.valueRows.filter((r) => matchesSearch([r.name, ...r.cells.filter((c) => c.has).map((c) => c.title)], q))
+            .map((r) => ({ ...r, nameParts: highlightParts(r.name, q) }));
+    }
+    get showValuesSearch() { return this.valueRows.length >= SEARCH_FROM || !!this.terms.values; }
+    get valuesShown() { return this.shownValueRows.length; }
+    get valuesTotal() { return this.valueRows.length; }
+    get valuesNoMatch() { return !!this.terms.values && this.shownValueRows.length === 0; }
+    get valuesNoMatchText() { return 'No values match \u2018' + this.terms.values + '\u2019.'; }
+    get valueColspan() { return String(this.valueColumns.length + 1); }
+
+    /** Quality gates after the search. */
+    get shownGateRows() {
+        const q = this.terms.gates;
+        return this.gateRows.filter((g) => matchesSearch([g.label, g.text], q));
+    }
+    get showGatesSearch() { return this.gateRows.length >= SEARCH_FROM || !!this.terms.gates; }
+    get gatesShown() { return this.shownGateRows.length; }
+    get gatesTotal() { return this.gateRows.length; }
+    get gatesNoMatch() { return !!this.terms.gates && this.shownGateRows.length === 0; }
+    get gatesNoMatchText() { return 'No gates match \u2018' + this.terms.gates + '\u2019.'; }
+
+    /** Approvers after the search (name or Slack member ID). */
+    get shownApprovers() {
+        const q = this.terms.approvers;
+        return this.approverRows.filter((a) => matchesSearch([a.name, a.memberText], q))
+            .map((a) => ({ ...a, nameParts: highlightParts(a.name, q) }));
+    }
+    get showApproverSearch() { return this.approverRows.length >= SEARCH_FROM || !!this.terms.approvers; }
+    get approversShown() { return this.shownApprovers.length; }
+    get approversTotal() { return this.approverRows.length; }
+    get approversNoMatch() { return !!this.terms.approvers && this.shownApprovers.length === 0; }
+    get approversNoMatchText() { return 'No approvers match \u2018' + this.terms.approvers + '\u2019.'; }
     get activeTabEmptyText() { return 'No orgs in ' + this.activeGroup.name + ' yet.'; }
     get activeTabId() { return this.activeGroup.tabId; }
     /** Production holds the hub alone: once it's registered, its tab has no Register tile. */
@@ -1300,7 +1381,7 @@ export default class RlyPipeline extends LightningElement {
         ((this.repoSettings && this.repoSettings.environments) || []).filter((e) => !used.has(e)).forEach((e) => {
             cols.push({ key: 'e-' + e, label: e, env: e, title: 'Not on the route', cls: 'rr-weak', cellCls: 'rr-mono rr-break rr-weak' });
         });
-        return cols;
+        return cols.map((c) => ({ ...c, thCls: (c.cls ? c.cls + ' ' : '') + 'rr-w-val' }));
     }
 
     get valueRows() {

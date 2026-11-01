@@ -2,7 +2,8 @@
  * @description The Releases tab's server-side filter and chip counts. A release's status falls in one state:
  * open (still needs something: running, or waiting for the developer after Checks failed or for an approver),
  * deployed, failed (the run or the deploy failed) or closed (rejected or closed without deploying); all is every
- * status. A release rolled back in an org (Rollback_Status__c Rolled_Back) keeps its status but is listed and counted
+ * status. checks is the part of open that waits for the developer (Checks failed: scan, check-only deploy or merge
+ * conflicts). A release rolled back in an org (Rollback_Status__c Rolled_Back) keeps its status but is listed and counted
  * under rolledback instead of deployed. Releases are shared hub records that every Release Relay user lists, so the
  * queries run in system mode, in the private inner without sharing class, and only read.
  */
@@ -24,6 +25,7 @@ public with sharing class RlyReleaseQuery {
     /** @description The Releases tab's states and the statuses each one groups. */
     public static final Map<String, Set<String>> STATE_STATUSES = new Map<String, Set<String>>{
         STATE_OPEN => OPEN_STATES,
+        'checks' => new Set<String>{ 'Checks failed' },
         STATE_DEPLOYED => new Set<String>{ 'Deployed' },
         STATE_ROLLED_BACK => everyStatus(),
         'failed' => new Set<String>{ 'Failed', 'Deploy failed' },
@@ -35,7 +37,7 @@ public with sharing class RlyReleaseQuery {
     public class Filter {
         /** @description The user who raised the releases, or blank for everyone. */
         public String raisedById;
-        /** @description open, deployed, rolledback, failed, closed or all (blank: open). */
+        /** @description open, checks, deployed, rolledback, failed, closed or all (blank: open). */
         public String state;
         /** @description Part of the release number or title, or blank. */
         public String searchText;
@@ -91,7 +93,7 @@ public with sharing class RlyReleaseQuery {
     /**
      * @description How many releases a user (or everyone) raised in each state.
      * @param raisedById the user, or blank for everyone
-     * @return the count by state (open, deployed, rolledback, failed, closed, all); every state is present
+     * @return the count by state (open, checks, deployed, rolledback, failed, closed, all); every state is present
      */
     public static Map<String, Integer> countsFor(String raisedById) {
         Id userId = userIdOf(raisedById);

@@ -10,7 +10,10 @@ import approve from '@salesforce/apex/RlyReleasesController.approve';
 import reject from '@salesforce/apex/RlyReleasesController.reject';
 import resolveConflicts from '@salesforce/apex/RlyReleasesController.resolveConflicts';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
+import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
 
+/** A list shows its search box from this many rows (or while a search is typed). */
+const SEARCH_FROM = 7;
 /** Modes of RlyHubGuard.getHubStatus in which only the org gate shows. */
 const GATED_MODES = ['sandbox', 'copy', 'setup'];
 
@@ -742,6 +745,68 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             key: i.Id, dtKey: i.Id + 't', type: typeLabel(i.Metadata_Type__c, tests.includes(i.Component_Name__c)), name: i.Component_Name__c
         }));
     }
+    // ---------- search in the long lists (build 27): components, history ----------
+
+    /** Search text of the Components list (normalised). */
+    compSearch = '';
+    /** Search text of the History list (normalised). */
+    historySearch = '';
+
+    /** Components and deletions shown after the search, with the matches marked. */
+    get shownItems() {
+        const q = this.compSearch;
+        return this.items.filter((i) => matchesSearch([i.type, i.name], q))
+            .map((i) => ({ ...i, nameParts: highlightParts(i.name, q) }));
+    }
+    get shownDeletions() {
+        const q = this.compSearch;
+        return this.deletions.filter((d) => matchesSearch([d.type, d.name], q))
+            .map((d) => ({ ...d, nameParts: highlightParts(d.name, q) }));
+    }
+    get compTotal() { return this.items.length + this.deletions.length; }
+    get compShown() { return this.shownItems.length + this.shownDeletions.length; }
+    get showCompSearch() { return this.compTotal >= SEARCH_FROM || !!this.compSearch; }
+    get hasShownItems() { return this.shownItems.length > 0; }
+    get hasShownDeletions() { return this.shownDeletions.length > 0; }
+    get compNoMatch() { return !!this.compSearch && this.compShown === 0; }
+    get compNoMatchText() { return 'No components match \u2018' + this.compSearch + '\u2019.'; }
+
+    handleCompSearch(event) {
+        this.compSearch = searchTerm(event.detail && event.detail.value);
+    }
+
+    clearCompSearch() {
+        this.clearBox('comp');
+        this.compSearch = '';
+    }
+
+    /** History after the search; the arrows join only the events shown. */
+    get shownEvents() {
+        const q = this.historySearch;
+        const list = this.events.filter((e) => matchesSearch([e.title, e.who, e.detail, e.refLink, e.refText], q));
+        return list.map((e, i) => ({ ...e, hasArrow: i < list.length - 1, titleParts: highlightParts(e.title, q) }));
+    }
+    get showHistorySearch() { return this.events.length >= SEARCH_FROM || !!this.historySearch; }
+    get historyNoMatch() { return !!this.historySearch && this.shownEvents.length === 0; }
+    get historyNoMatchText() { return 'No events match \u2018' + this.historySearch + '\u2019.'; }
+
+    handleHistorySearch(event) {
+        this.historySearch = searchTerm(event.detail && event.detail.value);
+    }
+
+    clearHistorySearch() {
+        this.clearBox('history');
+        this.historySearch = '';
+    }
+
+    /** Empties one of the page's search boxes (data-list on the box). */
+    clearBox(name) {
+        const box = [...this.template.querySelectorAll('c-rly-search-box')].find((b) => b.dataset.list === name);
+        if (box) {
+            box.clear();
+        }
+    }
+
     get itemCount() {
         const d = this.deletions.length;
         return String(this.items.length) + (d ? ' · ' + d + (d === 1 ? ' deletion' : ' deletions') : '');

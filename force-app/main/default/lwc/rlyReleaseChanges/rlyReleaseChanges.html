@@ -22,14 +22,21 @@
                 <p class="rr-trunc rr-small">{truncatedText} · <a class="rr-link" href={filesUrl} target="_blank" rel="noopener">{openLabel}</a></p>
             </template>
             <template lwc:if={hasFiles}>
+                <template lwc:if={showSearch}>
+                    <div class="rr-toolbar">
+                        <c-rly-search-box label="Search files" placeholder="Search by file name or folder" shown={shownCount} total={rowCount}
+                            onsearch={handleSearch}></c-rly-search-box>
+                    </div>
+                </template>
+                <div class="rr-scroll">
                 <ul class="rr-prl" aria-label="Files in the pull request">
-                    <template for:each={rows} for:item="r">
+                    <template for:each={shownRows} for:item="r">
                         <li key={r.key}>
                             <button type="button" class={r.rowCls} data-index={r.index} onclick={openFile} title="Show the changes">
                                 <span class={r.statusCls}>{r.status}</span>
                                 <span class="rr-pn">
-                                    <b class="rr-mono">{r.name}</b>
-                                    <span class="rr-xs rr-weak">{r.folder}</span>
+                                    <b class="rr-mono" title={r.name}><template for:each={r.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></b>
+                                    <span class="rr-xs rr-weak" title={r.folder}><template for:each={r.folderParts} for:item="u"><template lwc:if={u.hit}><mark key={u.key}>{u.text}</mark></template><template lwc:else><span key={u.key}>{u.text}</span></template></template></span>
                                     <template lwc:if={r.fromText}><span class="rr-xs rr-weak">{r.fromText}</span></template>
                                 </span>
                                 <span class="rr-cnt" aria-label={r.countsLabel}>
@@ -43,6 +50,10 @@
                         </li>
                     </template>
                 </ul>
+                <template lwc:if={noMatch}>
+                    <p class="rr-nomatch-p">{noMatchText} <button type="button" class="rr-linkbtn" onclick={clearSearch}>Clear search</button></p>
+                </template>
+                </div>
             </template>
             <template lwc:else>
                 <p class="rr-pd rr-small rr-weak">The pull request has no changed files.</p>

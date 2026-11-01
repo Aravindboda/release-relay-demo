@@ -289,7 +289,7 @@
                                 <!-- back promote orgs: dashed, after the hub; they never send changes up the route -->
                                 <template lwc:if={hasBackPromoteNodes}>
                                     <span class="rr-arrow-side" aria-hidden="true">⤳</span>
-                                    <ul class="rr-route-side" aria-label="Back promote orgs">
+                                    <ul class="rr-route-side rr-scroll" aria-label="Back promote orgs">
                                         <template for:each={backPromoteNodes} for:item="b">
                                             <li key={b.key} class="rr-stop rr-stop-side">
                                                 <strong class="rr-stop-name">{b.name}</strong>
@@ -345,24 +345,31 @@
                                 <template lwc:if={valuesError}><div class="rr-msg rr-msg-bad" role="alert">{valuesError}</div></template>
                                 <template lwc:if={hasValues}>
                                     <p class="rr-kicker">Write placeholders <span class="rr-mono">{placeholderSample}</span> in your code. The pipeline puts each org's value in when it deploys, and turns the value back into the placeholder when it retrieves.</p>
-                                    <div class="rr-table-wrap">
-                                        <table class="slds-table slds-table_bordered slds-table_cell-buffer rr-values">
+                                    <template lwc:if={showValuesSearch}>
+                                        <c-rly-search-box data-list="values" label="Search per-org values" placeholder="Search by name or value"
+                                            shown={valuesShown} total={valuesTotal} onsearch={handleListSearch}></c-rly-search-box>
+                                    </template>
+                                    <div class="rr-scroll rr-scroll-x">
+                                        <table class="slds-table slds-table_bordered slds-table_cell-buffer rr-values rr-ft">
                                             <thead>
                                                 <tr class="slds-line-height_reset">
-                                                    <th scope="col"><div class="slds-truncate">Name</div></th>
+                                                    <th scope="col" class="rr-w-vname"><div class="slds-truncate">Name</div></th>
                                                     <template for:each={valueColumns} for:item="c">
-                                                        <th key={c.key} scope="col" class={c.cls} title={c.title}><div class="slds-truncate">{c.label}</div></th>
+                                                        <th key={c.key} scope="col" class={c.thCls} title={c.title}><div class="slds-truncate">{c.label}</div></th>
                                                     </template>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <template for:each={valueRows} for:item="r">
+                                                <template for:each={shownValueRows} for:item="r">
                                                     <tr key={r.key}>
-                                                        <th scope="row" class="rr-mono">{r.name}</th>
+                                                        <th scope="row" class="rr-mono" title={r.name}><template for:each={r.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></th>
                                                         <template for:each={r.cells} for:item="cell">
                                                             <td key={cell.key}><span class={cell.cls} title={cell.title}>{cell.text}</span></td>
                                                         </template>
                                                     </tr>
+                                                </template>
+                                                <template lwc:if={valuesNoMatch}>
+                                                    <tr><td colspan={valueColspan} class="rr-nomatch">{valuesNoMatchText} <button type="button" class="rr-linkbtn" data-list="values" onclick={clearListSearch}>Clear search</button></td></tr>
                                                 </template>
                                             </tbody>
                                         </table>
@@ -404,8 +411,12 @@
                                 <template lwc:if={repoMessage}><div class="rr-msg rr-msg-info" role="status">{repoMessage}</div></template>
                                 <template lwc:if={gatesError}><div class="rr-msg rr-msg-bad" role="alert">{gatesError}</div></template>
                                 <template lwc:if={hasGates}>
-                                    <dl class="rr-ro">
-                                        <template for:each={gateRows} for:item="g">
+                                    <template lwc:if={showGatesSearch}>
+                                        <c-rly-search-box data-list="gates" label="Search quality gates" placeholder="Search by gate or value"
+                                            shown={gatesShown} total={gatesTotal} onsearch={handleListSearch}></c-rly-search-box>
+                                    </template>
+                                    <dl class="rr-ro rr-scroll">
+                                        <template for:each={shownGateRows} for:item="g">
                                             <div key={g.key} class={g.cls}>
                                                 <dt class="slds-form-element__label">{g.label}</dt>
                                                 <dd class="slds-form-element__control">
@@ -420,6 +431,9 @@
                                             </div>
                                         </template>
                                     </dl>
+                                    <template lwc:if={gatesNoMatch}>
+                                        <p class="rr-nomatch-p">{gatesNoMatchText} <button type="button" class="rr-linkbtn" data-list="gates" onclick={clearListSearch}>Clear search</button></p>
+                                    </template>
                                 </template>
                                 <template lwc:if={gatesEmpty}>
                                     <p class="rr-empty">No quality gates yet — add them in .relay/gates.json. Salesforce's own rules still apply.</p>
@@ -511,15 +525,23 @@
                                         <p class="rr-small rr-weak">Only linked approvers can press Approve or Reject in Slack. Press Edit → Approve in Slack → Link Slack member IDs to link one.</p>
                                         <template lwc:if={noApprovers}><p class="rr-small rr-weak">No approvers yet: assign the RLY_Approver permission set.</p></template>
                                         <template lwc:if={hasApprovers}>
+                                            <template lwc:if={showApproverSearch}>
+                                                <c-rly-search-box data-list="approvers" label="Search approvers" placeholder="Search by name or Slack member ID"
+                                                    shown={approversShown} total={approversTotal} onsearch={handleListSearch}></c-rly-search-box>
+                                            </template>
                                             <div class="rr-scroll">
-                                                <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table" aria-label="Approvers">
+                                                <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table rr-ft rr-ft-narrow" aria-label="Approvers">
+                                                    <colgroup><col /><col class="rr-w-member" /></colgroup>
                                                     <thead><tr><th scope="col">Approver</th><th scope="col">Slack member ID</th></tr></thead>
                                                     <tbody>
-                                                        <template for:each={approverRows} for:item="a">
+                                                        <template for:each={shownApprovers} for:item="a">
                                                             <tr key={a.userId}>
-                                                                <td>{a.name}<template lwc:if={a.linked}><span class="rr-pill rr-pill-ok rr-sp">Linked</span></template></td>
+                                                                <td title={a.name}><template for:each={a.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template><template lwc:if={a.linked}><span class="rr-pill rr-pill-ok rr-sp">Linked</span></template></td>
                                                                 <td><span class="rr-mono">{a.memberText}</span></td>
                                                             </tr>
+                                                        </template>
+                                                        <template lwc:if={approversNoMatch}>
+                                                            <tr><td colspan="2" class="rr-nomatch">{approversNoMatchText} <button type="button" class="rr-linkbtn" data-list="approvers" onclick={clearListSearch}>Clear search</button></td></tr>
                                                         </template>
                                                     </tbody>
                                                 </table>
@@ -568,18 +590,26 @@
                                                 <p class="rr-small rr-weak">Each approver's Slack member ID (Slack: profile &gt; More &gt; Copy member ID). Only linked approvers can press Approve or Reject in Slack. Leave blank to unlink.</p>
                                                 <template lwc:if={noApprovers}><p class="rr-small rr-weak">No approvers yet: assign the RLY_Approver permission set.</p></template>
                                                 <template lwc:if={hasApprovers}>
+                                                    <template lwc:if={showApproverSearch}>
+                                                        <c-rly-search-box data-list="approvers" label="Search approvers" placeholder="Search by name or Slack member ID"
+                                                            shown={approversShown} total={approversTotal} onsearch={handleListSearch}></c-rly-search-box>
+                                                    </template>
                                                     <div class="rr-scroll">
-                                                        <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table" aria-label="Approvers">
+                                                        <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table rr-ft rr-ft-narrow" aria-label="Approvers">
+                                                            <colgroup><col /><col class="rr-w-member-edit" /></colgroup>
                                                             <thead><tr><th scope="col">Approver</th><th scope="col">Slack member ID</th></tr></thead>
                                                             <tbody>
-                                                                <template for:each={approverRows} for:item="a">
+                                                                <template for:each={shownApprovers} for:item="a">
                                                                     <tr key={a.userId}>
-                                                                        <td>{a.name}<template lwc:if={a.linked}><span class="rr-pill rr-pill-ok rr-sp">Linked</span></template></td>
-                                                                        <td>
+                                                                        <td title={a.name}><template for:each={a.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template><template lwc:if={a.linked}><span class="rr-pill rr-pill-ok rr-sp">Linked</span></template></td>
+                                                                        <td class="rr-td-input">
                                                                             <lightning-input variant="label-hidden" label={a.inputLabel} value={a.memberId} placeholder="e.g. U0…" max-length="20"
                                                                                 data-id={a.userId} onchange={handleMemberInput}></lightning-input>
                                                                         </td>
                                                                     </tr>
+                                                                </template>
+                                                                <template lwc:if={approversNoMatch}>
+                                                                    <tr><td colspan="2" class="rr-nomatch">{approversNoMatchText} <button type="button" class="rr-linkbtn" data-list="approvers" onclick={clearListSearch}>Clear search</button></td></tr>
                                                                 </template>
                                                             </tbody>
                                                         </table>
@@ -629,9 +659,15 @@
                                     <div class="rr-empty">No orgs registered yet. Follow the setup steps, then register your first org.</div>
                                 </template>
                                 <template lwc:if={hasOrgs}>
+                                    <template lwc:if={showOrgSearch}>
+                                        <div class="rr-org-search">
+                                            <c-rly-search-box data-list="orgs" label="Search connected orgs" placeholder="Search by org, domain, branch or role"
+                                                shown={orgsShown} total={orgsTotal} onsearch={handleListSearch}></c-rly-search-box>
+                                        </div>
+                                    </template>
                                     <div class="slds-tabs_default rr-tabs">
                                         <ul class="slds-tabs_default__nav rr-tabs-nav" role="tablist" aria-label="Salesforce environment" onkeydown={handleTabKey}>
-                                            <template for:each={orgGroups} for:item="g">
+                                            <template for:each={orgTabs} for:item="g">
                                                 <li key={g.value} class={g.cls} role="presentation">
                                                     <button type="button" id={g.tabId} class="slds-tabs_default__link rr-tab-btn" role="tab" aria-selected={g.selected}
                                                         aria-controls="rr-org-panel" tabindex={g.tabIndex} data-value={g.value} onclick={handleOrgTab}>
@@ -642,8 +678,11 @@
                                         </ul>
                                         <div id="rr-org-panel" class="rr-tab-panel" role="tabpanel" aria-labelledby={activeTabId}>
                                             <template lwc:if={activeTabEmpty}><p class="rr-small rr-weak">{activeTabEmptyText}</p></template>
+                                            <template lwc:if={orgsNoMatch}>
+                                                <p class="rr-small rr-weak">{orgsNoMatchText} <button type="button" class="rr-linkbtn" data-list="orgs" onclick={clearListSearch}>Clear search</button></p>
+                                            </template>
                                             <ul class="rr-tiles" aria-label="Connected orgs">
-                                                <template for:each={activeGroup.tiles} for:item="t">
+                                                <template for:each={shownTiles} for:item="t">
                                                     <li key={t.id} class="rr-tile-cell">
                                                         <c-rly-org-tile tile={t} data-id={t.id} onopen={openOrgDialog}></c-rly-org-tile>
                                                     </li>
