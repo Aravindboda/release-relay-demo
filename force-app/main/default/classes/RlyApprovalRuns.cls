@@ -65,7 +65,7 @@ public with sharing class RlyApprovalRuns {
         rel.Status__c = 'Validating';
         rel.Pending_Run__c = pendingRun;
         rel.Checks_Requested__c = System.now();
-        rel.Scan_Status__c = conn.Code_Scan__c ? 'Pending' : 'Not configured';
+        rel.Scan_Status__c = RlyScanRule.statusFor(conn, RlyScanRule.targetOf(rel));
         rel.Validation_Status__c = String.isBlank(rel.Target_Environment__c) ? 'Not configured' : 'Pending';
         rel.Scan_Bypassed_By__c = null;
         rel.Scan_Bypass_Reason__c = null;

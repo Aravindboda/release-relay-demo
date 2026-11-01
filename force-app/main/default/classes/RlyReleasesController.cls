@@ -22,6 +22,14 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public Integer manualOpen = 0;
         /** @description It has only manual steps (no metadata, no Git or pipeline steps). */
         @AuraEnabled public Boolean manualOnly;
+        /** @description Its latest rollback: Running, Rolled_Back, Failed, or null. */
+        @AuraEnabled public String rollbackStatus;
+        /** @description The org it was rolled back in, or null. */
+        @AuraEnabled public String rolledBackIn;
+        /** @description Who rolled it back, or null. */
+        @AuraEnabled public String rolledBackBy;
+        /** @description When it was rolled back, or null. */
+        @AuraEnabled public Datetime rolledBackOn;
     }
 
     /** @description One row of the release list. */
@@ -122,6 +130,8 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public Integer manualBeforeOpen = 0;
         /** @description For example "2 manual steps: 1 before deploy (open), 1 after deploy", or null when there are none. */
         @AuraEnabled public String manualSummary;
+        /** @description Its latest rollback and whether the current user may roll it back (RlyRollbackView). */
+        @AuraEnabled public RlyRollbackView.View rollbackState;
     }
 
     /** @description One release, as its page shows it. */
@@ -170,8 +180,8 @@ public with sharing class RlyReleasesController {
 
     /**
      * @description The Releases tab's list, filtered on the server.
-     * @param filterJson {"raisedById": a user Id or blank for everyone, "state": "open" (default), "deployed", "failed",
-     * "closed" or "all", "searchText": part of the release number or title}
+     * @param filterJson {"raisedById": a user Id or blank for everyone, "state": "open" (default), "deployed", "rolledback",
+     * "failed", "closed" or "all", "searchText": part of the release number or title}
      * @return up to 200 rows, newest first (open: hotfixes first)
      */
     @AuraEnabled
@@ -186,7 +196,7 @@ public with sharing class RlyReleasesController {
     /**
      * @description The counts on the Releases tab's state chips.
      * @param raisedById the user who raised them, or blank for everyone
-     * @return the count by state: open, deployed, failed, closed and all
+     * @return the count by state: open, deployed, rolledback, failed, closed and all
      */
     @AuraEnabled
     public static Map<String, Integer> countReleases(String raisedById) {
@@ -222,7 +232,8 @@ public with sharing class RlyReleasesController {
 
     /**
      * @description Reads the latest status first (callouts), then returns the release. A release with nothing running
-     * starts or reads the queued and running back promote syncs instead (RlyBackPromoteRun.catchUp).
+     * reads its running rollback (RlyRollbackRun.advance), or else starts or reads the queued and running back promote syncs
+     * (RlyBackPromoteRun.catchUp).
      * @param releaseId the release
      * @return the release
      */
@@ -231,8 +242,8 @@ public with sharing class RlyReleasesController {
         try {
             if (RlyStatusReader.isOpen(RlyReleaseStore.release(releaseId))) {
                 RlyStatusReader.advance(releaseId);
-            } else if (RlyHubGuard.isHub()) {
-                RlyBackPromoteRun.catchUp();
+            } else {
+                RlyRollbackRun.readIdle(releaseId);
             }
             return detail(releaseId);
         } catch (Exception e) {
@@ -354,6 +365,7 @@ public with sharing class RlyReleasesController {
         d.tests = RlyReleasePhase.tests(d.release);
         d.gitProvider = RlyGitName.labelFor(RlyReleaseStore.git());
         d.slackChannel = RlyReleasePhase.slackChannel(d.release);
+        RlyRollbackView.fill(d);
         RlyReleaseLinks.fill(d);
         RlyReleaseHistory.fill(d);
         return d;

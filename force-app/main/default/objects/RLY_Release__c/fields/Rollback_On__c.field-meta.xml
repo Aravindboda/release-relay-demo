@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Rollback_On__c</fullName>
+    <description>Hub: when the latest rollback was started (and, once it finished, when it finished).</description>
+    <label>Rollback On</label>
+    <required>false</required>
+    <type>DateTime</type>
+</CustomField>
