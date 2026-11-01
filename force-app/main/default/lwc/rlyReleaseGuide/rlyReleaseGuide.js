@@ -1,6 +1,6 @@
 import APP_NAME from '@salesforce/label/c.RLY_App_Name';
-import { LightningElement } from 'lwc';
-import { NavigationMixin } from 'lightning/navigation';
+import { LightningElement, wire } from 'lwc';
+import { NavigationMixin, CurrentPageReference } from 'lightning/navigation';
 import IS_ADMIN from '@salesforce/customPermission/RLY_Admin';
 import SHOTS from '@salesforce/resourceUrl/RLY_Guide_Shots';
 import SETUP_PICS from '@salesforce/resourceUrl/RLY_Guide_Setup';
@@ -144,6 +144,17 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
     /** The setup checklist's ticks, by section key (kept in this browser). */
     setupDone = {};
     scrollTop = false;
+
+    /** ?c__section=<section key> (for example from the Archive tab's missed-nights warning) opens that section. */
+    @wire(CurrentPageReference)
+    setPageRef(ref) {
+        const key = ref && ref.state ? ref.state.c__section : undefined;
+        if (key && SECTIONS.some((s) => s.key === key)) {
+            this.current = key;
+            this.navigated = true;
+            this.scrollTop = true;
+        }
+    }
 
     connectedCallback() {
         this.setupDone = readDone();
@@ -421,10 +432,16 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
         };
     }
 
-    /** Buttons that open another section; a section this user can't see is left out. */
+    /** Buttons that open another section (a section this user can't see is left out), or another tab (tab: its API name). */
     links(list, key) {
-        return (list || []).filter((l) => this.visibleSections.some((s) => s.key === l.to))
-            .map((l, i) => ({ key: key + 'l' + i, label: l.label, to: l.to }));
+        return (list || []).filter((l) => !!l.tab || this.visibleSections.some((s) => s.key === l.to))
+            .map((l, i) => ({
+                key: key + 'l' + i,
+                label: l.label,
+                to: l.to || '',
+                tab: l.tab || '',
+                cls: l.kind === 'neutral' ? 'slds-button slds-button_neutral rr-link' : 'slds-button slds-button_brand rr-link'
+            }));
     }
 
     progressItem(label, num, key) {
@@ -468,6 +485,8 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
                 items: (s.providers[p.value] || []).map((t, i) => rich(t, key + p.value + i, p.value === 'GitLab'))
             })) : [],
             hasTabs: !!s.providers && !this.providerKnown,
+            badge: s.badge || '',
+            code: s.code || '',
             shot: s.shot ? this.shot(s.shot, key + 'shot') : null
         };
     }
@@ -505,6 +524,11 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
      * from its top; the section already on screen scrolls to its first step instead, so Open always visibly goes there.
      */
     handleLink(event) {
+        const tab = event.currentTarget.dataset.tab;
+        if (tab) {
+            this[NavigationMixin.Navigate]({ type: 'standard__navItemPage', attributes: { apiName: tab } });
+            return;
+        }
         if (event.currentTarget.dataset.name === this.section.key) {
             this.goToFirstStep();
             return;

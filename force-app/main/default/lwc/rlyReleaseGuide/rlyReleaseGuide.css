@@ -1,4 +1,5 @@
-:host { display: block; --rr-blue: #0176d3; --rr-ink: #181818; --rr-muted: #5c5c5c; --rr-line: #e5e5e5; }
+:host {
+    padding-bottom: 1.5rem; display: block; --rr-blue: #0176d3; --rr-ink: #181818; --rr-muted: #5c5c5c; --rr-line: #e5e5e5; }
 .rr-page { display: flex; flex-direction: column; gap: 12px; color: var(--rr-ink); }
 .rr-head, .rr-card { background: #fff; border: 1px solid var(--rr-line); border-radius: 4px; box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05); }
 .rr-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 16px; }
@@ -135,3 +136,8 @@ ul.rr-list { list-style: disc; }
 .rr-sandbox-line { padding: 8px 12px; border-radius: 4px; background: #fef1cd; color: #5e3600; font-size: 13px; }
 /* while the org's mode is read (RlyHubGuard.getHubStatus) */
 .rr-wait { position: relative; min-height: 120px; }
+
+/* G. Nightly archive: a Recommended pill beside a step's title, and a code block under its items */
+.rr-pill-info { background: #eef4ff; color: #014486; }
+.rr-badge { margin-left: 8px; vertical-align: middle; }
+.rr-code { margin: 8px 0 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5; background: #fafaf9; border: 1px solid var(--rr-line); border-radius: 4px; padding: 10px 12px; color: #181818; white-space: pre; overflow-x: auto; }

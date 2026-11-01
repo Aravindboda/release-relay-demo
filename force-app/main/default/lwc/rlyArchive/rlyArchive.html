@@ -1,0 +1,341 @@
+<template>
+    <template lwc:if={statusRead}>
+        <c-rly-org-gate status={gateStatus}></c-rly-org-gate>
+        <template lwc:if={showPage}>
+            <div class="rr-page slds-is-relative">
+                <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+
+                <!-- header -->
+                <section class="rr-card rr-head">
+                    <span class="rr-head-icon"><lightning-icon icon-name="utility:archive" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
+                    <div class="rr-head-text">
+                        <p class="rr-kicker">{appName}</p>
+                        <h1 class="rr-title">Archive</h1>
+                        <p class="rr-head-sub rr-hide-narrow">Numbers of what has been archived. Archived releases can't be opened again.</p>
+                    </div>
+                    <template lwc:if={canView}>
+                        <span class="rr-kicker" role="status">{liveText}</span>
+                        <template lwc:if={runningPill}><span class="rr-pill rr-pill-info">Running…</span></template>
+                        <template lwc:if={canRun}>
+                            <span class="rr-run-wrap" title={runNowReason}>
+                                <lightning-button class="rr-run-now" variant="brand" label={runNowLabel} onclick={openRunNow} disabled={runNowDisabled}></lightning-button>
+                            </span>
+                            <template lwc:if={showRunNowReason}><span class="rr-kicker rr-run-why">{runNowReason}</span></template>
+                        </template>
+                        <template lwc:if={showApproverLine}><p class="rr-kicker rr-full">Only admins can run the archive.</p></template>
+                    </template>
+                </section>
+
+                <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+
+                <!-- no access: developers and others (the tab is hidden for them; a direct link lands here) -->
+                <template lwc:if={noAccess}>
+                    <section class="rr-card rr-pad">
+                        <div class="rr-empty"><b>Ask an admin for access</b><span>The Archive tab is for Release Relay admins and approvers.</span></div>
+                    </section>
+                </template>
+
+                <template lwc:if={canView}>
+                    <!-- tiles -->
+                    <div class="rr-kpis">
+                        <div class={eligibleTileCls}>
+                            <span class="rr-tile-label">Eligible now</span>
+                            <span class="rr-tile-value">{eligibleValue}<template lwc:if={showEligibleRecords}><small class="rr-hide-narrow">releases</small></template></span>
+                            <span class="rr-tile-sub"><template lwc:if={showEligibleRecords}><b>{eligibleRecordsText}</b></template>{eligibleSub}{eligibleNarrowSub}</span>
+                            <template lwc:if={eligibleNextText}><span class="rr-tile-sub">{eligibleNextText}</span></template>
+                        </div>
+                        <div class="rr-tile">
+                            <span class="rr-tile-label">Archived so far</span>
+                            <span class="rr-tile-value">{archivedValue}<small class="rr-hide-narrow">releases</small></span>
+                            <template lwc:if={hasRuns}><span class="rr-tile-sub"><b>{archivedRecordsText}</b> records</span></template>
+                            <template lwc:else><span class="rr-tile-sub">No runs yet</span></template>
+                            <template lwc:if={archivedSince}><span class="rr-tile-sub">{archivedSince}</span></template>
+                        </div>
+                        <div class="rr-tile rr-tile-good">
+                            <span class="rr-tile-label">Storage freed</span>
+                            <span class="rr-tile-value">{freedValue}<small>MB</small></span>
+                            <span class="rr-tile-sub">{freedPerRecord}</span>
+                            <template lwc:if={freedMoreText}><span class="rr-tile-sub">{freedMoreText}</span></template>
+                        </div>
+                        <button type="button" class="rr-tile rr-tile-btn" onclick={scrollToRuns} title="Runs list">
+                            <span class="rr-tile-go" aria-hidden="true">›</span>
+                            <span class="rr-tile-label">Last run</span>
+                            <span class="rr-tile-value rr-tile-txt">{lastRunWhen}</span>
+                            <template lwc:if={lastRun}><span class="rr-tile-sub"><b>{lastRunHow}</b>{lastRunBy}</span></template>
+                            <template lwc:if={lastRunNums}><span class="rr-tile-sub">{lastRunNums}</span></template>
+                        </button>
+                        <button type="button" class="rr-tile rr-tile-btn rr-tile-blue rr-tile-wide" onclick={openRetention} title="Pipeline › Retention">
+                            <span class="rr-tile-go" aria-hidden="true">›</span>
+                            <span class="rr-tile-label">Retention setting</span>
+                            <span class="rr-tile-value rr-tile-txt">{settingValue}</span>
+                            <template lwc:if={settingLead}><span class="rr-tile-sub"><b>{settingLead}</b>{settingTail}</span></template>
+                            <span class="rr-tile-sub rr-tile-link">{settingLink}</span>
+                        </button>
+                    </div>
+
+                    <!-- empty states -->
+                    <template lwc:if={showNoDays}>
+                        <section class="rr-card rr-pad">
+                            <div class="rr-empty">
+                                <b>Set retention on the Pipeline tab</b>
+                                <span>Choose how many days finished releases are kept. Nothing is removed until you do.</span>
+                                <lightning-button label="Open Pipeline › Retention" onclick={openRetention}></lightning-button>
+                            </div>
+                        </section>
+                    </template>
+                    <template lwc:if={showNothingEligible}>
+                        <section class="rr-card rr-pad">
+                            <div class="rr-empty"><b>Nothing to archive right now</b><span>{nothingText}</span></div>
+                        </section>
+                    </template>
+
+                    <template lwc:if={showDetail}>
+                        <!-- nightly job -->
+                        <section class="rr-card" aria-label="Nightly job">
+                            <div class="rr-card-hd">
+                                <h2 class="rr-h2">Nightly job</h2>
+                                <span class="rr-weak rr-small">{healthSub}</span>
+                                <span class="rr-grow"></span>
+                                <span class={healthPillCls}>{healthPill}</span>
+                            </div>
+                            <div class="rr-hl">
+                                <div class="rr-hl-cell"><span class="rr-hl-l">{hRunsLabel}</span><span class="rr-hl-v">{hRuns}</span><span class="rr-hl-s rr-hide-narrow">{hRunsSub}</span></div>
+                                <div class="rr-hl-cell"><span class="rr-hl-l">{hSucceededLabel}</span><span class="rr-hl-v">{hSucceeded}</span><span class="rr-hl-s rr-hide-narrow">all eligible removed</span></div>
+                                <div class={hFailedCls}><span class="rr-hl-l">Failed</span><span class="rr-hl-v">{hFailed}</span><span class="rr-hl-s rr-hide-narrow">{hFailedDates}</span></div>
+                                <div class="rr-hl-cell"><span class="rr-hl-l">Partial</span><span class="rr-hl-v">{hPartial}</span><span class="rr-hl-s rr-hide-narrow">continued next night</span></div>
+                                <div class="rr-hl-cell rr-hl-call rr-hide-narrow"><span class="rr-hl-l">Last nightly call received</span><span class={lastCallCls}>{lastCallText}</span><span class="rr-hl-s">{lastCallSub}</span></div>
+                                <div class="rr-hl-cell rr-hl-fail rr-hide-narrow">
+                                    <span class="rr-hl-l">{lastFailureTitle}</span>
+                                    <span class={lastFailureCls}>{lastFailureText}</span>
+                                    <template lwc:if={lastFailureUrl}><a class="rr-hl-s rr-a" href={lastFailureUrl} target="_blank" rel="noopener noreferrer" title={lastFailureLink}>{lastFailureLink}</a></template>
+                                </div>
+                            </div>
+                            <p class="rr-hl-narrow rr-show-narrow">Last call <b>{lastCallNarrow}</b>{narrowHealthLine}
+                                <template lwc:if={lastFailureUrl}> <a class="rr-a" href={lastFailureUrl} target="_blank" rel="noopener noreferrer">{lastFailureLink}</a></template></p>
+                            <template lwc:if={showMissedLine}>
+                                <p class="rr-miss-line" role="status">{missedLine}</p>
+                            </template>
+                            <template lwc:if={showMissedBox}>
+                                <div class="rr-miss" role="alert">
+                                    <lightning-icon icon-name="utility:warning" size="x-small" alternative-text="Warning" class="rr-miss-icon"></lightning-icon>
+                                    <div>
+                                        <b>{missedTitle}</b>
+                                        <p>“Archive every night” is on, but the pipeline's scheduled job hasn't called {missedSince}. Check the schedule in <span class="rr-mono">release-relay.yml</span> and that the workflow is enabled in GitHub → Actions.
+                                            <button type="button" class="rr-link rr-sp" onclick={openGuide}>Guide › Nightly archive ›</button></p>
+                                    </div>
+                                </div>
+                            </template>
+                        </section>
+
+                        <div class="rr-row2">
+                            <!-- releases archived per month (plain HTML bars) -->
+                            <section class="rr-card" aria-label="Releases archived per month">
+                                <div class="rr-card-hd">
+                                    <h2 class="rr-h2"><span class="rr-hide-narrow">Releases archived per month</span><span class="rr-show-narrow">Per month</span></h2>
+                                    <span class="rr-weak rr-small">Last 12 months</span>
+                                </div>
+                                <template lwc:if={hasMonths}>
+                                    <div class="rr-chart">
+                                        <div class="rr-plot" role="img" aria-label={chartAria}>
+                                            <div class="rr-axis-y" aria-hidden="true">
+                                                <template for:each={chart.grid} for:item="g">
+                                                    <span key={g.key} class="rr-gl" style={g.style}><i>{g.text}</i></span>
+                                                </template>
+                                            </div>
+                                            <ol class="rr-bars">
+                                                <template for:each={chart.bars} for:item="b">
+                                                    <li key={b.key} class="rr-col" title={b.tip}>
+                                                        <span class="rr-bar-area">
+                                                            <span class={b.barCls} style={b.barStyle}><span class={b.valueCls}>{b.value}</span></span>
+                                                        </span>
+                                                        <span class="rr-m"><span class="rr-hide-narrow">{b.label}</span><span class="rr-show-narrow">{b.letter}</span></span>
+                                                        <span class="rr-y rr-hide-narrow">{b.year}</span>
+                                                        <span class="slds-assistive-text">{b.tip}</span>
+                                                    </li>
+                                                </template>
+                                            </ol>
+                                        </div>
+                                        <div class="rr-chart-foot">
+                                            <template lwc:if={chart.hasCut}>
+                                                <span class="rr-hide-narrow">{chart.cutLabel}: <b>{chart.cutValue}</b>{cutNote} · bar cut to keep the other months readable</span>
+                                                <span class="rr-show-narrow">{chart.cutShort}: <b>{chart.cutValue}</b> (cut)</span>
+                                            </template>
+                                            <template lwc:if={chart.hasCurrent}>
+                                                <span class="rr-hide-narrow">{chart.currentLabel} so far: <b>{chart.currentValue}</b></span>
+                                                <span class="rr-show-narrow">· {chart.currentShort} so far: <b>{chart.currentValue}</b></span>
+                                            </template>
+                                            <template lwc:if={chart.hasDash}><span class="rr-hide-narrow">– no retention set yet</span></template>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template lwc:else>
+                                    <div class="rr-pad"><div class="rr-empty"><b>No runs yet.</b><span>Bars appear after the first run.</span></div></div>
+                                </template>
+                            </section>
+
+                            <!-- how a run works -->
+                            <section class="rr-card rr-hide-narrow" aria-label="How a run works">
+                                <div class="rr-card-hd"><h2 class="rr-h2">How a run works</h2></div>
+                                <ul class="rr-how">
+                                    <li><span class="rr-ic rr-ic-B">1</span><span>Finds finished releases older than <b>{howDays}</b>: Deployed, Rejected, Failed, Rolled back, Closed. Never open, waiting or running ones, or one whose promotion is still open.</span></li>
+                                    <li><span class="rr-ic rr-ic-B">2</span><span>Removes up to <b>{passSizeText}</b> per pass with their items, history, evidence PDFs, manual steps, step runs and back promote syncs, then empties the Recycle Bin for them.</span></li>
+                                    <li><span class="rr-ic rr-ic-B">3</span><span>Repeats passes until nothing is eligible. Nightly: the Git pipeline's scheduled job. Run now: this page, while you watch.</span></li>
+                                    <li><span class="rr-ic rr-ic-G">✓</span><span>Leaves one summary row per run (below). Git keeps branches, pull requests and snapshots.</span></li>
+                                </ul>
+                            </section>
+                        </div>
+
+                        <!-- runs list: fixed columns, pinned header, scroll inside, search with highlight -->
+                        <section class="rr-card rr-list-card" aria-label="Runs" data-id="runs">
+                            <div class="rr-card-hd">
+                                <h2 class="rr-h2">Runs</h2>
+                                <span class="rr-pill rr-pill-none">{runTotalText}</span>
+                                <span class="rr-grow"></span>
+                                <span class="rr-weak rr-small rr-hide-narrow">One row per run · numbers only</span>
+                            </div>
+                            <template lwc:if={hasRunRows}>
+                                <div class="rr-toolbar">
+                                    <c-rly-search-box label="Search runs" placeholder="Search by date, who or message"
+                                        shown={runsShown} total={runsTotal} onsearch={handleSearch}></c-rly-search-box>
+                                    <div class="rr-chips rr-hide-narrow" role="group" aria-label="Show runs">
+                                        <template for:each={filterChips} for:item="c">
+                                            <button key={c.value} type="button" class={c.cls} data-value={c.value} onclick={pickFilter} aria-pressed={c.pressed}>{c.label} <i>{c.count}</i></button>
+                                        </template>
+                                    </div>
+                                    <div class="rr-chips rr-hide-narrow" role="group" aria-label="Status">
+                                        <span class="rr-kicker">Status:</span>
+                                        <template for:each={statusChips} for:item="s">
+                                            <button key={s.value} type="button" class={s.cls} data-value={s.value} onclick={pickFilter} aria-pressed={s.pressed} title={s.title}>{s.label}</button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <div class="rr-scroll rr-scroll-runs">
+                                    <table class="rr-ft rr-ft-runs">
+                                        <template lwc:if={narrow}>
+                                            <colgroup><col><col class="rr-w-72"><col class="rr-w-96"></colgroup>
+                                            <thead><tr><th scope="col">When</th><th scope="col" class="rr-r">Releases</th><th scope="col">Status</th></tr></thead>
+                                        </template>
+                                        <template lwc:else>
+                                            <colgroup><col class="rr-w-132"><col class="rr-w-72"><col class="rr-w-120"><col class="rr-w-70"><col class="rr-w-72"><col class="rr-w-74"><col class="rr-w-158"><col class="rr-w-116"><col></colgroup>
+                                            <thead><tr>
+                                                <th scope="col" aria-sort="descending">When <span class="rr-so" aria-hidden="true">▼</span></th><th scope="col">How</th><th scope="col">By</th>
+                                                <th scope="col" class="rr-r">Releases</th><th scope="col" class="rr-r">Records</th><th scope="col" class="rr-r">Freed</th>
+                                                <th scope="col">Oldest – newest</th><th scope="col">Status</th><th scope="col">Message</th>
+                                            </tr></thead>
+                                        </template>
+                                        <template for:each={shownRuns} for:item="r">
+                                            <tbody key={r.key}>
+                                                <template lwc:if={narrow}>
+                                                    <tr>
+                                                        <td><button type="button" class="rr-rowbtn" data-id={r.id} onclick={toggleRun} aria-expanded={r.expanded} aria-label={r.rowLabel}>
+                                                            <template for:each={r.whenParts} for:item="a"><template lwc:if={a.hit}><mark key={a.key}>{a.text}</mark></template><template lwc:else><span key={a.key}>{a.text}</span></template></template><span class="rr-weak"> · {r.how}</span></button></td>
+                                                        <td class="rr-r">{r.releases}</td>
+                                                        <td><span class={r.statusCls}>{r.statusShort}</span></td>
+                                                    </tr>
+                                                    <template lwc:if={r.open}>
+                                                        <tr class="rr-detail"><td colspan="3">
+                                                            <span class="rr-detail-line">{r.detail}</span>
+                                                            <span class="rr-detail-line"><template for:each={r.messageParts} for:item="b"><template lwc:if={b.hit}><mark key={b.key}>{b.text}</mark></template><template lwc:else><span key={b.key}>{b.text}</span></template></template>{r.sep}<template lwc:if={r.hasUrl}><a class="rr-a" href={r.url} target="_blank" rel="noopener noreferrer" title={r.urlTip}>{r.urlText}</a></template></span>
+                                                        </td></tr>
+                                                    </template>
+                                                </template>
+                                                <template lwc:else>
+                                                    <tr>
+                                                        <td title={r.whenText}><template for:each={r.whenParts} for:item="c"><template lwc:if={c.hit}><mark key={c.key}>{c.text}</mark></template><template lwc:else><span key={c.key}>{c.text}</span></template></template></td>
+                                                        <td><template for:each={r.howParts} for:item="d"><template lwc:if={d.hit}><mark key={d.key}>{d.text}</mark></template><template lwc:else><span key={d.key}>{d.text}</span></template></template></td>
+                                                        <td class={r.byCls} title={r.by}><template for:each={r.byParts} for:item="e"><template lwc:if={e.hit}><mark key={e.key}>{e.text}</mark></template><template lwc:else><span key={e.key}>{e.text}</span></template></template></td>
+                                                        <td class="rr-r">{r.releases}</td>
+                                                        <td class="rr-r">{r.records}</td>
+                                                        <td class={r.freedCls}>{r.freed}</td>
+                                                        <td class={r.rangeCls} title={r.range}>{r.range}</td>
+                                                        <td><span class={r.statusCls}>{r.status}</span></td>
+                                                        <td title={r.message}><template for:each={r.messageParts} for:item="f"><template lwc:if={f.hit}><mark key={f.key}>{f.text}</mark></template><template lwc:else><span key={f.key}>{f.text}</span></template></template>{r.sep}<template lwc:if={r.hasUrl}><a class="rr-a" href={r.url} target="_blank" rel="noopener noreferrer" title={r.urlTip}>{r.urlText}</a></template></td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </template>
+                                        <template lwc:if={runsNoMatch}>
+                                            <tbody><tr><td colspan="9" class="rr-nomatch">No runs match. <button type="button" class="rr-linkbtn" onclick={clearSearch}>Clear search</button></td></tr></tbody>
+                                        </template>
+                                    </table>
+                                </div>
+                                <div class="rr-lfoot"><span>{runsFoot}</span></div>
+                            </template>
+                            <template lwc:if={noRunsYet}>
+                                <div class="rr-pad"><div class="rr-empty"><b>No runs yet.</b><span>Each nightly call or Run now leaves one row here.</span></div></div>
+                            </template>
+                        </section>
+                    </template>
+                </template>
+            </div>
+
+            <!-- Run now: confirm (type the days) → progress (one pass per call) → done / stopped -->
+            <template lwc:if={modalOpen}>
+                <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="rr-run-title" class="slds-modal slds-fade-in-open rr-modal" onkeydown={handleModalKey}>
+                    <div class="slds-modal__container">
+                        <button type="button" class="slds-button slds-button_icon slds-modal__close" title="Close" onclick={closeModal} disabled={closeDisabled}>
+                            <lightning-icon icon-name="utility:close" size="small" alternative-text="Close"></lightning-icon>
+                        </button>
+                        <div class="slds-modal__header rr-mh">
+                            <h2 id="rr-run-title" class="slds-modal__title rr-mh-title rr-grow">{modalTitle}</h2>
+                            <template lwc:if={modalPill}><span class={modalPillCls}>{modalPill}</span></template>
+                        </div>
+                        <div class="slds-modal__content rr-mb">
+                            <template lwc:if={isConfirm}>
+                                <p>Remove <b>{confirmReleases}</b> older than <b>{daysText}</b>{confirmCutoff}</p>
+                                <p class="rr-msg rr-msg-wait">This can't be undone. Evidence PDFs and history go with them; Git keeps the branches and pull requests.</p>
+                                <p class="rr-kicker">{confirmFacts}</p>
+                                <div onkeyup={handleConfirmKey}>
+                                    <lightning-input class="rr-modal-focus rr-confirm-in" type="text" label="Type the number of days to confirm" value={typedDays}
+                                        placeholder={confirmHint} onchange={handleTyped} autocomplete="off"></lightning-input>
+                                </div>
+                            </template>
+                            <template lwc:if={isRunningModal}>
+                                <p class="rr-pl" role="status">{runLine}</p>
+                                <div class={progressCls}><i style={progressStyle}></i></div>
+                                <p class="rr-kicker">{runSubLine}</p>
+                                <ul class="rr-passes" aria-label="Passes">
+                                    <template for:each={passes} for:item="p">
+                                        <li key={p.key}>
+                                            <span class="rr-pass-n">{p.label}</span>
+                                            <span class="rr-grow">{p.text}</span>
+                                            <template lwc:if={p.busy}><span class="rr-spin" aria-hidden="true"></span></template>
+                                            <template lwc:else><span class={p.pillCls}>{p.pill}</span></template>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </template>
+                            <template lwc:if={isFinished}>
+                                <p class="rr-pl" role="status">{runLine}</p>
+                                <div class={progressCls}><i style={progressStyle}></i></div>
+                                <template lwc:if={showRunMessage}><p class={runMessageCls}>{runMessage}</p></template>
+                                <dl class="rr-nums">
+                                    <div><dt>Releases</dt><dd>{doneReleases}</dd></div>
+                                    <div><dt>Records</dt><dd>{doneRecords}</dd></div>
+                                    <div><dt>Storage freed</dt><dd>{doneFreed}</dd></div>
+                                    <div><dt>Passes · time</dt><dd>{donePasses}</dd></div>
+                                    <div class="rr-nums-wide"><dt>Oldest – newest removed</dt><dd>{doneRange}</dd></div>
+                                </dl>
+                                <p class="rr-kicker">{finishedNote}</p>
+                            </template>
+                        </div>
+                        <div class="slds-modal__footer rr-mf">
+                            <template lwc:if={isConfirm}>
+                                <lightning-button label="Cancel" onclick={closeModal}></lightning-button>
+                                <lightning-button variant="destructive" label="Run" onclick={startArchive} disabled={runDisabled}></lightning-button>
+                            </template>
+                            <template lwc:if={isRunningModal}>
+                                <span class="rr-kicker rr-grow">Leaving the page stops after this pass.</span>
+                                <lightning-button label={cancelLabel} onclick={cancelAfterPass} disabled={cancelAsked}></lightning-button>
+                            </template>
+                            <template lwc:if={isFinished}>
+                                <lightning-button class="rr-modal-focus" variant="brand" label="Close" onclick={closeModal}></lightning-button>
+                            </template>
+                        </div>
+                    </div>
+                </section>
+                <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+            </template>
+        </template>
+    </template>
+</template>

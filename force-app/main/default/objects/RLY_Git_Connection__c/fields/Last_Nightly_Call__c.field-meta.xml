@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Last_Nightly_Call__c</fullName>
+    <description>Retention: when the Git pipeline&apos;s scheduled job last called the archive endpoint (stamped by every call, skipped ones included).</description>
+    <label>Last Nightly Call</label>
+    <required>false</required>
+    <type>DateTime</type>
+</CustomField>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Cutoff__c</fullName>
+    <description>Releases finished before this moment were eligible (the run&apos;s start minus the Retention days).</description>
+    <label>Cutoff</label>
+    <required>false</required>
+    <type>DateTime</type>
+</CustomField>
