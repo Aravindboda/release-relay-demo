@@ -1,0 +1,74 @@
+{
+ "request": "REL-90100",
+ "step": "scan",
+ "status": "Failed",
+ "total": 4,
+ "blocking": 1,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "High": 1,
+  "Low": 3
+ },
+ "files": [
+  "force-app/main/default/classes/RlyDemoGreeting.cls",
+  "force-app/main/default/classes/RlyDemoGreetingTest.cls",
+  "force-app/main/default/classes/RlyDemoHotfix.cls",
+  "force-app/main/default/classes/RlyDemoHotfixTest.cls",
+  "force-app/main/default/classes/RlyDemoTerms.cls",
+  "force-app/main/default/classes/RlyDemoTermsTest.cls",
+  "force-app/main/default/flows/RlyDemo_USA_Contact_Count.flow-meta.xml"
+ ],
+ "violations": [
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "TriggerEntryCriteria",
+   "engine": "flow",
+   "file": "force-app/main/default/flows/RlyDemo_USA_Contact_Count.flow-meta.xml",
+   "line": 129,
+   "message": "The record trigger flow has no entry criteria. All record trigger flows should have entry criteria specified in the flow trigger definition rather than solely in the flow's own business logic.",
+   "url": null
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyDemoGreeting.cls",
+   "line": 4,
+   "message": "Missing ApexDoc @return",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyDemoGreeting.cls",
+   "line": 4,
+   "message": "Missing or mismatched ApexDoc @param",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyDemoHotfix.cls",
+   "line": 1,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_documentation.html#apexdoc"
+  }
+ ],
+ "message": "1 violation(s) at High or above.",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41344476960",
+ "finishedAt": "2026-11-01T19:59:52.360Z"
+}
