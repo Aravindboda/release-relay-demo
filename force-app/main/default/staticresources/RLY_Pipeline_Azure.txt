@@ -1,0 +1,345 @@
+# Release Relay pipeline files: version 10
+# Release Relay for Azure Pipelines. Started only from Salesforce: the Release Relay hub runs this
+# pipeline on the default branch through the Runs API, with the release as template parameters
+# (empty values arrive as '-'). Create the pipeline from this file (Pipelines > New pipeline >
+# Azure Repos Git > Existing Azure Pipelines YAML file) and put its id (definitionId= in its address)
+# in the hub's Git connection, Pipeline field.
+#   mode=org     retrieve the selected components from the source org, apply deletions, commit to a
+#                new branch, open a pull request into the target branch, then scan and validate it.
+#   mode=branch  open a pull request from a branch that already exists, then scan and validate it.
+#   mode=promote make a promote/ branch from the target, cherry-pick the merge commits listed in
+#                components (from the previous stage), open a pull request, then scan and validate it.
+#   mode=hub     the hub committed its retrieve (a Metadata API zip) to the branch: convert it to
+#                source format (none for a release with only deletions,
+#                a .relay-inbox/<id>.deletions marker instead), remove the deleted components' files,
+#                open a pull request into the target, scan and validate.
+#   mode=resolve merge the target into the branch with the conflict choices the hub committed, then
+#                scan and validate again.
+#   mode=check   scan and validate an open pull request again.
+#   mode=merge   merge the pull request approved in Salesforce, then deploy it to the target org.
+#   mode=sync    back promote: merge branch (the hub's production branch) into target (a back-promote
+#                org's branch, made from branch when missing), deploy what changed to the org in
+#                target_environment, and push target only when that deploy worked.
+# Each org's login is a variable group named release-relay-<environment> (release-relay-sit). The
+# deploy and sync jobs run in the Azure DevOps environment named <target_environment>, so its approvals
+# and checks gate the deployment. Each step writes its result as JSON to the release-relay-results
+# branch, where Salesforce reads it. See pipelines/README.md.
+
+trigger: none
+pr: none
+
+# The hub finds its run by this name: "Release Relay REL-00042 (hub)".
+name: Release Relay ${{ parameters.request_id }} (${{ parameters.mode }})
+
+parameters:
+  - name: request_id
+    displayName: Salesforce release number
+    type: string
+  - name: mode
+    displayName: Mode
+    type: string
+    values: [org, branch, promote, hub, resolve, check, merge, sync]
+  - name: environment
+    displayName: Environment of the source org
+    type: string
+  - name: target_environment
+    displayName: Environment of the target org (- = Git only, no validate or deploy)
+    type: string
+    default: '-'
+  - name: branch
+    displayName: Source branch
+    type: string
+  - name: target
+    displayName: Target branch
+    type: string
+  - name: title
+    displayName: Pull request title
+    type: string
+  - name: components
+    displayName: Type:Name list to retrieve (promote = merge commits to cherry-pick)
+    type: string
+    default: '-'
+  - name: deletions
+    displayName: Type:Name list to delete
+    type: string
+    default: '-'
+  - name: options
+    displayName: JSON options from Salesforce
+    type: string
+    default: '{}'
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  RELAY_PROVIDER: azure
+  REQUEST_ID: ${{ parameters.request_id }}
+  MODE: ${{ parameters.mode }}
+  ENVIRONMENT: ${{ parameters.environment }}
+  TARGET_ENVIRONMENT: ${{ parameters.target_environment }}
+  BRANCH: ${{ parameters.branch }}
+  TARGET: ${{ parameters.target }}
+  TITLE: ${{ parameters.title }}
+  COMPONENTS: ${{ parameters.components }}
+  DELETIONS: ${{ parameters.deletions }}
+  OPTIONS: ${{ parameters.options }}
+# The release branch may hold an older copy of the script: every job runs the pipeline's own, taken
+# from the commit this run started on (the default branch), as GitHub's workflow does.
+
+stages:
+  # ---------- raise: open the pull request ----------
+  - ${{ if in(parameters.mode, 'org', 'branch', 'promote', 'hub', 'resolve') }}:
+      - stage: raise
+        displayName: Raise pull request
+        jobs:
+          - job: raise
+            displayName: Raise pull request
+            timeoutInMinutes: 30
+            variables:
+              - name: STEP
+                value: raise
+              # The hub checks the route and needs no source org login, so the group is optional then.
+              - ${{ if not(contains(parameters.options, '"hub":true')) }}:
+                  - group: release-relay-${{ parameters.environment }}
+            steps:
+              - checkout: self
+                persistCredentials: true
+                fetchDepth: 0
+                fetchTags: false
+              - task: NodeTool@0
+                inputs:
+                  versionSpec: '22.x'
+              - ${{ if or(eq(parameters.mode, 'hub'), and(eq(parameters.mode, 'org'), ne(parameters.components, '-'), ne(parameters.components, ''))) }}:
+                  - bash: npm install --global @salesforce/cli@2 --silent
+                    displayName: Install Salesforce CLI
+              - bash: |
+                  git show "$BUILD_SOURCEVERSION:scripts/release-relay.js" > "$AGENT_TEMPDIRECTORY/release-relay.js"
+                  node "$AGENT_TEMPDIRECTORY/release-relay.js"
+                displayName: Raise
+                env:
+                  SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+                  SF_USERNAME: $(SF_USERNAME)
+                  SF_CLIENT_ID: $(SF_CLIENT_ID)
+                  SF_JWT_KEY: $(SF_JWT_KEY)
+                  SF_JKS: $(SF_JKS)
+                  SF_JKS_PASSWORD: $(SF_JKS_PASSWORD)
+
+  # ---------- check: code scan and check-only deployment ----------
+  - ${{ if and(in(parameters.mode, 'org', 'branch', 'promote', 'hub', 'resolve', 'check'), or(not(contains(replace(parameters.options, ' ', ''), '"scan":"off"')), and(ne(parameters.target_environment, '-'), ne(parameters.target_environment, '')))) }}:
+      - stage: check
+        displayName: Scan and validate
+        ${{ if eq(parameters.mode, 'check') }}:
+          dependsOn: []
+        ${{ else }}:
+          dependsOn: raise
+        jobs:
+          - ${{ if not(contains(replace(parameters.options, ' ', ''), '"scan":"off"')) }}:
+              - job: scan
+                displayName: Code scan
+                timeoutInMinutes: 30
+                variables:
+                  - name: STEP
+                    value: scan
+                steps:
+                  - checkout: self
+                    persistCredentials: true
+                    fetchDepth: 0
+                    fetchTags: false
+                  - task: NodeTool@0
+                    inputs:
+                      versionSpec: '22.x'
+                  - task: JavaToolInstaller@0
+                    inputs:
+                      versionSpec: '17'
+                      jdkArchitectureOption: x64
+                      jdkSourceOption: PreInstalled
+                  - bash: |
+                      npm install --global @salesforce/cli@2 --silent
+                      sf plugins install code-analyzer
+                    displayName: Install Salesforce CLI and Code Analyzer
+                  - bash: |
+                      git show "$BUILD_SOURCEVERSION:scripts/release-relay.js" > "$AGENT_TEMPDIRECTORY/release-relay.js"
+                      node "$AGENT_TEMPDIRECTORY/release-relay.js"
+                    displayName: Code scan
+                    env:
+                      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+          - ${{ if and(ne(parameters.target_environment, '-'), ne(parameters.target_environment, '')) }}:
+              - job: validate
+                displayName: Validate against the target org
+                timeoutInMinutes: 120
+                variables:
+                  - name: STEP
+                    value: validate
+                  - group: release-relay-${{ parameters.target_environment }}
+                steps:
+                  - checkout: self
+                    persistCredentials: true
+                    fetchDepth: 0
+                    fetchTags: false
+                  - task: NodeTool@0
+                    inputs:
+                      versionSpec: '22.x'
+                  - bash: npm install --global @salesforce/cli@2 --silent
+                    displayName: Install Salesforce CLI
+                  - bash: |
+                      git show "$BUILD_SOURCEVERSION:scripts/release-relay.js" > "$AGENT_TEMPDIRECTORY/release-relay.js"
+                      node "$AGENT_TEMPDIRECTORY/release-relay.js"
+                    displayName: Validate
+                    env:
+                      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+                      SF_USERNAME: $(SF_USERNAME)
+                      SF_CLIENT_ID: $(SF_CLIENT_ID)
+                      SF_JWT_KEY: $(SF_JWT_KEY)
+                      SF_JKS: $(SF_JKS)
+                      SF_JKS_PASSWORD: $(SF_JKS_PASSWORD)
+
+  # ---------- merge and deploy ----------
+  - ${{ if eq(parameters.mode, 'merge') }}:
+      - stage: merge
+        displayName: Merge
+        dependsOn: []
+        jobs:
+          - job: merge
+            displayName: Merge the approved pull request
+            timeoutInMinutes: 15
+            variables:
+              - name: STEP
+                value: merge
+              - ${{ if not(contains(parameters.options, '"hub":true')) }}:
+                  - group: release-relay-${{ parameters.environment }}
+            steps:
+              - checkout: self
+                persistCredentials: true
+                fetchDepth: 0
+                fetchTags: false
+              - task: NodeTool@0
+                inputs:
+                  versionSpec: '22.x'
+              # The script sets the output variable sha (merge.sha) for the deploy job.
+              - bash: |
+                  git show "$BUILD_SOURCEVERSION:scripts/release-relay.js" > "$AGENT_TEMPDIRECTORY/release-relay.js"
+                  node "$AGENT_TEMPDIRECTORY/release-relay.js"
+                name: merge
+                displayName: Merge
+                env:
+                  SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+      - ${{ if and(ne(parameters.target_environment, '-'), ne(parameters.target_environment, '')) }}:
+          - stage: deploy
+            displayName: Deploy
+            dependsOn: merge
+            jobs:
+              # A deployment job: the environment's approvals and checks run before it starts.
+              - deployment: deploy
+                displayName: Deploy to the target org
+                timeoutInMinutes: 120
+                environment: ${{ parameters.target_environment }}
+                variables:
+                  - name: STEP
+                    value: deploy
+                  - group: release-relay-${{ parameters.target_environment }}
+                  - name: MERGE_SHA
+                    value: $[ stageDependencies.merge.merge.outputs['merge.sha'] ]
+                strategy:
+                  runOnce:
+                    deploy:
+                      steps:
+                        - download: none
+                        - checkout: self
+                          persistCredentials: true
+                          fetchDepth: 0
+                          fetchTags: false
+                        - task: NodeTool@0
+                          inputs:
+                            versionSpec: '22.x'
+                        - bash: npm install --global @salesforce/cli@2 --silent
+                          displayName: Install Salesforce CLI
+                        - bash: |
+                            git show "$BUILD_SOURCEVERSION:scripts/release-relay.js" > "$AGENT_TEMPDIRECTORY/release-relay.js"
+                            node "$AGENT_TEMPDIRECTORY/release-relay.js"
+                          displayName: Deploy
+                          env:
+                            SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+                            MERGE_SHA: $(MERGE_SHA)
+                            SF_USERNAME: $(SF_USERNAME)
+                            SF_CLIENT_ID: $(SF_CLIENT_ID)
+                            SF_JWT_KEY: $(SF_JWT_KEY)
+                            SF_JKS: $(SF_JKS)
+                            SF_JKS_PASSWORD: $(SF_JKS_PASSWORD)
+
+  # ---------- sync: back promote production's changes into a back-promote org ----------
+  - ${{ if and(eq(parameters.mode, 'sync'), ne(parameters.target_environment, '-'), ne(parameters.target_environment, '')) }}:
+      - stage: sync
+        displayName: Back promote
+        dependsOn: []
+        jobs:
+          # A deployment job, like deploy: the target environment's approvals and checks run first.
+          - deployment: sync
+            displayName: Back promote to the target org
+            timeoutInMinutes: 120
+            environment: ${{ parameters.target_environment }}
+            variables:
+              - name: STEP
+                value: sync
+              - group: release-relay-${{ parameters.target_environment }}
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - download: none
+                    - checkout: self
+                      persistCredentials: true
+                      fetchDepth: 0
+                      fetchTags: false
+                    - task: NodeTool@0
+                      inputs:
+                        versionSpec: '22.x'
+                    - bash: npm install --global @salesforce/cli@2 --silent
+                      displayName: Install Salesforce CLI
+                    - bash: |
+                        git show "$BUILD_SOURCEVERSION:scripts/release-relay.js" > "$AGENT_TEMPDIRECTORY/release-relay.js"
+                        node "$AGENT_TEMPDIRECTORY/release-relay.js"
+                      displayName: Back promote
+                      env:
+                        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+                        SF_USERNAME: $(SF_USERNAME)
+                        SF_CLIENT_ID: $(SF_CLIENT_ID)
+                        SF_JWT_KEY: $(SF_JWT_KEY)
+                        SF_JKS: $(SF_JKS)
+                        SF_JKS_PASSWORD: $(SF_JKS_PASSWORD)
+
+  # ---------- notify: tell the org that raised the release to read the results now ----------
+  # Variable groups are chosen when the run starts, so this runs only when OPTIONS.notify is the
+  # source environment; otherwise Salesforce picks the result up on its next sync.
+  - ${{ if contains(replace(parameters.options, ' ', ''), format('"notify":"{0}"', parameters.environment)) }}:
+      - stage: notify
+        displayName: Notify Salesforce
+        condition: always()
+        jobs:
+          - job: notify
+            displayName: Tell Salesforce the run finished
+            timeoutInMinutes: 10
+            continueOnError: true
+            variables:
+              - name: STEP
+                value: notify
+              - group: release-relay-${{ parameters.environment }}
+            steps:
+              - checkout: self
+                fetchDepth: 1
+              - task: NodeTool@0
+                inputs:
+                  versionSpec: '22.x'
+              - bash: npm install --global @salesforce/cli@2 --silent
+                displayName: Install Salesforce CLI
+              - bash: |
+                  git show "$BUILD_SOURCEVERSION:scripts/release-relay.js" > "$AGENT_TEMPDIRECTORY/release-relay.js"
+                  node "$AGENT_TEMPDIRECTORY/release-relay.js"
+                displayName: Notify
+                env:
+                  SF_USERNAME: $(SF_USERNAME)
+                  SF_CLIENT_ID: $(SF_CLIENT_ID)
+                  SF_JWT_KEY: $(SF_JWT_KEY)
+                  SF_JKS: $(SF_JKS)
+                  SF_JKS_PASSWORD: $(SF_JKS_PASSWORD)
