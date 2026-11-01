@@ -1,0 +1,86 @@
+{
+ "request": "REL-90066",
+ "step": "scan",
+ "status": "Passed",
+ "total": 3,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Moderate": 1,
+  "Info": 2
+ },
+ "files": [
+  "force-app/main/default/classes/RlyAppendController.cls",
+  "force-app/main/default/classes/RlyAppendInputs.cls",
+  "force-app/main/default/classes/RlyAppendRules.cls",
+  "force-app/main/default/classes/RlyAppendRun.cls",
+  "force-app/main/default/classes/RlyAppendService.cls",
+  "force-app/main/default/classes/RlyAppendTest.cls",
+  "force-app/main/default/classes/RlyCheckReader.cls",
+  "force-app/main/default/classes/RlyPipelineOptions.cls",
+  "force-app/main/default/classes/RlyPipelineRun.cls",
+  "force-app/main/default/classes/RlyPromoteController.cls",
+  "force-app/main/default/classes/RlyPromoteOverlap.cls",
+  "force-app/main/default/classes/RlyPromoteOverlapTest.cls",
+  "force-app/main/default/classes/RlyPromoteStore.cls",
+  "force-app/main/default/classes/RlyPromoteTest.cls",
+  "force-app/main/default/classes/RlyPromotion.cls",
+  "force-app/main/default/classes/RlyReleaseStore.cls",
+  "force-app/main/default/classes/RlyReleasesController.cls",
+  "force-app/main/default/classes/RlyRollback.cls",
+  "force-app/main/default/classes/RlyRollbackTest.cls",
+  "force-app/main/default/classes/RlyStatusReader.cls",
+  "force-app/main/default/lwc/rlyPromote/rlyPromote.html",
+  "force-app/main/default/lwc/rlyPromote/rlyPromote.js",
+  "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.html",
+  "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.html",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.js",
+  "force-app/main/default/lwc/rlyRollback/rlyRollback.html",
+  "force-app/main/default/lwc/rlyRollback/rlyRollback.js"
+ ],
+ "violations": [
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc/no-api-reassignments",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+   "line": 141,
+   "message": "Invalid reassignment of public property \"appendTo\"",
+   "url": "https://github.com/salesforce/eslint-plugin-lwc/blob/v3.5.0/docs/rules/no-api-reassignments.md"
+  },
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "DetectCopyPasteForApex",
+   "engine": "cpd",
+   "file": "force-app/main/default/classes/RlyPromoteOverlapTest.cls",
+   "line": 122,
+   "message": "Duplicate code detected for language 'apex'. Found 2 code locations containing the same block of code consisting of 111 tokens across 10 lines.",
+   "url": "https://docs.pmd-code.org/latest/pmd_userdocs_cpd.html#refactoring-duplicates"
+  },
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "DetectCopyPasteForJavascript",
+   "engine": "cpd",
+   "file": "force-app/main/default/lwc/rlyPromote/rlyPromote.js",
+   "line": 110,
+   "message": "Duplicate code detected for language 'javascript'. Found 2 code locations containing the same block of code consisting of 159 tokens across 24 lines.",
+   "url": "https://docs.pmd-code.org/latest/pmd_userdocs_cpd.html#refactoring-duplicates"
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41324364012",
+ "finishedAt": "2026-11-01T16:04:44.640Z"
+}
