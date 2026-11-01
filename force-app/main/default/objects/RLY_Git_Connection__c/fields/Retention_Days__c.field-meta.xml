@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Retention_Days__c</fullName>
+    <description>Retention: finished releases older than this many days are removed by the archive (nightly or Run now). Blank keeps them forever; 30 or more.</description>
+    <externalId>false</externalId>
+    <label>Retention Days</label>
+    <precision>5</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

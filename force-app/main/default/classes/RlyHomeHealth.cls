@@ -2,7 +2,8 @@
  * @description The Home tab's health line (RlyHomeController), from the last saved checks only (no callouts): the Git
  * connection (Status__c, Last_Checked__c), the pipeline files (the last check's message and the version packaged with
  * Release Relay; the repository's version needs a callout, so it stays on the Pipeline tab), Slack and approving in
- * Slack (RlyHomeSlackHealth) and the code scan (the connection and the per-org overrides). Hub configuration is read in system mode in the private inner without sharing class; the signing
+ * Slack (RlyHomeSlackHealth), the code scan (the connection and the per-org overrides) and, for admins in the production
+ * hub with Archive every night on, nights the pipeline's scheduled job missed (RlyArchiveStats.homeItem). Hub configuration is read in system mode in the private inner without sharing class; the signing
  * secret is only checked for a value and never leaves Apex.
  */
 public with sharing class RlyHomeHealth {
@@ -36,7 +37,7 @@ public with sharing class RlyHomeHealth {
 
     /** @description One item of the health line. */
     public class Item {
-        /** @description git, files, slack, approve or scan. */
+        /** @description git, files, slack, approve, scan or archive. */
         @AuraEnabled public String key;
         /** @description What it is, for example "Git connection". */
         @AuraEnabled public String label;
@@ -46,6 +47,8 @@ public with sharing class RlyHomeHealth {
         @AuraEnabled public String tone;
         /** @description More about it (hover), or null. */
         @AuraEnabled public String title;
+        /** @description The tab the item opens (for example RLY_Archive), or null for the Pipeline tab. */
+        @AuraEnabled public String tab;
     }
 
     /**
@@ -66,6 +69,10 @@ public with sharing class RlyHomeHealth {
             h.items.add(approve);
         }
         h.items.add(scanItem(git, orgs));
+        Item archive = RlyArchiveStats.homeItem();
+        if (archive != null) {
+            h.items.add(archive);
+        }
         h.checkedOn = git == null ? null : git.Last_Checked__c;
         for (Item i : h.items) {
             h.attention += i.tone == TONE_WAIT || i.tone == TONE_BAD ? 1 : 0;
@@ -76,7 +83,7 @@ public with sharing class RlyHomeHealth {
 
     /**
      * @description An item with no state yet.
-     * @param key git, files, slack, approve or scan
+     * @param key git, files, slack, approve, scan or archive
      * @param label what it is
      * @return the item
      */

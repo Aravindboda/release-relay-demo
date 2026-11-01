@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 14
+// Release Relay pipeline files: version 15
+// Version 15: no change to this script; it moves with the GitHub pipeline file (nightly archive job), since the lowest
+// version among a hub's files counts.
 /*
  * Release Relay: one script for every pipeline job, on GitHub, GitLab, Bitbucket or Azure DevOps.
  *

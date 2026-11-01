@@ -122,7 +122,7 @@
                                         <template lwc:if={b.isLinks}>
                                             <div class="rr-pad rr-links">
                                                 <template for:each={b.links} for:item="l">
-                                                    <button key={l.key} type="button" class="slds-button slds-button_brand rr-link" data-name={l.to} onclick={handleLink}>{l.label}</button>
+                                                    <button key={l.key} type="button" class={l.cls} data-name={l.to} data-tab={l.tab} onclick={handleLink}>{l.label}</button>
                                                 </template>
                                             </div>
                                         </template>
@@ -133,7 +133,7 @@
                                                 <div key={st.key} class="rr-stp" data-step={st.num}>
                                                     <span class="rr-num" aria-hidden="true">{st.num}</span>
                                                     <div class="rr-stp-body">
-                                                        <h3 class="rr-h3" tabindex="-1">{st.title}<template lwc:if={st.who}><span class="rr-who">{st.who}</span></template></h3>
+                                                        <h3 class="rr-h3" tabindex="-1">{st.title}<template lwc:if={st.badge}><span class="rr-pill rr-pill-info rr-badge">{st.badge}</span></template><template lwc:if={st.who}><span class="rr-who">{st.who}</span></template></h3>
                                                         <template lwc:if={st.where}><span class="rr-where"><span class="slds-assistive-text">Where: </span>{st.where}</span></template>
                                                         <template lwc:if={st.goal}>
                                                             <p class="rr-goal"><span class="rr-strong">Why: </span><template for:each={st.goal.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></p>
@@ -145,6 +145,7 @@
                                                                 </template>
                                                             </ol>
                                                         </template>
+                                                        <template lwc:if={st.code}><pre class="rr-code">{st.code}</pre></template>
                                                         <template for:each={st.paras} for:item="p">
                                                             <p key={p.key} class="rr-p rr-p-top"><template for:each={p.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></p>
                                                         </template>
@@ -183,7 +184,7 @@
                                                         <template lwc:if={st.hasLinks}>
                                                             <div class="rr-links">
                                                                 <template for:each={st.links} for:item="l">
-                                                                    <button key={l.key} type="button" class="slds-button slds-button_neutral rr-link" data-name={l.to} onclick={handleLink}>{l.label}</button>
+                                                                    <button key={l.key} type="button" class="slds-button slds-button_neutral rr-link" data-name={l.to} data-tab={l.tab} onclick={handleLink}>{l.label}</button>
                                                                 </template>
                                                             </div>
                                                         </template>

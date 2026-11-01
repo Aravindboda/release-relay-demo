@@ -1,5 +1,6 @@
 import APP_NAME from '@salesforce/label/c.RLY_App_Name';
-import { LightningElement } from 'lwc';
+import { LightningElement, wire } from 'lwc';
+import { NavigationMixin, CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getOrgs from '@salesforce/apex/RlyOrgController.getOrgs';
 import saveOrg from '@salesforce/apex/RlyOrgController.saveOrg';
@@ -28,6 +29,10 @@ import saveBotToken from '@salesforce/apex/RlySlackController.saveBotToken';
 import IS_ADMIN from '@salesforce/customPermission/RLY_Admin';
 import LightningConfirm from 'lightning/confirm';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
+import readRetention from '@salesforce/apex/RlyArchiveController.readRetention';
+import previewRetention from '@salesforce/apex/RlyArchiveController.previewRetention';
+import saveRetention from '@salesforce/apex/RlyArchiveController.saveRetention';
+import { MIN_DAYS, about, count, longDate, nextNightlyText, nightlyClock, num, stamp, toDate } from 'c/rlyArchiveText';
 
 /** A list shows its search box from this many rows (or while a search is typed); Connected orgs from more than 6 orgs. */
 const SEARCH_FROM = 7;
@@ -119,7 +124,11 @@ const DOT_CLS = { Connected: 'rr-dot rr-dot-ok', Failed: 'rr-dot rr-dot-bad', Re
 /** Connected orgs: one tab per Salesforce environment (RLY_Org__c.Environment__c); an org without one goes under Other. */
 const OTHER_TAB = 'Not set';
 /** The page's sections, in order; each folds open or closed. Section 1 and Connected orgs start open. */
-const FOLD_DEFAULTS = { git: true, route: false, values: false, gates: false, slack: false, orgs: true };
+const FOLD_DEFAULTS = { git: true, route: false, values: false, gates: false, slack: false, retention: false, orgs: true };
+/** The Archive tab, and how long the Retention days box waits after typing before it counts what becomes eligible. */
+const ARCHIVE_TAB = 'RLY_Archive';
+const PREVIEW_WAIT = 400;
+const RETENTION = 'retention';
 /** Where this browser remembers which sections are open, and the last Connected orgs tab (per viewer, best effort). */
 const FOLD_STORE = 'rly.pipeline.sections';
 const TAB_STORE = 'rly.pipeline.orgTab';
@@ -344,7 +353,7 @@ function trimOrNull(v) {
     return t === '' ? null : t;
 }
 
-export default class RlyPipeline extends LightningElement {
+export default class RlyPipeline extends NavigationMixin(LightningElement) {
     /**
      * RlyHubGuard.getHubStatus: the org's mode. In a sandbox or a sandbox copy of the hub this tab shows only rlyOrgGate
      * (admins also get the override switch on it) and loads nothing else. In production not set up yet, admins get the
@@ -493,7 +502,18 @@ export default class RlyPipeline extends LightningElement {
         this.readHubStatus();
     }
 
+    disconnectedCallback() {
+        this.clearRetentionEdit();
+    }
+
     renderedCallback() {
+        if (this.scrollToRetention && this.showRetention) {
+            const sec = this.template.querySelector('[data-section="retention"]');
+            if (sec && sec.scrollIntoView) {
+                sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            this.scrollToRetention = false;
+        }
         if (this.focusFiles) {
             const close = this.template.querySelector('.rr-files-close');
             if (close) {
@@ -589,6 +609,7 @@ export default class RlyPipeline extends LightningElement {
     load() {
         this.loading = true;
         this.error = undefined;
+        this.loadRetention();
         return Promise.all([getOrgs(), getSetup(), getSlack(), this.readBackPromote()])
             .then(([h, s, sl, bp]) => {
                 this.applySlack(sl);
@@ -666,7 +687,7 @@ export default class RlyPipeline extends LightningElement {
     /** The section being edited stays open and can't fold (chevron off until Cancel / Save). */
     isLocked(key) {
         return (key === 'git' && (this.isGitEditing || this.isBpEditing)) || (key === 'route' && this.editingRoute)
-            || (key === 'slack' && this.isSlackEditing);
+            || (key === 'slack' && this.isSlackEditing) || (key === RETENTION && this.isRetentionEditing);
     }
 
     /** A section is open when the user left it open (or it needs attention), or while something in it is being edited. */
@@ -708,6 +729,7 @@ export default class RlyPipeline extends LightningElement {
             { key: 'values', title: 'Per-org values', summary: this.valuesSummary, pill: this.missingText, pillCls: 'rr-pill rr-pill-wait' },
             { key: 'gates', title: 'Quality gates', summary: this.gatesSummary },
             { key: 'slack', title: 'Slack connection', summary: this.slackSummary, pill: this.slackStatus, pillCls: this.slackStatusCls },
+            { key: RETENTION, title: 'Retention', summary: this.retentionSummary, pill: this.retentionPill, pillCls: this.retentionPillCls },
             { key: 'orgs', title: 'Connected orgs', summary: this.orgsSummary }
         ];
         const out = {};
@@ -1111,13 +1133,14 @@ export default class RlyPipeline extends LightningElement {
 
     /** Resolves true when the window may drop what is typed: nothing changed, or the user says to discard it. */
     askDiscard() {
-        if (!this.formDirty) {
+        const retention = this.isRetentionEditing;
+        if (!(retention ? this.retentionDirty : this.formDirty)) {
             return Promise.resolve(true);
         }
         this.confirming = true;
         return LightningConfirm.open({
             label: 'Discard changes?',
-            message: 'You changed ' + this.formOrgName + '. Discard the changes?',
+            message: 'You changed ' + (retention ? 'Retention' : this.formOrgName) + '. Discard the changes?',
             theme: 'warning'
         }).then((ok) => ok === true).catch(() => false).finally(() => {
             this.confirming = false;
@@ -2236,6 +2259,7 @@ export default class RlyPipeline extends LightningElement {
     }
 
     endEdit() {
+        this.clearRetentionEdit();
         this.editing = undefined;
         this.editError = undefined;
         this.editOrg = undefined;
@@ -2276,7 +2300,9 @@ export default class RlyPipeline extends LightningElement {
     }
 
     handleEditSave() {
-        if (this.isGitEditing) {
+        if (this.isRetentionEditing) {
+            this.handleRetentionSave();
+        } else if (this.isGitEditing) {
             this.saveGitEdit();
         } else if (this.isSlackEditing) {
             this.saveSlackEdit();
@@ -2853,6 +2879,302 @@ export default class RlyPipeline extends LightningElement {
                 this.backPromote = bp;
                 this.saving = false;
                 return this.finishEdit('Back promote ' + (bp && bp.enabled ? 'on' : 'off'));
+            })
+            .catch((e) => {
+                this.editError = errorText(e);
+            })
+            .finally(() => {
+                this.saving = false;
+            });
+    }
+
+    // ---------- Retention (build 29, production hub only) ----------
+
+    /** RlyArchiveController.readRetention: the days kept, nightly on/off, what is eligible now. Undefined until read. */
+    retention;
+    retentionError;
+    /** The form while Retention is edited: days as typed ('' = keep forever) and the nightly switch. */
+    retForm = { days: '', nightly: false };
+    retSnapshot;
+    /** RlyArchiveController.previewRetention for the days typed (counted a moment after typing stops). */
+    retPreview;
+    retPreviewing = false;
+    retNightlyError;
+    retTimer;
+    retSeq = 0;
+    /** Opened from the Archive tab's "Open Pipeline › Retention": scroll to the section once it shows. */
+    scrollToRetention = false;
+
+    /** ?c__section=retention (Archive tab links) opens the Retention section and scrolls to it. */
+    @wire(CurrentPageReference)
+    setPageRef(ref) {
+        const sec = ref && ref.state ? ref.state.c__section : undefined;
+        if (sec === RETENTION) {
+            this.folds = { ...this.folds, [RETENTION]: true };
+            this.scrollToRetention = true;
+        }
+    }
+
+    loadRetention() {
+        return readRetention()
+            .then((r) => {
+                this.retention = r;
+                this.retentionError = undefined;
+            })
+            .catch((e) => {
+                this.retention = undefined;
+                this.retentionError = errorText(e);
+            });
+    }
+
+    /** Only in the production hub: a sandbox or a copy shows the org gate instead (and readRetention says so). */
+    get showRetention() { return !!this.retention && this.retention.mode === 'hub'; }
+    get retCanEdit() { return this.showRetention && this.retention.canEdit === true; }
+    get retHasDays() { return !!this.retention && this.retention.days !== null && this.retention.days !== undefined; }
+    get retNightlyOn() { return this.retHasDays && this.retention.nightly === true; }
+    get isRetentionEditing() { return this.editing === RETENTION; }
+    get retentionViewing() { return !this.isRetentionEditing; }
+    get retentionCardCls() { return this.isRetentionEditing ? 'rr-sec rr-card-edit rr-edit' : 'rr-sec'; }
+    get retDaysText() { return this.retHasDays ? count(this.retention.days, 'day', 'days') : 'Keep forever'; }
+    get retCutoffText() { return this.retention && this.retention.cutoffDate ? longDate(this.retention.cutoffDate) : ''; }
+    get nightlyClockText() { return nightlyClock(); }
+
+    /** Closed: "730 days · nightly on, next 2:00 AM · 1,240 eligible now", or "Keep forever · no days set". */
+    get retentionSummary() {
+        if (!this.retention) {
+            return this.retentionError || 'Reading…';
+        }
+        if (!this.retHasDays) {
+            return 'Keep forever · no days set';
+        }
+        const nightly = this.retNightlyOn ? 'nightly on, next ' + nightlyClock() : 'nightly off';
+        return [this.retDaysText, nightly, num(this.retention.eligibleReleases || 0) + ' eligible now'].join(' · ');
+    }
+    get retentionPill() {
+        if (!this.retHasDays) {
+            return 'Not set';
+        }
+        return this.retNightlyOn ? 'Nightly on' : 'Nightly off';
+    }
+    get retentionPillCls() { return this.retNightlyOn ? 'rr-pill rr-pill-ok' : 'rr-pill rr-pill-none'; }
+
+    // read mode
+    get retKeepHint() { return this.retHasDays ? 'Removes releases finished before ' + this.retCutoffText : 'No days set: nothing is removed.'; }
+    get retNightlyFlagText() { return this.retNightlyOn ? 'On' : 'Off'; }
+    get retNextText() { return this.retNightlyOn ? nextNightlyText() : 'None'; }
+    get retNextHint() {
+        return this.retNightlyOn ? 'From the Git pipeline\'s scheduled job' : 'Only Run now on the Archive tab removes anything.';
+    }
+    get retEligibleText() {
+        return this.retHasDays ? count(this.retention.eligibleReleases || 0, 'release', 'releases') : '–';
+    }
+    get retChangedText() {
+        const r = this.retention;
+        if (!r || !r.changedOn) {
+            return 'Not changed yet';
+        }
+        let text = stamp(r.changedOn) + (r.changedBy ? ' by ' + r.changedBy : '');
+        if (r.previousDays !== null && r.previousDays !== undefined) {
+            text += ' (was ' + count(r.previousDays, 'day', 'days') + ')';
+        } else if (r.days !== null && r.days !== undefined) {
+            text += ' (was keep forever)';
+        }
+        return text;
+    }
+    get retReadNote() {
+        if (!this.retHasDays) {
+            return 'Nothing is removed while no days are set. Set the days to archive finished releases older than that.';
+        }
+        const d = count(this.retention.days, 'day', 'days');
+        return 'Removed: finished releases older than ' + d + ' with their items, history, evidence PDFs, manual steps, step runs and back promote syncs. '
+            + 'Stays: open releases, orgs, settings, and everything in Git. Can\'t be undone.';
+    }
+    get retEvidenceNote() {
+        return 'Need the evidence? Download a release\'s evidence PDF from its page before it passes '
+            + (this.retHasDays && !this.isRetentionEditing ? count(this.retention.days, 'day', 'days') : 'this many days') + '.';
+    }
+
+    openArchiveTab() {
+        this[NavigationMixin.Navigate]({ type: 'standard__navItemPage', attributes: { apiName: ARCHIVE_TAB } });
+    }
+
+    // edit mode
+
+    /** Edit: the saved days (blank when kept forever, with a grey hint) and the nightly switch. */
+    openRetentionEdit() {
+        if (this.editLocked || !this.retCanEdit) {
+            return;
+        }
+        this.retForm = { days: this.retHasDays ? String(this.retention.days) : '', nightly: this.retNightlyOn };
+        this.retSnapshot = JSON.stringify(this.retForm);
+        this.retPreview = undefined;
+        this.retNightlyError = undefined;
+        this.startEdit(RETENTION);
+    }
+
+    get retentionDirty() { return this.isRetentionEditing && JSON.stringify(this.retForm) !== this.retSnapshot; }
+
+    clearRetentionEdit() {
+        if (this.retTimer) {
+            clearTimeout(this.retTimer);
+            this.retTimer = undefined;
+        }
+        this.retSeq++;
+        this.retPreview = undefined;
+        this.retPreviewing = false;
+        this.retNightlyError = undefined;
+    }
+
+    /** The days typed: null when blank (keep forever), NaN when not a number. */
+    get retFormDays() {
+        const raw = String(this.retForm.days === null || this.retForm.days === undefined ? '' : this.retForm.days).trim();
+        return raw === '' ? null : Number(raw);
+    }
+    get retDaysValid() {
+        const d = this.retFormDays;
+        return d === null || (Number.isInteger(d) && d >= MIN_DAYS);
+    }
+    /** Under 30 (or not whole days): Save stays disabled. */
+    get retDaysError() {
+        const d = this.retFormDays;
+        if (d === null || this.retDaysValid) {
+            return '';
+        }
+        return Number.isInteger(d) ? 'Use ' + MIN_DAYS + ' days or more.' : 'Use whole days, ' + MIN_DAYS + ' or more.';
+    }
+    get retFormHasDays() { return this.retFormDays !== null && this.retDaysValid; }
+    get retDaysHint() {
+        const saved = this.retHasDays ? this.retention.days : null;
+        if (this.retFormHasDays && saved !== null && this.retFormDays !== saved) {
+            return 'Was ' + count(saved, 'day', 'days') + '.';
+        }
+        return 'e.g. 730 (about 2 years). Leave blank to keep them forever. Whole days, ' + MIN_DAYS + ' or more.';
+    }
+    /** "· finished before Nov 2, 2024" beside the days (from the preview; worked out here until it answers). */
+    get retFormCutoff() {
+        if (!this.retFormHasDays) {
+            return '';
+        }
+        let cutoff = this.retPreview && this.retPreview.days === this.retFormDays ? toDate(this.retPreview.cutoffDate) : null;
+        if (!cutoff) {
+            cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - this.retFormDays);
+        }
+        return '· finished before ' + longDate(cutoff);
+    }
+    get retNightlyHelp() {
+        return 'When on, the Git pipeline\'s scheduled job asks this org to archive at ' + nightlyClock()
+            + '. Off: only “Run now” on the Archive tab removes anything.';
+    }
+
+    /** How many more releases the typed days make eligible than are eligible now (0 when none or not counted yet). */
+    get retMore() {
+        const p = this.retPreview;
+        if (!p || !this.retFormHasDays || p.days !== this.retFormDays) {
+            return null;
+        }
+        const nowReleases = this.retHasDays ? this.retention.eligibleReleases || 0 : 0;
+        const nowRecords = this.retHasDays ? this.retention.eligibleRecords || 0 : 0;
+        return {
+            releases: Math.max(0, (p.eligibleReleases || 0) - nowReleases),
+            records: Math.max(0, (p.eligibleRecords || 0) - nowRecords)
+        };
+    }
+    get showRetMore() { return !!this.retMore && this.retMore.releases > 0; }
+    get retMoreLead() { return this.retMore ? count(this.retMore.releases, 'more release', 'more releases') : ''; }
+    get retMoreText() {
+        if (!this.retMore) {
+            return '';
+        }
+        const verb = this.retMore.releases === 1 ? 'becomes' : 'become';
+        const tail = this.retForm.nightly
+            ? 'They go at the next nightly run (' + nightlyClock() + ') unless you turn nightly off, or press Run now on the Archive tab.'
+            : 'They go only when someone presses Run now on the Archive tab.';
+        return ' (about ' + about(this.retMore.records) + ' records) ' + verb + ' eligible. ' + tail;
+    }
+    get showRetCounting() { return this.retPreviewing && this.retFormHasDays; }
+    get retFootNote() {
+        return 'Saving doesn\'t remove anything. Removal happens at the next nightly run or on Run now.';
+    }
+    get retCantSave() {
+        return this.saving || !this.retDaysValid || !!this.retNightlyError || (this.retForm.nightly && this.retFormDays === null);
+    }
+
+    handleRetDays(event) {
+        this.retForm = { ...this.retForm, days: event.target.value };
+        if (this.retForm.nightly && this.retFormDays === null) {
+            this.retNightlyError = 'Set the number of days first.';
+        } else if (this.retNightlyError && this.retFormDays !== null) {
+            this.retNightlyError = undefined;
+        }
+        this.schedulePreview();
+    }
+
+    /** Turning nightly on with no days set is refused with "Set the number of days first." */
+    handleRetNightly(event) {
+        const on = event.target.checked === true;
+        if (on && this.retFormDays === null) {
+            event.target.checked = false;
+            this.retForm = { ...this.retForm, nightly: false };
+            this.retNightlyError = 'Set the number of days first.';
+            return;
+        }
+        this.retNightlyError = undefined;
+        this.retForm = { ...this.retForm, nightly: on };
+    }
+
+    /** Counts what the typed days make eligible, a moment after typing stops (previewRetention); stale answers are dropped. */
+    schedulePreview() {
+        if (this.retTimer) {
+            clearTimeout(this.retTimer);
+            this.retTimer = undefined;
+        }
+        const seq = ++this.retSeq;
+        if (!this.retFormHasDays) {
+            this.retPreview = undefined;
+            this.retPreviewing = false;
+            return;
+        }
+        const days = this.retFormDays;
+        this.retPreviewing = true;
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        this.retTimer = setTimeout(() => {
+            this.retTimer = undefined;
+            previewRetention({ days })
+                .then((p) => {
+                    if (seq === this.retSeq) {
+                        this.retPreview = p;
+                    }
+                })
+                .catch(() => {
+                    if (seq === this.retSeq) {
+                        this.retPreview = undefined;
+                    }
+                })
+                .finally(() => {
+                    if (seq === this.retSeq) {
+                        this.retPreviewing = false;
+                    }
+                });
+        }, PREVIEW_WAIT);
+    }
+
+    handleRetentionSave() {
+        if (this.retCantSave) {
+            return;
+        }
+        this.saving = true;
+        this.editError = undefined;
+        const nightlyChanged = this.retForm.nightly !== this.retNightlyOn;
+        saveRetention({ days: this.retFormDays, nightly: this.retForm.nightly === true })
+            .then((r) => {
+                this.retention = r;
+                this.endEdit();
+                this.toast('Retention saved', 'success');
+                // Nightly on needs the scheduled job in the pipeline files: their status line says when they are out of date.
+                if (nightlyChanged && this.git) {
+                    this.loadPipeFiles();
+                }
             })
             .catch((e) => {
                 this.editError = errorText(e);
