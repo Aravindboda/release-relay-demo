@@ -1,0 +1,102 @@
+{
+ "request": "REL-91004",
+ "step": "scan",
+ "status": "Passed",
+ "total": 4,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Moderate": 1,
+  "Info": 3
+ },
+ "files": [
+  "force-app/main/default/classes/RlyHomeController.cls",
+  "force-app/main/default/classes/RlyHomeControllerTest.cls",
+  "force-app/main/default/classes/RlyHomeHealth.cls",
+  "force-app/main/default/classes/RlyHomeNeeds.cls",
+  "force-app/main/default/classes/RlyHomeProblems.cls",
+  "force-app/main/default/classes/RlyHomeRoute.cls",
+  "force-app/main/default/classes/RlyHomeSlackHealth.cls",
+  "force-app/main/default/classes/RlyHomeStats.cls",
+  "force-app/main/default/classes/RlyPipelineFiles.cls",
+  "force-app/main/default/classes/RlyReleaseQuery.cls",
+  "force-app/main/default/classes/RlyReleasesFilterTest.cls",
+  "force-app/main/default/lwc/rlyBuildInfo/rlyBuildInfo.html",
+  "force-app/main/default/lwc/rlyBuildInfo/rlyBuildInfo.js",
+  "force-app/main/default/lwc/rlyCompare/rlyCompare.html",
+  "force-app/main/default/lwc/rlyCompare/rlyCompare.js",
+  "force-app/main/default/lwc/rlyHome/rlyHome.html",
+  "force-app/main/default/lwc/rlyHome/rlyHome.js",
+  "force-app/main/default/lwc/rlyListSearch/rlyListSearch.js",
+  "force-app/main/default/lwc/rlyManualSteps/rlyManualSteps.html",
+  "force-app/main/default/lwc/rlyManualSteps/rlyManualSteps.js",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+  "force-app/main/default/lwc/rlyPromote/rlyPromote.html",
+  "force-app/main/default/lwc/rlyPromote/rlyPromote.js",
+  "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.html",
+  "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+  "force-app/main/default/lwc/rlyReleaseChanges/rlyReleaseChanges.html",
+  "force-app/main/default/lwc/rlyReleaseChanges/rlyReleaseChanges.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js",
+  "force-app/main/default/lwc/rlyReleaseTracker/rlyReleaseTracker.html",
+  "force-app/main/default/lwc/rlyReleaseTracker/rlyReleaseTracker.js",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.html",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.js",
+  "force-app/main/default/lwc/rlySearchBox/rlySearchBox.html",
+  "force-app/main/default/lwc/rlySearchBox/rlySearchBox.js"
+ ],
+ "violations": [
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc/no-api-reassignments",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+   "line": 142,
+   "message": "Invalid reassignment of public property \"appendTo\"",
+   "url": "https://github.com/salesforce/eslint-plugin-lwc/blob/v3.5.0/docs/rules/no-api-reassignments.md"
+  },
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "DetectCopyPasteForJavascript",
+   "engine": "cpd",
+   "file": "force-app/main/default/lwc/rlyPromote/rlyPromote.js",
+   "line": 109,
+   "message": "Duplicate code detected for language 'javascript'. Found 2 code locations containing the same block of code consisting of 160 tokens across 29 lines.",
+   "url": "https://docs.pmd-code.org/latest/pmd_userdocs_cpd.html#refactoring-duplicates"
+  },
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "DetectCopyPasteForJavascript",
+   "engine": "cpd",
+   "file": "force-app/main/default/lwc/rlyPromote/rlyPromote.js",
+   "line": 114,
+   "message": "Duplicate code detected for language 'javascript'. Found 3 code locations containing the same block of code consisting of 159 tokens across 24 lines.",
+   "url": "https://docs.pmd-code.org/latest/pmd_userdocs_cpd.html#refactoring-duplicates"
+  },
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "DetectCopyPasteForJavascript",
+   "engine": "cpd",
+   "file": "force-app/main/default/lwc/rlyManualSteps/rlyManualSteps.js",
+   "line": 31,
+   "message": "Duplicate code detected for language 'javascript'. Found 2 code locations containing the same block of code consisting of 102 tokens across 15 lines.",
+   "url": "https://docs.pmd-code.org/latest/pmd_userdocs_cpd.html#refactoring-duplicates"
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41347537506",
+ "finishedAt": "2026-11-01T20:35:13.268Z"
+}
