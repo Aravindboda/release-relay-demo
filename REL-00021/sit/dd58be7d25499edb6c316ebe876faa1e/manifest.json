@@ -1,0 +1,16 @@
+{
+ "request": "REL-00021",
+ "environment": "sit",
+ "takenAt": "2026-11-01T15:24:23.159Z",
+ "sha": "9aff1d29c7d1c4da2e5d1afcef09de39e5b32600",
+ "existing": [
+  "ApexClass:RlyDemoGreeting",
+  "ApexClass:RlyDemoGreetingTest"
+ ],
+ "added": [],
+ "deleted": [
+  "ApexClass:RlyDemoSearch",
+  "ApexClass:RlyDemoSearchTest"
+ ],
+ "unresolved": []
+}
