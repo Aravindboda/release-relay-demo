@@ -1,0 +1,37 @@
+{
+ "request": "REL-90057",
+ "step": "scan",
+ "status": "Passed",
+ "total": 0,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {},
+ "files": [
+  "force-app/main/default/classes/RlyApprovalService.cls",
+  "force-app/main/default/classes/RlyBackPromoteRun.cls",
+  "force-app/main/default/classes/RlyConflictService.cls",
+  "force-app/main/default/classes/RlyManualStepCheck.cls",
+  "force-app/main/default/classes/RlySlack.cls",
+  "force-app/main/default/classes/RlySlackCard.cls",
+  "force-app/main/default/classes/RlySlackCardState.cls",
+  "force-app/main/default/classes/RlySlackCardSync.cls",
+  "force-app/main/default/classes/RlySlackCardTest.cls",
+  "force-app/main/default/classes/RlySlackCardText.cls",
+  "force-app/main/default/classes/RlySlackDelivery.cls",
+  "force-app/main/default/classes/RlySlackMessage.cls",
+  "force-app/main/default/classes/RlyStatusReader.cls",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js"
+ ],
+ "violations": [],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41309670854",
+ "finishedAt": "2026-11-01T13:07:34.889Z"
+}
