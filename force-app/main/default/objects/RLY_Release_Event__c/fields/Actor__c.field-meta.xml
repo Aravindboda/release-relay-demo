@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Actor__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Who did it, when a person did (approvals, manual steps, raising); blank for the pipeline and rules.</description>
+    <label>Actor</label>
+    <referenceTo>User</referenceTo>
+    <relationshipName>RLY_Release_Events</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

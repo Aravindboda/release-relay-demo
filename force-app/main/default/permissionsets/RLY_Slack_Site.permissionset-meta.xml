@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <classAccesses>
+        <apexClass>RlySlackActions</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <description>Site guest user for Slack Approve/Reject (/rly/slack/actions). Signature and linked approver are checked in Apex.</description>
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal>RLY_Slack-Bot</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Release Relay Slack Site</label>
+</PermissionSet>
