@@ -334,4 +334,22 @@ private class RlyHomeControllerTest {
             System.assertEquals('On for PROD', h.items[h.items.size() - 1].text, 'Scan on for PROD only');
         }
     }
+
+    @IsTest
+    static void nightlyArchiveMissedShowsOnTheHealthLine() {
+        System.runAs(RlyTestData.admin()) {
+            RlyReleaseTestData.route();
+            update new RLY_Git_Connection__c(Id = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1].Id, Retention_Days__c = 730,
+                Archive_Nightly__c = true, Last_Nightly_Call__c = System.now().addDays(-2));
+            Test.startTest();
+            RlyHomeController.Home h = RlyHomeController.read();
+            Test.stopTest();
+            RlyHomeHealth.Item last = h.health.items[h.health.items.size() - 1];
+            System.assertEquals('archive', last.key, 'Archive item last');
+            System.assertEquals('Nightly archive', last.label, 'Label');
+            System.assertEquals('missed the last 2 nights', last.text, 'Two nights');
+            System.assertEquals('RLY_Archive', last.tab, 'Opens the Archive tab');
+            System.assert(!h.health.allOk, 'Needs attention');
+        }
+    }
 }

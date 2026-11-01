@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Retention_Changed_On__c</fullName>
+    <description>Retention: when Retention Days or Archive Nightly was last changed.</description>
+    <label>Retention Changed On</label>
+    <required>false</required>
+    <type>DateTime</type>
+</CustomField>

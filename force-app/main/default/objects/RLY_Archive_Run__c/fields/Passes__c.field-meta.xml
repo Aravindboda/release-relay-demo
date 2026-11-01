@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Passes__c</fullName>
+    <description>How many passes the run made (each pass removes up to 200 releases and 4,000 records).</description>
+    <externalId>false</externalId>
+    <label>Passes</label>
+    <precision>3</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>
