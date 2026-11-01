@@ -55,6 +55,7 @@ public with sharing class RlyManualStepController {
      */
     @AuraEnabled
     public static RlyManualSteps.StepBoard markRun(String runJson) {
+        RlyHubGuard.requireHub();
         try {
             return RlyManualStepBoard.build(RlyManualStepCheck.mark(RlyManualStepCheck.parse(runJson)));
         } catch (Exception e) {

@@ -1,5 +1,11 @@
 <template>
     <div class="rr-page slds-is-relative">
+        <template lwc:if={hubCopy}>
+            <div class="slds-notify slds-notify_alert slds-alert_warning" role="alert">
+                <lightning-icon icon-name="utility:warning" size="x-small" alternative-text="Warning" class="slds-m-right_x-small"></lightning-icon>
+                <h2>{hubCopyMessage}</h2>
+            </div>
+        </template>
         <template lwc:if={loading}>
             <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
         </template>
@@ -13,7 +19,7 @@
             </div>
             <lightning-button label={setupLabel} onclick={toggleSetup}></lightning-button>
             <template lwc:if={isAdmin}>
-                <lightning-button variant="brand" label="Register an org" onclick={startAdd}></lightning-button>
+                <lightning-button variant="brand" label="Register an org" onclick={startAdd} disabled={hubCopy}></lightning-button>
             </template>
         </section>
 
@@ -43,7 +49,7 @@
                 </div>
                 <template lwc:if={hasGit}><span class={gitStatusCls}>{gitStatusText}</span></template>
                 <template lwc:if={isAdmin}>
-                    <lightning-button label="Edit" title="Edit Git connection" onclick={openGitEdit}></lightning-button>
+                    <lightning-button label="Edit" title="Edit Git connection" onclick={openGitEdit} disabled={hubCopy}></lightning-button>
                 </template>
             </div>
             <div class="rr-body">
@@ -69,7 +75,7 @@
                         </template>
                     </dl>
                     <div class="rr-row">
-                        <lightning-button label={gitCheckLabel} onclick={handleGitCheck} disabled={gitBusy}></lightning-button>
+                        <lightning-button label={gitCheckLabel} onclick={handleGitCheck} disabled={gitCantAct}></lightning-button>
                     </div>
                     <template lwc:if={gitMessage}><p class={gitMessageCls}>{gitMessage}</p></template>
                     <template lwc:if={showFilesLine}>
@@ -77,7 +83,7 @@
                             <span class={filesPillCls}>{filesPill}</span>
                             <span class="rr-files-text rr-grow">{filesText}</span>
                             <template lwc:if={canUpdateFiles}>
-                                <lightning-button label="Update pipeline files" onclick={openFiles} disabled={filesBusy}></lightning-button>
+                                <lightning-button label="Update pipeline files" onclick={openFiles} disabled={filesCantOpen}></lightning-button>
                             </template>
                         </div>
                         <template lwc:if={filesNote}><p class="rr-small rr-weak">{filesNote}</p></template>
@@ -100,9 +106,9 @@
                     </template>
                     <template lwc:else>
                         <template lwc:if={hasGit}>
-                            <lightning-button label="Create missing branches" onclick={handleCreateBranches} disabled={gitBusy}></lightning-button>
+                            <lightning-button label="Create missing branches" onclick={handleCreateBranches} disabled={gitCantAct}></lightning-button>
                         </template>
-                        <template lwc:if={canEditRoute}><lightning-button label="Edit route" onclick={startRouteEdit}></lightning-button></template>
+                        <template lwc:if={canEditRoute}><lightning-button label="Edit route" onclick={startRouteEdit} disabled={hubCopy}></lightning-button></template>
                     </template>
                 </template>
             </div>
@@ -179,8 +185,8 @@
                         <p class="rr-kicker">One Slack app for the hub. Each org below picks its own channel.</p>
                     </div>
                     <span class={slackStatusCls}>{slackStatus}</span>
-                    <lightning-button label={slackTestLabel} onclick={handleSlackConnTest} disabled={slackBusy}></lightning-button>
-                    <lightning-button label="Edit" title="Edit Slack connection" onclick={openSlackEdit}></lightning-button>
+                    <lightning-button label={slackTestLabel} onclick={handleSlackConnTest} disabled={slackCantTest}></lightning-button>
+                    <lightning-button label="Edit" title="Edit Slack connection" onclick={openSlackEdit} disabled={hubCopy}></lightning-button>
                 </div>
                 <template lwc:if={slackNotSetUp}>
                     <div class="rr-body">
@@ -279,7 +285,7 @@
                             <template lwc:if={bpIsAdmin}>
                                 <div class="rr-org-foot">
                                     <span class="rr-grow"></span>
-                                    <lightning-button label="Edit" title="Edit Back promote" onclick={openBpEdit}></lightning-button>
+                                    <lightning-button label="Edit" title="Edit Back promote" onclick={openBpEdit} disabled={hubCopy}></lightning-button>
                                 </div>
                             </template>
                         </article>
@@ -357,8 +363,8 @@
                         <div class="rr-org-foot">
                             <span class="rr-weak rr-small rr-grow">{o.checkedText}</span>
                             <template lwc:if={isAdmin}>
-                                <lightning-button label={o.checkLabel} data-id={o.Id} onclick={handleCheck} disabled={o.checking}></lightning-button>
-                                <lightning-button label="Edit" title={o.editLabel} data-id={o.Id} onclick={handleEdit}></lightning-button>
+                                <lightning-button label={o.checkLabel} data-id={o.Id} onclick={handleCheck} disabled={o.cantCheck}></lightning-button>
+                                <lightning-button label="Edit" title={o.editLabel} data-id={o.Id} onclick={handleEdit} disabled={hubCopy}></lightning-button>
                             </template>
                         </div>
                     </article>
@@ -409,6 +415,28 @@
                                 <div class="slds-section slds-is-open">
                                     <h3 class="slds-section__title slds-theme_shade"><span class="slds-truncate slds-p-horizontal_small" title="Approval">Approval</span></h3>
                                     <div class="slds-section__content rr-col">
+                                        <fieldset class="slds-form-element rr-rule" role="radiogroup" aria-required="true">
+                                            <legend class="slds-form-element__legend slds-form-element__label"><abbr class="slds-required" title="required">*</abbr>Approval rule</legend>
+                                            <div class="slds-form-element__control rr-rule-opts">
+                                                <template for:each={formRuleOptions} for:item="r">
+                                                    <div key={r.value} class="rr-col">
+                                                        <label class={r.cls}>
+                                                            <input type="radio" name="rr-approval-rule" value={r.value} checked={r.checked} disabled={r.disabled} onchange={handleRule}>
+                                                            <span class="rr-opt-text"><span>{r.label}</span><span class={r.helpCls}>{r.help}</span></span>
+                                                        </label>
+                                                        <template lwc:if={r.showTypes}>
+                                                            <div class="rr-types" role="group" aria-label={formTypesLabel}>
+                                                                <template for:each={formTypeOptions} for:item="t">
+                                                                    <lightning-input key={t.value} type="checkbox" label={t.label} checked={t.checked} data-value={t.value} onchange={handleRuleType}></lightning-input>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </fieldset>
+                                        <template lwc:if={ruleError}><p class="rr-rule-err" role="alert">{ruleError}</p></template>
+                                        <template lwc:if={formRuleSelected}><p class="rr-kicker">Anything else = layouts, reports, list views, static resources… everything not in the other boxes.</p></template>
                                         <div class="rr-toggles" role="group" aria-label={formApproveGroupLabel}>
                                             <lightning-input type="toggle" label="Approve in Salesforce" checked={form.Approve_In_Salesforce__c}
                                                 data-field="Approve_In_Salesforce__c" onchange={handleApproveToggle}
@@ -555,7 +583,7 @@
                     </div>
                     <div class="slds-modal__footer">
                         <lightning-button label="Cancel" onclick={closeModal} disabled={saving}></lightning-button>
-                        <lightning-button class="rr-sp" variant="brand" label={saveLabel} onclick={handleModalSave} disabled={saving}></lightning-button>
+                        <lightning-button class="rr-sp" variant="brand" label={saveLabel} onclick={handleModalSave} disabled={modalCantSave}></lightning-button>
                     </div>
                 </div>
             </section>

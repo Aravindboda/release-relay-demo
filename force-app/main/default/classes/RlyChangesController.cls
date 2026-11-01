@@ -7,6 +7,7 @@
  *   listTracked       changes from source tracking (one call, when the org has it)
  *   detectTests       which of these Apex classes are tests
  *   findDeletions     components on the org's branch that the org doesn't have (orgs without source tracking)
+ *   flowVersions      the latest and active version of selected flows (Tooling API FlowDefinition)
  * Calls are short, so the page runs several at once and keeps the results per org.
  * Raising the release is RlyReleasesController.raiseRelease.
  */
@@ -121,12 +122,28 @@ public with sharing class RlyChangesController {
         }
     }
 
+    /**
+     * @description The versions of selected flows in the developer org: latest and active version numbers and the
+     * latest version's status (Active, Draft, Obsolete, InvalidDraft). A Draft latest version deploys inactive.
+     * @param orgId the developer org
+     * @param names the flows' API names
+     * @return one entry per flow, in the order asked
+     */
+    @AuraEnabled
+    public static List<RlyFlowVersions.FlowInfo> flowVersions(Id orgId, List<String> names) {
+        try {
+            return RlyFlowVersions.read(source(orgId), names);
+        } catch (Exception e) {
+            throw handled(e);
+        }
+    }
+
     // The org to read: a registered developer org (hotfixes come from developer orgs too).
     private static RLY_Org__c source(Id orgId) {
         RLY_Org__c org = new Data().org(orgId);
         if (org == null || org.Role__c != 'Developer') {
             // Callers wrap it with handled(), which sets the message the page shows.
-            throw new RlyReleaseException(org != null && org.Role__c == 'Stage'
+            throw new RlyReleaseException(org?.Role__c == 'Stage'
                 ? RlyRaiseRoute.STAGE_RETIRED : 'Pick a registered developer org.');
         }
         return org;

@@ -115,8 +115,11 @@ public with sharing class RlyReleaseStore {
         for (RLY_Release__c rel : rels) {
             rows.add(access.flowFields(rel));
         }
+        Map<Id, RLY_Release__c> priorRows = access.readPrior(new Map<Id, RLY_Release__c>(rows).keySet());
         access.updateRows(rows);
         RlyReleaseEffects.afterSave(rels);
+        RlyReleaseTransitions.record(priorRows, rels);
+        RlyReleaseLog.flush();
     }
 
     /**
@@ -203,7 +206,8 @@ public with sharing class RlyReleaseStore {
                     Release_Type__c, Is_Hotfix__c, Hotfix_Reason__c, Promoted_In__c, Promoted_In__r.Name, Carried_Releases__c,
                     Second_Approved_By__c, Second_Approved_By__r.Name, Second_Approved_On__c, Back_Merge_Result__c,
                     Target_Org__r.Role__c, Target_Org__r.Hotfix_Two_Approvers__c, Target_Org__r.Branch__c, Source_Org__r.Git_Environment__c,
-                    Deletions__c, Deletion_Count__c
+                    Deletions__c, Deletion_Count__c, Target_Org__r.Approval_Rule__c, Target_Org__r.Approval_Types__c,
+                    Flow_Actions__c, Flow_Results__c
                 FROM RLY_Release__c WHERE Id = :releaseId WITH SYSTEM_MODE];
             return rows.isEmpty() ? null : rows[0];
         }
@@ -278,6 +282,17 @@ public with sharing class RlyReleaseStore {
         }
 
         /**
+         * @description The releases as saved before this save, for the history (RlyReleaseTransitions).
+         * @param ids the releases
+         * @return the releases by Id
+         */
+        public Map<Id, RLY_Release__c> readPrior(Set<Id> ids) {
+            return new Map<Id, RLY_Release__c>([SELECT Id, Status__c, Approval_Status__c, Approved_By__c, Second_Approved_By__c,
+                    Scan_Status__c, Validation_Status__c, PR_URL__c, Back_Merge_Result__c
+                FROM RLY_Release__c WHERE Id IN :ids WITH SYSTEM_MODE]);
+        }
+
+        /**
          * @description Saves releases (see RlyReleaseStore.saveAll).
          * @param rows the rows built by flowFields
          */
@@ -302,7 +317,8 @@ public with sharing class RlyReleaseStore {
                 Merge_Commit__c = rel.Merge_Commit__c, Deploy_Status__c = rel.Deploy_Status__c, Deploy_Result__c = rel.Deploy_Result__c,
                 Check_Token__c = rel.Check_Token__c, Slack_Channel_Id__c = rel.Slack_Channel_Id__c, Slack_Ts__c = rel.Slack_Ts__c,
                 Approved_Via__c = rel.Approved_Via__c, Second_Approved_By__c = rel.Second_Approved_By__c,
-                Second_Approved_On__c = rel.Second_Approved_On__c, Back_Merge_Result__c = rel.Back_Merge_Result__c);
+                Second_Approved_On__c = rel.Second_Approved_On__c, Back_Merge_Result__c = rel.Back_Merge_Result__c,
+                Flow_Results__c = rel.Flow_Results__c);
         }
     }
 }

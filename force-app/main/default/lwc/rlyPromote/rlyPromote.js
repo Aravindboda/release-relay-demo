@@ -3,6 +3,7 @@ import { LightningElement } from 'lwc';
 import getPromote from '@salesforce/apex/RlyPromoteController.getPromote';
 import promote from '@salesforce/apex/RlyPromoteController.promote';
 import getSteps from '@salesforce/apex/RlyManualStepController.getSteps';
+import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 
 const TIMING_LABEL = { Before_Deploy: 'Before deploy', After_Deploy: 'After deploy' };
 
@@ -24,6 +25,22 @@ function plural(n, one, many) {
  * release that runs the usual checks and approval into the next stop.
  */
 export default class RlyPromote extends LightningElement {
+    /** RlyHubGuard.getHubStatus: whether this org is a sandbox copy of the hub (then a banner, and the actions are off). */
+    hubStatus;
+    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
+    get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
+
+    /** Reads the hub status once. A failed read shows nothing: the server refuses the actions anyway. */
+    readHubStatus() {
+        getHubStatus()
+            .then((status) => {
+                this.hubStatus = status;
+            })
+            .catch(() => {
+                this.hubStatus = undefined;
+            });
+    }
+
     board;
     loading = false;
     error;
@@ -39,6 +56,7 @@ export default class RlyPromote extends LightningElement {
     stepsByRelease = {};
 
     connectedCallback() {
+        this.readHubStatus();
         this.load();
     }
 
@@ -197,7 +215,7 @@ export default class RlyPromote extends LightningElement {
             error: this.errors[s.stageId],
             barText: plural(chosen.length, 'release', 'releases') + ' selected · ' + plural(tests.length, 'test class', 'test classes'),
             buttonLabel: this.buttonLabel(s, chosen, onlyHotfixes, busy),
-            cantPromote: locked || chosen.length === 0 || !(title || '').trim()
+            cantPromote: locked || this.hubCopy || chosen.length === 0 || !(title || '').trim()
         };
     }
 

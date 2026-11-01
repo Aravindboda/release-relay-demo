@@ -6,6 +6,8 @@ import listReleases from '@salesforce/apex/RlyReleasesController.listReleases';
 import listReleasesFor from '@salesforce/apex/RlyReleasesController.listReleasesFor';
 import countReleases from '@salesforce/apex/RlyReleasesController.countReleases';
 import refreshRelease from '@salesforce/apex/RlyReleasesController.refreshRelease';
+import exportCsv from '@salesforce/apex/RlyEvidenceController.exportCsv';
+import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 
 const APPROVAL = ['Ready for approval'];
 const DONE = ['Deployed'];
@@ -166,6 +168,22 @@ function dueForCheck(rows, skipId) {
 }
 
 export default class RlyReleaseTracker extends NavigationMixin(LightningElement) {
+    /** RlyHubGuard.getHubStatus: whether this org is a sandbox copy of the hub (then a banner, and the actions are off). */
+    hubStatus;
+    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
+    get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
+
+    /** Reads the hub status once. A failed read shows nothing: the server refuses the actions anyway. */
+    readHubStatus() {
+        getHubStatus()
+            .then((status) => {
+                this.hubStatus = status;
+            })
+            .catch(() => {
+                this.hubStatus = undefined;
+            });
+    }
+
     /** mine (Releases tab) or approvals (Approvals tab). */
     @api view = 'mine';
     rows = [];
@@ -202,6 +220,7 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
     }
 
     connectedCallback() {
+        this.readHubStatus();
         this.filter = this.isApprovals ? 'all' : 'open';
         this.load().then(() => this.firstCheck());
     }
@@ -260,12 +279,56 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
 
     /** The list and the chip counts for the current Raised by, state and search, filtered on the server. */
     async fetchReleases() {
-        const filterJson = JSON.stringify({ raisedById: this.raisedById || null, state: this.filter, searchText: this.searchSent });
+        const filterJson = this.filterJson;
         const [rows, counts] = await Promise.all([
             listReleasesFor({ filterJson }),
             countReleases({ raisedById: this.raisedById || null })
         ]);
         return { rows, counts };
+    }
+
+    /** build 13's listReleasesFor filter: Raised by, state chip and the search sent to the server. */
+    get filterJson() {
+        return JSON.stringify({ raisedById: this.raisedById || null, state: this.filter, searchText: this.searchSent });
+    }
+
+    // ---------- Export CSV (board HubApprovalFlowsEvidence 4) ----------
+
+    exporting = false;
+    /** The last export as a data: URL for the <a download> link, and its file name. */
+    csvHref;
+    csvName;
+    clickCsv = false;
+
+    get exportLabel() { return this.exporting ? 'Exporting…' : 'Export CSV'; }
+
+    /** RlyEvidenceController.exportCsv: the releases matching the filters as CSV text, downloaded as a file. */
+    async exportReleases() {
+        this.exporting = true;
+        try {
+            const csv = await exportCsv({ filterJson: this.filterJson });
+            const today = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            this.csvName = 'releases-' + today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate()) + '.csv';
+            this.csvHref = 'data:text/csv;charset=utf-8,' + encodeURIComponent('\uFEFF' + (csv || ''));
+            this.clickCsv = true;
+        } catch (e) {
+            this.dispatchEvent(new ShowToastEvent({ title: 'Export CSV', message: errorText(e), variant: 'error' }));
+        } finally {
+            this.exporting = false;
+        }
+    }
+
+    /** Starts the download once the link is drawn; the link stays, in case the browser asks first. */
+    renderedCallback() {
+        if (!this.clickCsv) {
+            return;
+        }
+        const link = this.template.querySelector('a.rr-csv');
+        if (link) {
+            this.clickCsv = false;
+            link.click();
+        }
     }
 
     /** Releases tab, first load: reads the latest status of running releases straight away instead of in 30 s. */

@@ -92,6 +92,9 @@ public with sharing class RlyBackPromoteRun {
      * the saves last. The hub release's page and the Pipeline tab call it.
      */
     public static void catchUp() {
+        if (!RlyHubGuard.isHub()) {
+            return; // a sandbox copy of the hub never starts or reads syncs
+        }
         List<Id> ids = RlyPromoteStore.openSyncIds();
         RLY_Git_Connection__c conn = ids.isEmpty() ? null : RlyReleaseStore.git();
         if (conn == null) {
@@ -107,6 +110,7 @@ public with sharing class RlyBackPromoteRun {
             } catch (Exception e) {
                 rel.Error_Message__c = ('Couldn\'t read the latest status: ' + e.getMessage()).left(2000);
             }
+            RlyFlowActivation.afterRead(rel, oldStatus);
             rel.Last_Synced__c = System.now();
             RlySlack.notifyTransition(rel, oldStatus);
             rels.add(rel);

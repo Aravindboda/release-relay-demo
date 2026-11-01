@@ -1,5 +1,11 @@
 <template>
     <div class={pageCls}>
+        <template lwc:if={hubCopy}>
+            <div class="slds-notify slds-notify_alert slds-alert_warning" role="alert">
+                <lightning-icon icon-name="utility:warning" size="x-small" alternative-text="Warning" class="slds-m-right_x-small"></lightning-icon>
+                <h2>{hubCopyMessage}</h2>
+            </div>
+        </template>
         <template lwc:if={loading}>
             <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
         </template>
@@ -336,9 +342,36 @@
                                 </template>
                             </div>
                         </template>
+                        <!-- flows (board HubApprovalFlowsEvidence, 2): version in the source org and the After deploy choice, sent as flowChoices -->
+                        <template lwc:if={hasFlows}>
+                            <div class="rr-flows" role="group" aria-label="Flows">
+                                <div class="rr-row">
+                                    <strong class="rr-grow">Flows</strong>
+                                    <span class="rr-pill rr-pill-none">{flowCountText}</span>
+                                </div>
+                                <p class="rr-kicker">{flowsKicker}</p>
+                                <template lwc:if={flowsError}><div class="rr-msg rr-msg-wait" role="status">{flowsError}</div></template>
+                                <template for:each={flowRows} for:item="f">
+                                    <div key={f.name} class="rr-flow">
+                                        <div class="rr-row">
+                                            <strong class="rr-break">{f.name}</strong>
+                                            <span class={f.versionCls}>{f.versionText}</span>
+                                            <span class="rr-small rr-weak">{f.where}</span>
+                                        </div>
+                                        <template lwc:if={f.draftText}><div class="rr-msg rr-msg-wait">{f.draftText}</div></template>
+                                        <lightning-radio-group type="button" variant="label-inline" class="rr-flow-pick" label="After deploy" name={f.groupLabel}
+                                            options={flowChoiceOptions} value={f.choice} data-name={f.name} onchange={handleFlowChoice} disabled={raising}></lightning-radio-group>
+                                        <template lwc:if={f.stepText}><p class="rr-kicker">{f.stepText}</p></template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
                         <!-- manual steps (board HubManualSteps, 1): sent with the raise as manualSteps -->
                         <c-rly-manual-steps draft value={manualSteps} org-options={routeOrgNames} disabled={raising}
                             onstepschange={handleManualSteps}></c-rly-manual-steps>
+                        <template lwc:if={approvalPreview}>
+                            <div class="rr-msg rr-msg-info" role="status">{approvalPreviewLead}<strong>{approvalPreview}</strong>{approvalPreviewRule}</div>
+                        </template>
                         <template lwc:if={raiseError}><div class="rr-msg rr-msg-bad" role="alert">{raiseError}</div></template>
                     </div>
                     <div class="rr-pair-foot">

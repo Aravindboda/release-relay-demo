@@ -32,7 +32,7 @@
                                     <li key={r.key} class="rr-ms">
                                         <template lwc:if={r.tickable}>
                                             <lightning-input type="checkbox" label={r.tickLabel} variant="label-hidden" checked={r.isDone} data-id={r.id}
-                                                onchange={handleTick} disabled={busy} class="rr-tick"></lightning-input>
+                                                onchange={handleTick} disabled={actDisabled} class="rr-tick"></lightning-input>
                                         </template>
                                         <template lwc:else>
                                             <span class={r.boxCls} role="img" aria-label={r.boxLabel}>{r.boxGlyph}</span>
@@ -50,12 +50,12 @@
                                             </p>
                                             <template lwc:if={r.showNotNeeded}>
                                                 <div class="rr-row">
-                                                    <lightning-button label="Not needed" data-id={r.id} onclick={startNote} disabled={busy}></lightning-button>
+                                                    <lightning-button label="Not needed" data-id={r.id} onclick={startNote} disabled={actDisabled}></lightning-button>
                                                 </div>
                                             </template>
                                             <template lwc:if={r.showReopen}>
                                                 <div class="rr-row">
-                                                    <lightning-button label="Reopen" data-id={r.id} onclick={reopen} disabled={busy}></lightning-button>
+                                                    <lightning-button label="Reopen" data-id={r.id} onclick={reopen} disabled={actDisabled}></lightning-button>
                                                 </div>
                                             </template>
                                             <template lwc:if={r.noting}>

@@ -7,7 +7,9 @@
  *           Failed end it. A promotion starts Submitted (queued: its first run, mode promote, starts on the next
  *           read) → Workflow running → …; a back promote sync Submitted → Deploying (mode sync) → Deployed | Failed.
  *           Callouts come first (Slack too, for a status that's an event) and the saves last; a deploy to the hub
- *           then queues the back promote syncs (RlyBackPromote.afterDeploy).
+ *           then queues the back promote syncs (RlyBackPromote.afterDeploy). When the checks pass and the target org's
+ *           approval rule needs no approver, the release is approved by rule and its deploy starts (RlyAutoApproval); after a
+ *           deploy the flows chosen Activate are activated (RlyFlowActivation). In a sandbox copy of the hub it only reads.
  */
 public with sharing class RlyStatusReader {
 
@@ -25,16 +27,19 @@ public with sharing class RlyStatusReader {
         if (rel == null) {
             throw new RlyReleaseException('Release not found.');
         }
-        if (!OPEN_STATUSES.contains(rel.Status__c) || rel.Source_Org__c == null) {
+        // In a sandbox copy of the hub the page only reads: no deploy, approval, run, sync, activation or Slack post.
+        if (!OPEN_STATUSES.contains(rel.Status__c) || rel.Source_Org__c == null || !RlyHubGuard.isHub()) {
             return rel;
         }
         RlyGit git = RlyGit.forConnection(RlyReleaseStore.git());
         String oldStatus = rel.Status__c;
         try {
             readLatest(rel, git);
+            RlyAutoApproval.afterChecks(rel, git, oldStatus);
         } catch (Exception e) {
             rel.Error_Message__c = ('Couldn\'t read the latest status: ' + e.getMessage()).left(2000);
         }
+        RlyFlowActivation.afterRead(rel, oldStatus); // flows chosen Activate, in the org just deployed to (callouts)
         rel.Last_Synced__c = System.now();
         RlySlack.notifyTransition(rel, oldStatus); // the Slack callout comes before any DML
         RlyReleaseStore.save(rel);
