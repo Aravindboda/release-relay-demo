@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
-    <apiVersion>63.0</apiVersion>
-    <isExposed>false</isExposed>
-    <masterLabel>Release Relay: Merge conflicts</masterLabel>
-    <description>A release's conflicts with its target branch: each file side by side, and a choice per file (keep mine, keep the target's, or edit).</description>
-</LightningComponentBundle>

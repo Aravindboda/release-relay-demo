@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Hotfix_Two_Approvers__c</fullName>
-    <defaultValue>false</defaultValue>
-    <description>Hotfixes into this org need two different approvers, neither of them the person who raised it.</description>
-    <label>Hotfixes Need Two Approvers</label>
-    <type>Checkbox</type>
-</CustomField>
