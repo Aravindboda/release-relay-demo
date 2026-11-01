@@ -1,0 +1,43 @@
+{
+ "request": "REL-91006",
+ "step": "scan",
+ "status": "Passed",
+ "total": 0,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {},
+ "files": [
+  "force-app/main/default/classes/RlyCompareTest.cls",
+  "force-app/main/default/classes/RlyCompareZip.cls",
+  "force-app/main/default/classes/RlyHomeControllerTest.cls",
+  "force-app/main/default/classes/RlyHomeSlackHealth.cls",
+  "force-app/main/default/classes/RlyOrgCheck.cls",
+  "force-app/main/default/classes/RlyOrgSession.cls",
+  "force-app/main/default/classes/RlyOrgSessionTest.cls",
+  "force-app/main/default/classes/RlyReleasesController.cls",
+  "force-app/main/default/classes/RlySharedRead.cls",
+  "force-app/main/default/classes/RlySharedReadTest.cls",
+  "force-app/main/default/classes/RlySlack.cls",
+  "force-app/main/default/classes/RlySlackApi.cls",
+  "force-app/main/default/classes/RlySlackCardSync.cls",
+  "force-app/main/default/classes/RlySlackCardTest.cls",
+  "force-app/main/default/classes/RlyStatusReader.cls",
+  "force-app/main/default/classes/RlyTokenCache.cls",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js",
+  "force-app/main/default/lwc/rlyReleaseTracker/rlyReleaseTracker.js",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.html",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.js"
+ ],
+ "violations": [],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41350409475",
+ "finishedAt": "2026-11-01T21:08:54.499Z"
+}
