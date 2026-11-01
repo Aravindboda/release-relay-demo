@@ -229,3 +229,16 @@
 
 /* while the org's mode is read (RlyHubGuard.getHubStatus) */
 .rr-wait { position: relative; min-height: 120px; }
+
+/* append mode (board HubPromoteAddChanges 6): Where and Org skipped, the release's components locked */
+.rr-step-skip { color: var(--rr-muted); text-decoration: line-through; }
+.rr-row-locked td { background: #f3f3f3; color: var(--rr-muted); }
+.rr-chip-locked { background: #f3f3f3; color: var(--rr-muted); padding-right: 10px; }
+
+/* the bottom bar: its buttons stay together and wrap below the text, so Next stays on screen at narrow widths */
+.rr-bar > * { min-width: 0; max-width: 100%; }
+.rr-bar-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+@media (max-width: 1100px) {
+    .rr-bar-text { flex-basis: 100%; order: -1; }
+    .rr-manual-only { flex: 1 1 auto; }
+}

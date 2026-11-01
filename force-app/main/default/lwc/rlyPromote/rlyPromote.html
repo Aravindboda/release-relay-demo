@@ -76,8 +76,13 @@
                                                     <template for:each={s.rows} for:item="r">
                                                         <tr key={r.id} class={r.rowCls}>
                                                             <td class="rr-check-col">
-                                                                <lightning-input type="checkbox" label={r.selLabel} variant="label-hidden" checked={r.checked}
-                                                                    data-stage={s.stageId} data-id={r.id} onchange={handleCheck} disabled={s.locked}></lightning-input>
+                                                                <template lwc:if={r.carried}>
+                                                                    <span class="rr-carried-box" title={r.goesWith}><span class="slds-assistive-text">{r.goesWith}</span></span>
+                                                                </template>
+                                                                <template lwc:else>
+                                                                    <lightning-input type="checkbox" label={r.selLabel} variant="label-hidden" checked={r.checked}
+                                                                        data-stage={s.stageId} data-id={r.id} onchange={handleCheck} disabled={s.locked}></lightning-input>
+                                                                </template>
                                                             </td>
                                                             <td class="rr-rel">
                                                                 <span class="rr-row">
@@ -89,6 +94,8 @@
                                                                 </span>
                                                                 <template lwc:if={r.reason}><span class="rr-reason">{r.reason}</span></template>
                                                                 <template lwc:if={r.stays}><span class="rr-reason">Stays in {s.stageName}</span></template>
+                                                                <template lwc:if={r.carried}><span class="rr-reason rr-reason-go">{r.goesWith}</span></template>
+                                                                <template lwc:if={r.blockText}><span class="rr-reason rr-reason-bad">{r.blockText}</span></template>
                                                             </td>
                                                             <td>{r.raisedBy}</td>
                                                             <td class="rr-nowrap">{r.deployedText}</td>
@@ -106,6 +113,16 @@
                                         <div class="rr-card-head"><h2 class="rr-h2">{s.bundleTitle}</h2></div>
                                         <div class="rr-body">
                                             <p><strong>{s.countText}</strong>{s.componentText}</p>
+                                            <template lwc:if={s.hasCarried}>
+                                                <div class="rr-msg rr-msg-info" role="status"><strong>Also goes: {s.carriedText}</strong>{s.carriedTail}</div>
+                                            </template>
+                                            <div class="rr-rule"><strong>{s.stageRule}</strong><span class="rr-weak">{s.stageRuleTail}</span></div>
+                                            <template lwc:if={s.blocked}>
+                                                <div class="rr-msg rr-msg-warn rr-row" role="alert">
+                                                    <span class="rr-grow">{s.blockedText}</span>
+                                                    <button type="button" class="rr-add-chip" data-stage={s.stageId} data-id={s.blockerId} onclick={addBlocker} disabled={s.locked}>{s.addBlockerLabel}</button>
+                                                </div>
+                                            </template>
                                             <p>{s.testsLead}<span class="rr-mono">{s.testsList}</span>{s.testsTail}</p>
                                             <!-- carried manual steps (board HubManualSteps, 3) -->
                                             <template lwc:if={s.hasManual}>

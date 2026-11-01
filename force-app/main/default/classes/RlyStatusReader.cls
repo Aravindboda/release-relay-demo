@@ -47,6 +47,7 @@ public with sharing class RlyStatusReader {
         RlySlackCardSync.notifyChange(prior, rel); // the Slack callouts (the card is kept current) come before any DML
         RlyReleaseStore.save(rel);
         RlySlack.saveResults();
+        RlyAppendRun.saveItems(); // the components an add brought, once its run started
         if (oldStatus != 'Deployed' && rel.Status__c == 'Deployed') {
             RlyBackPromoteQueue.afterDeploy(rel);
         }
@@ -84,10 +85,12 @@ public with sharing class RlyStatusReader {
     // When the retrieve is done: commit the zip to the release branch and start the pipeline (mode hub). A release with
     // only deletions has no retrieve: it commits its marker file (.relay-inbox/<REL>.deletions) instead of a zip.
     // The release branch starts from the developer org's own branch, so Git merges it with what's in the target.
+    // Changes added to an open release (RlyAppendRun) go to its branch as .relay-inbox/<REL>-add-<k>.zip, and the run
+    // appends them (the open pull request updates).
     private static void afterRetrieve(RLY_Release__c rel, RlyGit git) {
         RLY_Org__c source = RlyReleaseStore.org(rel.Source_Org__c);
         String branch = RlyPipelineRun.branchName(rel);
-        RlyGitFile file = String.isBlank(rel.Retrieve_Id__c) ? RlyDeletions.marker(rel, branch) : retrievedZip(rel, source, branch);
+        RlyGitFile file = String.isBlank(rel.Retrieve_Id__c) ? withoutRetrieve(rel, branch) : retrievedZip(rel, source, branch);
         if (file == null) {
             if (String.isBlank(rel.Retrieve_Id__c)) {
                 fail(rel, 'The release has no components and no deletions.');
@@ -98,7 +101,7 @@ public with sharing class RlyStatusReader {
             git.createBranch(branch, baseBranch(source, rel));
         }
         git.putFile(file);
-        git.startPipeline(RlyPipelineRun.inputs(rel, 'hub', branch));
+        RlyAppendRun.startHubRun(rel, git, branch);
         rel.Source_Branch__c = branch;
         rel.Status__c = 'Workflow running';
         rel.Pending_Run__c = 'hub';
@@ -106,7 +109,13 @@ public with sharing class RlyStatusReader {
         rel.Error_Message__c = null;
     }
 
-    // The retrieved zip as a file to commit; null while the retrieve runs or when it failed (the release is then Failed).
+    // No retrieve: the deletions marker, or for an add with only deletions an empty zip.
+    private static RlyGitFile withoutRetrieve(RLY_Release__c rel, String branch) {
+        return RlyAppendRun.isPending(rel) ? RlyAppendInputs.emptyZip(rel, branch) : RlyDeletions.marker(rel, branch);
+    }
+
+    // The retrieved zip as a file to commit; null while the retrieve runs or when it failed (the release is then Failed;
+    // an add to an open release goes back to Checks failed instead, as it was).
     private static RlyGitFile retrievedZip(RLY_Release__c rel, RLY_Org__c source, String branch) {
         RlyRetrieve.RetrieveStatus st = RlyRetrieve.check(source, rel.Retrieve_Id__c);
         if (!st.done) {
@@ -114,10 +123,10 @@ public with sharing class RlyStatusReader {
         }
         String problem = retrieveProblem(st, source);
         if (problem != null) {
-            fail(rel, problem);
+            RlyAppendRun.failRetrieve(rel, problem);
             return null;
         }
-        return new RlyGitFile('.relay-inbox/' + rel.Name + '.zip', branch)
+        return new RlyGitFile(RlyAppendInputs.zipPath(rel), branch)
             .withContent(st.zipBase64, rel.Name + ': components from ' + source.Name);
     }
 

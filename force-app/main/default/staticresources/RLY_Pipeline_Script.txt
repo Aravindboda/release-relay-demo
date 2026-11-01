@@ -1,14 +1,18 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 13
+// Release Relay pipeline files: version 14
 /*
  * Release Relay: one script for every pipeline job, on GitHub, GitLab, Bitbucket or Azure DevOps.
  *
  *   STEP=raise     MODE=org: retrieve COMPONENTS from the source org, remove DELETIONS, write a
  *                  destructive manifest, commit to a new BRANCH from TARGET, push, open a PR/MR.
  *                  MODE=branch: open a PR/MR from an existing BRANCH into TARGET.
- *                  MODE=promote: make BRANCH (promote/rel-...) from TARGET, cherry-pick the merge
- *                  commits listed in COMPONENTS (oldest first) from the previous stage, push,
- *                  open a PR/MR into TARGET.
+ *                  MODE=promote: make BRANCH (promote/rel-...) from TARGET and open a PR/MR into TARGET.
+ *                  With OPTIONS.stageBranch (the previous stage's branch, e.g. "sit"): every file the
+ *                  merge commits in COMPONENTS changed (each against its first parent) is taken as it is
+ *                  now in that branch (or removed when it's gone there), so older stage releases and
+ *                  fixes to the same files come along and nothing has to apply as a patch. A file whose
+ *                  TARGET version the stage never had (a hotfix not merged back down) stops it first:
+ *                  raise.json "clash". Without stageBranch: cherry-pick the commits (oldest first).
  *                  MODE=hub: the Release Relay hub already retrieved the components from the
  *                  developer org and committed the Metadata API zip to BRANCH as
  *                  .relay-inbox/<REQUEST_ID>.zip. Convert it to source format, replace the zip
@@ -17,6 +21,10 @@
  *                  marker for a release with only deletions) removes those components' files from
  *                  BRANCH in the same commit; validate and deploy then delete them from the org
  *                  (destructiveChangesPost). raise.json lists them under "deleted".
+ *                  With OPTIONS.append (more changes for a release that's already open): BRANCH must
+ *                  exist; the hub committed .relay-inbox/<REQUEST_ID>-add-<k>.zip (OPTIONS.appendZip) to
+ *                  it, which is converted the same way, DELETIONS removed, and the branch pushed. No new
+ *                  PR/MR (the open one updates); raise.json says "appended": true.
  *                  MODE=resolve: merge TARGET into BRANCH, applying the choices the hub committed in
  *                  .relay-inbox/<REQUEST_ID>-resolve.json for each conflicted file, then push.
  *                  Runs started by the hub (OPTIONS.hub) in modes hub and promote write
@@ -52,6 +60,8 @@
  * TARGET's lines where they conflict (-X theirs); without it a conflict is reported, never forced.
  * The deploy step quick deploys the release's validation (no tests run again) when the merge is exactly
  * what was validated; {"quickDeploy":false} always deploys in full. deploy.json says which: quick, quickNote.
+ * {"stageBranch":"sit"} (mode promote) takes each changed file as it is in that branch instead of cherry-picking;
+ * {"append":true,"appendZip":".relay-inbox/REL-00042-add-1.zip"} (mode hub) adds changes to the open release's BRANCH.
  *
  * Release Relay's own metadata (its classes, LWCs, objects, tabs, permission sets, ... listed by exact name in
  * BUILT_IN_EXCLUDES, plus any globs in .relay/exclude read from the pipeline's own commit) is never deployed or
@@ -1802,13 +1812,17 @@ function writesRaiseResult() {
 
 /**
  * results/<REQUEST_ID>/raise.json, the same shape for modes hub and promote:
- * { status: 'Opened' | 'Failed', mode, branch, target, sha, pr, url, commits, conflicts, deleted, valuesTokenized, message }.
+ * { status: 'Opened' | 'Failed', mode, branch, target, sha, pr, url, commits, conflicts, deleted, valuesTokenized,
+ *   appended, message }.
  * deleted: the Type:Name entries mode hub removed from BRANCH (always [] for promote). valuesTokenized: how many
  * occurrences of the source environment's values (.relay/values.json) became {{relay:NAME}} (always 0 for promote).
+ * appended: true for changes added to an open release (mode hub, OPTIONS.append; also files, appendZip).
+ * A promotion from the stage's state adds files (how many files the releases changed) and fromStage, and on a
+ * clash conflicts (the files) and clash: [{ file, targetBlob, stageBlob }].
  */
 function raiseResult(status, data) {
     writeResult('raise', { status, mode, branch, target, sha: null, pr: null, url: null,
-        commits: [], conflicts: [], deleted: [], valuesTokenized: 0, message: '', ...data });
+        commits: [], conflicts: [], deleted: [], valuesTokenized: 0, appended: false, message: '', ...data });
 }
 
 /** Ends the raise; a hub run first says why in raise.json. */
@@ -2046,7 +2060,80 @@ function addedAndDeleted(components, deletions) {
     return '';
 }
 
+/** Removes each deletion's files from the checked-out branch. In append mode, files already gone are skipped. */
+function removeDeletions(deletions, deleted, lenient) {
+    const skipped = [];
+    for (const d of deletions) {
+        const paths = deletionPaths(d);
+        if (paths === null) {
+            raiseFailed(`Deleting ${d.type} isn't supported by the pipeline. Remove ${d.name} in a normal ${provider.label}.`, { deleted });
+        }
+        const found = paths.filter((p) => fs.existsSync(p));
+        if (!found.length) {
+            if (lenient) {
+                skipped.push(d.entry); // deleted earlier in this release
+                continue;
+            }
+            raiseFailed(`${d.type} ${d.name} isn't in ${branch}, so there's nothing to delete.`, { deleted });
+        }
+        git(['--literal-pathspecs', 'rm', '-r', '-q', '--', ...found]);
+    }
+    return skipped;
+}
+
+/**
+ * Unzips the hub's Metadata API zip, converts it to source format and copies the files into SOURCE_PATH, then
+ * removes the zip from the branch. Returns the copied paths (relative to SOURCE_PATH). The same code path for a
+ * new hub raise and for changes added to an open release.
+ */
+function unpackHubZip(zipFile, components, deleted) {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-hub-'));
+    const mdapi = path.join(tmp, 'mdapi');
+    const out = path.join(tmp, 'source');
+    let copied = [];
+    let unzipped = true;
+    try {
+        try {
+            execFileSync('unzip', ['-q', '-o', zipFile, '-d', mdapi], { stdio: ['ignore', 'pipe', 'pipe'] });
+        } catch (e) {
+            unzipped = false; // an empty zip (a release with only deletions) makes unzip complain
+            if (components.length) {
+                raiseFailed(`${zipFile} couldn't be unzipped: ${String(e.stderr || e.message).trim().slice(0, 500)}`, { deleted });
+            }
+        }
+        const hasFiles = unzipped && fs.existsSync(mdapi)
+            && fs.readdirSync(mdapi, { recursive: true }).some((f) => !/(^|\/)package\.xml$/.test(String(f))
+                && fs.statSync(path.join(mdapi, String(f))).isFile());
+        if (components.length || hasFiles) {
+            convertFromHub(mdapi, out);
+            const converted = [path.join(out, 'force-app', 'main', 'default'), path.join(out, 'force-app')]
+                .find((p) => fs.existsSync(p));
+            const wholeObjects = new Set(components.filter((c) => c.type === 'CustomObject').map((c) => c.name));
+            copied = converted ? copyConverted(converted, sourcePath(), wholeObjects) : [];
+        }
+    } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+    }
+    git(['rm', '-q', '--', zipFile]);
+    return copied;
+}
+
+/** Removes the hub's deletions marker, committed or not. */
+function removeMarker(markerFile) {
+    if (fs.existsSync(markerFile)) {
+        if (gitQuiet(['ls-files', '--error-unmatch', '--', markerFile]) !== null) {
+            git(['rm', '-q', '-f', '--', markerFile]);
+        } else {
+            fs.rmSync(markerFile, { force: true });
+        }
+    }
+}
+
 async function raiseFromHub() {
+    if (options.append === true) {
+        await appendToRelease();
+        return;
+    }
     const components = parseList(input('COMPONENTS'), 'COMPONENTS');
     const zipFile = path.join('.relay-inbox', requestId + '.zip');
     const markerFile = path.join('.relay-inbox', requestId + '.deletions');
@@ -2068,57 +2155,16 @@ async function raiseFromHub() {
     }
 
     // Deletions first, on the branch as the hub left it: each must be there to be removed.
-    for (const d of deletions) {
-        const paths = deletionPaths(d);
-        if (paths === null) {
-            raiseFailed(`Deleting ${d.type} isn't supported by the pipeline. Remove ${d.name} in a normal ${provider.label}.`, { deleted });
-        }
-        const found = paths.filter((p) => fs.existsSync(p));
-        if (!found.length) {
-            raiseFailed(`${d.type} ${d.name} isn't in ${branch}, so there's nothing to delete.`, { deleted });
-        }
-        git(['rm', '-r', '-q', '--', ...found]);
-    }
+    removeDeletions(deletions, deleted, false);
 
-    let copied = [];
-    if (hasZip) {
-        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-hub-'));
-        const mdapi = path.join(tmp, 'mdapi');
-        const out = path.join(tmp, 'source');
-        let unzipped = true;
-        try {
-            execFileSync('unzip', ['-q', '-o', zipFile, '-d', mdapi], { stdio: ['ignore', 'pipe', 'pipe'] });
-        } catch (e) {
-            unzipped = false; // an empty zip (a release with only deletions) makes unzip complain
-            if (components.length) {
-                raiseFailed(`${zipFile} couldn't be unzipped: ${String(e.stderr || e.message).trim().slice(0, 500)}`, { deleted });
-            }
-        }
-        const hasFiles = unzipped && fs.existsSync(mdapi)
-            && fs.readdirSync(mdapi, { recursive: true }).some((f) => !/(^|\/)package\.xml$/.test(String(f))
-                && fs.statSync(path.join(mdapi, String(f))).isFile());
-        if (components.length || hasFiles) {
-            convertFromHub(mdapi, out);
-            const converted = [path.join(out, 'force-app', 'main', 'default'), path.join(out, 'force-app')]
-                .find((p) => fs.existsSync(p));
-            const wholeObjects = new Set(components.filter((c) => c.type === 'CustomObject').map((c) => c.name));
-            copied = converted ? copyConverted(converted, sourcePath(), wholeObjects) : [];
-        }
-        git(['rm', '-q', '--', zipFile]);
-    }
+    const copied = hasZip ? unpackHubZip(zipFile, components, deleted) : [];
     // The developer org's own values go into the branch as {{relay:NAME}} placeholders.
     const tokens = tokenizeFiles(copied.map((r) => path.join(sourcePath(), r)), sourceEnv);
     if (tokens.error) {
         raiseFailed(tokens.error, { deleted });
     }
     const valuesTokenized = tokens.count;
-    if (fs.existsSync(markerFile)) {
-        if (gitQuiet(['ls-files', '--error-unmatch', '--', markerFile]) !== null) {
-            git(['rm', '-q', '-f', '--', markerFile]);
-        } else {
-            fs.rmSync(markerFile, { force: true });
-        }
-    }
+    removeMarker(markerFile);
     git(['add', '-A', '--', sourcePath()]);
     if (git(['diff', '--cached', '--name-only', '--', sourcePath()]) === '') {
         raiseFailed(`${orgLabel()} already matches ${target} for these components. Nothing to commit.`, { deleted });
@@ -2143,6 +2189,96 @@ async function raiseFromHub() {
     await openAndRecord(body, { sha, deleted, valuesTokenized });
 }
 
+/** The zip the hub committed for changes added to an open release: .relay-inbox/<REQUEST_ID>-add-<k>.zip, or ''. */
+function appendZipPath(value, request) {
+    const zip = typeof value === 'string' ? value : '';
+    const m = /^\.relay-inbox\/(REL-\d+)-add-\d{1,6}\.zip$/.exec(zip);
+    return m && m[1] === request ? zip : '';
+}
+
+/** The web address of a pull/merge request found by provider.find, or null. */
+function foundPrUrl(found) {
+    const raw = (found && found.raw) || {};
+    if (raw.web_url) { return raw.web_url; }                                   // GitLab
+    if (raw.links && raw.links.html && raw.links.html.href) { return raw.links.html.href; } // Bitbucket
+    if (PROVIDER === 'azure' && found && found.id && provider.web) { return provider.web(found.id); }
+    if (PROVIDER === 'github' && found && found.id && env.GITHUB_REPOSITORY) {
+        return `${env.GITHUB_SERVER_URL || 'https://github.com'}/${env.GITHUB_REPOSITORY}/pull/${found.id}`;
+    }
+    return null;
+}
+
+/**
+ * MODE=hub with OPTIONS.append: more changes from the developer org for a release that's already open. The hub
+ * committed a new zip (OPTIONS.appendZip, .relay-inbox/<REQUEST_ID>-add-<k>.zip) to the release branch; it's
+ * converted into SOURCE_PATH exactly like a new hub raise, DELETIONS are removed, and the branch is pushed. The
+ * open pull request updates itself, so none is opened; scan and validate then run again.
+ */
+async function appendToRelease() {
+    const components = parseList(input('COMPONENTS'), 'COMPONENTS');
+    const zipFile = appendZipPath(options.appendZip, requestId);
+    if (!zipFile) {
+        raiseFailed(`options.appendZip must be .relay-inbox/${requestId}-add-<number>.zip (the file the hub committed to ${branch}).`,
+            { appended: true });
+    }
+    if (!remoteBranchExists(branch)) {
+        raiseFailed(`Branch ${branch} doesn't exist, so ${requestId} has no open release branch to add changes to.`, { appended: true });
+    }
+    fetchBranch(target);
+    fetchBranch(branch);
+    git(['checkout', '-q', '-B', branch, `refs/remotes/origin/${branch}`]);
+    const markerFile = zipFile.replace(/\.zip$/, '.deletions');
+    const deletions = hubDeletions(markerFile);
+    const deleted = deletions.map((d) => d.entry);
+    const hasZip = fs.existsSync(zipFile) && gitQuiet(['ls-files', '--error-unmatch', '--', zipFile]) !== null;
+    if (!hasZip && (components.length || !deletions.length)) {
+        raiseFailed(`${zipFile} isn't on ${branch}. Add the changes again from Release Relay.`, { appended: true, deleted });
+    }
+    const clash = addedAndDeleted(components, deletions);
+    if (clash) {
+        raiseFailed(clash, { appended: true, deleted });
+    }
+    const skipped = removeDeletions(deletions, deleted, true);
+    const copied = hasZip ? unpackHubZip(zipFile, components, deleted) : [];
+    const tokens = tokenizeFiles(copied.map((r) => path.join(sourcePath(), r)), sourceEnv);
+    if (tokens.error) {
+        raiseFailed(tokens.error, { appended: true, deleted });
+    }
+    removeMarker(markerFile);
+    git(['add', '-A', '--', sourcePath()]);
+    if (git(['diff', '--cached', '--name-only', '--', sourcePath()]) === '') {
+        // Nothing new, but the consumed zip must not stay on the branch (it would be merged into the target).
+        if (git(['diff', '--cached', '--name-only']) !== '') {
+            git(['commit', '-q', '-m', `${requestId}: remove ${zipFile} (nothing new from ${orgLabel()})`]);
+            git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
+        }
+        raiseFailed(`${orgLabel()} already matches ${branch} for these components. Nothing to add.`,
+            { appended: true, deleted, sha: git(['rev-parse', 'HEAD']) });
+    }
+    const counts = [copied.length ? `${copied.length} files` : '', deletions.length - skipped.length ? `${deletions.length - skipped.length} deletion(s)` : '']
+        .filter(Boolean).join(', ');
+    git(['commit', '-q', '-m', `${requestId}: more changes from ${orgLabel()}`, '-m', `Release Relay ${requestId} (${counts || 'no files'})`
+        + (components.length ? '\n\n' + components.map((c) => `- ${c.entry}`).join('\n') : '')
+        + (deletions.length ? '\n\nDeleted:\n' + deletions.map((d) => `- ${d.entry}`).join('\n') : '')]);
+    git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
+    const sha = git(['rev-parse', 'HEAD']);
+
+    let found = null;
+    try {
+        found = await provider.find(branch, target, 'open');
+    } catch (e) {
+        console.log(`::warning::Couldn't look up the open ${provider.label}: ${e && e.message ? e.message : e}`);
+    }
+    const url = foundPrUrl(found);
+    const pr = found && found.id ? (Number(found.id) || prNumber(url)) : null;
+    const message = found ? '' : `No open ${provider.label} from ${branch} into ${target} was found; the branch was updated anyway.`;
+    raiseResult('Opened', { sha, pr, url, appended: true, deleted, valuesTokenized: tokens.count, files: copied.length,
+        appendZip: zipFile, message });
+    summary(`**Added to ${requestId}:** ${copied.length} files${deletions.length ? `, ${deletions.length - skipped.length} deletion(s)` : ''}`
+        + ` from ${orgLabel()} on ${branch}${skipped.length ? ` (already deleted: ${skipped.join(', ')})` : ''}.`
+        + (url ? ` The ${provider.label} updates itself: ${url}` : ` ${message}`));
+}
+
 /**
  * A promotion: a new branch from the next stage, with the carried releases' merge commits
  * cherry-picked onto it in the order Salesforce sent them (oldest merge first). Started by the hub
@@ -2154,7 +2290,16 @@ async function raisePromotion() {
     if (!shas.length || shas.some((x) => !SHA_RE.test(x))) {
         raiseFailed('COMPONENTS must list the merge commits to promote, as full 40-character hashes.');
     }
-    const lines = (picked) => [
+    const stageBranch = promoteStageBranch();
+    const stageLines = (picked) => [
+        `Raised from Release Relay${options.hub === true ? ' hub' : ''}, release ${requestId}.`,
+        '**Request type:** Promotion',
+        `Takes each file these releases changed as it is in \`${stageBranch}\` (the previous stage), into \`${target}\`:`,
+        picked.map((x) => `- ${x.slice(0, 7)}`).join('\n'),
+        testsLine(),
+        'Approve it in Salesforce; Release Relay merges it and deploys it.'
+    ].filter(Boolean).join('\n\n');
+    const lines = (picked) => stageBranch ? stageLines(picked) : [
         `Raised from Release Relay${options.hub === true ? ' hub' : ''}, release ${requestId}.`,
         '**Request type:** Promotion',
         `Promotes into \`${target}\` the changes already deployed to the previous stage, cherry-picked in this order:`,
@@ -2173,12 +2318,16 @@ async function raisePromotion() {
         if (git(['diff', '--name-only', `refs/remotes/origin/${target}`, head]) === '') {
             raiseFailed(`Branch ${branch} already exists and matches ${target}. Nothing to promote.`, { sha: head });
         }
-        await openAndRecord(lines(shas), { sha: head, commits: shas });
+        await openAndRecord(lines(shas), { sha: head, commits: shas, ...(stageBranch ? { fromStage: stageBranch } : {}) });
         return;
     }
 
     git(['fetch', '--no-tags', 'origin']); // the commits live on the previous stage's branch
     fetchBranch(target);
+    if (stageBranch) {
+        await promoteFromStage(shas, stageBranch, lines);
+        return;
+    }
     git(['checkout', '-q', '-B', branch, `refs/remotes/origin/${target}`]);
 
     const picked = [];
@@ -2208,6 +2357,143 @@ async function raisePromotion() {
     }
     git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
     await openAndRecord(lines(picked), { sha: git(['rev-parse', 'HEAD']), commits: picked });
+}
+
+/** OPTIONS.stageBranch: the previous stage's branch a promotion takes its files from, or '' (cherry-pick as before). */
+function promoteStageBranch() {
+    const value = options.stageBranch;
+    if (value === undefined || value === null || value === '') {
+        return '';
+    }
+    const name = typeof value === 'string' ? value.trim() : '';
+    if (!REF_RE.test(name) || name.includes('..') || name.startsWith('-') || name === target || name === branch
+        || name === RESULTS_BRANCH || name === SNAPSHOT_BRANCH) {
+        raiseFailed(`options.stageBranch "${String(value).slice(0, 100)}" isn't a valid stage branch.`);
+    }
+    return name;
+}
+
+/** Blob ids of many "<commit>:<path>" objects in one git call: a Map of spec to blob id (missing specs left out). */
+function blobsOf(specs) {
+    const result = new Map();
+    if (!specs.length) {
+        return result;
+    }
+    const out = gitWith(['cat-file', '--batch-check=%(objectname) %(objecttype)'], {}, specs.join('\n') + '\n').split('\n');
+    specs.forEach((spec, i) => {
+        const m = /^([0-9a-f]{40,64}) blob$/.exec(out[i] || '');
+        if (m) {
+            result.set(spec, m[1]);
+        }
+    });
+    return result;
+}
+
+/** The files each merge commit changed against its first parent (the stage before the merge), in order, once each. */
+function promotedFiles(shas) {
+    const files = new Set();
+    for (const sha of shas) {
+        const parents = (gitQuiet(['rev-list', '--parents', '-n', '1', sha]) || '').split(' ').filter(Boolean).length - 1;
+        const out = parents >= 1
+            ? git(['diff', '--name-only', '--no-renames', '-z', `${sha}^1`, sha])
+            : git(['diff-tree', '--root', '--no-commit-id', '--name-only', '--no-renames', '-r', '-z', sha]);
+        out.split('\0').filter(Boolean).forEach((f) => files.add(f));
+    }
+    return [...files];
+}
+
+const CLASH_HISTORY_LIMIT = 200;
+
+/**
+ * Files whose target version the stage never had: { file, targetBlob, stageBlob } each. A target version is fine
+ * when it's the stage's current version or appears in the stage's history of that file (the last 200 commits that
+ * changed it, on every path: --full-history, so a hotfix merged back into the stage counts even when the merge kept
+ * the stage's lines), so taking the stage's version can't drop a change made only in the target.
+ */
+function promotionClashes(files, targetRef, stageRef) {
+    const targetBlobs = blobsOf(files.map((f) => `${targetRef}:${f}`));
+    const stageBlobs = blobsOf(files.map((f) => `${stageRef}:${f}`));
+    const clashes = [];
+    for (const file of files) {
+        const targetBlob = targetBlobs.get(`${targetRef}:${file}`);
+        const stageBlob = stageBlobs.get(`${stageRef}:${file}`) || null;
+        if (!targetBlob || targetBlob === stageBlob) {
+            continue;
+        }
+        const commits = git(['--literal-pathspecs', 'log', '--full-history', '--format=%H', '-n', String(CLASH_HISTORY_LIMIT), stageRef, '--', file])
+            .split('\n').filter(Boolean);
+        const seen = new Set(blobsOf(commits.map((c) => `${c}:${file}`)).values());
+        if (!seen.has(targetBlob)) {
+            clashes.push({ file, targetBlob, stageBlob });
+        }
+    }
+    return clashes;
+}
+
+/** Why the promotion clashes, for raise.json and the hub. */
+function clashMessage(clashes, stageBranch) {
+    const first = clashes[0].file;
+    const more = clashes.length > 1 ? ` (and ${clashes.length - 1} more file${clashes.length > 2 ? 's' : ''})` : '';
+    return `${target} has a change to ${first}${more} that ${stageBranch} doesn't have (a hotfix not merged back down?). `
+        + `Merge ${target} into ${stageBranch} first, then promote again.`;
+}
+
+/** Runs git with a long list of paths in chunks, so the command line never gets too long. */
+function gitPaths(args, files) {
+    for (let i = 0; i < files.length; i += 200) {
+        git(['--literal-pathspecs', ...args, '--', ...files.slice(i, i + 200)]);
+    }
+}
+
+/**
+ * A promotion from the stage's state (OPTIONS.stageBranch): a new branch from TARGET where every file the releases'
+ * merge commits changed is taken as it is now in the stage branch (or removed when the stage no longer has it).
+ * Older stage releases and later fixes to the same files come along, so nothing has to apply as a patch. Before
+ * writing, a file whose target version the stage never had (a hotfix only in the target) stops the promotion.
+ */
+async function promoteFromStage(shas, stageBranch, lines) {
+    if (!remoteBranchExists(stageBranch)) {
+        raiseFailed(`The stage branch ${stageBranch} doesn't exist, so there's nothing to promote from.`, { fromStage: stageBranch });
+    }
+    fetchBranch(stageBranch);
+    for (const sha of shas) {
+        if (gitQuiet(['cat-file', '-t', sha]) !== 'commit') {
+            raiseFailed(`Commit ${sha.slice(0, 7)} isn't in the repository. Was its branch rewritten?`, { fromStage: stageBranch });
+        }
+    }
+    const targetRef = `refs/remotes/origin/${target}`;
+    const stageRef = `refs/remotes/origin/${stageBranch}`;
+    const files = promotedFiles(shas);
+    if (!files.length) {
+        raiseFailed(`These commits change no files. Nothing to promote.`, { commits: shas, files: 0, fromStage: stageBranch });
+    }
+    const clashes = promotionClashes(files, targetRef, stageRef);
+    if (clashes.length) {
+        raiseFailed(clashMessage(clashes, stageBranch), { commits: shas, files: files.length, fromStage: stageBranch,
+            conflicts: clashes.map((c) => c.file).slice(0, 50), clash: clashes.slice(0, 50) });
+    }
+    git(['checkout', '-q', '-B', branch, targetRef]);
+    const stageBlobs = blobsOf(files.map((f) => `${stageRef}:${f}`));
+    const targetBlobs = blobsOf(files.map((f) => `${targetRef}:${f}`));
+    const take = files.filter((f) => stageBlobs.has(`${stageRef}:${f}`));
+    const drop = files.filter((f) => !stageBlobs.has(`${stageRef}:${f}`) && targetBlobs.has(`${targetRef}:${f}`));
+    if (take.length) {
+        gitPaths(['checkout', stageRef], take);
+    }
+    if (drop.length) {
+        gitPaths(['rm', '-q'], drop);
+    }
+    if (git(['diff', '--cached', '--name-only']) === '') {
+        raiseFailed(`${target} already has ${stageBranch}'s version of every file these releases changed. Nothing to promote.`,
+            { commits: shas, files: files.length, fromStage: stageBranch });
+    }
+    const n = shas.length;
+    git(['commit', '-q', '-m', `${requestId}: promote ${n} release(s) from ${stageBranch}`, '-m',
+        `Takes each file these releases changed as it is in ${stageBranch}:\n${shas.map((x) => '- ' + x).join('\n')}`]);
+    git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
+    summary(`**Promotion from ${stageBranch}:** ${files.length} file(s) from ${n} release(s); ${take.length} taken from ${stageBranch}, `
+        + `${drop.length} removed.`);
+    await openAndRecord(lines(shas), { sha: git(['rev-parse', 'HEAD']), commits: shas, files: files.length, fromStage: stageBranch });
 }
 
 // ---------- step: validate ----------

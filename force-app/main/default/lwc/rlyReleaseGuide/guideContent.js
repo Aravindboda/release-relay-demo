@@ -126,7 +126,7 @@ function repoRows(provider) {
         ['`release-relay-results`', 'One folder per release with `scan.json`, `validate.json`, `merge.json`, `deploy.json`. The hub reads these.'],
         ['`feature/rel-xxxxx`', 'One branch per release, from the developer org\'s branch.'],
         ['`hotfix/rel-xxxxx`', 'A hotfix: a release from a developer org marked urgent. Same checks as a feature branch.'],
-        ['`promote/rel-xxxxx`', 'A promotion: the merge commits of releases deployed to a stage, into the next stop\'s branch.']
+        ['`promote/rel-xxxxx`', 'A promotion: each file the releases it carries changed, as it is in the stage\'s branch, into the next stop\'s branch.']
     ];
 }
 
@@ -1237,6 +1237,53 @@ const USE_SECTIONS = [
         ]
     },
     {
+        key: 'append',
+        group: 'daily',
+        label: 'Add changes to an open release',
+        cards: [
+            {
+                key: 'ap-main',
+                title: 'Add changes to an open release',
+                blocks: [
+                    { type: 'text', paras: ['When the checks of a release fail (or it waits for approval) and the fix is in the same developer org, add the fix to the same release instead of raising a new one. Its branch and pull request stay; the checks run again.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Open Add changes',
+                                who: 'Who raised it, or an admin',
+                                where: 'The release page',
+                                goal: 'A release raised from a developer org, with an open pull request, whose checks failed or that waits for approval, not approved yet, with nothing running.',
+                                items: [
+                                    'Press **Add changes from** the release\'s developer org.',
+                                    'New Release opens at **Select** for that org and the release\'s target: Where and Org are skipped.'
+                                ]
+                            },
+                            {
+                                title: 'Pick what to add',
+                                where: 'New Release → Select',
+                                items: [
+                                    'What is in the release already shows ticked and greyed, **In** the release: it can\'t be unticked.',
+                                    'Tick the new components (or deletions). Apex needs a test class: one you tick now, or one the release runs already.',
+                                    '**Show selection** lists what is **Already in** the release and what you are **Adding**.'
+                                ]
+                            },
+                            {
+                                title: 'Review and add',
+                                where: 'New Release → Review',
+                                items: [
+                                    'Review says what is added, for example **Adds 1 component to** the release, and that the checks run again.',
+                                    'Press **Add to** the release. The page shows the release again: the changes are committed to its branch, its pull request updates, then the code scan and check-only deploy run again (with the release\'s tests and the new ones).'
+                                ],
+                                check: 'The History shows **Added 1 component from** the developer org, and any approval given before is cleared.'
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
         key: 'deletions',
         group: 'daily',
         label: 'Deleting components',
@@ -1554,7 +1601,7 @@ const USE_SECTIONS = [
                             {
                                 title: 'Promote it on its own',
                                 where: 'Promote tab',
-                                text: ['When the hotfix is deployed to the stage, it waits on the Promote tab, ticked on its own: **Promote hotfix to** the next stop sends only its changes. Other work waiting in the stage stays there.'],
+                                text: ['When the hotfix is deployed to the stage, it waits on the Promote tab, hotfixes first. Tick it on its own: **Promote hotfix to** the next stop. The next stop gets each file the hotfix changed as it is in the stage, so an older release that changed the same file goes with it; other work waiting in the stage stays there.'],
                                 links: [{ label: 'Promote', to: 'promote' }]
                             },
                             {
@@ -1704,7 +1751,7 @@ const USE_SECTIONS = [
                 key: 'pr-main',
                 title: 'Promote to the next stop (for example SIT → PROD)',
                 blocks: [
-                    { type: 'text', paras: ['Releases deployed to a stage move on to the next stop (the next stage, or production) from the **Promote** tab. You need `RLY_Approver` or `RLY_Admin`.'] },
+                    { type: 'text', paras: ['Releases deployed to a stage move on to the next stop (the next stage, or production) from the **Promote** tab. You need `RLY_Approver` or `RLY_Admin`.', '**The next stop gets each file as it is in the stage** (for example PROD gets each file as it is in SIT). So older releases that changed the same file go too, and a newer one must be added: a file can\'t go without the changes the stage already has in it.'] },
                     {
                         type: 'steps',
                         steps: [
@@ -1714,7 +1761,9 @@ const USE_SECTIONS = [
                                 where: 'Promote tab',
                                 goal: 'One block per stage: the releases deployed there and not promoted yet.',
                                 items: [
-                                    'Tick the releases to promote. Hotfixes are first, then the oldest deploy first. Unticked ones stay in the stage for later. A hotfix can go on its own.',
+                                    'Tick the releases to promote: nothing is ticked when the tab opens. Hotfixes are first, then the oldest deploy first. Unticked ones stay in the stage for later. A hotfix can go on its own.',
+                                    'An older release that changed the same component as one you ticked goes too: it shows a dashed box and **Goes with** the release, and the panel lists it under **Also goes**. It is marked promoted with the others and leaves the list.',
+                                    'A newer release that changed the same component blocks the promotion: the panel says which one, and **+ Add** it ticks it. Or wait and promote them together later.',
                                     'The panel on the right counts the releases and components and lists the test classes that run in the next stop (RunSpecifiedTests).',
                                     'Give the promotion a **Title**.',
                                     'Press **Promote <n> releases to** the next stop (or **Promote hotfix to** it).'
@@ -1726,6 +1775,15 @@ const USE_SECTIONS = [
                                 title: 'Approve and follow it',
                                 where: 'The release page',
                                 text: ['The promotion lists what it **Carries**; each carried release shows **Promoted in** with a link. It carries their manual steps and flow choices too. Whether it waits for an approver follows the next stop\'s approval rule. If it is rejected or fails, the releases it carried are ready to promote again.']
+                            },
+                            {
+                                title: 'If it fails with files that clash',
+                                where: 'The promotion\'s page',
+                                goal: 'The next stop has a change to a file that the stage doesn\'t have, for example a hotfix that wasn\'t merged back down.',
+                                items: [
+                                    'The page shows the message and lists the **Files that clash**.',
+                                    'Merge the next stop\'s branch into the stage\'s branch first (in your Git provider), then promote again.'
+                                ]
                             }
                         ]
                     }
