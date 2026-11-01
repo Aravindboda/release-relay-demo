@@ -25,6 +25,11 @@
                         </ul>
                     </div>
                     <div role="tabpanel" aria-label={panelLabel} class="rr-col">
+                        <template lwc:if={loginLink}>
+                            <div class="rr-row rr-end">
+                                <a class="slds-button slds-button_neutral rr-login" href={loginLink.url} target="_blank" rel="noopener noreferrer" title={loginLink.title}>{loginLink.label}</a>
+                            </div>
+                        </template>
                         <template lwc:if={gateText}><div class="rr-msg rr-msg-warn" role="status">{gateText}</div></template>
                         <template lwc:if={hasRuns}>
                             <ol class="rr-ms-list">

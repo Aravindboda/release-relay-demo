@@ -1215,7 +1215,8 @@ const USE_SECTIONS = [
                                 items: [
                                     'The path at the top shows Raised → Pull request → Checks → Approval → Deploy.',
                                     'Code scan findings and deployment errors are listed under the progress. Fix them in your org and raise again, or ask an approver to bypass a blocking code scan.',
-                                    'Below: components, Flows, Manual steps, **History**, and after a deploy the merge back into the other branches.'
+                                    'Below: components, Flows, Manual steps, **History** (newest first), and after a deploy the merge back into the other branches.',
+                                    'Admins and the deployment team see **Open org ▾** in the header: each **Log in to <org>** opens that org\'s login page (its My Domain, or single sign-on) in a new window. It lists the orgs on the release\'s route except production (the hub), where you already are.'
                                 ],
                                 check: 'A Deployed release shows the deploy id and the merge back per branch.'
                             },
@@ -1505,12 +1506,13 @@ const USE_SECTIONS = [
                                 goal: 'A record of who did what, where and when.',
                                 items: [
                                     'Pick the org\'s tab: each shows how many steps are open there.',
+                                    'Press **Log in to <org> ↗** on the tab to open that org\'s login page in a new window and do the step there (not on the production tab: you are already in it).',
                                     'Do the step, then tick it: the page records who did it and when.',
                                     '**Not needed** asks why (for example: already set in this org). **Reopen** puts a step back to do.',
                                     '**Show instructions** opens what exactly to do.',
                                     '**Add a manual step** adds one (until the first deploy).'
                                 ],
-                                text: ['Only users with `RLY_Deploy_Team` (Release Relay Deployment Team) or `RLY_Admin` tick steps.'],
+                                text: ['Only users with `RLY_Deploy_Team` (Release Relay Deployment Team) or `RLY_Admin` tick steps and see **Log in to <org> ↗** and **Open org ▾**. Only the login address is shown, never a password or other sign-in detail.'],
                                 check: 'The tab shows no open steps; the release no longer shows "n manual steps".',
                                 shot: { ill: 'manual-steps', cap: 'Manual steps: a tab per org, tick, Not needed, instructions.', alt: 'Drawing of the Manual steps card with callouts 1 one tab per org with open counts, 2 tick a done step, 3 Not needed, 4 Show instructions, 5 Add a manual step.' }
                             },
@@ -1856,9 +1858,9 @@ const USE_SECTIONS = [
                                 where: 'The release page → header',
                                 goal: 'Everything an auditor or change board asks for, in one file.',
                                 items: [
-                                    '**Download evidence (PDF)**: the release and its route, components and deletions, the pull request, scan and validation, approvals, manual steps, flows, deploys, merge back and the full history. It downloads and is saved to the release\'s **Files**.',
+                                    '**Download evidence (PDF)**: the release and its route, components and deletions, the pull request, scan and validation, approvals, manual steps, flows, deploys, merge back and the full history (oldest first). It downloads and is saved to the release\'s **Files**.',
                                     '**Copy summary**: a short plain-text summary to paste into a change request. It also shows on the page, in case the browser blocks copying.',
-                                    '**History**: a timeline, newest last: who did what, when, and how (Salesforce, Slack, Git, Rule or Pipeline), with deploy ids and links.',
+                                    '**History**: a vertical path, newest first, read top down as "this happened after that": a coloured dot per event (green done, red failed, amber rolled back or waiting, blue other) with who did what, when, and how (Salesforce, Slack, Git, Rule or Pipeline), with deploy ids and links. The PDF lists the full history oldest first, as an audit document reads.',
                                     '**Files**: each PDF is kept (for example `REL-00034 evidence 2026-10-31 16:05.pdf`, an example only). Press it again later for a newer copy; the older ones stay.'
                                 ],
                                 problems: [['Download evidence (PDF) fails', 'The message says why. Try again later; Copy summary and History still work meanwhile.']],
