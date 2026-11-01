@@ -1,0 +1,50 @@
+{
+ "request": "REL-90089",
+ "step": "scan",
+ "status": "Passed",
+ "total": 1,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Moderate": 1
+ },
+ "files": [
+  "force-app/main/default/classes/RlyBuildInfo.cls",
+  "force-app/main/default/classes/RlyBuildInfoTest.cls",
+  "force-app/main/default/classes/RlyOrgCheck.cls",
+  "force-app/main/default/classes/RlyOrgControllerTest.cls",
+  "force-app/main/default/classes/RlyRepoSettings.cls",
+  "force-app/main/default/classes/RlyRepoSettingsTest.cls",
+  "force-app/main/default/classes/RlySignInAdvice.cls",
+  "force-app/main/default/lwc/rlyBuildInfo/buildData.js",
+  "force-app/main/default/lwc/rlyBuildInfo/rlyBuildInfo.html",
+  "force-app/main/default/lwc/rlyBuildInfo/rlyBuildInfo.js",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+  "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js"
+ ],
+ "violations": [
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc/no-api-reassignments",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+   "line": 141,
+   "message": "Invalid reassignment of public property \"appendTo\"",
+   "url": "https://github.com/salesforce/eslint-plugin-lwc/blob/v3.5.0/docs/rules/no-api-reassignments.md"
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41339910942",
+ "finishedAt": "2026-11-01T19:06:04.234Z"
+}
