@@ -132,22 +132,6 @@
     margin: 0; background: #fafaf9; border: 1px solid var(--rr-line); border-radius: 4px; padding: 8px 10px;
     font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--rr-ink);
 }
-.rr-tl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.rr-tl-item { display: flex; gap: 10px; position: relative; padding-bottom: 12px; }
-.rr-tl-item::before { content: ""; position: absolute; left: 11px; top: 24px; bottom: 0; width: 2px; background: var(--rr-line); }
-.rr-tl-item:last-child { padding-bottom: 0; }
-.rr-tl-item:last-child::before { display: none; }
-.rr-tli { width: 24px; height: 24px; border-radius: 4px; flex: none; display: inline-flex; align-items: center; justify-content: center; position: relative; z-index: 1; }
-.rr-c-raise { background: #0176d3; }
-.rr-c-git { background: #444; }
-.rr-c-scan { background: #3ba755; }
-.rr-c-val { background: #06a59a; }
-.rr-c-appr { background: #2e844a; }
-.rr-c-auto { background: #7526e3; }
-.rr-c-dep { background: #0b5cab; }
-.rr-c-man { background: #dd7a01; }
-.rr-c-flow { background: #9050e9; }
-.rr-c-fail { background: #ba0517; }
 .rr-tlb { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .rr-tlb p { margin: 0; }
 .rr-tl-l1 { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; font-size: 13px; }
@@ -159,9 +143,25 @@
 /* build 20 (board HubRollbackValuesGates): rollback note, path, history colour; quality gates box; priority pills */
 .rr-rb-note { margin: 0 16px 12px; }
 .rr-path-rb { background: #dd7a01; color: #fff; font-weight: 700; }
-.rr-c-rb { background: #dd7a01; }
 .rr-gates { background: #fef1ee; border: 1px solid #f9c5bb; border-radius: 4px; padding: 10px 12px; color: #8e030f; font-size: 13px; }
 .rr-gates-title { margin: 0 0 4px; font-weight: 700; }
 .rr-gates-list { margin: 0; padding-left: 18px; list-style: disc; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
 .rr-prio { min-width: 22px; justify-content: center; }
 .rr-clash-list { margin: 4px 0 0 16px; padding: 0; list-style: disc; }
+
+/* build 22: History as a vertical path, newest first: a dot per event (green done, red failed, amber rolled back or
+   waiting, blue other), a line joining the dots and a chevron on the line pointing from the newer event to the older */
+.rr-vt { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rr-vt-item { display: flex; gap: 10px; position: relative; padding-bottom: 22px; }
+.rr-vt-item::before { content: ""; position: absolute; left: 11px; top: 24px; bottom: 0; width: 2px; background: #c9c9c9; }
+.rr-vt-item:last-child { padding-bottom: 0; }
+.rr-vt-item:last-child::before { display: none; }
+.rr-vt-dot { width: 24px; height: 24px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center; position: relative; z-index: 1; box-shadow: 0 0 0 3px #fff; }
+.rr-vt-ok { background: #2e844a; }
+.rr-vt-bad { background: #ba0517; }
+.rr-vt-wait { background: #dd7a01; }
+.rr-vt-info { background: #0176d3; }
+.rr-vt-arrow {
+    position: absolute; left: 4px; bottom: 2px; width: 16px; height: 16px; z-index: 1; display: inline-flex; align-items: center; justify-content: center;
+    background: #fff; border-radius: 50%; --slds-c-icon-color-foreground-default: #747474;
+}

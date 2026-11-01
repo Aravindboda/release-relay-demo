@@ -3,7 +3,8 @@
  * and its route, components and deletions, the pull request, the code scan with its findings, the validation (tests
  * run, coverage warnings, deploy id), approvals (who, when, where, comment, second approver), manual steps per org
  * (done by, when, notes), flow activation, the deploy (quick or full, deploy id), the branches merged back, the latest
- * rollback (org, who, when, why, what was restored and removed) and the full history. Quality gate failures of the scan
+ * rollback (org, who, when, why, what was restored and removed) and the full history (oldest first). Each section is
+ * wrapped so short ones stay on one page; print CSS (RlyEvidenceTables.PRINT_CSS) keeps rows whole and repeats headers. Quality gate failures of the scan
  * and the validation (.relay/gates.json) are listed with the checks. A release with only manual steps shows no Git lines (no branch, pull request, checks or merge commit).
  * Every value is HTML-escaped.
  */
@@ -33,8 +34,8 @@ public with sharing class RlyEvidenceHtml {
     public static String build(Source src) {
         RLY_Release__c rel = src.rel;
         List<String> parts = new List<String>{
-            '<html><head><style>body{font-family:sans-serif;font-size:10pt}table{border-collapse:collapse;width:100%}'
-            + 'td,th{border:1px solid #999;padding:3px;text-align:left;vertical-align:top}h2{font-size:12pt;margin-top:14px}</style></head><body>',
+            '<html><head><style>body{font-family:sans-serif;font-size:10pt}h2{font-size:12pt;margin:0 0 4px}'
+            + RlyEvidenceTables.PRINT_CSS + '</style></head><body>',
             '<h1>' + RlyEvidenceTables.esc(rel.Name + ' ' + RlyEvidenceText.text(rel.Title__c)) + '</h1>',
             '<p>Evidence made ' + RlyEvidenceTables.esc(src.madeOn.format('yyyy-MM-dd HH:mm z')) + ' by ' + RlyEvidenceTables.esc(UserInfo.getName()) + '</p>',
             summary(rel), components(src.items), checks(rel), approvals(rel), RlyEvidenceTables.manualSteps(src.runs),
@@ -46,7 +47,7 @@ public with sharing class RlyEvidenceHtml {
 
     private static String summary(RLY_Release__c rel) {
         Boolean manualOnly = RlyManualOnly.isManualOnly(rel);
-        String route = RlyEvidenceTables.orgName(rel.Source_Org__r) + ' → ' + RlyEvidenceTables.orgName(rel.Target_Org__r);
+        String route = RlyEvidenceTables.orgName(rel.Source_Org__r) + ' to ' + RlyEvidenceTables.orgName(rel.Target_Org__r);
         List<List<String>> rows = new List<List<String>>{
             new List<String>{ 'Route', manualOnly ? route : route + ' (' + RlyEvidenceText.text(rel.Target_Branch__c) + ')' },
             new List<String>{ 'Type', RlyPromotion.typeOf(rel) + (manualOnly ? ' · ' + RlyManualOnly.PILL : '')
@@ -56,20 +57,26 @@ public with sharing class RlyEvidenceHtml {
             new List<String>{ 'Pull request', manualOnly ? RlyManualOnly.NOT_NEEDED : RlyEvidenceText.text(rel.PR_URL__c) },
             new List<String>{ 'Description', RlyEvidenceText.text(rel.Description__c) }
         };
-        return '<h2>Release</h2>' + RlyEvidenceTables.table(null, rows);
+        return RlyEvidenceTables.section('Release', null, rows);
     }
 
+    // One row per component with what finally happens to it: a component a carried release deploys and a later one
+    // deletes shows once, as Delete.
     private static String components(List<RLY_Release_Item__c> items) {
-        List<List<String>> rows = new List<List<String>>();
+        Map<String, List<String>> byKey = new Map<String, List<String>>();
         for (RLY_Release_Item__c i : items) {
-            rows.add(new List<String>{ i.Is_Deletion__c == true ? 'Delete' : 'Deploy', i.Metadata_Type__c, i.Component_Name__c });
+            String key = i.Metadata_Type__c + ':' + i.Component_Name__c;
+            if (i.Is_Deletion__c == true || !byKey.containsKey(key)) {
+                byKey.put(key, new List<String>{ i.Is_Deletion__c == true ? 'Delete' : 'Deploy', i.Metadata_Type__c, i.Component_Name__c });
+            }
         }
-        return '<h2>Components (' + items.size() + ')</h2>' + RlyEvidenceTables.table(new List<String>{ 'Change', 'Type', 'Name' }, rows);
+        return RlyEvidenceTables.section('Components (' + byKey.size() + ')', new List<String>{ 'Change', 'Type', 'Name' },
+            byKey.values());
     }
 
     private static String checks(RLY_Release__c rel) {
         if (RlyManualOnly.isManualOnly(rel)) {
-            return '<h2>Checks</h2>' + RlyEvidenceTables.table(null, new List<List<String>>{
+            return RlyEvidenceTables.section('Checks', null, new List<List<String>>{
                 new List<String>{ 'Code scan and validation', RlyManualOnly.NOT_NEEDED } });
         }
         RlyEvidenceText.Validation v = RlyEvidenceText.validationOf(rel.Validation_Result__c);
@@ -85,7 +92,7 @@ public with sharing class RlyEvidenceHtml {
         for (String g : RlyEvidenceTables.gateFailures(rel)) {
             rows.add(new List<String>{ 'Quality gate failed', g });
         }
-        return '<h2>Checks</h2>' + RlyEvidenceTables.table(null, rows) + findings(rel);
+        return RlyEvidenceTables.section('Checks', null, rows) + findings(rel);
     }
 
     private static String findings(RLY_Release__c rel) {
@@ -99,7 +106,7 @@ public with sharing class RlyEvidenceHtml {
                     RlyEvidenceText.str(m.get('message')) });
             }
         }
-        return rows.isEmpty() ? '' : '<h2>Code scan findings</h2>' + RlyEvidenceTables.table(new List<String>{ 'Severity', 'Rule', 'Where', 'Message' }, rows);
+        return rows.isEmpty() ? '' : RlyEvidenceTables.section('Code scan findings', new List<String>{ 'Severity', 'Rule', 'Where', 'Message' }, rows);
     }
 
     private static String approvals(RLY_Release__c rel) {
@@ -112,12 +119,12 @@ public with sharing class RlyEvidenceHtml {
                 + RlyEvidenceTables.stamp(rel.Second_Approved_On__c) },
             new List<String>{ 'Rule', RlyEvidenceText.text(RlyReleaseHistory.approvalReason(rel)) }
         };
-        return '<h2>Approval</h2>' + RlyEvidenceTables.table(null, rows);
+        return RlyEvidenceTables.section('Approval', null, rows);
     }
 
     private static String deploy(RLY_Release__c rel) {
         if (RlyManualOnly.isManualOnly(rel)) {
-            return '<h2>Deploy</h2>' + RlyEvidenceTables.table(null, new List<List<String>>{
+            return RlyEvidenceTables.section('Deploy', null, new List<List<String>>{
                 new List<String>{ 'Deploy to ' + RlyEvidenceTables.orgName(rel.Target_Org__r), RlyEvidenceText.text(rel.Deploy_Status__c)
                     + ' (manual steps only: deployed when its manual steps are done; no merge commit)' } });
         }
@@ -129,6 +136,6 @@ public with sharing class RlyEvidenceHtml {
         if (String.isNotBlank(rel.Back_Merge_Result__c)) {
             rows.add(new List<String>{ 'Branches merged back', RlyEvidenceText.backMergeCounts(rel.Back_Merge_Result__c) });
         }
-        return '<h2>Deploy</h2>' + RlyEvidenceTables.table(null, rows);
+        return RlyEvidenceTables.section('Deploy', null, rows);
     }
 }
