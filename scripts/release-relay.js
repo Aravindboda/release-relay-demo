@@ -1100,13 +1100,16 @@ function valuesHash(used) {
  */
 function prepareDeployValues(plan, envName) {
     deployValues = { replaced: 0, files: [], hash: '' };
+    if (selfUpdate()) {
+        return ''; // the hub updating itself: Release Relay's own files hold placeholder examples, never values
+    }
     const edits = [];
     const missing = [];
     const used = new Map();
     for (const f of deploymentFiles(plan.sources || [])) {
         const text = readText(f);
-        if (text === null || !text.includes('{{relay:')) {
-            continue;
+        if (text === null || !text.includes('{{relay:') || isExcluded(f, 'HEAD')) {
+            continue; // Release Relay's own files (the exclude list) are never filled
         }
         if (relayValues.error) {
             return `${relayValues.error} It's needed for ${relToSource(f)}.`;
@@ -1141,7 +1144,7 @@ function prepareDeployValues(plan, envName) {
  * always hold placeholders. Returns { count, error }.
  */
 function tokenizeFiles(files, envName) {
-    if (!relayValues.present || !envName) {
+    if (!relayValues.present || !envName || selfUpdate()) {
         return { count: 0, error: '' };
     }
     if (relayValues.error) {
