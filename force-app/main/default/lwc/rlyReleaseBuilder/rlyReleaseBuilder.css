@@ -242,3 +242,12 @@
     .rr-bar-text { flex-basis: 100%; order: -1; }
     .rr-manual-only { flex: 1 1 auto; }
 }
+
+/* compare (board HubCompare 1): a text link on every row, Compare all above the list */
+.rr-files-top { display: flex; align-items: center; gap: 8px; padding-right: 6px; }
+.rr-files-top .rr-files-head { margin-right: 0; }
+.rr-cmp-all { height: 26px; line-height: 24px; padding: 0 10px; font-size: 12px; }
+.rr-cmp-link { border: 0; background: transparent; padding: 2px 4px; font: inherit; font-size: 12px; color: var(--rr-link); cursor: pointer; white-space: nowrap; align-self: center; }
+.rr-cmp-link:hover { text-decoration: underline; }
+.rr-cmp-link:disabled { color: var(--rr-muted); cursor: default; text-decoration: none; }
+.rr-files-fnote { margin: 8px 10px 6px; font-size: 11px; color: #747474; line-height: 1.4; }

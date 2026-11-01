@@ -165,3 +165,17 @@
     position: absolute; left: 4px; bottom: 2px; width: 16px; height: 16px; z-index: 1; display: inline-flex; align-items: center; justify-content: center;
     background: #fff; border-radius: 50%; --slds-c-icon-color-foreground-default: #747474;
 }
+
+/* Components | Changes tabs in the Details card (board HubCompare, 4) */
+.rr-tabs { display: flex; gap: 2px; border-top: 1px solid var(--rr-line); border-bottom: 1px solid var(--rr-line); padding: 0 16px; margin-top: 8px; }
+.rr-tab {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 0; border-bottom: 3px solid transparent;
+    background: transparent; font: inherit; font-size: 13px; color: var(--rr-ink); white-space: nowrap; cursor: pointer;
+}
+.rr-tab:hover, .rr-tab:focus { color: #0b5cab; }
+.rr-tab-on { border-bottom-color: #0176d3; font-weight: 700; }
+.rr-tab-c {
+    font-style: normal; display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 9px;
+    background: #f3f3f3; color: #444; font-size: 11px; font-weight: 700;
+}
+.rr-tab-on .rr-tab-c { background: #0176d3; color: #fff; }

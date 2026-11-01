@@ -36,7 +36,7 @@ const LOGIN_OPTIONS = [
 ];
 const LOGIN_LABELS = LOGIN_OPTIONS.reduce((m, o) => ({ ...m, [o.value]: o.label }), {});
 const ENVIRONMENT_OPTIONS = [
-    { label: 'Developer sandbox', value: 'Developer' },
+    { label: 'Developer sandbox or Developer Edition', value: 'Developer' },
     { label: 'Developer Pro sandbox', value: 'Developer_Pro' },
     { label: 'Partial Copy sandbox', value: 'Partial_Copy' },
     { label: 'Full Copy sandbox', value: 'Full_Copy' },
@@ -164,6 +164,27 @@ function repoFileUrl(git, branch, filePath) {
         default:
             return 'https://github.com/' + enc(repo) + '/blob/' + enc(branch) + '/' + enc(filePath);
     }
+}
+
+/** Sandbox types: what a sandbox login can be. */
+const SANDBOX_ENVIRONMENTS = ['Developer', 'Developer_Pro', 'Partial_Copy', 'Full_Copy'];
+
+/**
+ * The sign-in fields that follow from the role and login type: the hub is production (Production login and
+ * environment); any other org with a Production login is a Developer Edition (Developer); a sandbox login is a sandbox
+ * type, never Production.
+ */
+function settleOrgKind(f) {
+    const next = { ...f };
+    if (next.Role__c === 'Hub') {
+        next.Login_Type__c = 'Production';
+        next.Environment__c = 'Production';
+    } else if (next.Login_Type__c === 'Production') {
+        next.Environment__c = 'Developer';
+    } else if (next.Login_Type__c === 'Sandbox' && !SANDBOX_ENVIRONMENTS.includes(next.Environment__c)) {
+        next.Environment__c = null;
+    }
+    return next;
 }
 
 /** Production or Sandbox, read from the My Domain when no login type was chosen. */
@@ -844,6 +865,14 @@ export default class RlyPipeline extends LightningElement {
     get activeTabEmpty() { return this.activeGroup.tiles.length === 0; }
     get activeTabEmptyText() { return 'No orgs in ' + this.activeGroup.name + ' yet.'; }
     get activeTabId() { return this.activeGroup.tabId; }
+    /** Production holds the hub alone: once it's registered, its tab has no Register tile. */
+    get showRegisterTile() {
+        return this.isAdmin && !(this.activeGroup.value === 'Production' && this.orgs.some((o) => o.Role__c === 'Hub'));
+    }
+    get productionNote() {
+        return this.activeGroup.value === 'Production' && this.isAdmin && !this.showRegisterTile
+            ? 'Production holds one org: the hub. Register other orgs on their sandbox tab.' : null;
+    }
     get registerTileHint() {
         const v = this.activeGroup.value;
         return v && v !== OTHER_TAB ? 'Opens with ' + this.activeGroup.name + ' chosen' : 'Choose its Salesforce environment';
@@ -1287,7 +1316,40 @@ export default class RlyPipeline extends LightningElement {
             { label: 'Stage (an org on the route)', value: 'Stage' },
             { label: 'Hub (this org, production)', value: 'Hub' },
             { label: 'Back promote (after production)', value: BACK_PROMOTE }
-        ];
+        ].filter((r) => r.value !== 'Hub' || !this.otherProductionOrg);
+    }
+
+    /** The registered hub when it isn't the org in the form: there's only one hub. */
+    get otherProductionOrg() {
+        return this.orgs.find((o) => o.Role__c === 'Hub' && o.Id !== this.form.Id);
+    }
+    /** The hub's role can't change (there must always be one), so its Role box is grey. */
+    get roleLocked() { return !!(this.editOrg && this.editOrg.Role__c === 'Hub'); }
+    /** The hub signs in as production: its login type is grey. */
+    get loginLocked() { return this.formIsHub || !!(this.form.My_Domain__c || '').trim(); }
+    get loginHint() {
+        if (this.formIsHub) {
+            return 'The hub signs in as production.';
+        }
+        return 'Read from the My Domain URL: a .sandbox. domain is a sandbox login, any other a production login.';
+    }
+    /** The environment follows the role and login type, except for a sandbox login (which sandbox type it is). */
+    get environmentLocked() { return this.formIsHub || this.form.Login_Type__c === 'Production'; }
+    /** A sandbox login picks a sandbox type; Production belongs to the hub alone. */
+    get formEnvironmentOptions() {
+        if (this.formIsHub) {
+            return ENVIRONMENT_OPTIONS.filter((e) => e.value === 'Production');
+        }
+        return ENVIRONMENT_OPTIONS.filter((e) => e.value !== 'Production');
+    }
+    get environmentHint() {
+        if (this.formIsHub) {
+            return 'The hub is the production org.';
+        }
+        if (this.form.Login_Type__c === 'Production') {
+            return 'A production login that isn\'t the hub is a Developer Edition org.';
+        }
+        return this.form.Login_Type__c === 'Sandbox' ? 'Which sandbox type it is. New Release groups the orgs by it.' : 'Follows the My Domain URL: enter it first.';
     }
 
     /** Developer, Hub, or the stage's place on the route (Stage 1, Stage 2…). */
@@ -2074,7 +2136,7 @@ export default class RlyPipeline extends LightningElement {
     /** Register an org (page header, or a tab's "+ Register an org" tile: that tab's environment comes chosen). */
     handleRegister(event) {
         const env = event && event.currentTarget && event.currentTarget.dataset ? event.currentTarget.dataset.env : undefined;
-        this.startAdd(ENVIRONMENT_LABELS[env] ? env : undefined);
+        this.startAdd(ENVIRONMENT_LABELS[env] && env !== 'Production' ? env : undefined);
     }
 
     /** Opens the Register an org window at its first step (Sign-in), empty fields with grey hints. */
@@ -2100,12 +2162,12 @@ export default class RlyPipeline extends LightningElement {
         const ap = approvals(o);
         const b = this.bpFor(o);
         this.editOrg = o;
-        this.form = {
+        this.form = settleOrgKind({
             ...blankForm(), ...o, Consumer_Key__c: '',
             Approve_In_Salesforce__c: ap.sf || !(this.slackAvailable && ap.slack), Approve_In_Slack__c: ap.slack, Require_Git_Review__c: ap.git,
             Slack_Channel__c: o.Slack_Channel__c || '', Slack_Post__c: !!o.Slack_Post__c, Hotfix_Two_Approvers__c: o.Hotfix_Two_Approvers__c === true,
             Approval_Rule__c: ruleOf(o), approvalTypes: typesOf(o), Code_Scan__c: scanChoiceOf(o)
-        };
+        });
         this.ruleError = undefined;
         this.bpForm = { whenValue: b.whenValue || 'Manual', approval: b.approval === true };
         this.bounced = false;
@@ -2213,18 +2275,15 @@ export default class RlyPipeline extends LightningElement {
         const field = event.target.dataset.field;
         const value = event.detail && event.detail.value !== undefined ? event.detail.value : event.target.value;
         const next = { ...this.form, [field]: value };
-        // A sandbox My Domain means a sandbox login.
-        if (field === 'My_Domain__c' && /\.sandbox\.my\.salesforce\.com/i.test(value || '')) {
-            next.Login_Type__c = 'Sandbox';
+        // The My Domain says the login type: a sandbox domain is a sandbox login, any other is a production login.
+        if (field === 'My_Domain__c') {
+            next.Login_Type__c = (value || '').trim() ? loginFor(value) : null;
         }
         // The hub is the production org.
-        if (field === 'Role__c' && value === 'Hub') {
-            next.Environment__c = 'Production';
-            if (next.Approval_Rule__c === RULE_NEVER) {
-                next.Approval_Rule__c = RULE_ALWAYS;
-            }
+        if (field === 'Role__c' && value === 'Hub' && next.Approval_Rule__c === RULE_NEVER) {
+            next.Approval_Rule__c = RULE_ALWAYS;
         }
-        this.form = next;
+        this.form = ['Role__c', 'Login_Type__c', 'My_Domain__c'].includes(field) ? settleOrgKind(next) : next;
         this.editError = undefined;
     }
 
@@ -2266,6 +2325,7 @@ export default class RlyPipeline extends LightningElement {
         if (!payload.Login_Type__c) {
             payload.Login_Type__c = loginFor(payload.My_Domain__c);
         }
+        Object.assign(payload, settleOrgKind(payload));
         const key = (f.Consumer_Key__c || '').trim();
         if (key) {
             payload.Consumer_Key__c = key;
