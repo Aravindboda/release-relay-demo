@@ -226,3 +226,6 @@
 /* a release with only manual steps: the toggle in the Select bar and the note on Review */
 .rr-manual-only { flex: 0 0 auto; display: flex; align-items: center; }
 .rr-files-note { margin: 6px 10px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+
+/* while the org's mode is read (RlyHubGuard.getHubStatus) */
+.rr-wait { position: relative; min-height: 120px; }

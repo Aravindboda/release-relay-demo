@@ -967,7 +967,7 @@ const SETUP_SECTIONS = [
                                 who: 'Salesforce admin',
                                 where: 'Setup → Sandboxes → New Sandbox (or Refresh) → Apex Class',
                                 goal: 'A sandbox made from production copies Release Relay; it must not act as the hub.',
-                                items: ['Pick `RlySandboxCopy` as the Apex Class. When the copy is ready it switches Slack off and marks the Git connection Not checked. Release Relay refuses actions there anyway.'],
+                                items: ['Pick `RlySandboxCopy` as the Apex Class. When the copy is ready it switches Slack off, marks the Git connection Not checked and removes everyone\'s assignments of Release Relay\'s own permission sets (`RLY_Developer`, `RLY_Approver`, `RLY_Deploy_Team`, `RLY_Slack_Site`; `RLY_Admin` stays, and your own sets are left alone). Release Relay detects the sandbox by itself and refuses actions there anyway.'],
                                 links: [{ label: 'Sandbox copies of the hub', to: 'sandboxcopy' }]
                             },
                             {
@@ -1908,26 +1908,27 @@ const REF_SECTIONS = [
                 key: 'sc-main',
                 title: 'Sandbox copies of the hub',
                 blocks: [
-                    { type: 'text', paras: ['A sandbox refreshed from production copies Release Relay with everything in it: the orgs, the route, the Git connection, Slack and the approval rules. Left alone, that copy could raise, approve and deploy releases into the real orgs as if it were production. So Release Relay only acts in the org registered as the hub.'] },
+                    { type: 'text', paras: ['A sandbox refreshed from production copies Release Relay with everything in it: the orgs, the route, the Git connection, Slack and the approval rules. Left alone, that copy could raise, approve and deploy releases into the real orgs as if it were production. So Release Relay runs only in production, the org registered as the hub: in any sandbox it detects the sandbox by itself and shows only the Guide\'s Set up.'] },
                     {
                         type: 'steps',
                         steps: [
                             {
-                                title: 'What happens in a copy',
+                                title: 'What happens in a sandbox',
                                 where: 'Every Release Relay tab',
                                 items: [
-                                    'A warning at the top of each tab says it is a copy of the hub, not production.',
-                                    'Raise, approve, reject, check again, resolve conflicts, promote, sync now, manual step check-offs and the Pipeline tab\'s edits and tests are switched off, and the hub refuses them too (also from Slack).',
-                                    'Reading still works: the release lists and pages, History, Download evidence (PDF), Copy summary and Export CSV.'
+                                    'In a copy of the hub (refreshed from production) and in any other sandbox, each tab shows only a notice: this is a sandbox copy of the hub, or this org is a sandbox. The Guide shows only Set up and this page.',
+                                    'Raise, approve, reject, check again, resolve conflicts, promote, sync now, manual step check-offs and the Pipeline tab\'s edits and tests are refused (also from Slack).',
+                                    'If the post-copy class wasn\'t picked during the refresh, nothing runs anyway: Release Relay detects the sandbox by itself. Turning it on in the sandbox switches Slack and Git off first.'
                                 ]
                             },
                             {
-                                title: 'Use a copy on purpose',
+                                title: 'Turn it on in a sandbox on purpose',
                                 who: 'Admin',
                                 where: 'Pipeline tab in the sandbox',
                                 items: [
-                                    'To run Release Relay in the sandbox (for example to try a new route), register that sandbox as its own hub: its org record with the role **Hub** and the sandbox\'s own Org Id, its own Git repository or branches, and its own Slack channels.',
-                                    'Never point a copy at production\'s repository or orgs.'
+                                    'To try Release Relay in a sandbox (for example a new route), an admin turns on **Turn Release Relay on in this sandbox** on the Pipeline tab\'s notice, for 1 to 90 days (30 if left blank). It first switches Slack off and sets the Git connection to Not checked; they stay off until an admin reconnects them. Every tab then says until when it is on and who turned it on, and Pipeline has **Turn off**.',
+                                    'A refresh resets it: the sandbox gets a new Org Id, so the setting stops counting.',
+                                    'Reconnect Git and Slack to the sandbox\'s own repository or branches and channels. Never point a sandbox at production\'s repository or orgs.'
                                 ]
                             },
                             {
@@ -1935,7 +1936,7 @@ const REF_SECTIONS = [
                                 who: 'Admin',
                                 where: 'Setup → Sandboxes → New Sandbox (or Refresh)',
                                 items: [
-                                    'In **Apex Class**, pick `RlySandboxCopy`. When the copy is ready it switches Slack off and marks the Git connection Not checked, so nothing posts or runs from the copy before an admin looks at it.'
+                                    'In **Apex Class**, pick `RlySandboxCopy`. When the copy is ready it switches Slack off, marks the Git connection Not checked and removes everyone\'s assignments of Release Relay\'s own permission sets (`RLY_Developer`, `RLY_Approver`, `RLY_Deploy_Team`, `RLY_Slack_Site`; `RLY_Admin` stays, and your own sets are left alone), so only admins see the copy. If Salesforce refuses to remove them in the same step, the Git connection\'s note says so: remove them in Setup → Permission Sets.'
                                 ]
                             }
                         ]
@@ -1970,7 +1971,7 @@ const REF_SECTIONS = [
                             ['A flow: activation failed', 'The org\'s integration user needs the **Manage Flow** permission, or the flow version has errors in that org. Activate it in Setup → Flows, or raise again.'],
                             ['Approved automatically, but you expected an approver', 'Check the target org\'s approval rule on the Pipeline tab: Always, or tick the kind of change under Only when the release contains….'],
                             ['Download evidence (PDF) fails', 'The message says why. Try again later; Copy summary and the History card still work meanwhile.'],
-                            ['A warning: this is a copy of the hub (sandbox), not production', 'The sandbox was copied from production. Actions are off here on purpose; see Sandbox copies of the hub.'],
+                            ['A notice: this is a sandbox copy of the hub, or this org is a sandbox', 'Release Relay runs only in production. Do Set up there; see Sandbox copies of the hub.'],
                             ['Waiting for reviewers in the Git provider', 'The org requires the provider\'s reviewers too, or its environment has required reviewers: approve there, or change the org card / environment.']
                         ]
                     },

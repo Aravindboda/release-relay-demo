@@ -11,6 +11,9 @@ import raiseRelease from '@salesforce/apex/RlyReleasesController.raiseRelease';
 import flowVersions from '@salesforce/apex/RlyChangesController.flowVersions';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 
+/** Modes of RlyHubGuard.getHubStatus in which the tab shows only the org gate. */
+const GATED_MODES = ['sandbox', 'copy', 'setup'];
+
 const TYPES_PER_CALL = 24;
 const PARALLEL = 4;
 const PAGE = 200;
@@ -99,12 +102,19 @@ const ENVIRONMENTS = [
 ];
 
 export default class RlyReleaseBuilder extends LightningElement {
-    /** RlyHubGuard.getHubStatus: whether this org is a sandbox copy of the hub (then a banner, and the actions are off). */
+    /**
+     * RlyHubGuard.getHubStatus: the org's mode (hub, setup, sandbox, copy). In a sandbox, a sandbox copy of the hub or a
+     * production org not set up yet this tab shows only rlyOrgGate, and nothing else is loaded.
+     */
     hubStatus;
+    /** The status has been read, or failed to read (then the tab works as on the hub: the server refuses actions anyway). */
+    statusRead = false;
     get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
     get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
+    get gated() { return !!this.hubStatus && GATED_MODES.includes(this.hubStatus.mode); }
+    get showPage() { return this.statusRead && !this.gated; }
 
-    /** Reads the hub status once. A failed read shows nothing: the server refuses the actions anyway. */
+    /** Reads the hub status once, then loads the page only on the hub. */
     readHubStatus() {
         getHubStatus()
             .then((status) => {
@@ -112,6 +122,12 @@ export default class RlyReleaseBuilder extends LightningElement {
             })
             .catch(() => {
                 this.hubStatus = undefined;
+            })
+            .finally(() => {
+                this.statusRead = true;
+                if (!this.gated) {
+                    this.loadPage();
+                }
             });
     }
 
@@ -158,6 +174,10 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     connectedCallback() {
         this.readHubStatus();
+    }
+
+    /** The sources to raise from (on the hub only). */
+    loadPage() {
         this.loading = true;
         getStart()
             .then((s) => {

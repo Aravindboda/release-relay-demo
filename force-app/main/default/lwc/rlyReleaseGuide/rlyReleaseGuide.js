@@ -15,6 +15,9 @@ import SECTIONS, { GROUPS, PROVIDERS, PIPELINE_FILES } from './guideContent';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 
 const PIPELINE_TAB = 'RLY_Pipeline';
+/** Modes of RlyHubGuard.getHubStatus in which the Guide shows only Set up and Sandbox copies of the hub. */
+const SANDBOX_MODES = ['sandbox', 'copy'];
+const SANDBOX_SECTION = 'sandboxcopy';
 const RESOURCE_URLS = {
     RLY_Pipeline_GitHub: PIPE_GITHUB,
     RLY_Pipeline_GitLab: PIPE_GITLAB,
@@ -87,12 +90,24 @@ function filesStatusText(st) {
 
 /** The Release Relay guide: a left navigation (Start here, Daily use, Reference) and the chosen section on the right. */
 export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
-    /** RlyHubGuard.getHubStatus: whether this org is a sandbox copy of the hub (then a banner, and the actions are off). */
+    /**
+     * RlyHubGuard.getHubStatus: the org's mode. In a sandbox or a sandbox copy of the hub the Guide shows the notice, then
+     * only Set up and Sandbox copies of the hub; in production not set up yet it opens at Set up.
+     */
     hubStatus;
+    /** The status has been read, or failed to read (then the full Guide shows). */
+    statusRead = false;
+    /** The user picked a section: the status no longer moves them. */
+    navigated = false;
     get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
     get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
+    /** A sandbox or a copy of the hub (no override): the notice and the Set up sections only. */
+    get limited() { return !!this.hubStatus && SANDBOX_MODES.includes(this.hubStatus.mode); }
+    get notLimited() { return !this.limited; }
+    /** Set up in a sandbox: these steps are done in production. */
+    get showSandboxLine() { return this.limited && this.section.group === 'setup'; }
 
-    /** Reads the hub status once. A failed read shows nothing: the server refuses the actions anyway. */
+    /** Reads the hub status once; then, outside a sandbox, what the Guide reads from the hub. */
     readHubStatus() {
         getHubStatus()
             .then((status) => {
@@ -100,6 +115,16 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
             })
             .catch(() => {
                 this.hubStatus = undefined;
+            })
+            .finally(() => {
+                this.statusRead = true;
+                const mode = this.hubStatus && this.hubStatus.mode;
+                if (!this.navigated && (this.limited || mode === 'setup')) {
+                    this.current = 'setup';
+                }
+                if (!this.limited) {
+                    this.readFromHub();
+                }
             });
     }
 
@@ -123,6 +148,10 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
     connectedCallback() {
         this.setupDone = readDone();
         this.readHubStatus();
+    }
+
+    /** The pipeline files' versions and the Git connection's provider (not in a sandbox: they are production's). */
+    readFromHub() {
         this.loadFilesIfShown();
         // The Git connection decides which provider tab opens first (admins only: the setup sections are theirs).
         if (IS_ADMIN) {
@@ -170,6 +199,9 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
     get gitlab() { return this.provider === 'GitLab'; }
 
     get visibleSections() {
+        if (this.limited) {
+            return SECTIONS.filter((s) => s.group === 'setup' || s.key === SANDBOX_SECTION);
+        }
         return SECTIONS.filter((s) => !s.adminOnly || IS_ADMIN);
     }
 
@@ -194,7 +226,7 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
     }
 
     loadFilesIfShown() {
-        if (!IS_ADMIN || this.pipeStatus || this.pipeLoading || !this.filesShown) {
+        if (!IS_ADMIN || this.limited || !this.statusRead || this.pipeStatus || this.pipeLoading || !this.filesShown) {
             return;
         }
         this.pipeLoading = true;
@@ -462,6 +494,7 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
     // ---------- events ----------
 
     handleNav(event) {
+        this.navigated = true;
         this.current = event.currentTarget.dataset.name;
         this.zoom = undefined;
         this.loadFilesIfShown();

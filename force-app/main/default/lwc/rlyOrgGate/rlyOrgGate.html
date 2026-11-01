@@ -1,0 +1,44 @@
+<template>
+    <template lwc:if={isOverride}>
+        <div class="rr-override" role="status">
+            <lightning-icon icon-name="utility:info" size="x-small" alternative-text="Info"></lightning-icon>
+            <p class="rr-override-text">{overrideNote}</p>
+            <template lwc:if={canTurnOff}>
+                <lightning-button variant="base" label="Turn off" onclick={turnOff} disabled={busy}></lightning-button>
+            </template>
+        </div>
+        <template lwc:if={error}><p class="rr-gate-error" role="alert">{error}</p></template>
+    </template>
+    <template lwc:if={showCard}>
+        <article class="slds-card rr-gate" aria-label={title}>
+            <span class={iconCls}><lightning-icon icon-name={icon} size="small" alternative-text=""></lightning-icon></span>
+            <h2 class="rr-gate-title">{title}</h2>
+            <p class="rr-gate-text">{message}</p>
+            <template lwc:if={hasButtons}>
+                <div class="rr-gate-buttons">
+                    <template lwc:if={showSetupButton}>
+                        <lightning-button variant="brand" label="Open setup" onclick={openSetup}></lightning-button>
+                    </template>
+                    <template lwc:if={showGuide}>
+                        <lightning-button variant={guideVariant} label="Open the Guide" onclick={openGuide}></lightning-button>
+                    </template>
+                </div>
+            </template>
+            <template lwc:if={canSwitch}>
+                <div class="rr-gate-switch">
+                    <lightning-input type="toggle" label="Turn Release Relay on in this sandbox" checked={switchOn}
+                        message-toggle-active="On" message-toggle-inactive="Off" onchange={handleSwitch}></lightning-input>
+                    <template lwc:if={switchOn}>
+                        <p class="rr-gate-confirm">Release Relay then acts as the hub in this sandbox: it can raise, approve and deploy to the orgs registered here. Slack is switched off and the Git connection set to Not checked first; they stay off until an admin reconnects them. A refresh turns it off.</p>
+                        <div class="rr-gate-row">
+                            <lightning-input class="rr-gate-days" type="number" label="Days (1 to 90)" placeholder="30" min="1" max="90" step="1"
+                                value={days} onchange={handleDays}></lightning-input>
+                            <lightning-button variant="brand" label="Turn on" onclick={turnOn} disabled={cantTurnOn}></lightning-button>
+                        </div>
+                    </template>
+                    <template lwc:if={error}><p class="rr-gate-error" role="alert">{error}</p></template>
+                </div>
+            </template>
+        </article>
+    </template>
+</template>

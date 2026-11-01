@@ -86,3 +86,6 @@
     width: 22px; height: 22px; border-radius: 50%; background: #f3f3f3; color: #444; font-size: 12px; font-weight: 700;
     display: flex; align-items: center; justify-content: center; flex: none;
 }
+
+/* while the org's mode is read (RlyHubGuard.getHubStatus) */
+.rr-wait { position: relative; min-height: 120px; }
