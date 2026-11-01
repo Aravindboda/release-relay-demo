@@ -1,530 +1,77 @@
 {
  "request": "REL-90102",
  "step": "validate",
- "status": "Failed",
- "changed": 245,
+ "status": "Passed",
+ "changed": 10,
  "deleted": [],
- "mergedWith": null,
- "ok": false,
- "testLevel": "NoTestRun",
- "deployId": "0AfgL00000cIPA9SAO",
- "testsRun": 0,
- "tests": [],
- "coverageWarnings": [],
- "componentErrors": [
-  {
-   "type": "NamedCredential",
-   "name": "RLY_Slack",
-   "problem": "Property 'description' not valid in version 62.0"
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyApprovalRuns",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyApprovalRunsTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyApprovalService",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyApprovalServiceTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyConflictService : Dependent class is invalid and needs recompilation:\n Class RlyApprovalService : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyApprover",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackDelivery : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Unexpected token 'by'.",
-   "line": 85
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyAzureRepos",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyBitbucket",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyChangesController",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleaseStart : Dependent class is invalid and needs recompilation:\n Class RlyGitName : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyChangesControllerTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyChangesController : Dependent class is invalid and needs recompilation:\n Class RlyReleaseStart : Dependent class is invalid and needs recompilation:\n Class RlyGitName : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyCheckReader",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyStatusReader : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyCheckReaderTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyApprovalService : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyConflictService",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyApprovalService : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyConflictServiceTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyConflictService : Dependent class is invalid and needs recompilation:\n Class RlyApprovalService : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyConsumerKeyTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyGitName : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyDeployReader",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyDeployReaderTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyStatusReader : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyGit",
-   "problem": "protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyGitAdvice",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyGitAdviceTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGitAdvice : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyGitCheck",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyGitHub",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyGitLab",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyGitName",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyGitProvidersTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGitName : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyGitValidator",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyHotfixTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyConflictService : Dependent class is invalid and needs recompilation:\n Class RlyApprovalService : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgController",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGitName : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgControllerTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyGitName : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgSessionTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyGitName : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgValidator",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyApprover : Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackDelivery : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Unexpected token 'by'.",
-   "line": 85
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyPipelineRun",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyPullRequestClose",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyPullRequestCloseTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyPullRequestClose : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRaiseServiceTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyConflictService : Dependent class is invalid and needs recompilation:\n Class RlyApprovalService : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyReleasePhase",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyReleaseStart",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGitName : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyReleasesController",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyConflictService : Dependent class is invalid and needs recompilation:\n Class RlyApprovalService : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRouteController",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyGitCheck : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRouteControllerTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRouteController : Dependent class is invalid and needs recompilation:\n Class RlyGitCheck : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlack",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackDelivery : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Unexpected token 'by'.",
-   "line": 85
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackAction",
-   "problem": "External string does not exist: RLY_App_Name",
-   "line": 142
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackActions",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackAction : External string does not exist: RLY_App_Name",
-   "line": 142
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackActionsTest",
-   "problem": "External string does not exist: RLY_App_Name",
-   "line": 124
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackActionsTest",
-   "problem": "External string does not exist: RLY_App_Name",
-   "line": 198
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCard",
-   "problem": "Unexpected token 'by'.",
-   "line": 85
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCard",
-   "problem": "Unexpected token 'by'.",
-   "line": 106
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCard",
-   "problem": "Unexpected token 'by'.",
-   "line": 124
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCard",
-   "problem": "Unexpected token 'by'.",
-   "line": 124
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCard",
-   "problem": "Unexpected token 'name'.",
-   "line": 124
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCard",
-   "problem": "Unexpected token 'name'.",
-   "line": 124
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCard",
-   "problem": "Unexpected token ')'.",
-   "line": 124
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCard",
-   "problem": "Variable does not exist: name",
-   "line": 125
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCard",
-   "problem": "Variable does not exist: name",
-   "line": 125
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCard",
-   "problem": "External string does not exist: RLY_App_Name",
-   "line": 59
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCard",
-   "problem": "Invalid type: approverName",
-   "line": 85
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCard",
-   "problem": "Unreachable statement",
-   "line": 85
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCard",
-   "problem": "Invalid type: approverName",
-   "line": 106
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCard",
-   "problem": "Unreachable statement",
-   "line": 106
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackController",
-   "problem": "External string does not exist: RLY_App_Name",
-   "line": 127
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackController",
-   "problem": "External string does not exist: RLY_App_Name",
-   "line": 203
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackDelivery",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Unexpected token 'by'.",
-   "line": 85
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackDirectory",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackController : External string does not exist: RLY_App_Name",
-   "line": 127
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackMessage",
-   "problem": "External string does not exist: RLY_App_Name",
-   "line": 20
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackReply",
-   "problem": "Method does not exist or incorrect signature: void by(String) from the type RlySlackCard",
-   "line": 28
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackRules",
-   "problem": "External string does not exist: RLY_App_Name",
-   "line": 21
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackRules",
-   "problem": "Method does not exist or incorrect signature: void matcher(String) from the type String",
-   "line": 37
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackTest",
-   "problem": "External string does not exist: RLY_App_Name",
-   "line": 73
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackTest",
-   "problem": "External string does not exist: RLY_App_Name",
-   "line": 266
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyStatusReader",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyStatusReaderTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyConflictService : Dependent class is invalid and needs recompilation:\n Class RlyApprovalService : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyGit : protected methods cannot be static",
-   "line": 275
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Slack_Site",
-   "problem": "Description: data value too large: For the guest user of the Salesforce Site that receives Slack&#39;s Approve and Reject (Apex REST /rly/slack/actions) only. The code checks Slack&#39;s signature and the linked approver, then works in system mode. Also grant the Git credential&#39;s principal (External Credential Principal Access) here. (max length=255)"
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipeline",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController"
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipeline",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController"
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipeline",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController"
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipeline",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController"
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipeline",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController"
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipeline",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController"
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipeline",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController"
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipeline",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController"
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipeline",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController"
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipeline",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController"
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipeline",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController"
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipeline",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController"
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipeline",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyOrgController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlyRouteController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController'.\nUnable to find Apex action class referenced as 'RlySlackController"
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Admin",
-   "problem": "In field: apexClass - no ApexClass named RlyOrgController found"
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Approver",
-   "problem": "In field: apexClass - no ApexClass named RlyReleasesController found"
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Developer",
-   "problem": "In field: apexClass - no ApexClass named RlyChangesController found"
-  }
+ "mergedWith": "670c38c8c95e828f47c9dcc9fc42aacdbcb3a69c",
+ "validatedTree": "2fd140d1e3d81fc4be22d8b240cb2443fa11ffac",
+ "environment": "prod",
+ "ok": true,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0Afg800000K7RHjCAN",
+ "testsRun": 277,
+ "tests": [
+  "RlyAppendTest",
+  "RlyApprovalRulesTest",
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyBackPromoteTest",
+  "RlyBuildInfoTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyCompareTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyDeletionFinderTest",
+  "RlyDeployReaderTest",
+  "RlyEvidenceTest",
+  "RlyFlowActivationTest",
+  "RlyGitAdviceTest",
+  "RlyGitProvidersTest",
+  "RlyHotfixTest",
+  "RlyHubGuardTest",
+  "RlyManualOnlyTest",
+  "RlyManualStepGateTest",
+  "RlyManualStepsTest",
+  "RlyOrgControllerTest",
+  "RlyOrgLinksTest",
+  "RlyOrgSessionTest",
+  "RlyPipelineFilesTest",
+  "RlyPromoteOverlapTest",
+  "RlyPromoteTest",
+  "RlyPullRequestCloseTest",
+  "RlyPullRequestFilesTest",
+  "RlyRaiseServiceTest",
+  "RlyReleasesFilterTest",
+  "RlyRepoSettingsTest",
+  "RlyRollbackTest",
+  "RlyRouteControllerTest",
+  "RlyScanRuleTest",
+  "RlySetupStatusTest",
+  "RlySlackActionsTest",
+  "RlySlackCardTest",
+  "RlySlackSiteCheckTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest",
+  "RlyTwoApproversTest"
  ],
+ "coverageWarnings": [],
+ "componentErrors": [],
  "testFailures": [],
- "message": "88 component error(s)",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41237669087",
- "finishedAt": "2026-10-31T20:12:28.669Z"
+ "message": "",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41344814927",
+ "finishedAt": "2026-11-01T20:10:40.157Z",
+ "excluded": [],
+ "selfUpdate": true,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
 }
