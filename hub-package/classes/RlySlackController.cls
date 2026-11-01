@@ -3,8 +3,13 @@
  * connection (auth.test through the Named Credential RLY_Slack; the bot token stays in the External Credential), the
  * signing secret for Approve and Reject from Slack (encrypted; only a masked hint goes to the browser), the Site URL
  * to give Slack, and which approvers are linked to their Slack member IDs. Callouts come before any save.
+ * The bot token can be saved from the card (saveBotToken, through RlyBotToken into the External Credential); it is
+ * never stored in a record, returned or logged: only its last four characters are kept for the hint.
  */
 public with sharing class RlySlackController {
+
+    @TestVisible
+    private static RlyBotToken tokenStore = new RlyBotToken();
 
     /** @description What the Slack card shows. Never the signing secret, webhook URL or token. */
     public class SlackSettings {
@@ -24,6 +29,8 @@ public with sharing class RlySlackController {
         @AuraEnabled public String status = 'Not set up';
         /** @description Saved (ends ••••xxxx), or null when no signing secret is saved. */
         @AuraEnabled public String signingSecretHint;
+        /** @description Saved (ends ••••xxxx), Saved in Setup, or null when no bot token is known. Never the token. */
+        @AuraEnabled public String botTokenHint;
         /** @description The Interactivity Request URL to give Slack, or null when no Site is set up. */
         @AuraEnabled public String actionsUrl;
         /** @description Approvers linked to a Slack member ID. */
@@ -154,6 +161,32 @@ public with sharing class RlySlackController {
         return fill(out);
     }
 
+    /**
+     * @description Saves the Slack bot token into the External Credential RLY_Slack (principal Bot, parameter Token)
+     * and keeps its last four characters for the hint (admins only). The token is never returned, stored in a record or
+     * logged. No callout may follow a credential save in the same transaction, so the connection isn't tested here:
+     * the page calls testSlack next.
+     * @param token the Bot User OAuth Token (xoxb-…)
+     * @return the settings, with the masked hint
+     */
+    @AuraEnabled
+    public static SlackSettings saveBotToken(String token) {
+        RlyHubGuard.requireHub();
+        requireAdmin();
+        String value = RlyBotToken.checked(token);
+        tokenStore.store(value);
+        RLY_Notification__c saved = RlySlack.settings();
+        RLY_Notification__c row = saved == null
+            ? new RLY_Notification__c(Name = RlySlack.CHANNEL, Channel__c = RlySlack.CHANNEL, Enabled__c = false)
+            : new RLY_Notification__c(Id = saved.Id);
+        row.Bot_Token_Hint__c = value.right(4);
+        RlySlack.saveSettings(row);
+        SlackSettings out = new SlackSettings();
+        out.isAdmin = true;
+        out.status = 'Bot token saved. Test the connection.';
+        return fill(out);
+    }
+
     // auth.test: a callout, so it comes before the saves.
     private static SlackSettings connection() {
         SlackSettings out = new SlackSettings();
@@ -162,7 +195,7 @@ public with sharing class RlySlackController {
             Map<String, Object> r = RlySlackApi.call('auth.test', new Map<String, Object>());
             out.connected = true;
             out.workspace = r.get('team') == null ? null : String.valueOf(r.get('team'));
-            out.status = 'Connected';
+            out.status = RlyBotToken.CONNECTED;
         } catch (Exception e) {
             out.status = RlySlackApi.isNotSetUp(e) ? 'Not set up' : ('Error: ' + e.getMessage()).left(255);
         }
@@ -178,6 +211,7 @@ public with sharing class RlySlackController {
             out.lastSent = s.Last_Sent__c;
             out.lastResult = s.Last_Result__c;
         }
+        out.botTokenHint = RlyBotToken.hint(s == null ? null : s.Bot_Token_Hint__c, out.status);
         out.actionsUrl = RlySlackDirectory.actionsUrl();
         for (User u : RlySlackDirectory.approvers()) {
             ApproverLink link = new ApproverLink();

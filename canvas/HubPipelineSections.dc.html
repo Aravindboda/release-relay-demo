@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pipeline tab: view and edit in place, per section</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.wrap{padding:16px;display:flex;flex-direction:column;gap:10px;width:1248px}
+.lead{margin:0;font-size:13px;font-weight:700}
+.lab{margin:14px 0 2px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#5C5C5C}
+.cap{margin:0 0 6px;font-size:12px;font-weight:700;color:#0B5CAB}
+.edtag{font-size:11px;font-weight:700;color:#0B5CAB;background:#EEF4FF;border-radius:10px;padding:2px 8px;margin-left:4px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:start}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px;box-shadow:0 2px 2px rgba(0,0,0,.05)}
+.card.ed{border:2px solid #0176D3;box-shadow:0 0 0 3px #EEF4FF}
+.hd{padding:12px 16px;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;gap:8px}
+.hd h2{margin:0;font-size:15px;flex:1}.hd h3{margin:0;font-size:14px;flex:1}
+.bd{padding:14px 16px;display:flex;flex-direction:column;gap:12px;font-size:13px}
+.sec{padding:12px 16px;border-top:1px solid #E5E5E5;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.sec .sh{display:flex;align-items:center;gap:8px}.sec .sh b{flex:1}
+.sec.dim{opacity:.6}
+.sec.ed{border:2px solid #0176D3;background:#FAFCFF;margin:-1px}
+.ro{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;margin:0}
+.ro div{border-bottom:1px solid #F3F3F3;padding:4px 0 6px;min-width:0}.ro p{margin:0;font-size:12px;color:#5C5C5C}.ro b{font-weight:400;font-size:13px;overflow-wrap:anywhere}
+.ro .w{grid-column:1/-1}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.ok{background:#EBF7E6;color:#2E844A}.none{background:#F3F3F3;color:#444}.info{background:#EEF4FF;color:#014486}.wait{background:#FEF1CD;color:#8C4B02}.bad{background:#FEDED8;color:#8E030F}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px 14px}
+.f p{margin:0 0 4px;font-size:12px;color:#444}.f p i{color:#BA0517;font-style:normal;margin-right:2px}
+.in{border:1px solid #C9C9C9;border-radius:4px;padding:7px 10px;font-size:13px;background:#fff;min-height:18px}
+.in.ph{color:#939393}.in.sel::after{content:"▾";float:right;color:#5C5C5C}
+.k{margin:0;font-size:12px;color:#5C5C5C}
+.on::before{content:"✓ ";color:#2E844A;font-weight:700}.off::before{content:"– ";color:#5C5C5C}
+/* SLDS toggle with On/Off text */
+.tg{display:inline-flex;align-items:center;gap:8px;font-size:13px}
+.t{width:44px;height:24px;border-radius:12px;background:#0176D3;position:relative;flex:none}.t::after{content:"";position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.t.o{background:#C9C9C9}.t.o::after{right:auto;left:3px}
+.tg small{font-size:11px;color:#5C5C5C}
+.toggles{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+/* selectable chips (multi choice): aria-pressed buttons */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border-radius:16px;border:1px solid #C9C9C9;background:#fff;color:#181818;font:inherit;font-size:13px}
+.chip.sel{background:#0176D3;border-color:#0176D3;color:#fff}
+.chip.sel::before{content:"✓";font-size:11px;font-weight:700}
+/* radio cards (one choice) */
+.rcards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.rc{border:1px solid #C9C9C9;border-radius:4px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;background:#fff}
+.rc b{font-size:13px;display:flex;align-items:center;gap:6px}.rc b::before{content:"";width:12px;height:12px;border-radius:50%;border:1px solid #939393;flex:none}
+.rc.sel{border:2px solid #0176D3;background:#EEF4FF;padding:7px 9px}.rc.sel b::before{border:4px solid #0176D3;width:6px;height:6px}
+.rc.dis{color:#939393;background:#FAFAF9}
+.seg{display:inline-flex}.seg span{border:1px solid #C9C9C9;padding:6px 12px;font-size:13px;background:#fff;color:#0B5CAB}.seg span+span{border-left:0}.seg span:first-child{border-radius:4px 0 0 4px}.seg span:last-child{border-radius:0 4px 4px 0}.seg .s{background:#0176D3;border-color:#0176D3;color:#fff}
+.btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #0176D3;background:#0176D3;color:#fff;font:inherit;font-size:13px}
+.btn2{height:32px;padding:0 12px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px}
+.lnk{color:#0B5CAB}
+.foot{padding:10px 16px;border-top:1px solid #E5E5E5;background:#F3F3F3;display:flex;justify-content:flex-end;gap:8px;align-items:center}
+.ifoot{display:flex;justify-content:flex-end;gap:8px;align-items:center}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.tile{border:1px solid #E5E5E5;border-radius:4px;padding:8px;font-size:12px;display:flex;flex-direction:column;gap:2px}.tile.tsel{border:2px solid #0176D3;background:#EEF4FF;padding:7px}
+.steps{display:flex;gap:6px;flex-wrap:wrap}.st{font-size:12px;padding:4px 10px;border-radius:12px;background:#F3F3F3;color:#444}.st.d{background:#EBF7E6;color:#2E844A}.st.c{background:#0176D3;color:#fff;font-weight:700}
+.chk{display:flex;flex-direction:column;gap:6px;font-size:13px}.chk div{display:flex;gap:8px;align-items:center}
+.clist{display:flex;flex-direction:column;gap:8px}.ci{display:flex;gap:10px;align-items:flex-start}.ci .n{width:20px;height:20px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:#F3F3F3;color:#444}.ci .n.d{background:#2E844A;color:#fff}.ci .n.c{background:#0176D3;color:#fff}.ci b{font-size:13px}
+.adv{border:1px solid #E5E5E5;border-radius:4px;padding:10px 12px;background:#FAFAF9;display:flex;flex-direction:column;gap:10px}
+.adv summary,.advh{font-size:13px;font-weight:700}
+.route{display:flex;align-items:center;gap:8px}.node{border:1px solid #E5E5E5;border-radius:4px;padding:6px 10px;font-size:13px}.node.d{border-style:dashed;background:#FAFAF9}.arr{color:#0176D3}
+.note{font-size:12px;color:#014486;background:#EEF4FF;border-radius:4px;padding:8px 10px;margin:0}
+.ic{width:24px;height:24px;border-radius:4px;background:#4A154B;color:#fff;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-size:13px}
+</style>
+</helmet>
+<div class="wrap">
+<p class="lead">Pipeline tab · every section is read-only · Edit (admins) turns only that section into edit mode, in place, with Cancel / Save inside it · other sections stay read-only (dimmed on the same card) · empty fields show grey hints ("e.g. …"), a saved section shows its saved values · settings never use checkboxes: on/off = SLDS toggle (On/Off), several choices = selectable chips, one choice = radio cards or a segmented button.</p>
+
+<p class="lab">0 · First run: "Set up Release Relay" (shown while the hub has no Git connection or no Hub org; Do this later closes it, the header button opens it again)</p>
+<section class="card">
+  <div class="hd"><h2>Set up Release Relay</h2><span class="k">Step 2 of 5</span><button class="btn2">Do this later</button></div>
+  <div style="padding:12px 16px 0"><div class="steps"><span class="st d">✓ 1 This org is the hub</span><span class="st c">2 Git connection</span><span class="st">3 Pipeline files</span><span class="st">4 Add orgs</span><span class="st">5 Slack (optional)</span></div></div>
+  <div class="bd">
+    <p class="k">Where the code lives. One connection for this pipeline; the token stays in a Named Credential. <span class="lnk">How to create the token →</span></p>
+    <div class="tiles"><div class="tile tsel"><b>GitHub</b><span class="k">Actions workflow</span></div><div class="tile"><b>GitLab</b><span class="k">CI pipeline</span></div><div class="tile"><b>Bitbucket</b><span class="k">Custom pipeline</span></div><div class="tile"><b>Azure DevOps</b><span class="k">Azure Pipeline</span></div></div>
+    <div class="grid">
+      <div class="f"><p><i>*</i>Repository</p><div class="in ph">e.g. owner/repository</div></div>
+      <div class="f"><p><i>*</i>Named Credential (token)</p><div class="in ph">e.g. RLY_GitHub</div></div>
+      <div class="f"><p>Workflow file</p><div class="in ph">e.g. release-relay.yml</div></div>
+      <div class="f"><p><i>*</i>Pipeline branch</p><div class="in ph">e.g. main</div></div>
+      <div class="f"><p><i>*</i>Source path</p><div class="in ph">e.g. force-app/main/default</div></div>
+      <div style="display:flex;align-items:flex-end"><span class="tg"><span class="t"></span>Code scan on every pull request <small>On</small></span></div>
+    </div>
+    <div class="chk">
+      <div><span class="pill ok">Connected</span> Repository reachable with the token; it can open pull requests and start workflows.</div>
+      <div><span class="pill wait">Not found</span> Pipeline files not found on main · next step adds them</div>
+    </div>
+  </div>
+  <div class="foot"><span class="k" style="flex:1">Every step is checked before you go on. You can leave and come back.</span><button class="btn2">Back</button><button class="btn">Test and continue</button></div>
+</section>
+<p class="note">Step 1 registers this org as the hub (My Domain and Org Id read from this org; name, integration user, consumer key and certificate typed, with hints) and tests its sign-in. Step 3 shows the pipeline files line and Update (pull request or commit). Step 4 lists the orgs and opens "Register an org" below. Step 5 opens the Slack connection's Edit, or Finish.</p>
+
+<p class="lab">1 · Git connection</p>
+<div class="row">
+<div><p class="cap">View</p><section class="card"><div class="hd"><h2>Where the code lives</h2><span class="pill ok">Connected</span><button class="btn2">Test connection</button><button class="btn2">Edit</button></div>
+<div class="bd"><div class="ro"><div><p>Provider</p><b>GitHub · Actions workflow</b></div><div><p>Repository</p><b class="mono">owner/repository</b></div><div><p>Named Credential (token)</p><b class="mono">RLY_GitHub</b></div><div><p>Workflow file</p><b class="mono">release-relay.yml</b></div><div><p>Pipeline branch</p><b class="mono">main</b></div><div><p>Source path</p><b class="mono">force-app/main/default</b></div><div><p>Code scan</p><b class="on">On for every pull request</b></div></div>
+<div style="display:flex;align-items:center;gap:8px;border:1px solid #E5E5E5;border-radius:4px;padding:8px 12px;background:#FAFAF9"><span class="pill ok">Up to date</span><span style="flex:1">Pipeline files: up to date (version 11)</span></div></div></section></div>
+<div><p class="cap">Edit <span class="edtag">editing</span></p><section class="card ed"><div class="hd"><h2>Where the code lives</h2><span class="pill info">Editing</span></div>
+<div class="bd"><div class="tiles"><div class="tile tsel"><b>GitHub</b><span class="k">Actions workflow</span></div><div class="tile"><b>GitLab</b><span class="k">CI pipeline</span></div><div class="tile"><b>Bitbucket</b><span class="k">Custom pipeline</span></div><div class="tile"><b>Azure DevOps</b><span class="k">Azure Pipeline</span></div></div>
+<div class="grid"><div class="f"><p><i>*</i>Repository</p><div class="in">owner/repository</div></div><div class="f"><p><i>*</i>Named Credential (token)</p><div class="in">RLY_GitHub</div></div><div class="f"><p>Workflow file</p><div class="in">release-relay.yml</div></div><div class="f"><p><i>*</i>Pipeline branch</p><div class="in">main</div></div><div class="f"><p><i>*</i>Source path</p><div class="in">force-app/main/default</div></div><div style="display:flex;align-items:flex-end"><span class="tg"><span class="t"></span>Code scan <small>On</small></span></div></div>
+<p class="k">Saved values shown while editing a saved connection. A new connection starts empty with hints.</p></div>
+<div class="foot"><span class="k" style="flex:1">Save tests the connection.</span><button class="btn2">Cancel</button><button class="btn">Save</button></div></section></div>
+</div>
+
+<p class="lab">2 · An org card: Sign-in · Approval · Slack (· Back promote) — each section has its own Edit</p>
+<div class="row">
+<div><p class="cap">View</p><section class="card"><div class="hd"><h3>SIT</h3><span class="pill ok">Connected</span><span class="pill none">Stage 1</span><button class="btn2">Test sign-in</button></div>
+<div class="sec" style="border-top:0"><div class="sh"><b>Sign-in</b><button class="btn2">Edit</button></div><div class="ro"><div><p>Salesforce environment</p><b>Full Copy sandbox</b></div><div><p>Branch · Git environment</p><b class="mono">sit · sit</b></div><div><p>Login type</p><b>Sandbox</b></div><div><p>Deploys with</p><b>Fast: source tracking</b></div><div class="w"><p>My Domain</p><b class="mono">https://your-org--sit.sandbox.my.salesforce.com</b></div><div class="w"><p>Integration username</p><b class="mono">relay@your-org.sit</b></div></div></div>
+<div class="sec"><div class="sh"><b>Approval</b><button class="btn2">Edit</button></div><div class="ro"><div class="w"><p>Approval rule</p><b>Only when the release contains: Apex classes and triggers, Flows, Profiles and permission sets, Deletions</b></div><div><p>Approve in</p><b>Salesforce or Slack</b></div><div><p>GitHub reviewers</p><b class="off">Off</b></div><div><p>Hotfixes need 2 approvers</p><b class="off">Off</b></div></div></div>
+<div class="sec"><div class="sh"><b>Slack</b><button class="btn2">Send test message</button><button class="btn2">Edit</button></div><div class="ro"><div><p>Channel</p><b class="mono">#your-channel</b></div><div><p>Post to Slack</p><b class="on">On</b></div></div><p class="k">Approval in Slack follows the Approval section (Approve in Slack: On).</p></div>
+<div class="foot" style="justify-content:flex-start;background:#fff"><span class="k">Checked Oct 31, 4:12 PM</span></div>
+</section></div>
+<div><p class="cap">Edit (Approval section only) <span class="edtag">editing</span></p><section class="card"><div class="hd"><h3>SIT</h3><span class="pill ok">Connected</span><span class="pill none">Stage 1</span></div>
+<div class="sec dim" style="border-top:0"><b>Sign-in</b><p class="k">Full Copy sandbox · sit · relay@your-org.sit</p></div>
+<div class="sec ed"><b>Approval</b>
+<div role="radiogroup" aria-label="Approval rule" class="rcards"><div class="rc"><b>Always</b><span class="k">Every release into SIT waits for an approver.</span></div><div class="rc sel"><b>Only when it contains…</b><span class="k">Only if the release has one of the chosen kinds.</span></div><div class="rc"><b>Never</b><span class="k">Deploy when the checks pass.</span></div></div>
+<p class="k">Kinds of change that need approval in SIT</p>
+<div class="chips" role="group" aria-label="Kinds of change"><span class="chip sel">Apex classes and triggers</span><span class="chip sel">Flows</span><span class="chip sel">Profiles and permission sets</span><span class="chip">Objects and fields</span><span class="chip sel">Deletions</span><span class="chip">Manual steps</span><span class="chip">Hotfixes</span><span class="chip">Anything else</span></div>
+<div class="toggles" style="margin-top:6px"><span class="tg"><span class="t"></span>Approve in Salesforce <small>On</small></span><span class="tg"><span class="t"></span>Approve in Slack <small>On</small></span><span class="tg"><span class="t o"></span>Also require GitHub reviewers <small>Off</small></span><span class="tg"><span class="t o"></span>Hotfixes into SIT need 2 approvers <small>Off</small></span></div>
+<p class="k">Either approval place is enough. At least one stays on.</p>
+<div class="ifoot"><button class="btn2">Cancel</button><button class="btn">Save</button></div></div>
+<div class="sec dim"><b>Slack</b><p class="k">#your-channel · Post to Slack on</p></div>
+</section>
+<p class="note" style="margin-top:8px">Production (the hub) shows <b>Never</b> greyed out: "Production always needs approval". A back promote org has a <b>Back promote</b> section instead of Approval: When <span class="seg"><span class="s">After every PROD deploy</span><span>When an admin clicks Sync now</span></span> and the toggle Approve before syncing, with the behind pill and Sync now in its view.</p></div>
+</div>
+
+<p class="lab">3 · Register an org — the same sections, empty with grey hints, one step at a time</p>
+<div class="row">
+<div><p class="cap">Edit (new org, Sign-in)</p><section class="card ed"><div class="hd"><h3>Register an org</h3><span class="k">Step 1 of 3 · Sign-in → Approval → Slack</span></div>
+<div class="bd"><div class="grid"><div class="f"><p><i>*</i>Org name</p><div class="in ph">e.g. UAT</div></div><div class="f"><p><i>*</i>Role</p><div class="in ph sel">Choose a role</div></div><div class="f"><p><i>*</i>My Domain URL</p><div class="in ph">e.g. https://your-org--uat.sandbox.my.salesforce.com</div></div><div class="f"><p><i>*</i>Integration username</p><div class="in ph">e.g. relay@your-org.uat</div></div><div class="f"><p><i>*</i>Consumer key</p><div class="in ph">From the External Client App</div></div><div class="f"><p><i>*</i>Hub certificate</p><div class="in ph">e.g. release_relay</div></div><div class="f"><p>Branch</p><div class="in ph">e.g. uat</div></div><div class="f"><p>Git environment</p><div class="in ph">e.g. uat (stages only)</div></div><div class="f"><p>Login type</p><div class="in ph sel">Read from the My Domain</div></div><div class="f"><p>Salesforce environment</p><div class="in ph sel">Choose the edition or sandbox type</div></div></div></div>
+<div class="foot"><span class="k" style="flex:1">Next tests the sign-in.</span><button class="btn2">Cancel</button><button class="btn">Test sign-in and next</button></div></section></div>
+<div><p class="cap">Step 2 of 3 (the org is saved and signed in)</p><section class="card"><div class="hd"><h3>UAT</h3><span class="pill ok">Connected</span><span class="pill none">Stage 2</span><span class="k">Step 2 of 3</span></div>
+<div class="sec dim" style="border-top:0"><b>Sign-in</b><p class="k">Partial Copy sandbox · uat · relay@your-org.uat</p></div>
+<div class="sec ed"><b>Approval</b><div class="rcards"><div class="rc sel"><b>Always</b><span class="k">Every release into UAT waits for an approver.</span></div><div class="rc"><b>Only when it contains…</b><span class="k">Only if the release has one of the chosen kinds.</span></div><div class="rc"><b>Never</b><span class="k">Deploy when the checks pass.</span></div></div>
+<div class="toggles"><span class="tg"><span class="t"></span>Approve in Salesforce <small>On</small></span><span class="tg"><span class="t o"></span>Hotfixes into UAT need 2 approvers <small>Off</small></span></div>
+<div class="ifoot"><button class="btn2">Skip</button><button class="btn">Save and next</button></div></div>
+<div class="sec dim"><b>Slack</b><p class="k">Not set — next step</p></div></section></div>
+</div>
+
+<p class="lab">4 · Slack connection — not set up, connected, and Edit in place</p>
+<div class="row">
+<div><p class="cap">View · not set up yet</p><section class="card"><div class="hd"><span class="ic">#</span><h2>Slack connection</h2><span class="pill none">Not set up</span><button class="btn2">Edit</button></div>
+<div class="bd"><p class="k">Optional. Each release posts one card in its org's channel and updates it as it moves.</p>
+<div class="clist"><div class="ci"><span class="n d">✓</span><div><b>Slack app created</b><p class="k">You do this in Slack (Guide → Set up → Slack)</p></div></div>
+<div class="ci"><span class="n c">2</span><div><b>Bot token saved</b><p class="k">Paste it with Edit → Bot token.</p></div></div>
+<div class="ci"><span class="n">3</span><div><b>Test</b><p class="k">Checks the token and shows your workspace name</p></div></div>
+<div class="ci"><span class="n">4</span><div><b>Pick a channel per org</b><p class="k">On each org card → Slack → Edit</p></div></div></div></div></section>
+<p class="cap" style="margin-top:12px">View · connected</p><section class="card"><div class="hd"><span class="ic">#</span><h2>Slack connection</h2><span class="pill ok">Connected</span><button class="btn2">Test</button><button class="btn2">Edit</button></div>
+<div class="bd"><div class="ro"><div><p>Workspace</p><b>Your workspace</b></div><div><p>Bot token</p><b>Saved · kept by Salesforce, never shown</b></div><div class="w"><p>Send a message when a release is</p><b>Raised · Ready for approval · Checks failed · Deployed · Deploy failed · Rejected</b></div><div><p>Approve in Slack</p><b>Not set up (optional)</b></div><div><p>Approvers linked</p><b>1 of 3</b></div></div>
+<p class="k">Last message: Oct 31, 4:39 PM · test message to #your-channel</p></div></section></div>
+<div><p class="cap">Edit <span class="edtag">editing</span></p><section class="card ed"><div class="hd"><span class="ic">#</span><h2>Slack connection</h2><span class="pill info">Editing</span></div>
+<div class="bd">
+<span class="tg"><span class="t"></span><b>Slack</b> <small>On</small><span class="k">Off stops every message; nothing else changes.</span></span>
+<div class="f"><p>Bot token (starts with xoxb-)</p><div class="in ph">Saved (ends ••••7Kd2). Paste a new one to replace it.</div><p class="k" style="margin-top:4px">Slack app → OAuth &amp; Permissions → Bot User OAuth Token → Copy. Stored in Salesforce's credential store; never shown again.</p></div>
+<p class="note">If this org can't save the token from here, the field is replaced by: "Put the token in Setup → Named Credentials → External Credentials → RLY_Slack → Principals → Bot → Token" with <span class="lnk">Open Named Credentials</span>.</p>
+<div><p class="k" style="margin-bottom:6px">Send a message when a release is</p><div class="chips" role="group" aria-label="Events"><span class="chip sel">Raised</span><span class="chip sel">Ready for approval</span><span class="chip sel">Checks failed</span><span class="chip sel">Deployed</span><span class="chip sel">Deploy failed</span><span class="chip">Rejected</span></div></div>
+<div class="adv"><span class="advh">▾ Approve in Slack (optional, advanced)</span><span class="k">Lets approvers press Approve / Reject on the Slack card.</span>
+<div class="grid"><div class="f"><p>Signing secret</p><div class="in ph">From Slack → Basic Information → Signing Secret</div></div><div class="f"><p>Interactivity URL to paste in Slack</p><div class="in mono" style="display:flex;gap:6px"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">https://your-site.my.salesforce-sites.com/services/apexrest/rly/slack/actions</span><span class="lnk">Copy</span></div></div></div>
+<p class="k">Approvers linked: 1 of 3 · <span class="lnk">Link Slack member IDs</span></p>
+<div class="grid" style="font-size:12px"><span>Priya Shah <span class="pill ok">Linked</span></span><div class="in mono">U0123ABCD</div><span>Sam Lee</span><div class="in ph mono">e.g. U0…</div></div></div>
+</div>
+<div class="foot"><span class="k" style="flex:1">Save then Test: shows the workspace name.</span><button class="btn2">Cancel</button><button class="btn">Save and test</button></div></section></div>
+</div>
+
+<p class="lab">5 · Org Slack section · 6 · Back promote · 7 · Route — same pattern</p>
+<div class="row3">
+<div><p class="cap">Org Slack section — Edit</p><section class="card"><div class="sec ed" style="border-top:0;margin:0"><b>Slack</b><div class="grid"><div class="f"><p>Channel</p><div class="in ph">e.g. #release-uat</div></div><div style="display:flex;align-items:flex-end"><span class="tg"><span class="t o"></span>Post to Slack <small>Off</small></span></div></div><p class="k">Invite the app to this channel first (/invite @YourApp). Developer orgs: "Also post here" sends their own releases here too.</p><div class="ifoot"><button class="btn2">Cancel</button><button class="btn">Save</button></div></div></section></div>
+<div><p class="cap">Back promote — Edit</p><section class="card ed"><div class="hd"><h2>Back promote</h2><span class="pill info">Editing</span></div><div class="bd"><span class="tg"><span class="t o"></span>Send PROD's changes to other orgs after a deploy <small>Off</small></span><p class="k">Register an org with the role <b>Back promote (after production)</b>, then choose when it gets PROD's changes.</p></div><div class="foot"><button class="btn2">Cancel</button><button class="btn">Save</button></div></section></div>
+<div><p class="cap">Route — View (Edit: move stages, Save)</p><section class="card"><div class="hd"><h2>Route</h2><button class="btn2">Create missing branches</button><button class="btn2">Edit</button></div><div class="bd"><div class="route"><span class="node">DEV1</span><span class="arr">→</span><span class="node">SIT</span><span class="arr">→</span><span class="node">PROD</span><span class="arr">⤳</span><span class="node d">TRAINING</span></div><p class="k">Dashed: orgs that receive PROD's changes after a deploy.</p></div></section></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":3000}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

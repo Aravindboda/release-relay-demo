@@ -178,11 +178,16 @@
         <members>RlyReleaseOutcomes</members>
         <members>RlyReleaseTransitions</members>
         <members>RlySandboxCopy</members>
+        <members>RlyBotToken</members>
+        <members>RlySetupStatus</members>
+        <members>RlySetupStatusTest</members>
         <name>ApexClass</name>
     </types>
     <types>
         <members>rlyApprovalQueue</members>
         <members>rlyManualSteps</members>
+        <members>rlySetupWizard</members>
+        <members>rlyChoiceChips</members>
         <members>rlyMergeConflicts</members>
         <members>rlyPipeline</members>
         <members>rlyPromote</members>
@@ -220,6 +225,7 @@
         <name>PermissionSet</name>
     </types>
     <types>
+        <members>RLY_Guide_Setup</members>
         <members>RLY_Guide_Shots</members>
         <members>RLY_Pipeline_Azure</members>
         <members>RLY_Pipeline_Bitbucket</members>

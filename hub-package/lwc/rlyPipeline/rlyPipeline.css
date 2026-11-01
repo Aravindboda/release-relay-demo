@@ -47,10 +47,7 @@
 .rr-ro-wide { grid-column: 1 / -1; }
 .rr-flag { display: inline-flex; align-items: center; gap: 6px; }
 
-/* Edit modal: grouped sections, then Cancel / Save */
-.rr-modal-body { display: flex; flex-direction: column; gap: 12px; }
-.rr-modal-body .slds-section { margin: 0; }
-.rr-modal-body .slds-section__content { padding: 12px 4px 4px; }
+/* Edit in place (board HubPipelineSections): the section being edited gets a blue border; the rest stay read-only */
 .rr-provs { display: flex; flex-wrap: wrap; gap: 8px; }
 .rr-prov {
     flex: 1 1 140px; font: inherit; text-align: left; background: #fff; border: 1px solid var(--rr-line); border-radius: 4px;
@@ -139,16 +136,34 @@
 .rr-files-path { display: block; }
 .rr-msg-ok { background: #ebf7e6; color: #2e844a; }
 
-/* org Edit modal: Approval rule (board HubApprovalFlowsEvidence 1) */
-.rr-rule { border: 0; margin: 0 0 6px; padding: 0 4px; }
-.rr-rule-opts { display: flex; flex-direction: column; gap: 6px; }
-.rr-opt { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; cursor: pointer; }
-.rr-opt input { margin-top: 2px; flex: none; accent-color: var(--rr-blue); }
-.rr-opt-off { color: #939393; cursor: default; }
-.rr-opt-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.rr-types {
-    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; padding: 8px 10px; margin-left: 24px;
-    border-left: 2px solid var(--rr-blue); background: #fafaf9; border-radius: 0 4px 4px 0;
+.rr-rule-err { font-size: 12px; color: #ba0517; }
+
+/* edit in place */
+.rr-card-edit { border: 2px solid var(--rr-blue); box-shadow: 0 0 0 3px #eef4ff; }
+.rr-sect-edit { border: 2px solid var(--rr-blue); background: #fafcff; margin: -1px; border-radius: 2px; }
+.rr-sect-dim { opacity: 0.6; }
+.rr-sect-dim .rr-kicker { margin-top: 2px; }
+.rr-edit-body { gap: 12px; }
+.rr-edit-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.rr-org-editing { border-color: #c9c9c9; }
+.rr-org-new { border: 2px solid var(--rr-blue); box-shadow: 0 0 0 3px #eef4ff; }
+.rr-org > .rr-card-head + .rr-sect { border-top: 0; }
+.rr-route-help { padding-top: 8px; }
+
+/* Slack connection: checklist before it is set up; advanced part in edit */
+.rr-clist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.rr-ci { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+.rr-ci-n {
+    width: 22px; height: 22px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; background: #f3f3f3; color: #444;
 }
-@media (max-width: 640px) { .rr-types { grid-template-columns: minmax(0, 1fr); } }
-.rr-rule-err { font-size: 12px; color: #ba0517; padding: 0 4px; }
+.rr-ci-done { background: #2e844a; color: #fff; }
+.rr-ci-next { background: var(--rr-blue); color: #fff; }
+.rr-ci-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.rr-adv { border: 1px solid var(--rr-line); border-radius: 4px; padding: 10px 12px; background: #fafaf9; display: flex; flex-direction: column; gap: 10px; }
+.rr-adv-toggle {
+    display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; font: inherit; font-size: 13px;
+    color: var(--rr-ink); cursor: pointer; text-align: left;
+}
+.rr-adv-toggle:focus-visible { outline: 2px solid var(--rr-blue); outline-offset: 2px; }
+.rr-url { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }

@@ -149,10 +149,6 @@ export default class RlyReleaseBuilder extends LightningElement {
     shown = PAGE;
     selected = new Set();
     drawerOpen = false;
-    manualType = 'ApexClass';
-    manualName = '';
-    manualMode = 'add';
-    manualError;
     allTypes = [];
 
     // deletions found from the branch (orgs without source tracking)
@@ -340,10 +336,16 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     handleWindow(event) { this.windowChoice = event.currentTarget.dataset.value; }
     handleSince(event) { this.sinceDate = event.target.value; }
+    /** Today as yyyy-mm-dd in the user's time zone: changes can't come from the future. */
+    get today() {
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    get sinceInFuture() { return this.isSinceDate && !!this.sinceDate && this.sinceDate > this.today; }
     handleBy(event) { this.changedBy = event.currentTarget.dataset.value; }
 
     get cantScan() {
-        return !this.orgId || this.hasProblems || (this.isSinceDate && !this.sinceDate);
+        return !this.orgId || this.hasProblems || (this.isSinceDate && !this.sinceDate) || this.sinceInFuture;
     }
 
     get sinceIso() {
@@ -634,76 +636,8 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     // ---------- add by name ----------
 
-    get typeOptions() {
-        const types = this.allTypes.length ? this.allTypes : ['ApexClass', 'ApexTrigger', 'CustomField', 'CustomObject', 'Layout', 'PermissionSet', 'Flow'];
-        return types.map((t) => ({ label: words(t), value: t }));
-    }
-
-    handleManualType(event) { this.manualType = event.detail.value; }
-    handleManualName(event) { this.manualName = event.target.value; this.manualError = undefined; }
-    get isManualDelete() { return this.manualMode === 'delete'; }
-    get manualButtons() {
-        return [{ label: 'Add', value: 'add' }, { label: 'Delete', value: 'delete' }].map((b) => ({
-            ...b, cls: 'rr-seg' + (b.value === this.manualMode ? ' rr-seg-on' : ''), pressed: b.value === this.manualMode ? 'true' : 'false' }));
-    }
-    get manualLabel() { return this.isManualDelete ? 'Not in the list? Delete it by name' : 'Not in the list? Add it by name'; }
-    get manualAction() { return this.isManualDelete ? 'Delete' : 'Add'; }
-    handleManualMode(event) {
-        this.manualMode = event.currentTarget.dataset.value;
-        this.manualError = undefined;
-    }
     /** The message when a component is picked to be added and to be deleted. */
     bothText(type, name) { return type + ' ' + name + ' is both added and deleted.'; }
-
-    async addManual() {
-        const name = (this.manualName || '').trim();
-        if (!name || /[,:\r\n]/.test(name)) {
-            this.manualError = 'Enter the API name, for example AccountServiceTest or Account.Region__c.';
-            return;
-        }
-        if (this.isManualDelete) {
-            this.addManualDeletion(name);
-            return;
-        }
-        const key = this.manualType + ':' + name;
-        if (this.selected.has(deletionKey(this.manualType, name))) {
-            this.manualError = this.bothText(this.manualType, name);
-            return;
-        }
-        if (!this.changes.some((c) => c.key === key)) {
-            const isStd = (this.manualType === 'CustomObject' && !name.includes('__'))
-                || (this.manualType === 'CustomField' && name.includes('.') && !name.split('.')[1].includes('__'))
-                || this.manualType === 'StandardValueSet';
-            this.changes = [{ key, type: this.manualType, name, standard: isStd, deleted: false, modifiedBy: '(added by name)', modifiedOn: null }, ...this.changes];
-        }
-        if (this.manualType === 'ApexClass') {
-            try {
-                const found = await detectTests({ orgId: this.orgId, classNames: [name] });
-                if (found.length) {
-                    this.tests = new Set([...this.tests, ...found]);
-                }
-            } catch (e) {
-                this.manualError = errorText(e);
-            }
-        }
-        this.selected = new Set([...this.selected, key]);
-        this.manualName = '';
-    }
-
-    /** Delete by name: the user names it, so it is ticked. */
-    addManualDeletion(name) {
-        const type = this.manualType;
-        const key = deletionKey(type, name);
-        if (this.selectedItems.some((c) => !c.deleted && c.type === type && c.name === name)) {
-            this.manualError = this.bothText(type, name);
-            return;
-        }
-        if (!this.changes.some((c) => c.key === key)) {
-            this.changes = [{ key, type, name, standard: false, deleted: true, modifiedBy: '(deleted by name)', modifiedOn: null }, ...this.changes];
-        }
-        this.selected = new Set([...this.selected, key]);
-        this.manualName = '';
-    }
 
     // ---------- the selection and the test rule ----------
 

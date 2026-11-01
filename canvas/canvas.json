@@ -197,6 +197,30 @@
       "w": 1280,
       "x": 1360,
       "y": 12500
+    },
+    "HubSetupGuide.dc.html": {
+      "expand": "fill",
+      "h": 1500,
+      "title": "Guide: Set up checklist and How to use, step by step with drawings",
+      "w": 1280,
+      "x": 0,
+      "y": 13900
+    },
+    "HubApprovalFlowsEvidence.dc.html": {
+      "expand": "fill",
+      "h": 1500,
+      "title": "Approval rules per org, flow versions and activation, history and evidence",
+      "w": 1280,
+      "x": 1360,
+      "y": 13900
+    },
+    "HubPipelineSections.dc.html": {
+      "expand": "fill",
+      "h": 4400,
+      "title": "Pipeline tab: edit in place per section, toggles and chips, first-run setup, Slack setup",
+      "w": 1280,
+      "x": 0,
+      "y": 15500
     }
   },
   "createdOnFiles": {
@@ -268,7 +292,10 @@
     "HubDeletions.dc.html",
     "HubPipelineEdit.dc.html",
     "HubReleasesFilters.dc.html",
-    "HubManualSteps.dc.html"
+    "HubManualSteps.dc.html",
+    "HubSetupGuide.dc.html",
+    "HubApprovalFlowsEvidence.dc.html",
+    "HubPipelineSections.dc.html"
   ],
   "pages": [],
   "title": "Release Relay app shell"

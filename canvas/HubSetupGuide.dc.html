@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Guide: Set up and How to use</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3F3F3;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#181818}
+.card{background:#fff;border:1px solid #E5E5E5;border-radius:4px;box-shadow:0 2px 2px rgba(0,0,0,.05)}
+.hd{padding:12px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;border-bottom:1px solid #E5E5E5}
+.hd h2{margin:0;font-size:16px;flex:1}
+.k{margin:0;font-size:12px;color:#5C5C5C}.weak{color:#5C5C5C}.sm{font-size:12px}.b{font-weight:700}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.lab{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5C5C5C}
+.icon{width:32px;height:32px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:#3BA755}
+.lay{display:grid;grid-template-columns:230px 1fr;gap:12px}
+.nav{padding:8px 0}.nav p{margin:0;padding:8px 16px;font-size:13px;border-left:3px solid transparent}.nav .on{border-left-color:#0176D3;background:#EEF4FF;font-weight:700;color:#014486}.nav .grp{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#747474;padding-top:14px}
+.main{display:flex;flex-direction:column;gap:12px}
+.ck{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid #E5E5E5}.ck:first-child{border-top:0}.ck.d{background:#F6FBF4}.ck.d .t{color:#2E844A}
+.cb{width:16px;height:16px;border-radius:3px;background:#0176D3;color:#fff;font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:none}.cb.o{background:#fff;border:1px solid #939393}
+.t{font-size:13px}.ckl{border:1px solid #E5E5E5;border-radius:4px;margin:0;padding:0;list-style:none}
+.bar{height:8px;border-radius:4px;background:#E5E5E5;overflow:hidden}.bar span{display:block;height:100%;background:#0176D3;border-radius:4px}
+.btn2{height:32px;padding:0 14px;border-radius:4px;border:1px solid #C9C9C9;background:#fff;color:#0B5CAB;font:inherit;font-size:13px}
+.btn{height:32px;padding:0 14px;border-radius:4px;border:1px solid #0176D3;background:#0176D3;color:#fff;font:inherit;font-size:13px}
+.stp{display:grid;grid-template-columns:36px 1fr 340px;gap:12px;padding:14px 16px;border-top:1px solid #E5E5E5;align-items:start}
+.num{width:28px;height:28px;border-radius:50%;background:#0176D3;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.stp h3{margin:0;font-size:14px}
+.who{display:inline-flex;height:18px;padding:0 6px;border-radius:9px;font-size:10px;font-weight:700;background:#EEF4FF;color:#014486;align-items:center;margin-left:6px;vertical-align:middle}
+.where{display:inline-block;margin-top:4px;font-size:12px;background:#F3F3F3;border-radius:4px;padding:2px 8px;color:#444}
+.goal{margin:6px 0 0;font-size:13px}
+ol.l{margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.55}
+.ok{margin:8px 0 0;padding:6px 10px;border-radius:4px;font-size:12px;background:#EBF7E6;color:#194E31}
+.prob{margin-top:8px;border:1px solid #FDDDE3;border-radius:4px;background:#FEF6F7;padding:6px 10px;font-size:12px}
+.prob p{margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8E030F}
+.cap{font-size:11px;color:#5C5C5C;margin:4px 0 0}
+.collapsed{display:flex;gap:12px;align-items:center;padding:10px 16px;border-top:1px solid #E5E5E5;font-size:13px}
+.collapsed .num{width:24px;height:24px;font-size:12px;background:#F3F3F3;color:#444}
+.note{margin:0;padding:8px 12px;border-radius:4px;font-size:12px;background:#EEF4FF;color:#014486}
+</style>
+</helmet>
+<div style="padding:12px;display:flex;flex-direction:column;gap:12px">
+<p class="lab">Guide tab, admin view: a new top group "Set up" (A to G) with a checklist and progress; each step = where to click, why, numbered actions matching the callouts in a drawing, what you should see, and the common errors with their fix. "Daily use" becomes "How to use" in the same step style.</p>
+
+<section class="card" style="display:flex;align-items:center;gap:12px;padding:12px 16px">
+  <span class="icon">?</span><div style="flex:1"><p class="k">Release Relay</p><p style="margin:0;font-size:18px;font-weight:700">Guide</p></div><span class="k">Admin sections show only to Release Relay Admin</span>
+</section>
+
+<div class="lay">
+  <nav class="card nav">
+    <p class="grp">Start here</p><p>How it works</p>
+    <p class="grp">Set up</p><p>A. Before you start</p><p class="on">B. Hub org</p><p>C. Git provider</p><p>D. Each org</p><p>E. Slack (optional)</p><p>F. Settings worth knowing</p><p>G. Checklist</p><p>Repository files</p>
+    <p class="grp">How to use</p><p>Raise a release</p><p>Follow a release</p><p>Deleting components</p><p>Approve or reject</p><p>Approval rules</p><p>Manual steps</p><p>Flows</p><p>Hotfix</p><p>Promote to the next stop</p><p>Back promote (optional)</p><p>History and evidence</p><p>Conflicts between orgs</p><p>Slack in daily use</p><p>Pipeline tab (admin)</p><p>Statuses</p>
+    <p class="grp">Reference</p><p>Permission sets</p><p>Sandbox copies of the hub</p><p>Troubleshooting</p>
+  </nav>
+
+  <div class="main">
+    <section class="card">
+      <div class="hd"><h2>Set up Release Relay</h2><span class="k">About 2 hours the first time, for a hub with 2 orgs</span></div>
+      <div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between"><span class="b sm">Set up Release Relay</span><span class="k">1 of 7 stages done</span></div>
+        <div class="bar"><span style="width:14%"></span></div>
+        <ol class="ckl">
+          <li class="ck d"><span class="cb">✓</span><span style="flex:1;display:flex;flex-direction:column"><span class="t">A. Before you start</span><span class="k">You · 10 min</span></span><button class="btn2">Open</button></li>
+          <li class="ck"><span class="cb o"></span><span style="flex:1;display:flex;flex-direction:column"><span class="t">B. Hub org: permissions, certificate, remote sites, Git token</span><span class="k">Salesforce admin + Git admin · 30 min</span></span><button class="btn2">Open</button></li>
+          <li class="ck"><span class="cb o"></span><span style="flex:1;display:flex;flex-direction:column"><span class="t">C. Git provider: repository, pipeline files, actions, environments</span><span class="k">Git admin · 30 min</span></span><button class="btn2">Open</button></li>
+          <li class="ck"><span class="cb o"></span><span style="flex:1;display:flex;flex-direction:column"><span class="t">D. Each org: sign-in app, register on the Pipeline tab</span><span class="k">Salesforce admin of each org · 15 min per org</span></span><button class="btn2">Open</button></li>
+          <li class="ck"><span class="cb o"></span><span style="flex:1;display:flex;flex-direction:column"><span class="t">E. Slack (optional)</span><span class="k">Slack admin + Salesforce admin · 20 min</span></span><button class="btn2">Open</button></li>
+          <li class="ck"><span class="cb o"></span><span style="flex:1;display:flex;flex-direction:column"><span class="t">F. Settings worth knowing</span><span class="k">Salesforce admin · 10 min</span></span><button class="btn2">Open</button></li>
+          <li class="ck"><span class="cb o"></span><span style="flex:1;display:flex;flex-direction:column"><span class="t">G. Check everything</span><span class="k">Salesforce admin · 10 min</span></span><button class="btn2">Open</button></li>
+        </ol>
+        <p class="k">Ticks are kept in this browser only. "Open" jumps to the stage.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="hd"><h2>B. Hub org</h2><span class="k">In the hub (your production org), as a Salesforce admin</span></div>
+      <div class="collapsed"><span class="num">1</span><span>Give people their permission sets</span></div>
+      <div class="stp">
+        <span class="num">2</span>
+        <div>
+          <h3>Create the hub certificate<span class="who">Salesforce admin</span></h3>
+          <span class="where">Setup → Certificate and Key Management → Create Self-Signed Certificate</span>
+          <p class="goal"><b>Why: </b>The hub signs its logins to every org with this certificate. No passwords are stored.</p>
+          <ol class="l">
+            <li>Label: <span class="mono">release_relay</span>.</li>
+            <li>Unique Name: <span class="mono">release_relay</span> (exactly this, lower case).</li>
+            <li>Tick <b>Exportable Private Key</b> (the pipeline needs the key too).</li>
+            <li>Key Size: <b>2048</b>.</li>
+            <li>Press <b>Save</b>.</li>
+          </ol>
+          <p class="ok">✓ <b>What you should see: </b>The certificate page shows release_relay with Exportable Private Key: Yes.</p>
+          <div class="prob"><p>If something goes wrong</p><b>"Check Hub certificate: … must be the API name of a certificate in this hub"</b><br>The Unique Name isn't <span class="mono">release_relay</span>, or the org card names another certificate.</div>
+        </div>
+        <div>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" width="100%" style="display:block;border:1px solid #E5E5E5;border-radius:4px" role="img"><title>Create a self-signed certificate</title><rect width="100%" style="display:block;border:1px solid #E5E5E5;border-radius:4px" fill="#f3f3f3"/><rect x="8" y="8" width="784" height="464" rx="8" fill="#fff" stroke="#c9c9c9"/><rect x="8" y="8" width="784" height="34" rx="8" fill="#e9eef5"/><rect x="8" y="34" width="784" height="8" fill="#e9eef5"/><circle cx="26" cy="25" r="5" fill="#c9c9c9"/><circle cx="42" cy="25" r="5" fill="#c9c9c9"/><circle cx="58" cy="25" r="5" fill="#c9c9c9"/><text x="76" y="30" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="12" fill="#5c5c5c">Setup  ›  Certificate and Key Management  ›  Create Self-Signed Certificate</text><text x="32" y="72" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="18" font-weight="700" fill="#181818" text-anchor="start">Certificate</text><rect x="32" y="88" width="736" height="300" rx="4" fill="#fff" stroke="#c9c9c9" stroke-width="1"/><rect x="32" y="88" width="736" height="30" rx="4" fill="#fafaf9" stroke="#c9c9c9" stroke-width="1"/><text x="44" y="108" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#181818" text-anchor="start">Certificate Information</text><text x="56" y="146" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#5c5c5c" text-anchor="start">* Label</text><rect x="56" y="152" width="300" height="28" rx="4" fill="#fff" stroke="#c9c9c9" stroke-width="1"/><text x="64" y="171" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#181818" text-anchor="start">release_relay</text><rect x="50" y="130" width="312" height="52" rx="6" fill="none" stroke="#c2410c" stroke-width="2" stroke-dasharray="5 3"/><circle cx="376" cy="156" r="12" fill="#c2410c" stroke="#fff" stroke-width="2"/><text x="376" y="161" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">1</text><text x="56" y="206" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#5c5c5c" text-anchor="start">* Unique Name</text><rect x="56" y="212" width="300" height="28" rx="4" fill="#fff" stroke="#c9c9c9" stroke-width="1"/><text x="64" y="231" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#181818" text-anchor="start">release_relay</text><rect x="50" y="190" width="312" height="52" rx="6" fill="none" stroke="#c2410c" stroke-width="2" stroke-dasharray="5 3"/><circle cx="376" cy="216" r="12" fill="#c2410c" stroke="#fff" stroke-width="2"/><text x="376" y="221" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">2</text><rect x="436" y="156" width="15" height="15" rx="3" fill="#0176d3" stroke="#0176d3" stroke-width="1"/><path d="M439 163 l3 3 l6 -7" fill="none" stroke="#fff" stroke-width="2"/><text x="458" y="168" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#181818" text-anchor="start">Exportable Private Key</text><rect x="428" y="148" width="210" height="30" rx="6" fill="none" stroke="#c2410c" stroke-width="2" stroke-dasharray="5 3"/><circle cx="656" cy="163" r="12" fill="#c2410c" stroke="#fff" stroke-width="2"/><text x="656" y="168" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">3</text><text x="436" y="206" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#5c5c5c" text-anchor="start">Key Size</text><circle cx="443" cy="225" r="7" fill="#fff" stroke="#0176d3"/><circle cx="443" cy="225" r="3.5" fill="#0176d3"/><text x="458" y="230" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#181818" text-anchor="start">2048</text><circle cx="527" cy="225" r="7" fill="#fff" stroke="#939393"/><text x="542" y="230" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#181818" text-anchor="start">4096</text><rect x="428" y="212" width="160" height="28" rx="6" fill="none" stroke="#c2410c" stroke-width="2" stroke-dasharray="5 3"/><circle cx="606" cy="226" r="12" fill="#c2410c" stroke="#fff" stroke-width="2"/><text x="606" y="231" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">4</text><rect x="436" y="258" width="15" height="15" rx="3" fill="#fff" stroke="#939393" stroke-width="1"/><text x="458" y="270" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#181818" text-anchor="start">Use Platform Encryption</text><text x="56" y="290" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#5c5c5c" text-anchor="start">Leave the other options as they are.</text><rect x="56" y="336" width="57.6" height="30" rx="4" fill="#0176d3" stroke="#0176d3" stroke-width="1"/><text x="84.8" y="356" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#fff" text-anchor="middle">Save</text><rect x="130" y="336" width="72.4" height="30" rx="4" fill="#fff" stroke="#c9c9c9" stroke-width="1"/><text x="166.2" y="356" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#0b5cab" text-anchor="middle">Cancel</text><rect x="50" y="330" width="76" height="42" rx="6" fill="none" stroke="#c2410c" stroke-width="2" stroke-dasharray="5 3"/><circle cx="108" cy="322" r="12" fill="#c2410c" stroke="#fff" stroke-width="2"/><text x="108" y="327" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">5</text><rect x="32" y="410" width="736" height="28" rx="4" fill="#eef4ff" stroke="none" stroke-width="1"/><text x="42" y="428" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#014486" text-anchor="start">Unique Name is what Release Relay uses: type it exactly, release_relay, lower case.</text></svg>
+          <p class="cap">Create Self-Signed Certificate: label, unique name, exportable key, key size, Save. (Click opens it larger.)</p>
+        </div>
+      </div>
+      <div class="collapsed"><span class="num">3</span><span>Download the certificate (.crt)</span></div>
+      <div class="collapsed"><span class="num">4</span><span>Export the keystore for the pipeline (.jks)</span></div>
+      <div class="collapsed"><span class="num">…</span><span class="weak">6 Remote Site per org · 7 Git token · 9 External Credential · 10 Named Credential RLY_GitHub · 11 principal access · 12 Git connection · 13 register the hub</span></div>
+      <div style="padding:12px 16px;border-top:1px solid #E5E5E5"><button class="btn">Next: C. Git provider</button></div>
+    </section>
+
+    <section class="card">
+      <div class="hd"><h2>How to use: Promote to the next stop (for example SIT → PROD)</h2></div>
+      <div class="stp">
+        <span class="num">1</span>
+        <div>
+          <h3>Pick what goes<span class="who">Approver or admin</span></h3>
+          <span class="where">Promote tab</span>
+          <p class="goal"><b>Why: </b>One block per stage: the releases deployed there and not promoted yet.</p>
+          <ol class="l">
+            <li>Tick the releases to promote. Hotfixes first; a hotfix can go on its own.</li>
+            <li>The right panel counts releases and components and lists the tests that run.</li>
+            <li>Give the promotion a <b>Title</b>.</li>
+            <li>Press <b>Promote 3 releases to PROD</b>.</li>
+          </ol>
+          <p class="ok">✓ <b>What you should see: </b>A Promotion release on promote/rel-xxxxx runs the scan, check-only deploy and tests.</p>
+        </div>
+        <div>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 470" width="100%" style="display:block;border:1px solid #E5E5E5;border-radius:4px" role="img"><title>Promote tab: what goes to the next stop</title><rect width="100%" style="display:block;border:1px solid #E5E5E5;border-radius:4px" fill="#f3f3f3"/><rect x="8" y="8" width="784" height="454" rx="8" fill="#fff" stroke="#c9c9c9"/><rect x="8" y="8" width="784" height="34" rx="8" fill="#e9eef5"/><rect x="8" y="34" width="784" height="8" fill="#e9eef5"/><circle cx="26" cy="25" r="5" fill="#c9c9c9"/><circle cx="42" cy="25" r="5" fill="#c9c9c9"/><circle cx="58" cy="25" r="5" fill="#c9c9c9"/><text x="76" y="30" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="12" fill="#5c5c5c">Release Relay  ›  Promote</text><text x="32" y="72" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="18" font-weight="700" fill="#181818" text-anchor="start">Promote</text><rect x="32" y="88" width="480" height="330" rx="4" fill="#fff" stroke="#c9c9c9" stroke-width="1"/><rect x="32" y="88" width="480" height="30" rx="4" fill="#fafaf9" stroke="#c9c9c9" stroke-width="1"/><text x="44" y="108" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#181818" text-anchor="start">SIT  →  PROD  (example)</text><rect x="48" y="128" width="15" height="15" rx="3" fill="#0176d3" stroke="#0176d3" stroke-width="1"/><path d="M51 135 l3 3 l6 -7" fill="none" stroke="#fff" stroke-width="2"/><text x="70" y="140" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#181818" text-anchor="start">REL-00045  Fix quote total</text><rect x="330" y="126" width="55.599999999999994" height="20" rx="10" fill="#fededb" stroke="none" stroke-width="1"/><text x="357.8" y="140" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="11" font-weight="700" fill="#8e030f" text-anchor="middle">Hotfix</text><rect x="48" y="164" width="15" height="15" rx="3" fill="#0176d3" stroke="#0176d3" stroke-width="1"/><path d="M51 171 l3 3 l6 -7" fill="none" stroke="#fff" stroke-width="2"/><text x="70" y="176" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#181818" text-anchor="start">REL-00041  Quote layout</text><rect x="48" y="200" width="15" height="15" rx="3" fill="#0176d3" stroke="#0176d3" stroke-width="1"/><path d="M51 207 l3 3 l6 -7" fill="none" stroke="#fff" stroke-width="2"/><text x="70" y="212" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#181818" text-anchor="start">REL-00039  Account region field</text><rect x="48" y="236" width="15" height="15" rx="3" fill="#fff" stroke="#939393" stroke-width="1"/><text x="70" y="248" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#181818" text-anchor="start">REL-00037  Report folder</text><rect x="40" y="118" width="464" height="150" rx="6" fill="none" stroke="#c2410c" stroke-width="2" stroke-dasharray="5 3"/><circle cx="500" cy="112" r="12" fill="#c2410c" stroke="#fff" stroke-width="2"/><text x="500" y="117" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">1</text><text x="48" y="300" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#5c5c5c" text-anchor="start">Hotfixes first, then the oldest deploy first.</text><text x="48" y="320" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#5c5c5c" text-anchor="start">Unticked releases stay in SIT for later.</text><rect x="528" y="88" width="240" height="330" rx="4" fill="#fff" stroke="#c9c9c9" stroke-width="1"/><rect x="528" y="88" width="240" height="30" rx="4" fill="#fafaf9" stroke="#c9c9c9" stroke-width="1"/><text x="540" y="108" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#181818" text-anchor="start">This promotion</text><text x="544" y="142" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#181818" text-anchor="start">3 releases · 11 components</text><text x="544" y="166" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#5c5c5c" text-anchor="start">Tests that run in PROD:</text><text x="544" y="186" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="12" font-weight="400" fill="#181818" text-anchor="start">QuoteServiceTest</text><text x="544" y="204" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="12" font-weight="400" fill="#181818" text-anchor="start">AccountRegionTest</text><rect x="536" y="124" width="224" height="92" rx="6" fill="none" stroke="#c2410c" stroke-width="2" stroke-dasharray="5 3"/><circle cx="760" cy="118" r="12" fill="#c2410c" stroke="#fff" stroke-width="2"/><text x="760" y="123" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">2</text><text x="544" y="250" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="12" font-weight="400" fill="#5c5c5c" text-anchor="start">Title</text><rect x="544" y="256" width="208" height="28" rx="4" fill="#fff" stroke="#c9c9c9" stroke-width="1"/><text x="552" y="275" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#181818" text-anchor="start">October release (example)</text><circle cx="760" cy="258" r="12" fill="#c2410c" stroke="#fff" stroke-width="2"/><text x="760" y="263" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">3</text><rect x="544" y="310" width="208" height="30" rx="4" fill="#0176d3" stroke="#0176d3" stroke-width="1"/><text x="648.0" y="330" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="400" fill="#fff" text-anchor="middle">Promote 3 releases to PROD</text><rect x="538" y="304" width="220" height="42" rx="6" fill="none" stroke="#c2410c" stroke-width="2" stroke-dasharray="5 3"/><circle cx="760" cy="360" r="12" fill="#c2410c" stroke="#fff" stroke-width="2"/><text x="760" y="365" font-family="system-ui,-apple-system,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">4</text></svg>
+          <p class="cap">Promote: tick the releases, check the tests, title, Promote.</p>
+        </div>
+      </div>
+    </section>
+    <p class="note">Drawings are neutral SVGs in the new static resource RLY_Guide_Setup (30 files, 36 KB zipped). Real screenshots from RLY_Guide_Shots stay where they still match (Source, Select, Review, Conflict, Approvals, Approval, Register, Pipeline).</p>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":2000}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

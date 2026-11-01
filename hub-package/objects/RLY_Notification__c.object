@@ -80,6 +80,16 @@
         <unique>false</unique>
     </fields>
     <fields>
+        <fullName>Bot_Token_Hint__c</fullName>
+        <description>The last four characters of the Slack bot token saved from the Pipeline tab, for the masked hint. The token itself is only in the External Credential RLY_Slack (principal Bot).</description>
+        <externalId>false</externalId>
+        <label>Bot Token Hint</label>
+        <length>4</length>
+        <required>false</required>
+        <type>Text</type>
+        <unique>false</unique>
+    </fields>
+    <fields>
         <fullName>Signing_Secret__c</fullName>
         <description>The Slack app's signing secret: Approve and Reject from Slack are accepted only when Slack's signature matches. Encrypted, never sent to the browser.</description>
         <externalId>false</externalId>

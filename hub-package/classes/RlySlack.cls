@@ -211,7 +211,7 @@ public with sharing class RlySlack {
          */
         public RLY_Notification__c readSettings() {
             List<RLY_Notification__c> rows = [SELECT Id, Name, Channel__c, Enabled__c, Webhook_URL__c, Signing_Secret__c, Events__c,
-                                                     Last_Sent__c, Last_Result__c
+                                                     Last_Sent__c, Last_Result__c, Bot_Token_Hint__c
                                               FROM RLY_Notification__c WHERE Channel__c = :CHANNEL WITH SYSTEM_MODE
                                               ORDER BY CreatedDate ASC LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
