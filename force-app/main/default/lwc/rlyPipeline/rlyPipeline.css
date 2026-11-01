@@ -89,18 +89,10 @@
 .rr-scroll { overflow-x: auto; }
 .rr-table th { background: #f3f3f3; }
 
-/* org cards */
-.rr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 12px; }
-@media (max-width: 420px) { .rr-grid { grid-template-columns: minmax(0, 1fr); } }
-.rr-org { display: flex; flex-direction: column; }
-.rr-org > .rr-body { padding: 12px 16px; }
+/* shared layout bits the org window still uses */
 .rr-fact + .rr-fact::before { content: ' · '; }
 .rr-col { display: flex; flex-direction: column; gap: 6px; }
-.rr-sect .rr-pill { margin-left: 6px; }
-.rr-sect .rr-row > .rr-pill:first-child { margin-left: 0; }
-.rr-sect { border-top: 1px solid var(--rr-line); padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; background: #fafaf9; }
 .rr-toggles { display: flex; flex-wrap: wrap; gap: 8px 24px; }
-.rr-org-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; padding: 10px 16px; border-top: 1px solid var(--rr-line); }
 
 /* shared */
 .rr-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -140,14 +132,6 @@
 
 /* edit in place */
 .rr-card-edit { border: 2px solid var(--rr-blue); box-shadow: 0 0 0 3px #eef4ff; }
-.rr-sect-edit { border: 2px solid var(--rr-blue); background: #fafcff; margin: -1px; border-radius: 2px; }
-.rr-sect-dim { opacity: 0.6; }
-.rr-sect-dim .rr-kicker { margin-top: 2px; }
-.rr-edit-body { gap: 12px; }
-.rr-edit-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
-.rr-org-editing { border-color: #c9c9c9; }
-.rr-org-new { border: 2px solid var(--rr-blue); box-shadow: 0 0 0 3px #eef4ff; }
-.rr-org > .rr-card-head + .rr-sect { border-top: 0; }
 .rr-route-help { padding-top: 8px; }
 
 /* Slack connection: checklist before it is set up; advanced part in edit */
@@ -176,3 +160,90 @@
 .rr-table-wrap { overflow-x: auto; max-width: 100%; }
 .rr-values th, .rr-values td { font-size: 12px; vertical-align: top; }
 .rr-values td .rr-mono { white-space: nowrap; }
+
+/* Sections that fold (board HubPipelineLayout): chevron, title, one grey summary line while closed */
+.rr-sec { background: #fff; border: 1px solid var(--rr-line); border-radius: 4px; box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05); min-width: 0; }
+.rr-sh { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 16px 10px 10px; min-height: 32px; }
+.rr-sh-open { border-bottom: 1px solid var(--rr-line); }
+.rr-chev {
+    width: 28px; height: 28px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid transparent; border-radius: 4px; background: none; color: var(--rr-muted); padding: 0; cursor: pointer;
+}
+button.rr-chev:focus-visible, .rr-fold:focus-visible .rr-chev { outline: none; border-color: var(--rr-blue); box-shadow: 0 0 0 1px var(--rr-blue) inset; color: #0b5cab; }
+button.rr-chev:disabled { cursor: default; opacity: 0.4; }
+.rr-chev svg { display: block; }
+.rr-fold {
+    flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0; margin: 0;
+    border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.rr-fold:focus-visible { outline: none; }
+.rr-fold-title { flex: none; white-space: nowrap; }
+.rr-sum { flex: 1; min-width: 0; font-size: 13px; color: var(--rr-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rr-ttl { flex: 1 1 240px; min-width: 0; }
+.rr-ttl .rr-sub { margin-top: 2px; font-size: 12px; line-height: 1.4; }
+.rr-sec-body { display: flex; flex-direction: column; }
+.rr-sec.rr-card-edit { border: 2px solid var(--rr-blue); box-shadow: 0 0 0 3px #eef4ff; }
+
+/* Row 1: Git connection 75% · Back promote 25%; stacked below 1024px */
+.rr-git-row { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: 12px; align-items: stretch; }
+.rr-git-row-solo { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 1024px) { .rr-git-row { grid-template-columns: minmax(0, 1fr); } }
+.rr-git-main { min-width: 0; }
+.rr-ro-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1024px) { .rr-ro-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .rr-ro-3 { grid-template-columns: minmax(0, 1fr); } }
+.rr-box {
+    background: #fff; border: 1px solid var(--rr-line); border-radius: 4px; box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05);
+    display: flex; flex-direction: column; min-width: 0;
+}
+.rr-box-edit { border: 2px solid var(--rr-blue); box-shadow: 0 0 0 3px #eef4ff; }
+.rr-box-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px 10px 16px; min-height: 32px; border-bottom: 1px solid var(--rr-line); }
+.rr-box-body { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.rr-box > .rr-card-foot { margin-top: auto; }
+.rr-kv { display: flex; flex-direction: column; gap: 1px; border-bottom: 1px solid #f3f3f3; padding-bottom: 6px; min-width: 0; }
+.rr-kv-lab { font-size: 12px; color: var(--rr-muted); }
+
+/* Connected orgs: SLDS tabs by Salesforce environment with counts; compact cards, 3 / 2 / 1 per row */
+.rr-orgs-body { padding: 0 16px 14px; }
+.rr-tabs { min-width: 0; }
+.rr-tabs-nav { overflow-x: auto; overflow-y: hidden; }
+.rr-tab-btn {
+    display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; font: inherit; font-size: 13px;
+    color: inherit; cursor: pointer; white-space: nowrap; padding: 0 12px;
+}
+.rr-tab-btn:focus-visible { outline: 2px solid var(--rr-blue); outline-offset: -2px; }
+.rr-tab.slds-is-active .rr-tab-btn { font-weight: 700; }
+.rr-cnt {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 9px; background: #f3f3f3; color: #444; font-size: 11px; font-weight: 700; box-sizing: border-box;
+}
+.rr-tab.slds-is-active .rr-cnt { background: var(--rr-blue); color: #fff; }
+.rr-tab-zero .rr-tab-btn { color: #939393; }
+.rr-tab-zero .rr-cnt { color: #939393; font-weight: 400; }
+.rr-tab-panel { padding-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.rr-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1024px) { .rr-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .rr-tiles { grid-template-columns: minmax(0, 1fr); } }
+.rr-tile-cell { min-width: 0; }
+.rr-addtile {
+    width: 100%; height: 100%; min-height: 96px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; padding: 10px; border: 1px dashed #c9c9c9; border-radius: 4px; background: #fafaf9; color: #0b5cab; font: inherit; font-size: 13px; cursor: pointer;
+}
+.rr-addtile:hover:not(:disabled), .rr-addtile:focus-visible { border-color: var(--rr-blue); outline: none; box-shadow: 0 0 0 1px var(--rr-blue); }
+.rr-addtile:disabled { cursor: default; opacity: 0.6; }
+
+/* The org window (SLDS modal, about 640px): Register an org, read mode, Edit for every section */
+.rr-modal .slds-modal__container { max-width: 40rem; width: 100%; }
+.rr-mh { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; text-align: left; padding: 14px 18px; }
+.rr-mh-title { font-size: 18px; font-weight: 400; margin: 0; }
+.rr-mh-sub { width: 100%; font-size: 12px; color: var(--rr-muted); }
+.rr-mb { padding: 4px 18px 12px; display: flex; flex-direction: column; gap: 0; font-size: 13px; }
+.rr-msect { padding: 12px 0; border-top: 1px solid var(--rr-line); display: flex; flex-direction: column; gap: 10px; }
+.rr-msect-first { border-top: 0; }
+.rr-msect-head { min-height: 28px; }
+.rr-mf { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; text-align: left; }
+.rr-stps { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+.rr-stp { font-size: 12px; padding: 3px 10px; border-radius: 12px; background: #f3f3f3; color: #444; }
+.rr-stp-on { background: var(--rr-blue); color: #fff; font-weight: 700; }
+.rr-mb .rr-ro { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 640px) { .rr-mb .rr-ro { grid-template-columns: minmax(0, 1fr); } }
