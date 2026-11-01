@@ -97,6 +97,12 @@ const SCAN_ORG_HINT = 'Each org can follow this or set its own.';
 /** The repository's per-org values and quality gates (read-only cards, edited in Git). */
 const VALUES_PATH = '.relay/values.json';
 const GATES_PATH = '.relay/gates.json';
+const GATES_STARTER = JSON.stringify({
+    _help: 'Checks every release must pass on top of Salesforce\'s own rules. Remove a line to switch it off.',
+    scan: { failAtPriority: 2 },
+    coverage: { minimumPerClass: 75 },
+    tests: { requireForApex: true }
+}, null, 2) + '\n';
 /** Values longer than this show the first 12 and last 4 characters (the full value on hover). */
 const VALUE_MAX = 24;
 /** An org card's sections, in order; each has its own Edit. */
@@ -136,6 +142,37 @@ function blankForm() {
 function scanChoiceOf(o) {
     const v = o && o.Code_Scan__c;
     return SCAN_CHOICES.includes(v) ? v : SCAN_FOLLOW;
+}
+
+/**
+ * The provider's page to change a file on a branch: its editor when the file is there, else a new file with the name
+ * and a starter filled in (where the provider takes them). Null when there's no repository yet.
+ */
+function repoEditUrl(git, branch, filePath, starter) {
+    const repo = ((git && git.Repository__c) || '').trim();
+    if (!repo || !branch) {
+        return null;
+    }
+    const enc = (p) => p.split('/').map(encodeURIComponent).join('/');
+    const found = starter === null;
+    switch (git.Provider__c) {
+        case 'GitLab':
+            return found
+                ? 'https://gitlab.com/' + enc(repo) + '/-/edit/' + enc(branch) + '/' + enc(filePath)
+                : 'https://gitlab.com/' + enc(repo) + '/-/new/' + enc(branch) + '/?file_name=' + encodeURIComponent(filePath)
+                    + '&content=' + encodeURIComponent(starter);
+        case 'Bitbucket':
+            return found
+                ? 'https://bitbucket.org/' + enc(repo) + '/src/' + enc(branch) + '/' + enc(filePath) + '?mode=edit'
+                : 'https://bitbucket.org/' + enc(repo) + '/src/' + enc(branch) + '/';
+        case 'AzureDevOps':
+            return repoFileUrl(git, branch, filePath);
+        default:
+            return found
+                ? 'https://github.com/' + enc(repo) + '/edit/' + enc(branch) + '/' + enc(filePath)
+                : 'https://github.com/' + enc(repo) + '/new/' + enc(branch) + '?filename=' + encodeURIComponent(filePath)
+                    + '&value=' + encodeURIComponent(starter);
+    }
 }
 
 /** A long value as its first 12 and last 4 characters. */
@@ -1211,8 +1248,28 @@ export default class RlyPipeline extends LightningElement {
         return 'from ' + this.repoBranch + (time ? ' · read ' + time : '');
     }
     get gatesReadText() { return this.repoBranch ? 'from ' + this.repoBranch : ''; }
-    get valuesFileUrl() { return repoFileUrl(this.git, this.repoBranch, VALUES_PATH); }
-    get gatesFileUrl() { return repoFileUrl(this.git, this.repoBranch, GATES_PATH); }
+    get valuesFound() { return !!(this.repoSettings && this.repoSettings.valuesFound); }
+    get gatesFound() { return !!(this.repoSettings && this.repoSettings.gatesFound); }
+    get valuesFileUrl() {
+        return this.repoOk ? repoEditUrl(this.git, this.repoBranch, VALUES_PATH, this.valuesFound ? null : this.valuesStarter) : null;
+    }
+    get gatesFileUrl() {
+        return this.repoOk ? repoEditUrl(this.git, this.repoBranch, GATES_PATH, this.gatesFound ? null : GATES_STARTER) : null;
+    }
+    get valuesLinkText() { return (this.valuesFound ? 'Edit ' : 'Create ') + VALUES_PATH + ' ↗'; }
+    get gatesLinkText() { return (this.gatesFound ? 'Edit ' : 'Create ') + GATES_PATH + ' ↗'; }
+    /** A starter values file: one example value with a column per org's Git environment. */
+    get valuesStarter() {
+        const envs = [...new Set(this.orgs.map((o) => (o.Git_Environment__c || '').trim()).filter((e) => e))];
+        const example = {};
+        (envs.length ? envs : ['dev1', 'sit', 'prod']).forEach((e) => {
+            example[e] = 'value in ' + e;
+        });
+        return JSON.stringify({
+            _help: 'Write {{relay:NAME}} in a component; each org gets its own value when it is deployed.',
+            values: { EXAMPLE_URL: example }
+        }, null, 2) + '\n';
+    }
     get repoRead() { return !!this.repoSettings && !this.repoLoading; }
     get repoMessage() { return this.repoRead ? this.repoSettings.message : null; }
     get repoOk() { return this.repoRead && !this.repoSettings.message; }
@@ -2164,7 +2221,7 @@ export default class RlyPipeline extends LightningElement {
         this.editOrg = o;
         this.form = settleOrgKind({
             ...blankForm(), ...o, Consumer_Key__c: '',
-            Approve_In_Salesforce__c: ap.sf || !(this.slackAvailable && ap.slack), Approve_In_Slack__c: ap.slack, Require_Git_Review__c: ap.git,
+            Approve_In_Salesforce__c: ap.sf || !ap.slack, Approve_In_Slack__c: ap.slack, Require_Git_Review__c: ap.git,
             Slack_Channel__c: o.Slack_Channel__c || '', Slack_Post__c: !!o.Slack_Post__c, Hotfix_Two_Approvers__c: o.Hotfix_Two_Approvers__c === true,
             Approval_Rule__c: ruleOf(o), approvalTypes: typesOf(o), Code_Scan__c: scanChoiceOf(o)
         });
