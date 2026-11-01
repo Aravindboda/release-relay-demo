@@ -1,0 +1,20 @@
+{
+ "request": "REL-90100",
+ "step": "validate",
+ "status": "Error",
+ "message": "SF_USERNAME isn't set for dev1 (as DEV1_SF_USERNAME or SF_USERNAME).",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41344476960",
+ "finishedAt": "2026-11-01T19:59:43.782Z",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
+}
