@@ -1,0 +1,17 @@
+{
+ "request": "REL-90041",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rly-b17-sitcheck",
+ "target": "sit",
+ "sha": "916b9bfe5cb59d306dca5d644ade6613190bd8af",
+ "pr": 57,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/57",
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41272069539",
+ "finishedAt": "2026-11-01T04:11:32.161Z"
+}
