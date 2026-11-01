@@ -1,0 +1,90 @@
+{
+ "request": "REL-90083",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 34,
+ "deleted": [],
+ "mergedWith": "e37311eec91f46249514c13c042e36b59a4ef3c6",
+ "validatedTree": "9c71167dbb8249c386111bb6fd0e1143fabe9b96",
+ "environment": "prod",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0Afg800000K6Gg6CAF",
+ "testsRun": 272,
+ "tests": [
+  "RlyAppendTest",
+  "RlyApprovalRulesTest",
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyBackPromoteTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyCompareTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyDeletionFinderTest",
+  "RlyDeployReaderTest",
+  "RlyEvidenceTest",
+  "RlyFlowActivationTest",
+  "RlyGitAdviceTest",
+  "RlyGitProvidersTest",
+  "RlyHotfixTest",
+  "RlyHubGuardTest",
+  "RlyManualOnlyTest",
+  "RlyManualStepGateTest",
+  "RlyManualStepsTest",
+  "RlyOrgControllerTest",
+  "RlyOrgLinksTest",
+  "RlyOrgSessionTest",
+  "RlyPipelineFilesTest",
+  "RlyPromoteOverlapTest",
+  "RlyPromoteTest",
+  "RlyPullRequestCloseTest",
+  "RlyPullRequestFilesTest",
+  "RlyRaiseServiceTest",
+  "RlyReleasesFilterTest",
+  "RlyRepoSettingsTest",
+  "RlyRollbackTest",
+  "RlyRouteControllerTest",
+  "RlyScanRuleTest",
+  "RlySetupStatusTest",
+  "RlySlackActionsTest",
+  "RlySlackCardTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest",
+  "RlyTwoApproversTest"
+ ],
+ "coverageWarnings": [
+  {
+   "name": "RlyCompareBranch",
+   "message": "Test coverage of selected Apex Class is 72.131%, at least 75% test coverage is required"
+  },
+  {
+   "name": "RlyCompareParts",
+   "message": "Test coverage of selected Apex Class is 69.841%, at least 75% test coverage is required"
+  }
+ ],
+ "componentErrors": [],
+ "testFailures": [
+  {
+   "name": "RlyCompareTest",
+   "method": "checkComparesEachFile",
+   "message": "System.AuraHandledException: List index out of bounds: 0"
+  }
+ ],
+ "message": "1 test failure(s)",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41334657097",
+ "finishedAt": "2026-11-01T18:12:40.696Z",
+ "excluded": [],
+ "selfUpdate": true,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
+}
