@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>63.0</apiVersion>
+    <isExposed>false</isExposed>
+    <masterLabel>Release Relay: Org gate</masterLabel>
+    <description>What a tab shows in a sandbox, a sandbox copy of the hub, or a production org not set up yet; and the sandbox override's info line.</description>
+</LightningComponentBundle>
