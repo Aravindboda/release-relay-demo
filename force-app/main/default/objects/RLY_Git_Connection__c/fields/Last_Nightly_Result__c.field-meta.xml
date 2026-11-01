@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Last_Nightly_Result__c</fullName>
+    <description>Retention: what the last call of the archive endpoint did, for example &quot;Skipped: nightly is off&quot;, &quot;Succeeded&quot; or &quot;Failed: ...&quot;.</description>
+    <externalId>false</externalId>
+    <label>Last Nightly Result</label>
+    <length>255</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

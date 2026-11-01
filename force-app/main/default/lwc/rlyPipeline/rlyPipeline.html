@@ -631,6 +631,124 @@
                         </section>
                     </template>
 
+                    <!-- Retention (production hub only): how long finished releases stay; admins edit, everyone else reads -->
+                    <template lwc:if={showRetention}>
+                        <section class={retentionCardCls} aria-label="Retention" data-section="retention">
+                            <template lwc:if={fold.retention.open}>
+    <div class={fold.retention.headCls}>
+        <button type="button" class="rr-chev" aria-expanded={fold.retention.expanded} aria-controls="rr-sec-retention" aria-label={fold.retention.foldLabel}
+            title={fold.retention.foldLabel} data-key="retention" onclick={handleFold} disabled={fold.retention.locked}>
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>
+        </button>
+        <div class="rr-ttl"><h2 class="rr-h2">{fold.retention.title}</h2><p class="rr-sub">How long finished releases stay in this org. Older ones are removed to free data storage.</p></div>
+        <template lwc:if={retentionViewing}>
+            <span class={retentionPillCls}>{retentionPill}</span>
+            <template lwc:if={retCanEdit}>
+                <lightning-button label="Edit" title="Edit Retention" onclick={openRetentionEdit} disabled={editLocked}></lightning-button>
+            </template>
+        </template>
+        <template lwc:else><span class="rr-pill rr-pill-info">Editing</span></template>
+    </div>
+</template>
+<template lwc:else>
+    <div class={fold.retention.headCls}>
+        <button type="button" class="rr-fold" aria-expanded={fold.retention.expanded} aria-controls="rr-sec-retention" data-key="retention" onclick={handleFold}>
+            <span class="rr-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+            <span class="rr-h2 rr-fold-title">{fold.retention.title}</span>
+            <span class="rr-sum">{fold.retention.summary}</span>
+        </button>
+        <template lwc:if={fold.retention.pill}><span class={fold.retention.pillCls}>{fold.retention.pill}</span></template>
+    </div>
+</template>
+                            <template lwc:if={fold.retention.open}>
+                                <div id="rr-sec-retention">
+                                    <template lwc:if={retentionViewing}>
+                                        <div class="rr-body">
+                                            <dl class="rr-ro rr-ro-2">
+                                                <div class="slds-form-element slds-form-element_readonly rr-ro-item">
+                                                    <dt class="slds-form-element__label">Keep finished releases for</dt>
+                                                    <dd class="slds-form-element__control">
+                                                        <div class="slds-form-element__static">{retDaysText}</div>
+                                                        <p class="rr-kicker">{retKeepHint}</p>
+                                                    </dd>
+                                                </div>
+                                                <div class="slds-form-element slds-form-element_readonly rr-ro-item">
+                                                    <dt class="slds-form-element__label">Archive every night</dt>
+                                                    <dd class="slds-form-element__control">
+                                                        <div class="slds-form-element__static">
+                                                            <span class="rr-flag">
+                                                                <template lwc:if={retNightlyOn}><lightning-icon icon-name="utility:check" size="xx-small" variant="success" alternative-text=""></lightning-icon></template>
+                                                                <template lwc:else><lightning-icon icon-name="utility:dash" size="xx-small" alternative-text=""></lightning-icon></template>
+                                                                <span>{retNightlyFlagText}</span>
+                                                            </span>
+                                                        </div>
+                                                    </dd>
+                                                </div>
+                                                <div class="slds-form-element slds-form-element_readonly rr-ro-item">
+                                                    <dt class="slds-form-element__label">Next nightly run</dt>
+                                                    <dd class="slds-form-element__control">
+                                                        <div class="slds-form-element__static">{retNextText}</div>
+                                                        <p class="rr-kicker">{retNextHint}</p>
+                                                    </dd>
+                                                </div>
+                                                <div class="slds-form-element slds-form-element_readonly rr-ro-item">
+                                                    <dt class="slds-form-element__label">Eligible now</dt>
+                                                    <dd class="slds-form-element__control">
+                                                        <div class="slds-form-element__static">{retEligibleText}</div>
+                                                        <p class="rr-kicker"><button type="button" class="rr-linkbtn rr-link-plain" onclick={openArchiveTab}>Archive tab ›</button></p>
+                                                    </dd>
+                                                </div>
+                                                <div class="slds-form-element slds-form-element_readonly rr-ro-item rr-ro-wide">
+                                                    <dt class="slds-form-element__label">Last changed</dt>
+                                                    <dd class="slds-form-element__control"><div class="slds-form-element__static rr-break">{retChangedText}</div></dd>
+                                                </div>
+                                            </dl>
+                                            <p class="rr-kicker">{retReadNote}</p>
+                                            <template lwc:if={retHasDays}><p class="rr-msg rr-msg-info">{retEvidenceNote}</p></template>
+                                        </div>
+                                    </template>
+                                    <template lwc:if={isRetentionEditing}>
+                                        <div class="rr-body" onkeydown={handleEditKey}>
+                                            <div class="rr-col">
+                                                <div class="rr-days">
+                                                    <span>Keep finished releases for</span>
+                                                    <lightning-input class="rr-first rr-days-in" type="number" step="any" variant="label-hidden" label="Keep finished releases for (days)"
+                                                        value={retForm.days} placeholder="e.g. 730" onchange={handleRetDays}></lightning-input>
+                                                    <span>days</span>
+                                                    <span class="rr-weak rr-small">{retFormCutoff}</span>
+                                                </div>
+                                                <template lwc:if={retDaysError}><p class="rr-rule-err" role="alert">{retDaysError}</p></template>
+                                                <template lwc:else><p class="rr-hint">{retDaysHint}</p></template>
+                                            </div>
+                                            <template lwc:if={showRetCounting}><p class="rr-kicker" role="status">Counting what becomes eligible…</p></template>
+                                            <template lwc:if={showRetMore}>
+                                                <p class="rr-msg rr-msg-wait" role="status"><strong>{retMoreLead}</strong>{retMoreText}</p>
+                                            </template>
+                                            <div class="rr-col">
+                                                <lightning-input type="toggle" label="Archive every night" checked={retForm.nightly} onchange={handleRetNightly}
+                                                    message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                                                <template lwc:if={retNightlyError}><p class="rr-rule-err" role="alert">{retNightlyError}</p></template>
+                                                <p class="rr-kicker">{retNightlyHelp}</p>
+                                            </div>
+                                            <div class="rr-ex">
+                                                <div class="rr-ex-gone"><strong>Removed</strong>Finished releases (Deployed, Rejected, Failed, Rolled back, Closed) older than the days above, with their items, history, evidence PDFs, manual steps and step runs, and back promote syncs. The Recycle Bin is emptied for them.</div>
+                                                <div class="rr-ex-stay"><strong>Stays</strong>Open, waiting and running releases, and any release whose promotion is still open. Org registrations and settings. Everything in Git: branches, pull requests, snapshots.</div>
+                                                <div class="rr-ex-undo"><strong>Can't be undone</strong>Removed releases can't be opened or restored. The Archive tab keeps only the numbers of each run.</div>
+                                            </div>
+                                            <p class="rr-msg rr-msg-info">{retEvidenceNote}</p>
+                                            <template lwc:if={editError}><div class="rr-msg rr-msg-bad" role="alert">{editError}</div></template>
+                                        </div>
+                                        <div class="rr-card-foot">
+                                            <span class="rr-kicker rr-grow">{retFootNote}</span>
+                                            <lightning-button label="Cancel" onclick={handleEditCancel} disabled={saving}></lightning-button>
+                                            <lightning-button variant="brand" label={saveLabel} onclick={handleRetentionSave} disabled={retCantSave}></lightning-button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </section>
+                    </template>
+
                     <!-- Connected orgs: tabs by Salesforce environment, compact cards; a card opens the org's window -->
                     <section class="rr-sec" aria-label="Connected orgs">
                         <template lwc:if={fold.orgs.open}>

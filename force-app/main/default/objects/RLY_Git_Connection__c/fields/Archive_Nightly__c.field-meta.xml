@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Archive_Nightly__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Retention: the Git pipeline&apos;s scheduled job may archive every night (POST /services/apexrest/rly/archive). Off by default; needs Retention Days.</description>
+    <label>Archive Nightly</label>
+    <type>Checkbox</type>
+</CustomField>

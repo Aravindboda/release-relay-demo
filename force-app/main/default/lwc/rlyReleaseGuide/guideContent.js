@@ -3,7 +3,7 @@
  *
  * Sections are grouped for the left navigation (Start here, Set up, How to use, Reference). A section has one or more
  * cards; a card has blocks. Text uses two marks only: `code` (monospace) and **bold**.
- * Block types:
+ * Block types (a step can also carry badge: a pill beside its title, and code: a monospace block under its items):
  *   text      { paras: [] }
  *   list      { items: [] }
  *   table     { cols: [], rows: [[]] }
@@ -14,7 +14,7 @@
  *             problems: [['You see', 'Do this']]; links: [{ label, to: section key }] (buttons that open that section).
  *             In a step with an illustration, the numbered items match the numbered callouts in the picture.
  *   checklist { stages: [{ to, label, who, time }] }  the setup stages with a tick each and a progress bar (per browser)
- *   links     { links: [{ label, to }] }
+ *   links     { links: [{ label, to }] }               to: a section key; or tab: a tab's API name (opens that tab, state optional); kind 'neutral' for a plain button
  *   seq       { stops: [{ title, text }], shots: [] } a row of stops with arrows, screenshots under it
  *   repo      { providers }                           tree + files table, one tab per Git provider
  *   shots     { shots: [] }
@@ -175,7 +175,8 @@ const NEXT = {
     'setup-git': { label: 'Next: D. Each org', to: 'setup-orgs' },
     'setup-orgs': { label: 'Next: E. Slack (optional)', to: 'setup-slack' },
     'setup-slack': { label: 'Next: F. Settings worth knowing', to: 'setup-settings' },
-    'setup-settings': { label: 'Next: G. Checklist', to: 'setup-checklist' }
+    'setup-settings': { label: 'Next: G. Nightly archive (optional)', to: 'setup-archive' },
+    'setup-archive': { label: 'Next: H. Checklist', to: 'setup-checklist' }
 };
 
 function next(key) {
@@ -223,7 +224,8 @@ const SETUP_SECTIONS = [
                             { to: 'setup-orgs', label: 'D. Each org: sign-in app, register on the Pipeline tab', who: 'Salesforce admin of each org', time: '15 min per org' },
                             { to: 'setup-slack', label: 'E. Slack (optional): app, channels, and Approve in Slack with a Site', who: 'Slack admin + Salesforce admin', time: '20 min, 45 with Approve in Slack' },
                             { to: 'setup-settings', label: 'F. Settings worth knowing', who: 'Salesforce admin', time: '10 min' },
-                            { to: 'setup-checklist', label: 'G. Check everything', who: 'Salesforce admin', time: '10 min' }
+                            { to: 'setup-archive', label: 'G. Nightly archive (optional): the scheduled job that keeps storage free', who: 'Git admin + Release Relay admin', time: '10 min' },
+                            { to: 'setup-checklist', label: 'H. Check everything', who: 'Salesforce admin', time: '10 min' }
                         ]
                     },
                     {
@@ -1065,16 +1067,85 @@ const SETUP_SECTIONS = [
         ]
     },
 
-    // ---------------- G. Checklist ----------------
+    // ---------------- G. Nightly archive (optional) ----------------
+    {
+        key: 'setup-archive',
+        group: 'setup',
+        label: 'G. Nightly archive (optional)',
+        adminOnly: true,
+        cards: [
+            {
+                key: 'sa-main',
+                title: 'G. Schedule the nightly archive (optional)',
+                aside: 'Optional · production hub only',
+                blocks: [
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Schedule the nightly archive (optional)',
+                                badge: 'Recommended',
+                                who: 'Git admin',
+                                where: 'Release Relay → Pipeline → 1 · Where the code lives → Update pipeline files',
+                                goal: 'Lets the Git pipeline ask the hub every night to remove finished releases older than the Retention days, so storage stays free without anyone pressing Run now. It needs Retention days set and “Archive every night” on (Pipeline tab).',
+                                items: ['Update pipeline files (Pipeline tab, section 1) to version 15, or add this to `.github/workflows/release-relay.yml`:'],
+                                code: 'on:\n'
+                                    + '  workflow_dispatch:      # already there\n'
+                                    + '  schedule:\n'
+                                    + '    - cron: "0 8 * * *"   # 08:00 UTC = 2:00 AM Central (CST)\n'
+                                    + '\n'
+                                    + 'jobs:\n'
+                                    + '  archive:\n'
+                                    + '    if: github.event_name == \'schedule\'\n'
+                                    + '    runs-on: ubuntu-latest\n'
+                                    + '    steps:\n'
+                                    + '      - uses: actions/checkout@v4\n'
+                                    + '      - name: Archive finished releases in the hub\n'
+                                    + '        # signs in to the hub and calls\n'
+                                    + '        # /services/apexrest/rly/archive until done\n'
+                                    + '        run: ./relay/archive.sh',
+                                text: ['**Cron is UTC.** Pick the UTC hour for your quiet time: 2:00 AM Central is `0 8 * * *` in winter (CST) and `0 7 * * *` in summer (CDT); with one fixed line it runs an hour later in summer. GitHub may start scheduled jobs a few minutes late, and pauses schedules in public repositories after 60 days without activity.'],
+                                problems: [
+                                    ['The Archive tab says "Missed the last 2 nights"', 'Check the schedule in `release-relay.yml` on the pipeline branch, and that the workflow is enabled in GitHub → Actions. The job signs in to the hub like the other jobs, so the prod environment needs its secrets and variables.'],
+                                    ['"Last call skipped: nightly is off"', 'Turn on **Archive every night** in Pipeline → Retention → Edit (it needs the days set first).']
+                                ]
+                            },
+                            {
+                                title: 'Check it ran',
+                                who: 'Release Relay admin',
+                                where: 'Release Relay → Archive → Nightly job, the morning after',
+                                goal: 'See that the hub received last night\'s call.',
+                                items: [
+                                    'Archive tab → **Nightly job** → “Last nightly call received” shows last night\'s time.',
+                                    'Or GitHub → Actions → Release Relay → filter Event: `schedule`; the run log lists each pass.',
+                                    'No call for 2 nights: the Archive tab warns “Missed the last 2 nights”.'
+                                ],
+                                check: 'Done when the Archive tab shows a nightly call. Skipping is fine: Run now still works.'
+                            }
+                        ]
+                    },
+                    {
+                        type: 'links',
+                        links: [
+                            { label: 'Skip', to: 'setup-checklist', kind: 'neutral' },
+                            { label: 'Open Archive tab', tab: 'RLY_Archive' }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+
+    // ---------------- H. Checklist ----------------
     {
         key: 'setup-checklist',
         group: 'setup',
-        label: 'G. Checklist',
+        label: 'H. Checklist',
         adminOnly: true,
         cards: [
             {
                 key: 'sc-list',
-                title: 'G. Setup checklist',
+                title: 'H. Setup checklist',
                 aside: 'One line per item: where it is, and how to tell it is done',
                 blocks: [
                     {
@@ -1099,6 +1170,7 @@ const SETUP_SECTIONS = [
                             ['Approve in Slack (optional)', 'Signing secret · Site with RLY_Slack_Site on its guest user · guest Read on User External Credentials and the Git principal · Request URL in the App Manifest, Socket Mode off · linked approvers · Approve in Slack per org', 'Slack connection says Approve in Slack: Set up; Approve works from the card'],
                             ['Approval rules, deployment team', 'Pipeline → Connected orgs · RLY_Deploy_Team', 'Set as your process needs'],
                             ['Caching on, prod reviewers on', 'Session Settings · Environments → prod', 'Before real users start'],
+                            ['Retention and the nightly archive (optional)', 'Pipeline → Retention · pipeline files version 15 (scheduled job)', 'Archive tab shows a nightly call'],
                             ['First release', 'New Release', 'Deployed to the first stage']
                         ]
                     },
@@ -2515,7 +2587,7 @@ const REF_SECTIONS = [
                             ['Waiting for reviewers in the Git provider', 'The org requires the provider\'s reviewers too, or its environment has required reviewers: approve there, or change the org card / environment.']
                         ]
                     },
-                    { type: 'links', links: [{ label: 'Set up: G. Checklist', to: 'setup-checklist' }] }
+                    { type: 'links', links: [{ label: 'Set up: H. Checklist', to: 'setup-checklist' }] }
                 ]
             }
         ]
