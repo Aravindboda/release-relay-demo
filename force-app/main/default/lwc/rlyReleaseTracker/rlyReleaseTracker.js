@@ -8,6 +8,7 @@ import countReleases from '@salesforce/apex/RlyReleasesController.countReleases'
 import refreshRelease from '@salesforce/apex/RlyReleasesController.refreshRelease';
 import exportCsv from '@salesforce/apex/RlyEvidenceController.exportCsv';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
+import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
 
 /** Modes of RlyHubGuard.getHubStatus in which the tab shows only the org gate. */
 const GATED_MODES = ['sandbox', 'copy', 'setup'];
@@ -30,6 +31,7 @@ const APPROVAL_CHIPS = [
 /** Releases tab chips: states filtered on the server (RlyReleaseQuery.STATE_STATUSES), open first and by default. */
 const STATE_CHIPS = [
     { id: 'open', label: 'Open', title: 'Running, checks failed or waiting for approval' },
+    { id: 'checks', label: 'Checks failed', title: 'The code scan or the check-only deploy failed, or there are merge conflicts to resolve' },
     { id: 'deployed', label: 'Deployed', title: 'Deployed to the target org' },
     { id: 'rolledback', label: 'Rolled back', title: 'Rolled back in an org from its snapshot (Git is not changed)' },
     { id: 'failed', label: 'Failed', title: 'The run or the deploy failed' },
@@ -38,12 +40,23 @@ const STATE_CHIPS = [
 ];
 const EMPTY_STATE = {
     open: 'No open releases',
+    checks: 'No releases with failed checks',
     deployed: 'No deployed releases',
     rolledback: 'No rolled back releases',
     failed: 'No failed releases',
     closed: 'No rejected or closed releases',
     all: 'No releases'
 };
+/**
+ * Page state c__filter (from the Home tab's tiles, or a shared link) → the Releases tab's chip. "mine" is the open chip
+ * with Raised by = you; any other value lists everyone's releases. Unknown values keep the default chip.
+ */
+const PAGE_FILTERS = {
+    open: 'open', mine: 'open', checks: 'checks', checksfailed: 'checks', failed: 'failed', deployed: 'deployed',
+    rolledback: 'rolledback', rejected: 'closed', closed: 'closed', all: 'all'
+};
+/** The server lists at most this many releases per chip (RlyReleaseQuery); the search narrows the loaded ones. */
+const SERVER_ROWS = 200;
 /** At most this many running releases are read per check, the least recently checked first. */
 const PER_CYCLE = 5;
 const TIME = { hour: 'numeric', minute: '2-digit', second: '2-digit' };
@@ -230,10 +243,8 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
     rows = [];
     /** Approvals: all or mine. Releases: open, deployed, failed, closed or all (sent to the server). */
     filter;
-    /** What the search box shows (narrows the loaded rows as you type). */
+    /** The search box's text, normalised: narrows the loaded rows as you type (client-side). */
     search = '';
-    /** What the server last searched for (Enter or clearing the box sends it). */
-    searchSent = '';
     /** Releases tab: who raised the releases (the current user by default; cleared: everyone). */
     raisedById = USER_ID;
     counts = {};
@@ -254,14 +265,46 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
     /** A link such as /lightning/n/RLY_My_Releases?c__release=<Id> (from Slack) opens with that release selected. */
     @wire(CurrentPageReference)
     setPageReference(ref) {
-        const releaseId = ref && ref.state ? ref.state.c__release : undefined;
+        const state = (ref && ref.state) || {};
+        const releaseId = state.c__release;
         if (releaseId) {
             this.selectedId = releaseId;
+        }
+        const pageFilter = state.c__filter ? String(state.c__filter).toLowerCase() : '';
+        if (pageFilter && pageFilter !== this.pageFilter) {
+            this.pageFilter = pageFilter;
+            this.applyPageFilter(pageFilter);
+        }
+    }
+
+    /** The c__filter last applied, so the same link doesn't reset a chip picked since. */
+    pageFilter;
+
+    /**
+     * Picks the chip a link asks for (c__filter). Releases: open, mine, checks, failed, deployed, rolledback, rejected or all;
+     * Approvals: mine or all. Reloads when the list is already showing.
+     * @param {string} pageFilter the c__filter value, lower case
+     */
+    applyPageFilter(pageFilter) {
+        if (this.isApprovals) {
+            this.filter = pageFilter === 'mine' ? 'mine' : 'all';
+            return;
+        }
+        const chipId = PAGE_FILTERS[pageFilter];
+        if (!chipId) {
+            return;
+        }
+        this.filter = chipId;
+        this.raisedById = pageFilter === 'mine' ? USER_ID : null;
+        if (this.statusRead && !this.gated) {
+            this.load();
         }
     }
 
     connectedCallback() {
-        this.filter = this.isApprovals ? 'all' : 'open';
+        if (!this.filter) {
+            this.filter = this.isApprovals ? 'all' : 'open';
+        }
         this.readHubStatus();
     }
 
@@ -332,9 +375,14 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
         return { rows, counts };
     }
 
-    /** build 13's listReleasesFor filter: Raised by, state chip and the search sent to the server. */
+    /** build 13's listReleasesFor filter: Raised by and state chip (the search box filters the loaded rows on the page). */
     get filterJson() {
-        return JSON.stringify({ raisedById: this.raisedById || null, state: this.filter, searchText: this.searchSent });
+        return JSON.stringify({ raisedById: this.raisedById || null, state: this.filter, searchText: null });
+    }
+
+    /** Export CSV: the same filter plus the search text (the server matches it on the release number or title). */
+    get exportJson() {
+        return JSON.stringify({ raisedById: this.raisedById || null, state: this.filter, searchText: this.search || null });
     }
 
     // ---------- Export CSV (board HubApprovalFlowsEvidence 4) ----------
@@ -351,7 +399,7 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
     async exportReleases() {
         this.exporting = true;
         try {
-            const csv = await exportCsv({ filterJson: this.filterJson });
+            const csv = await exportCsv({ filterJson: this.exportJson });
             const today = new Date();
             const pad = (n) => String(n).padStart(2, '0');
             this.csvName = 'releases-' + today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate()) + '.csv';
@@ -528,33 +576,62 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
         this.load();
     }
 
+    /** rlySearchBox: filters the loaded rows as you type. */
     handleSearch(event) {
-        this.search = (event.target.value || '').trim().toLowerCase();
+        this.search = searchTerm(event.detail && event.detail.value);
     }
 
-    /** Enter or clearing the box: the Releases tab searches on the server. */
-    handleSearchCommit(event) {
-        this.search = (event.target.value || '').trim().toLowerCase();
-        if (this.isReleases && this.search !== this.searchSent) {
-            this.searchSent = this.search;
-            this.load();
+    /** "Clear search" in the empty list. */
+    clearSearch() {
+        const box = this.template.querySelector('c-rly-search-box');
+        if (box) {
+            box.clear();
         }
+        this.search = '';
+    }
+
+    get searchLabel() {
+        return this.isApprovals ? 'Search approvals' : 'Search releases';
     }
 
     get searchPlaceholder() {
-        return this.isApprovals ? 'Search release number, title or org' : 'Search release number or title, then press Enter';
+        return 'Search by release, title, org or person';
+    }
+
+    /** The rows under the chip, before the search box. */
+    get chipRows() {
+        if (this.isReleases) {
+            return this.rows;
+        }
+        const list = this.rows.filter((r) => this.matches(r, this.filter));
+        // Approvals: hotfixes first (the server sends them first; a sort keeps it so after a status change).
+        return [...list].sort((a, b) => Number(!!b.isHotfix) - Number(!!a.isHotfix));
     }
 
     get shown() {
         const q = this.search;
-        if (this.isReleases) {
-            // The server filtered; the box narrows the loaded rows while you type.
-            return this.rows.filter((r) => !q || [r.name, r.title].some((v) => (v || '').toLowerCase().includes(q)));
-        }
-        const list = this.rows.filter((r) => this.matches(r, this.filter))
-            .filter((r) => !q || [r.name, r.title, r.source, r.target, r.hotfixReason].some((v) => (v || '').toLowerCase().includes(q)));
-        // Approvals: hotfixes first (the server sends them first; a sort keeps it so after a status change).
-        return [...list].sort((a, b) => Number(!!b.isHotfix) - Number(!!a.isHotfix));
+        return this.chipRows.filter((r) => matchesSearch([r.name, r.title, r.source, r.target, r.raisedBy, r.status, r.hotfixReason], q));
+    }
+
+    get shownCount() { return this.shown.length; }
+    get totalCount() { return this.chipRows.length; }
+
+    /** The server sent its maximum: older releases are under another chip or Raised by, or in the CSV. */
+    get atServerMax() {
+        return this.isReleases && this.rows.length >= SERVER_ROWS;
+    }
+    get serverMaxText() {
+        return 'Showing the newest ' + SERVER_ROWS + '. Pick a person in Raised by or another chip to see older releases.';
+    }
+
+    get isSearchEmpty() {
+        return this.isEmpty && !!this.search && this.chipRows.length > 0;
+    }
+    get searchEmptyText() {
+        return 'No releases match \u2018' + this.search + '\u2019.';
+    }
+    get isPlainEmpty() {
+        return this.isEmpty && !this.isSearchEmpty;
     }
 
     // ---------- list ----------
@@ -581,6 +658,8 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
                 id: r.id,
                 name: r.name,
                 title: r.title,
+                nameParts: highlightParts(r.name, this.search),
+                titleParts: highlightParts(r.title, this.search),
                 isHotfix,
                 manualOnly,
                 hotfixReason: isHotfix ? r.hotfixReason : '',
@@ -613,7 +692,7 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
     }
     get emptyText() {
         if (this.rows.length) {
-            return this.isApprovals ? 'No releases match this filter.' : 'No releases match this search.';
+            return 'No releases match this filter.';
         }
         if (this.isApprovals) {
             return 'Nothing waiting for approval.';
@@ -624,9 +703,8 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
         } else if (this.raisedById) {
             who = ' raised by this user';
         }
-        const searched = this.searchSent ? ' matching "' + this.searchSent + '"' : '';
         const hint = this.filter === 'open' ? ' Deployed, failed and rejected releases are under their chips.' : '';
-        return EMPTY_STATE[this.filter] + who + searched + '.' + hint;
+        return EMPTY_STATE[this.filter] + who + '.' + hint;
     }
 
     pick(event) {

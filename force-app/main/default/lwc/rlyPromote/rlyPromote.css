@@ -31,14 +31,13 @@
 @media (max-width: 900px) { .rr-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* table (board: th #F3F3F3, selected rows #F2F7FE, hotfix rows #FFF7F5) */
-.rr-scroll { overflow-x: auto; }
 .rr-table th { background: #f3f3f3; font-size: 12px; color: #444; }
-.rr-table td { font-size: 13px; vertical-align: top; white-space: normal; }
+.rr-table td { font-size: 13px; vertical-align: top; }
 .rr-check-col { width: 40px; }
 .rr-row-on td { background: #f2f7fe; }
 .rr-row-hot td { background: #fff7f5; }
-.rr-rel { min-width: 240px; }
-.rr-rel .rr-row { gap: 6px; }
+.rr-rel .rr-row { gap: 6px; flex-wrap: nowrap; min-width: 0; }
+.rr-rel-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rr-reason { display: block; margin-top: 2px; font-size: 12px; color: var(--rr-muted); overflow-wrap: anywhere; }
 .rr-nowrap { white-space: nowrap; }
 .rr-pad { padding: 12px 16px; }
@@ -70,7 +69,7 @@
     color: var(--rr-muted); font-size: 13px;
 }
 /* test class names wrap between names, not inside them */
-.rr-tests { min-width: 160px; overflow-wrap: break-word; word-break: normal; }
+.rr-tests { overflow-wrap: normal; }
 
 /* carried manual steps (board HubManualSteps, 3) */
 .rr-pill-wait { background: #fef1cd; color: #8c4b02; }
@@ -99,3 +98,23 @@
 .rr-rule { border: 1px solid var(--rr-line); border-radius: 4px; padding: 8px 12px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 8px; }
 .rr-add-chip { border: 1px solid var(--rr-blue); color: var(--rr-blue); background: #fff; border-radius: 14px; padding: 2px 12px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; flex: none; }
 .rr-add-chip:disabled { opacity: 0.5; cursor: default; }
+
+/* ---- long lists (build 27, same in every bundle): search toolbar, fixed columns, pinned header, scroll inside ---- */
+.rr-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid #e5e5e5; }
+.rr-toolbar c-rly-search-box { flex: 1 1 260px; min-width: 0; }
+.rr-scroll { max-height: 26rem; overflow: auto; }
+.rr-ft { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
+.rr-ft th { position: sticky; top: 0; z-index: 1; background: #f3f3f3; }
+.rr-ft th, .rr-ft td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rr-ft .rr-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rr-ft td.rr-nomatch { white-space: normal; text-align: center; color: #5c5c5c; padding: 16px; }
+.rr-ft mark, .rr-scroll mark { background: #fef1cd; color: inherit; padding: 0; border-radius: 2px; }
+.rr-linkbtn { border: 0; background: none; padding: 0; font: inherit; color: #0b5cab; text-decoration: underline; cursor: pointer; }
+.rr-linkbtn:focus-visible { outline: 2px solid #0176d3; outline-offset: 2px; }
+.rr-ft-narrow { --rr-ft-min: 420px; }
+@media (max-width: 900px) { .rr-ft { min-width: var(--rr-ft-min, 640px); } }
+@media (max-width: 600px) { .rr-scroll { max-height: 60vh; } }
+.rr-w-check { width: 44px; }
+.rr-w-person { width: 140px; }
+.rr-w-when { width: 140px; }
+.rr-w-tests { width: 180px; }

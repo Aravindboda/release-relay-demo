@@ -1,7 +1,10 @@
 import { LightningElement, api } from 'lwc';
 import files from '@salesforce/apex/RlyPullRequestFiles.files';
+import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
 
 const BLOCKS = 5;
+/** The list shows its search box from this many files (or while a search is typed). */
+const SEARCH_FROM = 7;
 const STATUS_CLS = {
     modified: 'rr-pill rr-pill-info',
     changed: 'rr-pill rr-pill-info',
@@ -157,6 +160,34 @@ export default class RlyReleaseChanges extends LightningElement {
                 current: on ? 'true' : 'false'
             };
         });
+    }
+
+    // ---------- search (build 27) ----------
+
+    /** The search text, normalised: filters the file list on the page (the dialog keeps every file). */
+    term = '';
+
+    get shownRows() {
+        const q = this.term;
+        return this.rows.filter((r) => matchesSearch([r.name, r.folder, r.status, r.fromText], q))
+            .map((r) => ({ ...r, nameParts: highlightParts(r.name, q), folderParts: highlightParts(r.folder, q) }));
+    }
+    get showSearch() { return this.rows.length >= SEARCH_FROM || !!this.term; }
+    get noMatch() { return !!this.term && this.shownRows.length === 0; }
+    get noMatchText() { return 'No files match \u2018' + this.term + '\u2019.'; }
+    get rowCount() { return this.rows.length; }
+    get shownCount() { return this.shownRows.length; }
+
+    handleSearch(event) {
+        this.term = searchTerm(event.detail && event.detail.value);
+    }
+
+    clearSearch() {
+        const box = this.template.querySelector('c-rly-search-box');
+        if (box) {
+            box.clear();
+        }
+        this.term = '';
     }
 
     // ---------- the dialog ----------

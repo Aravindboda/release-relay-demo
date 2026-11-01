@@ -86,7 +86,6 @@
 .rr-gap-b { margin: 0 0 8px; }
 .rr-sp { margin-left: 6px; }
 .rr-break { overflow-wrap: anywhere; }
-.rr-scroll { overflow-x: auto; }
 .rr-table th { background: #f3f3f3; }
 
 /* shared layout bits the org window still uses */
@@ -157,7 +156,6 @@
 
 /* Per-org values and Quality gates (board HubRollbackValuesGates 4): read-only, from the repository */
 .rr-repo-head { gap: 4px 12px; }
-.rr-table-wrap { overflow-x: auto; max-width: 100%; }
 .rr-values th, .rr-values td { font-size: 12px; vertical-align: top; }
 .rr-values td .rr-mono { white-space: nowrap; }
 
@@ -247,3 +245,30 @@ button.rr-chev:disabled { cursor: default; opacity: 0.4; }
 .rr-stp-on { background: var(--rr-blue); color: #fff; font-weight: 700; }
 .rr-mb .rr-ro { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 640px) { .rr-mb .rr-ro { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---- long lists (build 27, same in every bundle): search toolbar, fixed columns, pinned header, scroll inside ---- */
+.rr-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid #e5e5e5; }
+.rr-toolbar c-rly-search-box { flex: 1 1 260px; min-width: 0; }
+.rr-scroll { max-height: 26rem; overflow: auto; }
+.rr-ft { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
+.rr-ft th { position: sticky; top: 0; z-index: 1; background: #f3f3f3; }
+.rr-ft th, .rr-ft td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rr-ft .rr-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rr-ft td.rr-nomatch { white-space: normal; text-align: center; color: #5c5c5c; padding: 16px; }
+.rr-ft mark, .rr-scroll mark { background: #fef1cd; color: inherit; padding: 0; border-radius: 2px; }
+.rr-linkbtn { border: 0; background: none; padding: 0; font: inherit; color: #0b5cab; text-decoration: underline; cursor: pointer; }
+.rr-linkbtn:focus-visible { outline: 2px solid #0176d3; outline-offset: 2px; }
+.rr-ft-narrow { --rr-ft-min: 420px; }
+@media (max-width: 900px) { .rr-ft { min-width: var(--rr-ft-min, 640px); } }
+@media (max-width: 600px) { .rr-scroll { max-height: 60vh; } }
+/* per-org values: one fixed column per org; with many orgs the table widens and scrolls sideways inside its box */
+.rr-w-vname { width: 220px; }
+.rr-w-val { width: 160px; }
+.rr-values.rr-ft { min-width: 0; }
+.rr-w-member { width: 180px; }
+.rr-w-member-edit { width: 220px; }
+.rr-td-input { overflow: visible; }
+.rr-ro.rr-scroll { max-height: 22rem; }
+.rr-route-side.rr-scroll { max-height: 9rem; align-content: flex-start; }
+.rr-org-search { margin-bottom: 10px; }
+.rr-nomatch-p { margin: 0; padding: 12px; text-align: center; font-size: 13px; color: var(--rr-muted); }

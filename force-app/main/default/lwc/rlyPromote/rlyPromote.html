@@ -58,8 +58,21 @@
                                 <div class="rr-grid">
                                     <!-- the releases ready in the stage: hotfixes first, then oldest deploy first -->
                                     <section class="rr-card rr-table-card" aria-label={s.listLabel}>
+                                        <template lwc:if={s.showSearch}>
+                                            <div class="rr-toolbar">
+                                                <c-rly-search-box data-stage={s.stageId} label={s.searchLabel} placeholder="Search by release, title, person or test"
+                                                    shown={s.shownCount} total={s.totalCount} onsearch={handleStageSearch}></c-rly-search-box>
+                                            </div>
+                                        </template>
                                         <div class="rr-scroll">
-                                            <table class="slds-table slds-table_cell-buffer rr-table">
+                                            <table class="slds-table slds-table_cell-buffer rr-table rr-ft">
+                                                <colgroup>
+                                                    <col class="rr-w-check" />
+                                                    <col />
+                                                    <col class="rr-w-person" />
+                                                    <col class="rr-w-when" />
+                                                    <col class="rr-w-tests" />
+                                                </colgroup>
                                                 <thead>
                                                     <tr>
                                                         <th scope="col" class="rr-check-col">
@@ -88,19 +101,22 @@
                                                                 <span class="rr-row">
                                                                     <template lwc:if={r.isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
                                                                     <template lwc:if={r.manualOnly}><span class="rr-pill rr-pill-info">Manual steps only</span></template>
-                                                                    <strong>{r.name}</strong>
-                                                                    <span>{r.title}</span>
+                                                                    <strong title={r.name}><template for:each={r.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></strong>
+                                                                    <span class="rr-rel-title" title={r.title}><template for:each={r.titleParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></span>
                                                                     <template lwc:if={r.deletesText}><span class="rr-pill rr-pill-bad">{r.deletesText}</span></template>
                                                                 </span>
-                                                                <template lwc:if={r.reason}><span class="rr-reason">{r.reason}</span></template>
-                                                                <template lwc:if={r.stays}><span class="rr-reason">Stays in {s.stageName}</span></template>
-                                                                <template lwc:if={r.carried}><span class="rr-reason rr-reason-go">{r.goesWith}</span></template>
-                                                                <template lwc:if={r.blockText}><span class="rr-reason rr-reason-bad">{r.blockText}</span></template>
+                                                                <template lwc:if={r.reason}><span class="rr-reason rr-line" title={r.reason}>{r.reason}</span></template>
+                                                                <template lwc:if={r.stays}><span class="rr-reason rr-line">Stays in {s.stageName}</span></template>
+                                                                <template lwc:if={r.carried}><span class="rr-reason rr-reason-go rr-line" title={r.goesWith}>{r.goesWith}</span></template>
+                                                                <template lwc:if={r.blockText}><span class="rr-reason rr-reason-bad rr-line" title={r.blockText}>{r.blockText}</span></template>
                                                             </td>
-                                                            <td>{r.raisedBy}</td>
-                                                            <td class="rr-nowrap">{r.deployedText}</td>
-                                                            <td class="rr-mono rr-tests">{r.testsText}</td>
+                                                            <td title={r.raisedBy}>{r.raisedBy}</td>
+                                                            <td class="rr-nowrap" title={r.deployedText}>{r.deployedText}</td>
+                                                            <td class="rr-mono rr-tests" title={r.testsText}>{r.testsText}</td>
                                                         </tr>
+                                                    </template>
+                                                    <template lwc:if={s.noMatch}>
+                                                        <tr><td colspan="5" class="rr-nomatch">{s.noMatchText} <button type="button" class="rr-linkbtn" data-stage={s.stageId} onclick={clearStageSearch}>Clear search</button></td></tr>
                                                     </template>
                                                 </tbody>
                                             </table>
