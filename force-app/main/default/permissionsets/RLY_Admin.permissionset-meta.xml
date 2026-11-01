@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <applicationVisibilities>
+        <application>Release_Relay</application>
+        <visible>true</visible>
+    </applicationVisibilities>
     <classAccesses>
         <apexClass>RlyManualStepController</apexClass>
         <enabled>true</enabled>
@@ -554,6 +558,18 @@
     </tabSettings>
     <tabSettings>
         <tab>RLY_Promote</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>RLY_Approvals</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>RLY_My_Releases</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>RLY_New_Release</tab>
         <visibility>Visible</visibility>
     </tabSettings>
 </PermissionSet>
