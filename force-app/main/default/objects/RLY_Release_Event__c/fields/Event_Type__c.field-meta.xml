@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Event_Type__c</fullName>
+    <description>What happened.</description>
+    <label>Event Type</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Raised</fullName>
+                <default>false</default>
+                <label>Raised</label>
+            </value>
+            <value>
+                <fullName>Pull_Request</fullName>
+                <default>false</default>
+                <label>Pull request</label>
+            </value>
+            <value>
+                <fullName>Scan</fullName>
+                <default>false</default>
+                <label>Code scan</label>
+            </value>
+            <value>
+                <fullName>Validation</fullName>
+                <default>false</default>
+                <label>Validation</label>
+            </value>
+            <value>
+                <fullName>Approved</fullName>
+                <default>false</default>
+                <label>Approved</label>
+            </value>
+            <value>
+                <fullName>Rejected</fullName>
+                <default>false</default>
+                <label>Rejected</label>
+            </value>
+            <value>
+                <fullName>Auto_Approved</fullName>
+                <default>false</default>
+                <label>Approved automatically</label>
+            </value>
+            <value>
+                <fullName>Deployed</fullName>
+                <default>false</default>
+                <label>Deployed</label>
+            </value>
+            <value>
+                <fullName>Deploy_Failed</fullName>
+                <default>false</default>
+                <label>Deploy failed</label>
+            </value>
+            <value>
+                <fullName>Manual_Step</fullName>
+                <default>false</default>
+                <label>Manual step</label>
+            </value>
+            <value>
+                <fullName>Flow_Activated</fullName>
+                <default>false</default>
+                <label>Flow activation</label>
+            </value>
+            <value>
+                <fullName>Merged_Back</fullName>
+                <default>false</default>
+                <label>Merged back</label>
+            </value>
+            <value>
+                <fullName>Promoted</fullName>
+                <default>false</default>
+                <label>Promoted</label>
+            </value>
+            <value>
+                <fullName>Back_Promoted</fullName>
+                <default>false</default>
+                <label>Back promoted</label>
+            </value>
+            <value>
+                <fullName>Comment</fullName>
+                <default>false</default>
+                <label>Comment</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
