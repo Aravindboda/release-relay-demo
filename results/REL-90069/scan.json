@@ -1,0 +1,27 @@
+{
+ "request": "REL-90069",
+ "step": "scan",
+ "status": "Passed",
+ "total": 0,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {},
+ "files": [
+  "force-app/main/default/classes/RlyDeletions.cls",
+  "force-app/main/default/classes/RlyPipelineOptions.cls",
+  "force-app/main/default/classes/RlyPromoteOverlapTest.cls",
+  "force-app/main/default/classes/RlyRollbackPlan.cls"
+ ],
+ "violations": [],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41325853880",
+ "finishedAt": "2026-11-01T16:21:53.490Z"
+}
