@@ -1,0 +1,4 @@
+{
+ "_help": "Per-org values (Release Relay pipeline files version 13). Branches hold {{relay:NAME}} placeholders; validate, deploy and sync (back promote) fill them with the target environment's value in a temporary copy of the deployment (never committed), and fail when a placeholder has no value for that environment. Raises that write org metadata into a branch (modes org and hub) turn the source environment's values (6 characters or longer) back into placeholders. NAME: A-Z, 0-9 and _ (up to 60). Inner keys: the Git environment names the pipeline uses (environment / target_environment). Keys starting with _ are ignored. Example: \"values\": { \"PAYMENT_URL\": { \"dev1\": \"https://dev.pay.example\", \"sit\": \"https://sit.pay.example\", \"prod\": \"https://pay.example\" } }. Read from the pipeline's own commit (the default branch), never from a release branch.",
+ "values": {}
+}

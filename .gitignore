@@ -19,3 +19,6 @@ npm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Release Relay: the cached Salesforce CLI on GitLab (never committed)
+.relay-sf/

@@ -1,10 +1,12 @@
-# Release Relay pipeline files: version 12
+# Release Relay pipeline files: version 13
+# Version 13: per-org values (.relay/values.json), quality gates (.relay/gates.json), rollback snapshots before every
+# deploy (release-relay-snapshots branch) and MODE=rollback, and a cached Salesforce CLI. See pipelines/README.md.
 # Release Relay's own metadata (its components by exact name, plus .relay/exclude) is never validated, deployed or deleted;
 # options {"selfUpdate":true} (the hub updating itself, from the release-relay-hub branch) ignores the list.
 # Release Relay for Bitbucket Pipelines. Started only from Salesforce: the Release Relay hub runs the
 # custom pipeline "release-relay" on the default branch through the API, with the release as
 # variables. If you already have a bitbucket-pipelines.yml, copy the release-relay entry under
-# pipelines: custom: into it, and set clone: depth: full.
+# pipelines: custom: into it, add the caches under definitions:, and set clone: depth: full.
 #   MODE=org     retrieve the selected components from the source org, apply deletions, commit to a
 #                new branch, open a pull request into the target branch, then scan and validate it.
 #   MODE=branch  open a pull request from a branch that already exists, then scan and validate it.
@@ -21,6 +23,8 @@
 #   MODE=sync    back promote: merge BRANCH (the hub's production branch) into TARGET (a back-promote
 #                org's branch, made from BRANCH when missing), deploy what changed to the org in
 #                TARGET_ENVIRONMENT, and push TARGET only when that deploy worked.
+#   MODE=rollback deploy a snapshot taken before an earlier deploy back into the org in TARGET_ENVIRONMENT
+#                (OPTIONS.snapshotPath, else the latest for the release and environment); Git isn't changed.
 # Bitbucket can't skip steps by variable, so every step runs and a step the mode doesn't need ends at
 # once. Validation and deployment run only when TARGET_ENVIRONMENT is set ("-" means empty). Each
 # step writes its result as JSON to the release-relay-results branch, where Salesforce reads it.
@@ -33,6 +37,13 @@ image: node:22
 clone:
   depth: full
 
+# The Salesforce CLI (installed under ~/.relay-sf) and the Code Analyzer plugin are cached. Bitbucket saves a cache
+# only when it doesn't exist yet and drops it after a week, so the CLI is refreshed weekly.
+definitions:
+  caches:
+    relay-sf: ~/.relay-sf
+    relay-sf-plugins: ~/.local/share/sf
+
 pipelines:
   custom:
     release-relay:
@@ -40,7 +51,7 @@ pipelines:
           - name: REQUEST_ID
             description: Salesforce release number
           - name: MODE
-            description: org, branch, promote, hub, resolve, check, merge or sync
+            description: org, branch, promote, hub, resolve, check, merge, sync or rollback
           - name: ENVIRONMENT
             description: Environment name of the source org
           - name: TARGET_ENVIRONMENT
@@ -65,6 +76,8 @@ pipelines:
       - step:
           name: Raise pull request
           max-time: 30
+          caches:
+            - relay-sf
           script:
             - export RELAY_PROVIDER=bitbucket
             # The release branch may hold an older copy of the script: always run the pipeline's own.
@@ -76,8 +89,9 @@ pipelines:
               fi
             - |
               if [ "$MODE" = hub ] || { [ "$MODE" = org ] && [ -n "$COMPONENTS" ] && [ "$COMPONENTS" != "-" ]; }; then
-                npm install --global @salesforce/cli@2 --silent
+                [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --silent --no-audit --no-fund
               fi
+              export PATH="$HOME/.relay-sf/bin:$PATH"
             - STEP=raise node /tmp/release-relay.js
 
       - parallel:
@@ -85,25 +99,32 @@ pipelines:
             - step:
                 name: Code scan
                 max-time: 30
+                caches:
+                  - relay-sf
+                  - relay-sf-plugins
                 script:
                   - export RELAY_PROVIDER=bitbucket
                   - git show "$BITBUCKET_COMMIT:scripts/release-relay.js" > /tmp/release-relay.js
                   - case "$MODE" in org|branch|promote|hub|resolve|check) ;; *) echo "Not needed for mode $MODE."; exit 0 ;; esac
                   - if echo "$OPTIONS" | grep -Eq '"scan"[[:space:]]*:[[:space:]]*"off"'; then echo "Code scan is off."; exit 0; fi
                   - apt-get update -qq && apt-get install -y -qq openjdk-17-jre-headless > /dev/null
-                  - npm install --global @salesforce/cli@2 --silent
-                  - sf plugins install code-analyzer
+                  - &relay-sf |
+                    [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --silent --no-audit --no-fund
+                    export PATH="$HOME/.relay-sf/bin:$PATH"
+                  - sf plugins 2>/dev/null | grep -q 'code-analyzer' || sf plugins install code-analyzer
                   - STEP=scan node /tmp/release-relay.js
             - step:
                 name: Validate against the target org
                 max-time: 120
+                caches:
+                  - relay-sf
                 script:
                   - export RELAY_PROVIDER=bitbucket
                   - git show "$BITBUCKET_COMMIT:scripts/release-relay.js" > /tmp/release-relay.js
                   - case "$MODE" in org|branch|promote|hub|resolve|check) ;; *) echo "Not needed for mode $MODE."; exit 0 ;; esac
                   - if [ -z "$TARGET_ENVIRONMENT" ] || [ "$TARGET_ENVIRONMENT" = "-" ]; then echo "No target environment, so Git only."; exit 0; fi
                   - *relay-java
-                  - npm install --global @salesforce/cli@2 --silent
+                  - *relay-sf
                   - STEP=validate node /tmp/release-relay.js
                 after-script:
                   # Tells the org in OPTIONS.notify to read the results now (never fails the run):
@@ -116,6 +137,7 @@ pipelines:
                       if env | grep -Eq '^([A-Z0-9_]+_)?SF_JKS=.' && ! command -v keytool > /dev/null; then
                         apt-get update -qq && apt-get install -y -qq openjdk-17-jre-headless > /dev/null || true
                       fi
+                      export PATH="$HOME/.relay-sf/bin:$PATH"
                       command -v sf > /dev/null || npm install --global @salesforce/cli@2 --silent || true
                       node -e '
                         let o = {};
@@ -146,6 +168,8 @@ pipelines:
       - step:
           name: Deploy to the target org
           max-time: 120
+          caches:
+            - relay-sf
           script:
             - export RELAY_PROVIDER=bitbucket
             - git show "$BITBUCKET_COMMIT:scripts/release-relay.js" > /tmp/release-relay.js
@@ -153,7 +177,7 @@ pipelines:
             - if [ -z "$TARGET_ENVIRONMENT" ] || [ "$TARGET_ENVIRONMENT" = "-" ]; then echo "No target environment, so Git only."; exit 0; fi
             - export MERGE_SHA="$(cat relay-merge-sha.txt)"
             - *relay-java
-            - npm install --global @salesforce/cli@2 --silent
+            - *relay-sf
             - STEP=deploy node /tmp/release-relay.js
           after-script:
             - if [ "$MODE" = merge ]; then export RELAY_NOTIFY=yes; fi
@@ -163,14 +187,35 @@ pipelines:
       - step:
           name: Back promote to the target org
           max-time: 120
+          caches:
+            - relay-sf
           script:
             - export RELAY_PROVIDER=bitbucket
             - git show "$BITBUCKET_COMMIT:scripts/release-relay.js" > /tmp/release-relay.js
             - if [ "$MODE" != sync ]; then echo "Not needed for mode $MODE."; exit 0; fi
             - if [ -z "$TARGET_ENVIRONMENT" ] || [ "$TARGET_ENVIRONMENT" = "-" ]; then echo "No target environment to back promote to."; exit 1; fi
             - *relay-java
-            - npm install --global @salesforce/cli@2 --silent
+            - *relay-sf
             - STEP=sync node /tmp/release-relay.js
           after-script:
             - if [ "$MODE" = sync ]; then export RELAY_NOTIFY=yes; fi
+            - *relay-notify
+
+      # Rollback: deploys a snapshot (taken before an earlier deploy) back into the org (its login: TARGET_ENVIRONMENT's
+      # prefix). Release branches aren't touched.
+      - step:
+          name: Roll back the target org
+          max-time: 120
+          caches:
+            - relay-sf
+          script:
+            - export RELAY_PROVIDER=bitbucket
+            - git show "$BITBUCKET_COMMIT:scripts/release-relay.js" > /tmp/release-relay.js
+            - if [ "$MODE" != rollback ]; then echo "Not needed for mode $MODE."; exit 0; fi
+            - if [ -z "$TARGET_ENVIRONMENT" ] || [ "$TARGET_ENVIRONMENT" = "-" ]; then echo "No target environment to roll back."; exit 1; fi
+            - *relay-java
+            - *relay-sf
+            - STEP=rollback node /tmp/release-relay.js
+          after-script:
+            - if [ "$MODE" = rollback ]; then export RELAY_NOTIFY=yes; fi
             - *relay-notify

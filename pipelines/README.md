@@ -1,9 +1,9 @@
-<!-- Release Relay pipeline files: version 11 -->
+<!-- Release Relay pipeline files: version 13 -->
 # Release Relay pipelines for GitLab, Bitbucket and Azure DevOps
 
 These files do what `.github/workflows/release-relay.yml` does on GitHub, with the same modes
-(`org`, `branch`, `promote`, `hub`, `resolve`, `check`, `merge`, `sync`), the same jobs (raise, scan, validate,
-merge, deploy, sync, notify) and the same script, `scripts/release-relay.js`. Every job runs the default
+(`org`, `branch`, `promote`, `hub`, `resolve`, `check`, `merge`, `sync`, `rollback`), the same jobs (raise, scan,
+validate, merge, deploy, sync, rollback, notify) and the same script, `scripts/release-relay.js`. Every job runs the default
 branch's copy of the script (`git show <pipeline commit>:scripts/release-relay.js`), never the copy on
 the release branch.
 
@@ -14,7 +14,9 @@ the release branch.
 | Bitbucket | `bitbucket/bitbucket-pipelines.yml` | `bitbucket-pipelines.yml` at the root of the default branch | (not used: the custom pipeline is `release-relay`) |
 | Azure DevOps | `azure/azure-pipelines.yml` | `azure-pipelines.yml` at the root of the default branch (any path works) | the pipeline id (`definitionId=` in its address) |
 
-Every provider also needs `scripts/release-relay.js` on the default branch.
+Every provider also needs `scripts/release-relay.js` on the default branch. `.relay/exclude`, `.relay/values.json`
+and `.relay/gates.json` are optional; like the script, they are read from the pipeline's own commit (the default
+branch), never from a release branch.
 
 ## The same for every provider
 
@@ -43,8 +45,9 @@ in upper case with anything that isn't a letter or digit turned into `_`: `sit` 
 GitLab, if you don't use environment scopes).
 
 **Branches.** The pipeline pushes `feature/…`, `hotfix/…` and `promote/…` branches, the stage and developer
-branches it updates after a merge (`syncBranches`), the back-promote orgs' branches (mode `sync`), and
-`release-relay-results`. `release-relay-results` must not be protected.
+branches it updates after a merge (`syncBranches`), the back-promote orgs' branches (mode `sync`),
+`release-relay-results` and `release-relay-snapshots` (rollback snapshots). Neither of the last two may be
+protected.
 
 ## What the hub sends and reads
 
@@ -55,7 +58,9 @@ branch merged with the target), `attempt` (the run's token, echoed in every resu
 production every stage branch, then every developer branch) and `stageWins` (true: the first listed branch takes
 the target's lines where they conflict; otherwise a conflict is reported for that branch, never forced), and
 `quickDeploy` (false: always deploy in full; see Quick deploy), and `selfUpdate` (true: the hub updating itself;
-the exclude list is ignored, see Release Relay's own metadata).
+the exclude list is ignored, see Release Relay's own metadata), `snapshot` (false: no rollback snapshot before the
+deploy), and for `rollback`: `snapshotPath` (`REL-00042/prod/<id>`; blank = the latest snapshot of that release in
+that environment) and `tests`.
 
 **Result files** on `release-relay-results`, `results/<REQUEST_ID>/<step>.json`, each with `request`, `step`,
 `status`, `runUrl`, `finishedAt` and `attempt`:
@@ -63,20 +68,34 @@ the exclude list is ignored, see Release Relay's own metadata).
 - `raise.json` (modes `hub` and `promote` started by the hub): `status` `Opened` or `Failed`, `mode`, `branch`,
   `target`, `sha` (the branch head pushed), `pr` (number), `url`, `commits` (promote: the merge commits picked),
   `conflicts` (promote: files a commit conflicted on), `deleted` (mode `hub`: the `Type:Name` deletions removed
-  from the branch; `[]` otherwise), `message`.
+  from the branch; `[]` otherwise), `valuesTokenized` (mode `hub`: occurrences of the source org's values turned
+  into `{{relay:NAME}}`; `0` otherwise), `message`.
 - `validate.json` and `deploy.json` list `deleted` (`Type:Name`): the components deployed as
   `destructiveChangesPost.xml` because their files were removed.
 - `validate.json`, `deploy.json` and `sync.json` list `excluded` (repo paths): changed or deleted files that match
   `.relay/exclude` and were neither deployed nor deleted, and `selfUpdate` (true when the list was ignored).
-- `scan.json`: as before. `validate.json` also records `mergedWith` (the target commit validated against),
-  `validatedTree` (the merged files' tree) and `environment`.
+- `scan.json`: as before, plus `gate` (`{ "failAtPriority", "findings" }`, or null without a scan gate) and
+  `gates`. `validate.json` also records `mergedWith` (the target commit validated against), `validatedTree` (the
+  merged files' tree), `environment`, `gates` and, when the coverage gate ran, `coverage`
+  (`{ "minimumPerClass", "minimumOrgWide", "perClass": [{ "name", "percent" }], "orgWide" }`).
+- `gates` (scan.json, validate.json): `{ "file": ".relay/gates.json" | null, "passed": true | false, "failures": [ … ] }`.
+  A failed gate makes the step `Failed` (validate.json also `ok: false`), with the failures in `message`.
+- `values` (validate.json, deploy.json, sync.json): `{ "replaced": n, "files": [ up to 50, relative to SOURCE_PATH ],
+  "hash": "…" }`: placeholders filled with the target org's values, and a fingerprint of the values used ("" when
+  none), so a quick deploy never sends a validation's outdated values.
 - `deploy.json`: as before, plus `quick` (true when the validation was quick deployed) and `quickNote` (why it
-  wasn't, or which validation was used).
+  wasn't, or which validation was used), and `snapshot`: `{ "branch": "release-relay-snapshots", "path":
+  "REL-00042/prod/<id>", "existing": n, "added": n }`, or `{ "skipped": "…" }` (options `snapshot: false`,
+  `selfUpdate`), or `{ "error": "…" }` (the snapshot failed; the deploy went ahead). `sync.json` has the same
+  `snapshot` when it deployed.
 - `merge.json`: `status` `Merged` or `Failed`, `pr`, `sha`, `method`, and `sync`: one entry per `syncBranches`
   branch, `{ "branch", "status": "Synced" | "Conflict" | "Missing", "message" }`.
 - `sync.json` (mode `sync`): `status` `Deployed`, `Nothing to deploy`, `Conflict` or `Failed`, `sha` (the
   back-promote branch's new head; for a conflict the production head that couldn't be merged), `deployId`,
   `testsRun`, `conflicts` (files), `message`.
+- `rollback.json` (mode `rollback`): `status` `Rolled back` or `Failed`, `environment`, `deployId`, `restored`
+  (components put back as they were), `removed` (components the release had added, deleted), `snapshot` (its
+  path), `message`, `testLevel`, `testsRun`, `componentErrors`, `testFailures`.
 
 **Deletions (mode `hub`).** `deletions` is a comma-separated `Type:Name` list. The hub commits either
 `.relay-inbox/<REQUEST_ID>.zip` (the retrieve), `.relay-inbox/<REQUEST_ID>.deletions` (a marker, empty or holding the
@@ -145,6 +164,70 @@ RunLocalTests when Apex changed and NoTestRun otherwise; the release's `tests` a
 only when the deploy worked. A missing `target` branch is made from `branch` and nothing is deployed that time:
 the org is taken to match production already (a sandbox made from it).
 
+**Per-org values (`.relay/values.json`).** Values that differ per org (endpoints, ids, emails) are kept out of the
+branches as placeholders, `{{relay:PAYMENT_URL}}`, with one value per Git environment:
+
+```json
+{ "values": { "PAYMENT_URL": { "dev1": "https://dev.pay.example", "sit": "https://sit.pay.example", "prod": "https://pay.example" } } }
+```
+
+Names are `A-Z`, `0-9` and `_` (up to 60); environment names are the ones the hub sends (`environment`,
+`target_environment`); keys starting with `_` are ignored. Validate, deploy and sync replace each placeholder in the
+deployment's text files with the **target** org's value, in a temporary copy of the project (the branch and the
+checkout are never changed), and fail when a placeholder has no value for that org ("PAYMENT_URL has no value for
+prod in .relay/values.json (used in classes/PayClient.cls)."). A quick deploy sends what its validation filled in,
+so the validation fills the target's values; if the values changed since, the deploy runs in full. Modes `org` and
+`hub` (org metadata written to a branch) turn the **source** org's values back into placeholders in the retrieved
+files, longest value first; values shorter than 6 characters are never turned back (a warning says so), since they
+could match unrelated text. Snapshots and rollbacks hold the org's own copies, so nothing is filled in there.
+
+**Quality gates (`.relay/gates.json`).** All optional:
+
+```json
+{ "scan": { "failAtPriority": 2 }, "coverage": { "minimumPerClass": 75, "minimumOrgWide": 75 }, "tests": { "requireForApex": true } }
+```
+
+`scan.failAtPriority`: the scan fails when a finding has that priority or higher (1 is the highest), on top of
+`SCAN_BLOCK_SEVERITY`. `coverage`: after a validation that passed and ran tests, it fails when an Apex class or
+trigger the release deploys is below `minimumPerClass` ("PayClient 61% < 75%"); `minimumOrgWide` is checked only
+when the validation ran `RunLocalTests` or `RunAllTestsInOrg`, the only runs whose coverage covers the org.
+`tests.requireForApex`: a release that deploys or deletes Apex and would run no tests (`tests: []`, or
+`NoTestRun`) fails before anything is sent. An unreadable gates file fails the scan and the validation. A
+validation that failed a gate is never quick deployed.
+
+**Rollback snapshots and mode `rollback`.** Before every real deploy (deploy, full or quick, and sync) the pipeline
+retrieves the target org's current versions of the components it is about to deploy and delete (Metadata API
+format) and commits them, with `manifest.json`, to `release-relay-snapshots` at
+`<REQUEST_ID>/<environment>/<attempt, or the run id>/`:
+
+```json
+{ "request": "REL-00042", "environment": "prod", "takenAt": "2026-11-01T10:00:00.000Z", "sha": "<merge commit>",
+  "existing": ["ApexClass:PayClient"], "added": ["ApexClass:PayClientV2"], "deleted": ["ApexClass:OldPay"],
+  "unresolved": [] }
+```
+
+`existing`: deployed components the org already had; `added`: ones it didn't have ("cannot be found"); `deleted`:
+components the release deletes that the org had; `unresolved`: ones the retrieve said nothing about (left alone by
+a rollback). Release Relay's own components (and their fields on standard objects) never go into a snapshot.
+`{"snapshot":false}` or `selfUpdate` skips it; a failed snapshot is a warning and the deploy goes ahead
+(`deploy.json` `snapshot.error`).
+
+Mode `rollback` deploys a snapshot back: start it like a deploy, with `mode` `rollback`, `request_id`,
+`target_environment` (the org; its login is used, as for deploy), `environment` (any, the hub sends the same),
+`branch` and `target` (not used: send the target org's branch) and `title`, and options `snapshotPath` (blank = the
+latest snapshot of that release in that environment) and `tests`. It deploys the snapshot's components as they were
+and deletes the `added` ones (`destructiveChangesPost.xml`). Test level: the given tests (`RunSpecifiedTests`);
+otherwise `RunLocalTests` when Apex is involved and the org isn't a confirmed sandbox; otherwise `NoTestRun`.
+Release branches aren't changed: Git still holds the release, so a follow-up release brings the branches in line.
+The exclude list always applies: Release Relay's own components are never rolled back.
+
+**Faster runs.** The jobs cache the Salesforce CLI (major version 2): GitHub per runner OS and month
+(`actions/cache`, `~/.relay-sf`; the scan job also caches the Code Analyzer plugin), GitLab in the job cache
+(`.relay-sf/`, installed again after 30 days), Bitbucket in the caches `relay-sf` and `relay-sf-plugins` (refreshed
+weekly by Bitbucket), Azure with `Cache@2` per agent OS and month. GitHub's deploy job fetches only the merge commit
+and its parents, and the rollback and notify jobs only the pipeline's commit; jobs that merge or diff against the
+target keep the full history.
+
 ## GitLab
 
 **File.** `gitlab/.gitlab-ci.yml` → `.gitlab-ci.yml`. If you already have one, save this file as
@@ -176,7 +259,9 @@ developer branches and the back-promote branches. It can be the hub's token if t
 
 The notify job (only when the options carry `notify`) reads prefixed variables only.
 
-**Stages.** Add `relay-sync` (after `relay-deploy`) if you include this file in your own `.gitlab-ci.yml`.
+**Stages.** Add `relay-sync` (after `relay-deploy`) if you include this file in your own `.gitlab-ci.yml`. The
+rollback job runs in `relay-deploy`. Jobs that use the Salesforce CLI share the cache key `relay-sf-cli2-node22`
+(`.relay-sf/` in the project folder; add it to your `.gitignore` if you run other jobs that commit).
 
 **Approvals: protected environments** (Premium/Ultimate). Settings → CI/CD → Protected environments → protect
 `prod` (and any stage): **Allowed to deploy** must include the `RELAY_TOKEN`/hub token's bot user, since the hub
@@ -187,11 +272,13 @@ waits there until approved; validate uses `action: prepare`, so it isn't held.
 "REQUEST_ID", "value": "REL-00042"}, …]}`: keys `REQUEST_ID`, `MODE`, `ENVIRONMENT`, `TARGET_ENVIRONMENT`, `BRANCH`,
 `TARGET`, `TITLE`, `COMPONENTS`, `DELETIONS`, `OPTIONS` (upper case). The run is named
 `Release Relay REL-00042 (hub)` (`GET /projects/:id/pipelines?name=…`, or keep the `id` from the create call).
+A rollback is `MODE` `rollback` with `TARGET_ENVIRONMENT` and `OPTIONS` (`{"snapshotPath": …, "tests": […]}`).
 
 ## Bitbucket
 
 **File.** `bitbucket/bitbucket-pipelines.yml` → `bitbucket-pipelines.yml`. If you already have one, copy the
-`release-relay` entry under `pipelines: custom:` into it and set `clone: depth: full`. Bitbucket can't skip a step
+`release-relay` entry under `pipelines: custom:` into it, add the `relay-sf` and `relay-sf-plugins` caches under
+`definitions: caches:`, and set `clone: depth: full`. Bitbucket can't skip a step
 by variable, so every step starts and a step the mode doesn't need ends at once (a few seconds of build minutes).
 Scan and validate run in parallel, like GitHub's jobs.
 
@@ -201,8 +288,9 @@ Scan and validate run in parallel, like GitHub's jobs.
 **Pipeline token.** Repository variable `RELAY_TOKEN` (Secured): a repository access token with
 **Repositories: Write** and **Pull requests: Write**. The script opens and merges pull requests with it; git
 pushes use the pipeline's own access. Branch restrictions must let pipelines push to the developer branches, the
-back-promote branches and the results branch, and merge into the stage branches. The last step, "Back promote to
-the target org", runs only in mode `sync` and reads the back-promote org's prefixed login.
+back-promote branches, the results branch and the snapshots branch, and merge into the stage branches. The step
+"Back promote to the target org" runs only in mode `sync` and reads the back-promote org's prefixed login; the last
+step, "Roll back the target org", runs only in mode `rollback` and reads the target org's prefixed login.
 
 **Each org's login: prefixed repository variables** (Repository settings → Pipelines → Repository variables).
 Secured: `SIT_SF_USERNAME`, `SIT_SF_CLIENT_ID`, `SIT_SF_JKS`, `SIT_SF_JKS_PASSWORD`; plain: `SIT_SF_INSTANCE_URL`,
@@ -254,7 +342,8 @@ developer branches have policies.
 `SF_INSTANCE_URL`, `SF_JKS_ALIAS`. Optional settings go in the same group or as pipeline variables. Under the
 group's **Pipeline permissions**, allow this pipeline; otherwise the first run waits for someone to press Permit.
 Runs started by the hub (`"hub":true`) use only the target's group. Mode `sync` is a deployment job in the
-back-promote org's environment with its group `release-relay-<target_environment>`, like deploy.
+back-promote org's environment with its group `release-relay-<target_environment>`, like deploy, and so is mode
+`rollback` (the environment's approvals and checks hold a rollback too).
 
 **Approvals: environments with approvals and checks.** The deploy job is a deployment job in the Azure DevOps
 environment named as the target (`sit`, `prod`; created on first use). Pipelines → Environments → `prod` →
