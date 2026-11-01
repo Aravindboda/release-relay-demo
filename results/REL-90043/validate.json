@@ -1,0 +1,657 @@
+{
+ "request": "REL-90043",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 147,
+ "deleted": [],
+ "mergedWith": "c263ad3dd3828529fcd8c6022ddf6544d8cf8c43",
+ "validatedTree": "8b5b70f54065818b7f85079caa3d4f918472fa01",
+ "environment": "sit",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cJTmnSAG",
+ "testsRun": 0,
+ "tests": [
+  "RlyApprovalRulesTest",
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyBackPromoteTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyDeletionFinderTest",
+  "RlyDeployReaderTest",
+  "RlyEvidenceTest",
+  "RlyFlowActivationTest",
+  "RlyGitAdviceTest",
+  "RlyGitProvidersTest",
+  "RlyHotfixTest",
+  "RlyHubGuardTest",
+  "RlyManualOnlyTest",
+  "RlyManualStepGateTest",
+  "RlyManualStepsTest",
+  "RlyOrgControllerTest",
+  "RlyOrgSessionTest",
+  "RlyPipelineFilesTest",
+  "RlyPromoteTest",
+  "RlyPullRequestCloseTest",
+  "RlyRaiseServiceTest",
+  "RlyReleasesFilterTest",
+  "RlyRouteControllerTest",
+  "RlySetupStatusTest",
+  "RlySlackActionsTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest",
+  "RlyTwoApproversTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [
+  {
+   "type": "CustomField",
+   "name": "RLY_Notification__c.Bot_Token_Hint__c",
+   "problem": "Entity 'RLY_Notification__c' not found.",
+   "line": 21
+  },
+  {
+   "type": "CustomField",
+   "name": "RLY_Org__c.Approval_Rule__c",
+   "problem": "Entity 'RLY_Org__c' not found.",
+   "line": 22
+  },
+  {
+   "type": "CustomField",
+   "name": "RLY_Org__c.Approval_Types__c",
+   "problem": "Entity 'RLY_Org__c' not found.",
+   "line": 51
+  },
+  {
+   "type": "CustomField",
+   "name": "RLY_Release_Event__c.Org__c",
+   "problem": "referenceTo value of 'RLY_Org__c' does not resolve to a valid sObject type",
+   "line": 136
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuleOrg",
+   "problem": "Invalid type: RLY_Org__c",
+   "line": 23
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuleOrg",
+   "problem": "Invalid type: RLY_Org__c",
+   "line": 23
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuleOrg",
+   "problem": "Variable does not exist: row",
+   "line": 29
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuleOrg",
+   "problem": "Variable does not exist: row",
+   "line": 30
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuleOrg",
+   "problem": "Invalid type: RLY_Org__c",
+   "line": 33
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuleOrg",
+   "problem": "Variable does not exist: row",
+   "line": 37
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuleOrg",
+   "problem": "Invalid type: RLY_Org__c",
+   "line": 71
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuleOrg",
+   "problem": "Variable does not exist: o",
+   "line": 72
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Invalid type: RLY_Org__c",
+   "line": 85
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Variable does not exist: org",
+   "line": 86
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Variable does not exist: org",
+   "line": 86
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Invalid type: RLY_Org__c",
+   "line": 94
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Variable does not exist: org",
+   "line": 96
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Variable does not exist: org.Approval_Types__c",
+   "line": 97
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Variable does not exist: Is_Deletion__c",
+   "line": 112
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Variable does not exist: RlyManualStepGate",
+   "line": 119
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Variable does not exist: RlyHotfix",
+   "line": 120
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Invalid type: RLY_Org__c",
+   "line": 125
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Variable does not exist: target",
+   "line": 126
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Variable does not exist: target",
+   "line": 126
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Invalid type: RLY_Org__c",
+   "line": 146
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Variable does not exist: target",
+   "line": 147
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRules",
+   "problem": "Variable does not exist: RlyTwoApprovers",
+   "line": 149
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Invalid type: RlyHttpMock",
+   "line": 20
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyTestData",
+   "line": 11
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyTestData",
+   "line": 12
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "SELECT Target_Org__c FROM RLY_Release__c\n       ^\nERROR at Row:1:Column:8\nNo such column 'Target_Org__c' on entity 'RLY_Release__c'. If you are attempting to use a custom field, be sure to append the '__c' after the custom field name. Please reference your WSDL or the describe call for the appropriate names.",
+   "line": 16
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Invalid type: RLY_Org__c",
+   "line": 17
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyTestData",
+   "line": 21
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyOrgSession",
+   "line": 21
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Invalid type: RlyFlowScenario",
+   "line": 22
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: scenario.results",
+   "line": 23
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyReleaseTestData",
+   "line": 23
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: scenario.results",
+   "line": 24
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyReleaseTestData",
+   "line": 24
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: scenario",
+   "line": 25
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyTestData",
+   "line": 30
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyReleaseTestData",
+   "line": 31
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Invalid type: RlyHttpMock",
+   "line": 33
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Method does not exist or incorrect signature: void setMock(System.Type, RlyHttpMock) from the type System.Test",
+   "line": 34
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyReleaseTestData",
+   "line": 38
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: Approved_Via__c",
+   "line": 40
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: mock",
+   "line": 42
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyTestData",
+   "line": 55
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyReleaseTestData",
+   "line": 56
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Method does not exist or incorrect signature: void passingChecks(RLY_Release__c) from the type RlyApprovalRulesTest",
+   "line": 58
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyReleaseTestData",
+   "line": 62
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyTestData",
+   "line": 72
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyReleaseTestData",
+   "line": 73
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "SELECT Target_Org__c FROM RLY_Release__c\n       ^\nERROR at Row:1:Column:8\nNo such column 'Target_Org__c' on entity 'RLY_Release__c'. If you are attempting to use a custom field, be sure to append the '__c' after the custom field name. Please reference your WSDL or the describe call for the appropriate names.",
+   "line": 75
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Invalid type: RLY_Manual_Step__c",
+   "line": 76
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "DML requires SObject or SObject list type: RLY_Manual_Step__c",
+   "line": 78
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Invalid type: RLY_Manual_Step_Run__c",
+   "line": 79
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Method does not exist or incorrect signature: void passingChecks(RLY_Release__c) from the type RlyApprovalRulesTest",
+   "line": 80
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyReleaseTestData",
+   "line": 84
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: Approved_Via__c",
+   "line": 87
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyTestData",
+   "line": 93
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Invalid type: RLY_Org__c",
+   "line": 94
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Field does not exist: Target_Org__r on RLY_Release__c",
+   "line": 96
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: target",
+   "line": 109
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: target",
+   "line": 112
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: target",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: RlyTestData",
+   "line": 124
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Invalid type: RLY_Org__c",
+   "line": 125
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Invalid type: RLY_Org__c",
+   "line": 126
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: row",
+   "line": 128
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: row",
+   "line": 130
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: row",
+   "line": 132
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: row",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Variable does not exist: row",
+   "line": 135
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRulesTest",
+   "problem": "Invalid type: RLY_Org__c",
+   "line": 141
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Invalid type: RlyGit",
+   "line": 16
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Invalid type: RlyApprover",
+   "line": 16
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Invalid type: RlyGit",
+   "line": 27
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: git",
+   "line": 35
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: RlyPipelineRun",
+   "line": 35
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Invalid type: RlyApprover",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: who",
+   "line": 51
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: who",
+   "line": 52
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: Approved_Via__c",
+   "line": 52
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: who",
+   "line": 54
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: who.comment",
+   "line": 54
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Invalid type: RLY_Git_Connection__c",
+   "line": 63
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: RlyGit",
+   "line": 64
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: RlyPipelineRun",
+   "line": 64
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: conn",
+   "line": 68
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Invalid type: RlyGit",
+   "line": 81
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: git",
+   "line": 86
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: RlyApprover",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: Target_Org__r",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Invalid type: RLY_Git_Connection__c",
+   "line": 125
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Invalid type: RlyGit",
+   "line": 126
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: RlyPipelineRun",
+   "line": 130
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: Second_Approved_By__c",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Variable does not exist: Second_Approved_On__c",
+   "line": 135
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalService",
+   "problem": "Invalid type: RlyReleaseException",
+   "line": 32
+  }
+ ],
+ "testFailures": [],
+ "message": "100 component error(s)",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41274275268",
+ "finishedAt": "2026-11-01T04:46:38.228Z",
+ "excluded": [],
+ "selfUpdate": true
+}
