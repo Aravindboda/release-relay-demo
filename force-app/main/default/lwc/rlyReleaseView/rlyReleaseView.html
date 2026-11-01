@@ -19,7 +19,7 @@
                         <template lwc:if={isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
                         <template lwc:if={typeLabel}><span class="rr-pill rr-pill-info">{typeLabel}</span></template>
                         <template lwc:if={manualOnly}><span class="rr-pill rr-pill-info">{manualOnlyLabel}</span></template>
-                        <span class={phaseCls}>{phase}</span>
+                        <span class={headPillCls}>{headPill}</span>
                         <template lwc:if={manualOpenText}><span class="rr-pill rr-pill-wait">{manualOpenText}</span></template>
                         <template lwc:if={detail.slackUrl}>
                             <a class="slds-button slds-button_neutral" href={detail.slackUrl} target="_blank" rel="noopener">Open in Slack</a>
@@ -31,6 +31,10 @@
                             <a class="slds-button slds-button_neutral" href={rel.Run_URL__c} target="_blank" rel="noopener">Pipeline run</a>
                         </template>
                         <lightning-button label={summaryLabel} onclick={copySummary}></lightning-button>
+                        <template lwc:if={showRollback}>
+                            <lightning-button variant="destructive-text" label="Roll back" onclick={openRollback} disabled={rollbackDisabled}
+                                title={rollbackTitle}></lightning-button>
+                        </template>
                         <lightning-button variant="brand" icon-name="utility:download" label={evidenceLabel} onclick={downloadEvidence} disabled={evidenceBusy}></lightning-button>
                     </div>
 
@@ -39,6 +43,7 @@
                             <li key={p.key} class={p.cls} aria-current={p.current}>{p.label}<span class="slds-assistive-text">: {p.stateText}</span></li>
                         </template>
                     </ol>
+                    <template lwc:if={rolledBackNotice}><div class="rr-msg rr-msg-warn rr-rb-note" role="status">{rolledBackNotice}</div></template>
 
                     <div class="rr-hl">
                         <div>
@@ -78,6 +83,7 @@
                                         <p><strong>{s.title}</strong><template lwc:if={s.stateLabel}><span class={s.pillCls}>{s.stateLabel}</span></template></p>
                                         <template lwc:if={s.text}><p class="rr-small rr-weak">{s.text}</p></template>
                                         <template lwc:if={s.reason}><p class={s.reasonCls}>{s.reason}</p></template>
+                                        <template lwc:if={s.link}><p class="rr-small"><a href={s.link} target="_blank" rel="noopener">{s.linkLabel}</a></p></template>
                                         <template lwc:if={s.hasSync}>
                                             <ul class="rr-sync-list" aria-label={s.syncLabel}>
                                                 <template for:each={s.sync} for:item="b">
@@ -100,16 +106,29 @@
                             </div>
                         </template>
 
+                        <template lwc:if={hasGateFailures}>
+                            <div class="rr-pad-all rr-line-top">
+                                <div class="rr-gates" role="alert">
+                                    <p class="rr-gates-title">Quality gates failed (<span class="rr-mono">{gatesFile}</span>)</p>
+                                    <ul class="rr-gates-list">
+                                        <template for:each={gateFailures} for:item="g">
+                                            <li key={g.key}>{g.text}</li>
+                                        </template>
+                                    </ul>
+                                </div>
+                            </div>
+                        </template>
+
                         <template lwc:if={hasViolations}>
                             <div class="rr-pad-all rr-line-top">
                                 <p class="rr-label">Code scan findings</p>
                                 <div class="rr-scroll">
                                     <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table">
-                                        <thead><tr><th scope="col">Severity</th><th scope="col">Rule</th><th scope="col">Where</th><th scope="col">Finding</th></tr></thead>
+                                        <thead><tr><th scope="col">Priority</th><th scope="col">Rule</th><th scope="col">Where</th><th scope="col">Finding</th></tr></thead>
                                         <tbody>
                                             <template for:each={violations} for:item="v">
                                                 <tr key={v.key}>
-                                                    <td><span class={v.sevCls}>{v.severityLabel}</span></td>
+                                                    <td><span class={v.sevCls} title={v.severityLabel}>{v.priority}</span></td>
                                                     <td class="rr-small">{v.rule}</td>
                                                     <td class="rr-mono">{v.where}</td>
                                                     <td class="rr-small rr-wrap">{v.message}</td>
@@ -153,7 +172,7 @@
                     <section class="rr-card" aria-label="Details">
                         <div class="rr-hd rr-hd-line"><h2 class="rr-h2">Details</h2></div>
                         <dl class="rr-dl">
-                            <dt>Status</dt><dd><span class={phaseCls}>{phase}</span></dd>
+                            <dt>Status</dt><dd><span class={headPillCls}>{headPill}</span></dd>
                             <template lwc:if={manualOnly}>
                                 <dt>Kind</dt><dd><span class="rr-pill rr-pill-info">{manualOnlyLabel}</span></dd>
                                 <dt>Code scan, validation, branch</dt><dd class="rr-small rr-weak">{notNeededText}</dd>
@@ -297,6 +316,11 @@
 
                 <!-- manual steps (board HubManualSteps, 2): per org checklist for the deployment team -->
                 <c-rly-manual-steps release-id={releaseId} release-name={rel.Name} status={rel.Status__c} disabled={hubCopy} onstepschange={handleStepsChange}></c-rly-manual-steps>
+
+                <!-- roll back (board HubRollbackValuesGates, panel 1): the confirm dialog -->
+                <template lwc:if={rollbackOpen}>
+                    <c-rly-rollback release-id={releaseId} release-name={rel.Name} onclose={closeRollback} onstarted={rollbackStarted}></c-rly-rollback>
+                </template>
 
                 <!-- actions -->
                 <template lwc:if={showFooter}>

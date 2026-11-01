@@ -21,6 +21,7 @@ import setBackPromote from '@salesforce/apex/RlyRouteController.setBackPromote';
 import saveBackPromoteOrg from '@salesforce/apex/RlyRouteController.saveBackPromoteOrg';
 import syncNow from '@salesforce/apex/RlyRouteController.syncNow';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
+import readRepoSettings from '@salesforce/apex/RlyRepoSettings.read';
 import getSetupStatus from '@salesforce/apex/RlySetupStatus.getSetupStatus';
 import saveBotToken from '@salesforce/apex/RlySlackController.saveBotToken';
 import IS_ADMIN from '@salesforce/customPermission/RLY_Admin';
@@ -86,6 +87,17 @@ const APPROVAL_TYPES = [
 const RULE_CARD_LABELS = { [RULE_ALWAYS]: 'Always', [RULE_SELECTED]: 'Only when it contains…', [RULE_NEVER]: 'Never' };
 const HUB_NEVER_TEXT = 'Production always needs approval: pick Always or Only when it contains…';
 const NO_TYPE_TEXT = 'Pick at least one kind of change.';
+/** RLY_Org__c.Code_Scan__c: follow the Git connection's switch (default), always scan, or don't scan. */
+const SCAN_FOLLOW = 'Follow';
+const SCAN_ALWAYS = 'On';
+const SCAN_NEVER = 'Off';
+const SCAN_CHOICES = [SCAN_FOLLOW, SCAN_ALWAYS, SCAN_NEVER];
+const SCAN_ORG_HINT = 'Each org can follow this or set its own.';
+/** The repository's per-org values and quality gates (read-only cards, edited in Git). */
+const VALUES_PATH = '.relay/values.json';
+const GATES_PATH = '.relay/gates.json';
+/** Values longer than this show the first 12 and last 4 characters (the full value on hover). */
+const VALUE_MAX = 24;
 /** An org card's sections, in order; each has its own Edit. */
 const SECTION_TITLES = { signin: 'Sign-in', approval: 'Approval', bp: 'Back promote', slack: 'Slack' };
 const NEW_ORG = 'new';
@@ -104,8 +116,42 @@ function blankForm() {
         Id: null, Name: '', Role__c: null, Environment__c: null, My_Domain__c: '', Login_Type__c: null,
         Username__c: '', Consumer_Key__c: '', Certificate__c: '', Git_Environment__c: '', Branch__c: '',
         Approve_In_Salesforce__c: true, Approve_In_Slack__c: false, Require_Git_Review__c: false, Slack_Channel__c: '', Slack_Post__c: false,
-        Hotfix_Two_Approvers__c: false, Approval_Rule__c: RULE_ALWAYS, approvalTypes: []
+        Hotfix_Two_Approvers__c: false, Approval_Rule__c: RULE_ALWAYS, approvalTypes: [], Code_Scan__c: SCAN_FOLLOW
     };
+}
+
+/** The org's code scan choice; an org saved before the choice existed follows the Git connection. */
+function scanChoiceOf(o) {
+    const v = o && o.Code_Scan__c;
+    return SCAN_CHOICES.includes(v) ? v : SCAN_FOLLOW;
+}
+
+/** A long value as its first 12 and last 4 characters. */
+function shortValue(v) {
+    return v.length > VALUE_MAX ? v.slice(0, 12) + '…' + v.slice(-4) : v;
+}
+
+/** A file's page on the Git provider (the pipeline branch), from the connection's provider and repository. */
+function repoFileUrl(git, branch, filePath) {
+    const repo = ((git && git.Repository__c) || '').trim();
+    if (!repo || !branch) {
+        return null;
+    }
+    const enc = (p) => p.split('/').map(encodeURIComponent).join('/');
+    const parts = repo.split('/');
+    switch (git.Provider__c) {
+        case 'GitLab':
+            return 'https://gitlab.com/' + enc(repo) + '/-/blob/' + enc(branch) + '/' + enc(filePath);
+        case 'Bitbucket':
+            return 'https://bitbucket.org/' + enc(repo) + '/src/' + enc(branch) + '/' + enc(filePath);
+        case 'AzureDevOps':
+            return parts.length === 3
+                ? 'https://dev.azure.com/' + enc(parts[0]) + '/' + enc(parts[1]) + '/_git/' + encodeURIComponent(parts[2])
+                    + '?path=/' + enc(filePath) + '&version=GB' + encodeURIComponent(branch)
+                : null;
+        default:
+            return 'https://github.com/' + enc(repo) + '/blob/' + enc(branch) + '/' + enc(filePath);
+    }
 }
 
 /** Production or Sandbox, read from the My Domain when no login type was chosen. */
@@ -299,6 +345,10 @@ export default class RlyPipeline extends LightningElement {
     /** RlySetupStatus.getSetupStatus: the first-run setup shows while the hub has no Git connection or no Hub org. */
     setupStatus;
     wizardOpen = false;
+    // Per-org values and quality gates (RlyRepoSettings.read), read again when the repository or branch changes.
+    repoSettings;
+    repoLoading = false;
+    repoKey;
 
     connectedCallback() {
         this.readHubStatus();
@@ -394,6 +444,7 @@ export default class RlyPipeline extends LightningElement {
                 if (this.git && !this.pipeFiles && !this.pipeFilesLoading) {
                     this.loadPipeFiles();
                 }
+                this.loadRepoSettings();
             })
             .catch((e) => {
                 this.error = errorText(e);
@@ -522,7 +573,7 @@ export default class RlyPipeline extends LightningElement {
             return [ENVIRONMENT_LABELS[o.Environment__c], o.Branch__c, o.Username__c].filter((v) => !!v).join(' · ') || 'Not set';
         }
         if (kind === 'approval') {
-            return ruleText(o);
+            return ruleText(o) + ' · Code scan: ' + this.scanText(o);
         }
         if (kind === 'bp') {
             const when = this.bpWhenOptions.find((w) => w.value === c.bp.whenValue);
@@ -568,7 +619,8 @@ export default class RlyPipeline extends LightningElement {
         }
         const list = [
             fact('rule', 'Approval rule', ruleText(o), { wide: true }),
-            fact('in', 'Approve in', where.join(' or '))
+            fact('in', 'Approve in', where.join(' or ')),
+            fact('scan', 'Code scan', this.scanText(o))
         ];
         if (this.showGitReview) {
             list.push(flag('git', this.gitProviderName.trim() + ' reviewers', ap.git));
@@ -576,6 +628,113 @@ export default class RlyPipeline extends LightningElement {
         list.push(flag('two', 'Hotfixes need 2 approvers', o.Hotfix_Two_Approvers__c === true,
             o.Hotfix_Two_Approvers__c === true ? 'Two different approvers, and the person who raised the hotfix can\'t approve it.' : ''));
         return list;
+    }
+
+    // ---------- Per-org values and Quality gates (read-only, from the repository) ----------
+
+    /** Reads .relay/values.json and .relay/gates.json once per repository and branch. */
+    loadRepoSettings() {
+        const g = this.git;
+        const key = g ? [g.Provider__c, g.Repository__c, g.Pipeline_Branch__c].join('|') : null;
+        if (!g || this.repoLoading || key === this.repoKey) {
+            return;
+        }
+        this.repoKey = key;
+        this.repoLoading = true;
+        readRepoSettings()
+            .then((r) => {
+                this.repoSettings = r;
+            })
+            .catch((e) => {
+                this.repoSettings = { message: errorText(e), values: [], environments: [], gates: [] };
+            })
+            .finally(() => {
+                this.repoLoading = false;
+            });
+    }
+
+    get showRepoCards() { return this.hasGit; }
+    get placeholderSample() { return '{{relay:NAME}}'; }
+    get repoBranch() { return (this.repoSettings && this.repoSettings.branch) || (this.git && this.git.Pipeline_Branch__c) || ''; }
+    get repoReadText() {
+        if (this.repoLoading || !this.repoSettings) {
+            return 'Reading ' + (this.repoBranch || 'the repository') + '…';
+        }
+        const at = this.repoSettings.readAt ? new Date(this.repoSettings.readAt) : null;
+        const time = at ? at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        return 'from ' + this.repoBranch + (time ? ' · read ' + time : '');
+    }
+    get gatesReadText() { return this.repoBranch ? 'from ' + this.repoBranch : ''; }
+    get valuesFileUrl() { return repoFileUrl(this.git, this.repoBranch, VALUES_PATH); }
+    get gatesFileUrl() { return repoFileUrl(this.git, this.repoBranch, GATES_PATH); }
+    get repoRead() { return !!this.repoSettings && !this.repoLoading; }
+    get repoMessage() { return this.repoRead ? this.repoSettings.message : null; }
+    get repoOk() { return this.repoRead && !this.repoSettings.message; }
+    get valuesError() { return this.repoOk ? this.repoSettings.valuesError : null; }
+    get gatesError() { return this.repoOk ? this.repoSettings.gatesError : null; }
+    get hasValues() { return this.repoOk && (this.repoSettings.values || []).length > 0; }
+    get valuesEmpty() { return this.repoOk && !this.valuesError && !this.hasValues; }
+    get hasGates() { return this.repoOk && (this.repoSettings.gates || []).length > 0; }
+    get gatesEmpty() { return this.repoOk && !this.gatesError && !this.hasGates; }
+
+    /** The orgs in route order (developer orgs, the stages and the hub, then back promote orgs), with their Git environment. */
+    get routeOrgsForValues() {
+        const byId = new Map(this.orgs.map((o) => [o.Id, o]));
+        const pick = (o) => byId.get(o.Id) || o;
+        const bp = this.orgs.filter((o) => o.Role__c === BACK_PROMOTE).sort((a, b) => a.Name.localeCompare(b.Name));
+        return [...this.developers.map(pick), ...this.stages.map(pick), ...bp];
+    }
+
+    /** Columns: each org on the route, then a grey column for each environment in the file that no org on the route uses. */
+    get valueColumns() {
+        const cols = this.routeOrgsForValues.map((o) => ({
+            key: 'o-' + o.Id, label: o.Name, env: (o.Git_Environment__c || '').trim(), title: o.Git_Environment__c ? 'Git environment ' + o.Git_Environment__c : 'No Git environment', cls: '', cellCls: 'rr-mono rr-break'
+        }));
+        const used = new Set(cols.map((c) => c.env));
+        ((this.repoSettings && this.repoSettings.environments) || []).filter((e) => !used.has(e)).forEach((e) => {
+            cols.push({ key: 'e-' + e, label: e, env: e, title: 'Not on the route', cls: 'rr-weak', cellCls: 'rr-mono rr-break rr-weak' });
+        });
+        return cols;
+    }
+
+    get valueRows() {
+        const cols = this.valueColumns;
+        return ((this.repoSettings && this.repoSettings.values) || []).map((r) => {
+            const by = r.byEnvironment || {};
+            return {
+                key: r.name,
+                name: r.name,
+                cells: cols.map((c) => {
+                    const has = !!c.env && Object.prototype.hasOwnProperty.call(by, c.env);
+                    return {
+                        key: c.key,
+                        has,
+                        text: has ? shortValue(by[c.env]) : '— no value',
+                        title: has ? by[c.env] : '',
+                        cls: has ? c.cellCls : 'rr-weak rr-small'
+                    };
+                })
+            };
+        });
+    }
+
+    get gateRows() {
+        return ((this.repoSettings && this.repoSettings.gates) || []).map((g) => ({ ...g, cls: READONLY_CLS }));
+    }
+
+    /** The Git connection's code scan switch (a connection saved before the switch existed scans). */
+    get gitScanOn() { return !!this.git && this.git.Code_Scan__c !== false; }
+
+    /** The org's code scan choice as one line: Follows the Git connection (on), Always or Don't scan. */
+    scanText(o) {
+        const choice = scanChoiceOf(o);
+        if (choice === SCAN_ALWAYS) {
+            return 'Always';
+        }
+        if (choice === SCAN_NEVER) {
+            return 'Don\'t scan';
+        }
+        return 'Follows the Git connection (' + (this.gitScanOn ? 'on' : 'off') + ')';
     }
 
     /** A back promote org's Back promote section, as text. */
@@ -710,7 +869,7 @@ export default class RlyPipeline extends LightningElement {
             fact('pipe', p.pipeLabel, g.Pipeline__c, { mono: true }),
             fact('pb', 'Pipeline branch', g.Pipeline_Branch__c, { mono: true }),
             fact('src', 'Source path', g.Source_Path__c, { mono: true }),
-            flag('scan', 'Code scan', scanOn, scanOn ? 'On for every ' + (g.Provider__c === 'GitLab' ? 'merge request' : 'pull request') : '')
+            flag('scan', 'Code scan', scanOn, (scanOn ? 'On for every ' + (g.Provider__c === 'GitLab' ? 'merge request' : 'pull request') + '. ' : '') + SCAN_ORG_HINT)
         ];
     }
 
@@ -1426,7 +1585,7 @@ export default class RlyPipeline extends LightningElement {
             ...blankForm(), ...o, Consumer_Key__c: '',
             Approve_In_Salesforce__c: ap.sf || !(this.slackAvailable && ap.slack), Approve_In_Slack__c: ap.slack, Require_Git_Review__c: ap.git,
             Slack_Channel__c: o.Slack_Channel__c || '', Slack_Post__c: !!o.Slack_Post__c, Hotfix_Two_Approvers__c: o.Hotfix_Two_Approvers__c === true,
-            Approval_Rule__c: ruleOf(o), approvalTypes: typesOf(o)
+            Approval_Rule__c: ruleOf(o), approvalTypes: typesOf(o), Code_Scan__c: scanChoiceOf(o)
         };
         this.ruleError = undefined;
         this.bpForm = { whenValue: b.whenValue || 'Manual', approval: b.approval === true };
@@ -1474,6 +1633,23 @@ export default class RlyPipeline extends LightningElement {
         }));
     }
     get formRuleLabel() { return 'Approval rule for releases into ' + this.formOrgName; }
+
+    // Code scan as radio cards: follow the Git connection, always scan, or don't scan (to move faster).
+    get formScanLabel() { return 'Code scan for releases into ' + this.formOrgName; }
+    get formScanValue() { return scanChoiceOf(this.form); }
+    get formScanCards() {
+        const org = this.formOrgName;
+        const pr = this.git && this.git.Provider__c === 'GitLab' ? 'merge request' : 'pull request';
+        return [
+            { value: SCAN_FOLLOW, label: 'Follow the Git connection', help: 'Now ' + (this.gitScanOn ? 'on' : 'off') + ' for every ' + pr + '.' },
+            { value: SCAN_ALWAYS, label: 'Always scan', help: 'Every release into ' + org + ' is scanned.' },
+            { value: SCAN_NEVER, label: 'Don\'t scan', help: 'Releases into ' + org + ' skip the scan, to move faster.' }
+        ];
+    }
+
+    handleScanChoice(event) {
+        this.form = { ...this.form, Code_Scan__c: event.detail.value };
+    }
     get formTypeChips() { return APPROVAL_TYPES; }
     get formTypesLabel() { return 'Kinds of change that need approval in ' + this.formOrgName; }
 
@@ -1585,6 +1761,7 @@ export default class RlyPipeline extends LightningElement {
             const rule = f.Approval_Rule__c || RULE_ALWAYS;
             payload.Approval_Rule__c = rule;
             payload.Approval_Types__c = rule === RULE_SELECTED ? (f.approvalTypes || []).join(';') : null;
+            payload.Code_Scan__c = scanChoiceOf(f);
         }
         return payload;
     }
@@ -1711,6 +1888,7 @@ export default class RlyPipeline extends LightningElement {
     get gitRepoHint() { return 'e.g. ' + this.gitProvider.repo; }
     get gitCredHint() { return 'e.g. ' + this.gitProvider.cred; }
     get gitPipeHint() { return 'e.g. ' + this.gitProvider.pipe; }
+    get scanOrgHint() { return SCAN_ORG_HINT; }
     get scanLabel() { return 'Code scan on every ' + (this.gitForm.Provider__c === 'GitLab' ? 'merge request' : 'pull request'); }
 
     pickProvider(event) {
