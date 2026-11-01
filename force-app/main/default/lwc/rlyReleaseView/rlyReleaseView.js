@@ -11,6 +11,9 @@ import reject from '@salesforce/apex/RlyReleasesController.reject';
 import resolveConflicts from '@salesforce/apex/RlyReleasesController.resolveConflicts';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 
+/** Modes of RlyHubGuard.getHubStatus in which only the org gate shows. */
+const GATED_MODES = ['sandbox', 'copy', 'setup'];
+
 const POLL_SECONDS = 30;
 const RESOLVING = 'Resolving conflicts';
 const GOOD = ['Deployed', 'Ready for approval'];
@@ -189,10 +192,14 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     reason = '';
 
     /**
-     * RlyHubGuard.getHubStatus: whether this org is a sandbox copy of the hub. The tab around this view shows the banner;
-     * here the actions are disabled.
+     * RlyHubGuard.getHubStatus: the org's mode. The tab around this view shows the gate or the banner; here the actions
+     * are disabled outside the hub, and in a sandbox, a copy or an org not set up yet only the gate shows (nothing loads).
      */
     hubStatus;
+    /** The status has been read, or failed to read (then the view works as on the hub). */
+    statusRead = false;
+    get gated() { return !!this.hubStatus && GATED_MODES.includes(this.hubStatus.mode); }
+    get showPage() { return this.statusRead && !this.gated; }
 
     /** The app's name, from Custom Label RLY_App_Name. */
     get appName() { return APP_NAME; }
@@ -207,7 +214,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     set releaseId(value) {
         this._releaseId = value;
         this.detail = undefined;
-        if (value) {
+        if (value && this.statusRead && !this.gated) {
             this.load();
         }
     }
@@ -220,7 +227,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         this.stop();
     }
 
-    /** Reads the hub status once. A failed read disables nothing: the server refuses the actions anyway. */
+    /** Reads the hub status once, then loads the release only on the hub. A failed read disables nothing. */
     readHubStatus() {
         getHubStatus()
             .then((status) => {
@@ -228,6 +235,12 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             })
             .catch(() => {
                 this.hubStatus = undefined;
+            })
+            .finally(() => {
+                this.statusRead = true;
+                if (!this.gated && this._releaseId) {
+                    this.load();
+                }
             });
     }
 

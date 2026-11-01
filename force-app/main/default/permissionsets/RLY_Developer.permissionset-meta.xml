@@ -31,6 +31,21 @@
     </externalCredentialPrincipalAccesses>
     <fieldPermissions>
         <editable>false</editable>
+        <field>RLY_Notification__c.Sandbox_Allowed_By__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>RLY_Notification__c.Sandbox_Allowed_Org_Id__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>RLY_Notification__c.Sandbox_Allowed_Until__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>RLY_Release__c.Check_Token__c</field>
         <readable>true</readable>
     </fieldPermissions>

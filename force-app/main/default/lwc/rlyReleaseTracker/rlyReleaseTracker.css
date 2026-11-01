@@ -115,3 +115,6 @@
 /* Export CSV (board HubApprovalFlowsEvidence 4) */
 .rr-export { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .rr-csv { color: var(--rr-link); }
+
+/* while the org's mode is read (RlyHubGuard.getHubStatus) */
+.rr-wait { position: relative; min-height: 120px; }

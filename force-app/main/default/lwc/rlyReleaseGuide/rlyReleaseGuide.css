@@ -130,3 +130,8 @@ ul.rr-list { list-style: disc; }
 @keyframes rr-flash { 0% { box-shadow: 0 0 0 3px #1b96ff; background: #eef4ff; } 100% { box-shadow: 0 0 0 0 transparent; background: transparent; } }
 .rr-block:focus, .rr-h2:focus, .rr-h3:focus { outline: none; }
 .rr-block:focus-visible, .rr-h2:focus-visible, .rr-h3:focus-visible { outline: 2px solid #0176d3; outline-offset: 2px; }
+
+/* Set up in a sandbox (board HubOrgGate 2) */
+.rr-sandbox-line { padding: 8px 12px; border-radius: 4px; background: #fef1cd; color: #5e3600; font-size: 13px; }
+/* while the org's mode is read (RlyHubGuard.getHubStatus) */
+.rr-wait { position: relative; min-height: 120px; }

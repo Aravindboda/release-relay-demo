@@ -23,6 +23,10 @@ import syncNow from '@salesforce/apex/RlyRouteController.syncNow';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import getSetupStatus from '@salesforce/apex/RlySetupStatus.getSetupStatus';
 import saveBotToken from '@salesforce/apex/RlySlackController.saveBotToken';
+import IS_ADMIN from '@salesforce/customPermission/RLY_Admin';
+
+/** Modes of RlyHubGuard.getHubStatus in which this tab shows only the org gate. */
+const SANDBOX_MODES = ['sandbox', 'copy'];
 
 const LOGIN_OPTIONS = [
     { label: 'Production or Developer Edition', value: 'Production' },
@@ -174,12 +178,30 @@ function trimOrNull(v) {
 }
 
 export default class RlyPipeline extends LightningElement {
-    /** RlyHubGuard.getHubStatus: whether this org is a sandbox copy of the hub (then a banner, and the actions are off). */
+    /**
+     * RlyHubGuard.getHubStatus: the org's mode. In a sandbox or a sandbox copy of the hub this tab shows only rlyOrgGate
+     * (admins also get the override switch on it) and loads nothing else. In production not set up yet, admins get the
+     * first-run setup (rlySetupWizard) with the rest of the page hidden while it's needed; other users get the gate.
+     */
     hubStatus;
+    /** The status has been read, or failed to read (then the tab works as on the hub: the server refuses actions anyway). */
+    statusRead = false;
+    /** The page's data has been asked for once. */
+    pageLoaded = false;
     get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
     get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
+    get hubMode() { return (this.hubStatus && this.hubStatus.mode) || ''; }
+    get isSetupMode() { return this.hubMode === 'setup'; }
+    get gated() { return SANDBOX_MODES.includes(this.hubMode) || (this.isSetupMode && !IS_ADMIN); }
+    get showPage() { return this.statusRead && !this.gated; }
+    get canSwitchSandbox() { return !!IS_ADMIN; }
+    /** Production not set up: the wizard alone, until the hub and the Git connection are saved (or the admin hides it). */
+    get showRest() {
+        const live = this.setupStatus;
+        return !(this.isSetupMode && this.showWizard && !this.editing && !(live && live.needsSetup === false));
+    }
 
-    /** Reads the hub status once. A failed read shows nothing: the server refuses the actions anyway. */
+    /** Reads the hub status once, then loads the page unless only the gate shows. */
     readHubStatus() {
         getHubStatus()
             .then((status) => {
@@ -187,7 +209,26 @@ export default class RlyPipeline extends LightningElement {
             })
             .catch(() => {
                 this.hubStatus = undefined;
+            })
+            .finally(() => {
+                this.statusRead = true;
+                this.loadPageOnce();
             });
+    }
+
+    loadPageOnce() {
+        if (this.gated || this.pageLoaded) {
+            return;
+        }
+        this.pageLoaded = true;
+        this.readSetupStatus();
+        this.load();
+    }
+
+    /** The gate turned the sandbox override on or off: show what the new status allows. */
+    handleStatusChange(event) {
+        this.hubStatus = event.detail;
+        this.loadPageOnce();
     }
 
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
@@ -261,8 +302,6 @@ export default class RlyPipeline extends LightningElement {
 
     connectedCallback() {
         this.readHubStatus();
-        this.readSetupStatus();
-        this.load();
     }
 
     renderedCallback() {
@@ -311,6 +350,18 @@ export default class RlyPipeline extends LightningElement {
 
     handleWizardChanged() {
         this.load();
+        this.refreshSetupStatus();
+    }
+
+    /** After a wizard step saves: whether setup is still needed (the rest of the page shows once it isn't). */
+    refreshSetupStatus() {
+        getSetupStatus()
+            .then((s) => {
+                this.setupStatus = s;
+            })
+            .catch(() => {
+                this.setupStatus = undefined;
+            });
     }
 
     handleWizardRegister() {

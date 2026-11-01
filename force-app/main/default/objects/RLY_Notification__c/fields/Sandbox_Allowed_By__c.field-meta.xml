@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Sandbox_Allowed_By__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Sandbox override: the admin who turned Release Relay on in this sandbox.</description>
+    <label>Sandbox Allowed By</label>
+    <referenceTo>User</referenceTo>
+    <relationshipName>RLY_Sandbox_Allowances</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

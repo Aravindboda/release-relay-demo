@@ -167,3 +167,6 @@
 }
 .rr-adv-toggle:focus-visible { outline: 2px solid var(--rr-blue); outline-offset: 2px; }
 .rr-url { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
+
+/* while the org's mode is read (RlyHubGuard.getHubStatus) */
+.rr-wait { position: relative; min-height: 120px; }
