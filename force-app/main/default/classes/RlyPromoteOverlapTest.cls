@@ -142,4 +142,14 @@ private class RlyPromoteOverlapTest {
             System.assertEquals(new List<Object>{ 'classes/Greeting.cls' }, kept.get('raiseConflicts'), 'The files, for the page');
         }
     }
+
+    @IsTest
+    static void deletedTestClassesAreLeftOut() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = new RLY_Release__c(Deletions__c = 'ApexClass:OldSearch,ApexClass:OldSearchTest,CustomField:Account.X__c');
+            List<String> kept = RlyDeletions.withoutDeletedTests(new List<String>{ 'GreetingTest', ' oldsearchtest ', '' }, rel);
+            System.assertEquals(new List<String>{ 'GreetingTest' }, kept, 'A deleted test class is left out');
+            System.assertEquals(new List<String>(), RlyDeletions.withoutDeletedTests(null, rel), 'No tests');
+        }
+    }
 }
