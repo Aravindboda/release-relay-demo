@@ -292,7 +292,7 @@
                     </div>
                 </template>
 
-                <!-- step 3: review and raise (board HubCompare: the list and the source/target frame; compare is not built) -->
+                <!-- step 3: review and raise (board HubCompare 1: the list with Compare on every row, Compare all, the source/target frame) -->
                 <template lwc:if={isReview}>
                     <section class="rr-card rr-head">
                         <div class="rr-head-text">
@@ -307,7 +307,12 @@
 
                     <div class="rr-review">
                         <nav class="rr-card rr-files" aria-label="Components in this release">
-                            <p class="rr-files-head">In this release</p>
+                            <div class="rr-files-top">
+                                <p class="rr-files-head rr-grow">In this release</p>
+                                <template lwc:if={canCompare}>
+                                    <button type="button" class="slds-button slds-button_neutral rr-cmp-all" onclick={openCompareAll} disabled={raising}>Compare all</button>
+                                </template>
+                            </div>
                             <template lwc:if={manualOnly}>
                                 <p class="rr-files-note rr-small rr-weak"><span class="rr-pill rr-pill-info">Manual steps only</span> No components: only the manual steps below.</p>
                             </template>
@@ -318,6 +323,7 @@
                                             <strong class="rr-file-name">{r.name}</strong>
                                             <span class="rr-small rr-weak">{r.subText}</span>
                                         </span>
+                                        <button type="button" class="rr-cmp-link" data-key={r.key} aria-label={r.compareLabel} onclick={openCompare} disabled={raising}>Compare</button>
                                         <button type="button" class="rr-chip-x" data-key={r.key} aria-label={r.removeLabel} title={r.removeLabel} onclick={removeItem} disabled={raising}>×</button>
                                     </li>
                                 </template>
@@ -331,11 +337,13 @@
                                                 <strong class="rr-file-name">{r.name}</strong>
                                                 <span class="rr-small">{r.subText}</span>
                                             </span>
+                                            <button type="button" class="rr-cmp-link" data-key={r.key} aria-label={r.compareLabel} onclick={openCompare} disabled={raising}>Compare</button>
                                             <button type="button" class="rr-chip-x" data-key={r.key} aria-label={r.removeLabel} title={r.removeLabel} onclick={removeItem} disabled={raising}>×</button>
                                         </li>
                                     </template>
                                 </ul>
                             </template>
+                            <template lwc:if={canCompare}><p class="rr-files-fnote">{compareNote}</p></template>
                         </nav>
 
                         <section class="rr-card rr-pair" aria-label="Release">
@@ -382,7 +390,8 @@
                                                 <div class="rr-row">
                                                     <strong class="rr-break">{f.name}</strong>
                                                     <span class={f.versionCls}>{f.versionText}</span>
-                                                    <span class="rr-small rr-weak">{f.where}</span>
+                                                    <span class="rr-small rr-weak rr-grow">{f.where}</span>
+                                                    <button type="button" class="rr-cmp-link" data-key={f.compareKey} aria-label={f.compareLabel} onclick={openCompare} disabled={raising}>Compare</button>
                                                 </div>
                                                 <template lwc:if={f.draftText}><div class="rr-msg rr-msg-wait">{f.draftText}</div></template>
                                                 <lightning-radio-group type="button" variant="label-inline" class="rr-flow-pick" label="After deploy" name={f.groupLabel}
@@ -408,6 +417,12 @@
                             </div>
                         </section>
                     </div>
+                </template>
+
+                <!-- Compare before raising (board HubCompare 2–3) -->
+                <template lwc:if={compareOpen}>
+                    <c-rly-compare source-org-id={orgId} source-name={sourceName} target-name={compareTargetName} target-branch={compareTargetBranch}
+                        items={compareItems} start-key={compareKey} flow-info={flowInfo} onclose={closeCompare}></c-rly-compare>
                 </template>
 
                 <!-- step 4: raised -->

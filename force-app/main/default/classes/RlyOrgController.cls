@@ -133,8 +133,10 @@ public with sharing class RlyOrgController {
         if (!problems.isEmpty()) {
             throw new AuraHandledException(String.join(problems, '. ') + '.');
         }
-        if (data.nameTaken(input.Name.trim(), input.Id)) {
-            throw new AuraHandledException('An org named ' + input.Name.trim() + ' is already registered.');
+        String blocked = data.nameTaken(input.Name.trim(), input.Id)
+            ? 'An org named ' + input.Name.trim() + ' is already registered.' : RlyOrgRoleCheck.problem(input, saved);
+        if (blocked != null) {
+            throw new AuraHandledException(blocked);
         }
         RLY_Org__c row = buildRow(input);
         RlyOrgSettings.apply(row, orgJson);
@@ -149,7 +151,7 @@ public with sharing class RlyOrgController {
             Id = input.Id,
             Name = input.Name.trim(),
             Role__c = input.Role__c,
-            Environment__c = String.isBlank(input.Environment__c) ? null : input.Environment__c,
+            Environment__c = RlyOrgRoleCheck.environmentOf(input),
             My_Domain__c = input.My_Domain__c.trim().removeEnd('/'),
             Login_Type__c = input.Login_Type__c,
             Username__c = input.Username__c.trim(),

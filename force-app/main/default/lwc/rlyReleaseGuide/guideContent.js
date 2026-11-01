@@ -1238,6 +1238,49 @@ const USE_SECTIONS = [
         ]
     },
     {
+        key: 'compare',
+        group: 'daily',
+        label: 'Compare and changes',
+        cards: [
+            {
+                key: 'cmp-main',
+                title: 'Compare and changes',
+                blocks: [
+                    { type: 'text', paras: ['See what a release changes, line by line: before you raise it (**Compare**, your developer org against the target branch) and after (**Changes**, the pull request\'s files). Looking changes nothing.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Compare before raising',
+                                where: 'New Release → Review',
+                                goal: 'What your developer org has now against what the target branch has.',
+                                items: [
+                                    'Press **Compare** on a component under **In this release**, or **Compare all** above the list.',
+                                    'The hub gets your org\'s copy and the target branch\'s, then marks each component **Changed**, **New in this release**, **Same**, **Deleted** or **Not available**.',
+                                    'Left is the target branch (what is there now), right is your org (what the release brings). Switch **Split** / **Unified**; click **⋯ unchanged lines** to open them.',
+                                    'Custom objects, fields, record types and similar aren\'t compared yet: see them under **Changes** after raising. Very large files say **Too large to compare here**.',
+                                    'A flow also shows its versions, for example Version 8 · Draft against Version 7 · Active.'
+                                ],
+                                check: 'Close and press Compare again to read a fresh copy.'
+                            },
+                            {
+                                title: 'See the changes after raising',
+                                where: 'The release page → Details → Changes',
+                                goal: 'The pull request\'s files as GitHub shows them, for releases and promotions.',
+                                items: [
+                                    'Open the **Changes** tab next to **Components**: the files load the first time, each with its lines added and removed.',
+                                    'Click a file to see its diff; ↑ and ↓ step through the files. **Open in GitHub ↗** opens the pull request\'s files.',
+                                    'A binary or very large file says **No preview: open in GitHub**. Up to 300 files are listed; the pull request has the rest.',
+                                    'With GitLab, Bitbucket or Azure DevOps, open the pull request instead: Changes are shown for GitHub only.'
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
         key: 'append',
         group: 'daily',
         label: 'Add changes to an open release',

@@ -244,6 +244,19 @@ public with sharing class RlyGitHub extends RlyGit {
     }
 
     /**
+     * @description Reads a pull request (GET /pulls/{n}) or one of its lists, for example its changed files
+     * (part /files?per_page=100&page=1).
+     * @param prNumber the pull request number
+     * @param part what follows /pulls/{n}: empty for the pull request itself
+     * @return the parsed answer: a map for the pull request, a list for its files
+     */
+    public Object readPullRequest(Integer prNumber, String part) {
+        HttpResponse res = send('GET', repo() + '/pulls/' + prNumber + part, null);
+        assertOk(res, 'Reading pull request #' + prNumber);
+        return parse(res);
+    }
+
+    /**
      * @description Opens a pull request from one branch into another.
      * @param head the branch with the changes
      * @param baseBranch the branch to merge into
