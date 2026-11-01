@@ -244,6 +244,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         this._releaseId = value;
         this.detail = undefined;
         this.lastRollback = undefined;
+        this.detailsTab = 'components';
+        this.changesOpened = false;
+        this.changesCount = null;
         if (value && this.statusRead && !this.gated) {
             this.load();
         }
@@ -742,6 +745,38 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     get itemCount() {
         const d = this.deletions.length;
         return String(this.items.length) + (d ? ' · ' + d + (d === 1 ? ' deletion' : ' deletions') : '');
+    }
+
+    // ---------- Components | Changes (board HubCompare, 4) ----------
+
+    detailsTab = 'components';
+    changesOpened = false;
+    changesCount = null;
+
+    /** Releases and promotions with a pull request get the Changes tab. */
+    get hasPullRequest() { return !!(this.rel && this.rel.PR_Number__c); }
+    get onChanges() { return this.hasPullRequest && this.detailsTab === 'changes'; }
+    get componentsTabCls() { return this.onChanges ? 'rr-tab' : 'rr-tab rr-tab-on'; }
+    get changesTabCls() { return this.onChanges ? 'rr-tab rr-tab-on' : 'rr-tab'; }
+    get componentsSelected() { return String(!this.onChanges); }
+    get changesSelected() { return String(this.onChanges); }
+    get componentsPaneCls() { return this.onChanges ? 'slds-hide' : ''; }
+    get changesPaneCls() { return this.onChanges ? '' : 'slds-hide'; }
+    get componentsPaneRole() { return this.hasPullRequest ? 'tabpanel' : null; }
+    get changesCountText() { return this.changesCount === null ? null : String(this.changesCount); }
+
+    showComponents() {
+        this.detailsTab = 'components';
+    }
+
+    showChanges() {
+        this.detailsTab = 'changes';
+        this.changesOpened = true;
+    }
+
+    handleChangesLoaded(event) {
+        const n = event.detail ? event.detail.count : null;
+        this.changesCount = typeof n === 'number' ? n : null;
     }
 
     /** What the release removes from the target branch and org: Detail.deletions, as Type:Name. */
