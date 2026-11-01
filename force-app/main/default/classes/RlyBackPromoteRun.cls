@@ -105,6 +105,7 @@ public with sharing class RlyBackPromoteRun {
         for (Id relId : ids) {
             RLY_Release__c rel = RlyReleaseStore.release(relId);
             String oldStatus = rel.Status__c;
+            RLY_Release__c prior = rel.clone(true, true, true, true);
             try {
                 advanceSync(rel, git);
             } catch (Exception e) {
@@ -112,7 +113,7 @@ public with sharing class RlyBackPromoteRun {
             }
             RlyFlowActivation.afterRead(rel, oldStatus);
             rel.Last_Synced__c = System.now();
-            RlySlack.notifyTransition(rel, oldStatus);
+            RlySlackCardSync.notifyChange(prior, rel);
             rels.add(rel);
         }
         RlyReleaseStore.saveAll(rels);
