@@ -132,6 +132,7 @@
                                     <lightning-input type="toggle" label={scanLabel} data-field="Code_Scan__c" checked={gitForm.Code_Scan__c} onchange={handleGitField}
                                         message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
                                 </div>
+                                <p class="rr-kicker">{scanOrgHint}</p>
                                 <template lwc:if={editError}><div class="rr-msg rr-msg-bad" role="alert">{editError}</div></template>
                             </div>
                             <div class="rr-card-foot">
@@ -222,6 +223,84 @@
                             </ul>
                         </template>
                     </section>
+
+                    <!-- Per-org values and Quality gates: read-only, from the repository's pipeline branch; edited in Git -->
+                    <template lwc:if={showRepoCards}>
+                        <section class="rr-card" aria-label="Per-org values">
+                            <div class="rr-card-head rr-row rr-repo-head">
+                                <h2 class="rr-h2 rr-grow">Per-org values</h2>
+                                <span class="rr-kicker">{repoReadText}</span>
+                                <template lwc:if={valuesFileUrl}><a class="rr-small" href={valuesFileUrl} target="_blank" rel="noopener noreferrer">Edit in .relay/values.json ↗</a></template>
+                            </div>
+                            <div class="rr-body">
+                                <template lwc:if={repoMessage}><div class="rr-msg rr-msg-info" role="status">{repoMessage}</div></template>
+                                <template lwc:if={valuesError}><div class="rr-msg rr-msg-bad" role="alert">{valuesError}</div></template>
+                                <template lwc:if={hasValues}>
+                                    <p class="rr-kicker">Write placeholders <span class="rr-mono">{placeholderSample}</span> in your code. The pipeline puts each org's value in when it deploys, and turns the value back into the placeholder when it retrieves.</p>
+                                    <div class="rr-table-wrap">
+                                        <table class="slds-table slds-table_bordered slds-table_cell-buffer rr-values">
+                                            <thead>
+                                                <tr class="slds-line-height_reset">
+                                                    <th scope="col"><div class="slds-truncate">Name</div></th>
+                                                    <template for:each={valueColumns} for:item="c">
+                                                        <th key={c.key} scope="col" class={c.cls} title={c.title}><div class="slds-truncate">{c.label}</div></th>
+                                                    </template>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template for:each={valueRows} for:item="r">
+                                                    <tr key={r.key}>
+                                                        <th scope="row" class="rr-mono">{r.name}</th>
+                                                        <template for:each={r.cells} for:item="cell">
+                                                            <td key={cell.key}><span class={cell.cls} title={cell.title}>{cell.text}</span></td>
+                                                        </template>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <p class="rr-kicker">Values longer than 24 characters show the first 12 and last 4 (hover for the full value). Columns follow the route; a name the file has for an org not on the route shows as an extra grey column.</p>
+                                    <div class="rr-msg rr-msg-wait" role="note">Values are in Git, so never put passwords here.</div>
+                                </template>
+                                <template lwc:if={valuesEmpty}>
+                                    <p class="rr-empty">No per-org values yet — add them in .relay/values.json</p>
+                                </template>
+                            </div>
+                        </section>
+
+                        <section class="rr-card" aria-label="Quality gates">
+                            <div class="rr-card-head rr-row rr-repo-head">
+                                <h2 class="rr-h2 rr-grow">Quality gates</h2>
+                                <span class="rr-kicker">{gatesReadText}</span>
+                                <template lwc:if={gatesFileUrl}><a class="rr-small" href={gatesFileUrl} target="_blank" rel="noopener noreferrer">Edit in .relay/gates.json ↗</a></template>
+                            </div>
+                            <div class="rr-body">
+                                <template lwc:if={repoMessage}><div class="rr-msg rr-msg-info" role="status">{repoMessage}</div></template>
+                                <template lwc:if={gatesError}><div class="rr-msg rr-msg-bad" role="alert">{gatesError}</div></template>
+                                <template lwc:if={hasGates}>
+                                    <dl class="rr-ro">
+                                        <template for:each={gateRows} for:item="g">
+                                            <div key={g.key} class={g.cls}>
+                                                <dt class="slds-form-element__label">{g.label}</dt>
+                                                <dd class="slds-form-element__control">
+                                                    <div class="slds-form-element__static">
+                                                        <span class="rr-flag">
+                                                            <template lwc:if={g.isSet}><lightning-icon icon-name="utility:check" size="xx-small" variant="success" alternative-text=""></lightning-icon></template>
+                                                            <template lwc:else><lightning-icon icon-name="utility:dash" size="xx-small" alternative-text=""></lightning-icon></template>
+                                                            <span>{g.text}</span>
+                                                        </span>
+                                                    </div>
+                                                </dd>
+                                            </div>
+                                        </template>
+                                    </dl>
+                                </template>
+                                <template lwc:if={gatesEmpty}>
+                                    <p class="rr-empty">No quality gates yet — add them in .relay/gates.json. Salesforce's own rules still apply.</p>
+                                </template>
+                            </div>
+                        </section>
+                    </template>
 
                     <!-- Slack connection: read-only (a checklist until it answers); Edit works in place -->
                     <template lwc:if={showSlack}>
@@ -553,6 +632,7 @@
                                                                 <p class="rr-kicker">Anything else = layouts, reports, list views, static resources… everything not in the other choices.</p>
                                                             </template>
                                                             <template lwc:if={ruleError}><p class="rr-rule-err" role="alert">{ruleError}</p></template>
+                                                            <c-rly-choice-chips mode="single" label={formScanLabel} options={formScanCards} value={formScanValue} onchange={handleScanChoice}></c-rly-choice-chips>
                                                             <div class="rr-toggles" role="group" aria-label={formApproveGroupLabel}>
                                                                 <lightning-input class="rr-first" type="toggle" label="Approve in Salesforce" checked={form.Approve_In_Salesforce__c}
                                                                     data-field="Approve_In_Salesforce__c" onchange={handleApproveToggle}

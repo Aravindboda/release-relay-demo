@@ -2,14 +2,15 @@
  * @description Evidence for change requests and audits. saveEvidence builds a release's evidence document
  * (RlyEvidenceHtml), turns it into a PDF and saves it to the release's Files (ContentVersion linked to the release,
  * visible to all users), returning its download address. exportCsv returns the Releases tab's filtered list (the same
- * filter as RlyReleasesController.listReleasesFor) as CSV text with the approval and deploy details. Both only read
+ * filter as RlyReleasesController.listReleasesFor) as CSV text with the approval, deploy and rollback details (a release
+ * rolled back in an org has Status "Rolled back" and the org and time in their own columns). Both only read
  * releases, so they work in a sandbox copy of the hub too. Files are created in system mode: every Release Relay user
  * may save evidence of a release they can open.
  */
 public with sharing class RlyEvidenceController {
 
     private static final List<String> CSV_HEADER = new List<String>{ 'REL', 'Title', 'Route', 'Raised by', 'Raised on', 'Status',
-        'Approved by', 'Approved on', 'Via', 'Comment', 'Second approver', 'Deployed to', 'Deploy ids', 'PR url' };
+        'Approved by', 'Approved on', 'Via', 'Comment', 'Second approver', 'Deployed to', 'Deploy ids', 'PR url', 'Rolled back in', 'Rolled back on' };
 
     /** @description The saved evidence file. */
     public class EvidenceFile {
@@ -76,11 +77,17 @@ public with sharing class RlyEvidenceController {
                 deployIds.add(deployId);
             }
         }
-        return new List<String>{ r.Name, r.Title__c, nameOf(r.Source_Org__r) + ' → ' + nameOf(r.Target_Org__r),
-            r.CreatedBy == null ? null : r.CreatedBy.Name, stamp(r.CreatedDate), r.Status__c,
+        List<String> out = new List<String>{ r.Name, r.Title__c, nameOf(r.Source_Org__r) + ' → ' + nameOf(r.Target_Org__r),
+            r.CreatedBy == null ? null : r.CreatedBy.Name, stamp(r.CreatedDate), rolledBack(r) ? 'Rolled back' : r.Status__c,
             r.Approved_By__r == null ? null : r.Approved_By__r.Name, stamp(r.Approved_On__c), r.Approved_Via__c, r.Approval_Comment__c,
             r.Second_Approved_By__r == null ? null : r.Second_Approved_By__r.Name,
             r.Status__c == 'Deployed' ? nameOf(r.Target_Org__r) : null, String.join(deployIds, ' '), r.PR_URL__c };
+        out.addAll(rolledBack(r) ? new List<String>{ nameOf(r.Rollback_Org__r), stamp(r.Rollback_On__c) } : new List<String>{ null, null });
+        return out;
+    }
+
+    private static Boolean rolledBack(RLY_Release__c r) {
+        return r.Rollback_Status__c == RlyRollbackState.ROLLED_BACK;
     }
 
     /**
@@ -140,7 +147,8 @@ public with sharing class RlyEvidenceController {
         public Map<Id, RLY_Release__c> details(Set<Id> ids) {
             return new Map<Id, RLY_Release__c>([SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Target_Org__r.Name,
                     CreatedBy.Name, CreatedDate, Approved_By__r.Name, Approved_On__c, Approved_Via__c, Approval_Comment__c,
-                    Second_Approved_By__r.Name, Validation_Result__c, Deploy_Result__c, PR_URL__c
+                    Second_Approved_By__r.Name, Validation_Result__c, Deploy_Result__c, PR_URL__c, Rollback_Status__c,
+                    Rollback_Org__r.Name, Rollback_On__c
                 FROM RLY_Release__c WHERE Id IN :ids WITH SYSTEM_MODE]);
         }
 

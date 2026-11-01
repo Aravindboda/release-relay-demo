@@ -155,3 +155,12 @@
 
 /* a release with only manual steps: the note under Components */
 .rr-pad-x { padding: 4px 16px 12px; }
+
+/* build 20 (board HubRollbackValuesGates): rollback note, path, history colour; quality gates box; priority pills */
+.rr-rb-note { margin: 0 16px 12px; }
+.rr-path-rb { background: #dd7a01; color: #fff; font-weight: 700; }
+.rr-c-rb { background: #dd7a01; }
+.rr-gates { background: #fef1ee; border: 1px solid #f9c5bb; border-radius: 4px; padding: 10px 12px; color: #8e030f; font-size: 13px; }
+.rr-gates-title { margin: 0 0 4px; font-weight: 700; }
+.rr-gates-list { margin: 0; padding-left: 18px; list-style: disc; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.rr-prio { min-width: 22px; justify-content: center; }

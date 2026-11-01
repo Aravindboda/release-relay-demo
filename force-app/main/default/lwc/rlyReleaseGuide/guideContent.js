@@ -728,7 +728,7 @@ const SETUP_SECTIONS = [
                 title: 'E. Slack (optional)',
                 aside: 'Skip this if you don\'t use Slack: everything works without it',
                 blocks: [
-                    { type: 'text', paras: ['With Slack each release posts one card in its target org\'s channel and updates it as it moves. Approving in Slack is a further, optional part (steps 7 to 13).'] },
+                    { type: 'text', paras: ['With Slack each release posts one card in its target org\'s channel and updates it as it moves. Approving in Slack is a further, optional part (steps 7 to 13).', 'The card always shows the release\'s current state (approved, waiting for manual steps, deploying, deployed, failed, rejected); the events you tick only choose the extra messages (thread replies and new posts). There is no background job: the hub notices a deploy finishing when someone has Release Relay open (its pages keep checking), and then updates the card.'] },
                     {
                         type: 'steps',
                         steps: [
@@ -927,7 +927,10 @@ const SETUP_SECTIONS = [
                                 who: 'Release Relay admin',
                                 where: 'Release Relay → Pipeline → the org\'s card → Edit → Approval',
                                 goal: 'Decide when a release into the org waits for a person.',
-                                items: ['Always (the default), Only when the release contains…, or Never (not for production). Optionally: hotfixes need 2 approvers.'],
+                                items: [
+                                    'Always (the default), Only when the release contains…, or Never (not for production). Optionally: hotfixes need 2 approvers.',
+                                    'Each org can follow the Git connection\'s code scan or set its own (Pipeline → org → Approval).'
+                                ],
                                 links: [{ label: 'Approval rules', to: 'approvalrules' }]
                             },
                             {
@@ -1566,6 +1569,133 @@ const USE_SECTIONS = [
         ]
     },
     {
+        key: 'rollback',
+        group: 'daily',
+        label: 'Roll back a release',
+        cards: [
+            {
+                key: 'rb-main',
+                title: 'Roll back a release',
+                aside: 'Admins and deployment team',
+                blocks: [
+                    { type: 'text', paras: ['Before every deploy into an org, the pipeline saves a **snapshot** of the components the deploy changes, as they are in that org (branch `release-relay-snapshots`). **Roll back** deploys that snapshot back: the org returns to how it was before the release. Git is not changed, and the release keeps its status.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Open the release and press Roll back',
+                                who: 'Release Relay admin or deployment team (`RLY_Admin`, `RLY_Deploy_Team`)',
+                                where: 'Releases tab → the release → Roll back',
+                                items: ['The button shows only to admins and the deployment team, on a deployed release. It is disabled while a deploy or rollback runs.']
+                            },
+                            {
+                                title: 'Pick the org, read what will be restored and removed, and write why',
+                                where: 'Roll back dialog',
+                                items: [
+                                    '**Org to roll back**: one chip per org the release (or the promotion that carried it) was deployed to. An org without a snapshot shows **No snapshot** and can\'t be picked.',
+                                    '**What will happen**: the components restored to how they were, the components the release added that are removed, and a warning when a later release deployed the same component to the same org (rolling back undoes that change too).',
+                                    '**Tests in production**: this release\'s tests (the default) or all local tests. No tests run in a sandbox rollback.',
+                                    '**Why roll back** is required; it goes into the history, the evidence PDF and the Slack card.'
+                                ]
+                            },
+                            {
+                                title: 'Press Roll back',
+                                where: 'The release page',
+                                text: ['The page shows **Rolling back in <org>**, then **Rolled back in <org>** (or **Rollback failed in <org>** with Salesforce\'s errors; the org is then unchanged and you can try again).']
+                            },
+                            {
+                                title: 'Fix Git with a new release',
+                                where: 'New Release',
+                                text: ['Git still has the change. Raise a new release that fixes the branch (revert or correct the code).']
+                            }
+                        ]
+                    },
+                    { type: 'note', text: 'A snapshot is taken before every deploy by pipeline version 13 or later. Release Relay\'s own components are never rolled back. The Releases tab lists rolled back releases under their own chip, and Export CSV has **Rolled back in** and **Rolled back on** columns.' }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'values',
+        group: 'daily',
+        label: 'Per-org values',
+        cards: [
+            {
+                key: 'val-main',
+                title: 'Per-org values',
+                aside: 'Developers and Git admins',
+                blocks: [
+                    { type: 'text', paras: ['Some values differ per org: an endpoint, an email address, a record id. Keep one placeholder in Git and let the pipeline put each org\'s value in when it deploys.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Add the value per org',
+                                who: 'Developer or Git admin',
+                                where: 'Repository → main (the pipeline branch) → `.relay/values.json`',
+                                items: [
+                                    'Add a name with a value per org, keyed by each org\'s **Git environment**. Example: `{ "values": { "PAYMENT_URL": { "dev1": "https://dev.pay.example", "sit": "https://sit.pay.example", "prod": "https://pay.example" } } }`.',
+                                    'Names use capital letters, digits and `_` (up to 60). Keys starting with `_` are ignored.'
+                                ]
+                            },
+                            {
+                                title: 'Write the placeholder where the value goes',
+                                who: 'Developer',
+                                where: 'Your code or metadata',
+                                text: ['Write `{{relay:PAYMENT_URL}}` (your name in place of the example) where the value goes.']
+                            },
+                            {
+                                title: 'Raise as usual',
+                                where: 'New Release',
+                                text: ['Each org gets its own value when the pipeline validates and deploys. When it retrieves from an org it turns that org\'s values back into placeholders, so Git keeps the placeholder.']
+                            }
+                        ]
+                    },
+                    { type: 'note', text: 'Every org on the route needs a value, or the check fails and says which (for example "PAYMENT_URL has no value for sit in .relay/values.json"). Values shorter than 6 characters aren\'t turned back into placeholders on retrieve. Values are in Git, so never put passwords there. The Pipeline tab shows them read-only (**Per-org values**).' }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'gates',
+        group: 'daily',
+        label: 'Quality gates',
+        cards: [
+            {
+                key: 'gate-main',
+                title: 'Quality gates',
+                aside: 'Git admins',
+                blocks: [
+                    { type: 'text', paras: ['Quality gates are rules every release must pass before it can be approved. They live in the repository in `.relay/gates.json` on main (the pipeline branch); all of them are optional. The Pipeline tab shows them read-only (**Quality gates**).'] },
+                    {
+                        type: 'table',
+                        cols: ['Gate', 'In .relay/gates.json', 'What it does'],
+                        rows: [
+                            ['Code scan', '`"scan": { "failAtPriority": 2 }`', 'The code scan fails when a finding is at that priority or higher (1 = most serious).'],
+                            ['Coverage per class', '`"coverage": { "minimumPerClass": 75 }`', 'The validation fails when a deployed Apex class is below it.'],
+                            ['Coverage org-wide', '`"coverage": { "minimumOrgWide": 75 }`', 'The validation fails when the org-wide coverage is below it (when Salesforce reports it).'],
+                            ['Tests for Apex', '`"tests": { "requireForApex": true }`', 'A release with Apex and no tests fails before anything is sent to the org.']
+                        ]
+                    },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'When a gate fails',
+                                where: 'The release page → Progress',
+                                items: [
+                                    'The release shows **Checks failed**, and a red box **Quality gates failed** lists each reason as the pipeline wrote it. In the scan findings, the findings that broke the gate have a red priority.',
+                                    'An approver can still accept the code scan\'s findings with a reason (as today). Coverage and missing tests can\'t be bypassed: fix it and press **Check again**.'
+                                ]
+                            }
+                        ]
+                    },
+                    { type: 'note', text: 'Without `.relay/gates.json` Salesforce\'s own rules still apply (for example 75% coverage in production).' }
+                ]
+            }
+        ]
+    },
+    {
         key: 'promote',
         group: 'daily',
         label: 'Promote to the next stop',
@@ -1679,7 +1809,7 @@ const USE_SECTIONS = [
                             {
                                 title: 'Export CSV',
                                 where: 'Releases tab → Export CSV',
-                                text: ['Exports the releases that match the filters (Raised by, status, search) to `releases-<date>.csv`: release, title, route, raised by and on, status, approved by and on, approved via, comment, second approver, deployed to, deploy ids and pull request link.']
+                                text: ['Exports the releases that match the filters (Raised by, status, search) to `releases-<date>.csv`: release, title, route, raised by and on, status, approved by and on, approved via, comment, second approver, deployed to, deploy ids, pull request link, and rolled back in and on.']
                             }
                         ]
                     }
@@ -1836,6 +1966,15 @@ const USE_SECTIONS = [
                             ['Failed', 'The release couldn\'t be raised (for example a component wasn\'t found).', 'Read the reason; raise again.']
                         ]
                     },
+                    {
+                        type: 'table',
+                        cols: ['Rollback', 'Meaning', 'What to do'],
+                        rows: [
+                            ['Rolling back in <org>', 'The pipeline deploys the snapshot taken before the release deployed there.', 'Wait, or Check now.'],
+                            ['Rolled back in <org>', 'The org is back to how it was before the release. Git still has the change; the release keeps its status. The Releases tab lists it under Rolled back.', 'Raise a release that fixes the branch.'],
+                            ['Rollback failed in <org>', 'Salesforce refused the snapshot; the org is unchanged. The errors are under Deployment errors.', 'Read the errors; Roll back again or fix with a new release.']
+                        ]
+                    },
                     { type: 'note', text: '**Manual steps only** releases skip Retrieving, Workflow running and Validating: Submitted → Ready for approval → Deploying while the deployment team does the manual steps in that org → Deployed when all of them are Done or Not needed.' }
                 ]
             }
@@ -1889,8 +2028,8 @@ const REF_SECTIONS = [
                         rows: [
                             ['`RLY_Developer`', 'New Release, Releases and Guide tabs: raise and follow releases, read their history, download evidence and export CSV.'],
                             ['`RLY_Approver`', 'Approvals and Promote tabs: approve, reject, bypass a code scan, promote what is deployed to a stage.'],
-                            ['`RLY_Deploy_Team`', 'Release Relay Deployment Team: tick manual steps done or not needed in each org.'],
-                            ['`RLY_Admin`', 'Pipeline tab: Git connection, orgs, route, approval rules, Slack, linked approvers, back promote. Promote tab. Includes Hotfix and the deployment team. Shows the Set up sections of this Guide.'],
+                            ['`RLY_Deploy_Team`', 'Release Relay Deployment Team: tick manual steps done or not needed in each org, and roll a deployed release back.'],
+                            ['`RLY_Admin`', 'Pipeline tab: Git connection, orgs, route, approval rules, Slack, linked approvers, back promote. Promote tab. Includes Hotfix and the deployment team (so admins can roll back too). Shows the Set up sections of this Guide.'],
                             ['`RLY_Slack_Site`', 'For the Site guest user only, so Approve in Slack can reach the hub. Needed only when an org is approved in Slack.'],
                             ['Your Git access permission set', 'External Credential Principal Access to `RLY_GitHub` (or your provider\'s credential), for everyone who uses Release Relay. See Set up → B. Hub org.']
                         ]

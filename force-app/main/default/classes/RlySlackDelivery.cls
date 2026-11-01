@@ -1,8 +1,8 @@
 /**
  * @description Posts a release's Slack card through the Slack app: the first event posts the card in the target org's
  * channel (and saves its channel ID and ts on the release); later events edit the card and reply in its thread. A
- * developer org with Post to Slack and a channel also gets a plain one-line copy (not tracked). Callouts only: the
- * caller saves the release.
+ * developer org with Post to Slack and a channel also gets a plain one-line copy (not tracked). refresh edits the card
+ * alone, for a change that isn't a selected event. Callouts only: the caller saves the release.
  */
 public with sharing class RlySlackDelivery {
 
@@ -30,10 +30,29 @@ public with sharing class RlySlackDelivery {
         return org == null || org.Slack_Post__c != true || String.isBlank(org.Slack_Channel__c) ? null : org.Slack_Channel__c.trim();
     }
 
+    /**
+     * @description Edits the release's card (chat.update) to show its current state, with no thread reply. Throws
+     * RlySlackApi.SlackException when Slack refuses it.
+     * @param rel the release, as RlyReleaseStore reads it, with its new state
+     * @return the result for Last_Result__c, or null when the release has no card
+     */
+    public static String refresh(RLY_Release__c rel) {
+        if (String.isBlank(rel.Slack_Ts__c) || String.isBlank(rel.Slack_Channel_Id__c)) {
+            return null;
+        }
+        Map<String, Object> card = RlySlackCard.card(rel, RlyReleaseStore.userName(rel.Approved_By__c));
+        card.put('channel', rel.Slack_Channel_Id__c);
+        card.put('ts', rel.Slack_Ts__c);
+        RlySlackApi.call('chat.update', card);
+        return 'Updated: ' + rel.Name + ' · ' + RlyReleasePhase.phase(rel);
+    }
+
+    // The card in the target org's channel and the event's reply in its thread. An org that stopped posting still gets
+    // its existing card edited.
     private static String toTarget(RLY_Release__c rel, String event, String approverName) {
         String channel = channelOf(rel.Target_Org__r);
         if (channel == null) {
-            return null;
+            return refresh(rel);
         }
         Map<String, Object> card = RlySlackCard.card(rel, approverName);
         if (String.isBlank(rel.Slack_Ts__c) || String.isBlank(rel.Slack_Channel_Id__c)) {
