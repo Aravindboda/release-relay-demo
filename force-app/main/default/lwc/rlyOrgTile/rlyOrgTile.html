@@ -1,0 +1,20 @@
+<template>
+    <button type="button" class={cardCls} title={t.domain} aria-haspopup="dialog" onclick={handleOpen}>
+        <span class="rr-tile-head">
+            <strong class="rr-tile-name">{t.name}</strong>
+            <span class={t.roleCls}>{t.rolePill}</span>
+            <span class="rr-tile-status"><span class={t.dotCls} aria-hidden="true"></span>{t.statusText}</span>
+        </span>
+        <span class="rr-tile-facts">
+            <span class="rr-tile-lab">Branch</span>
+            <span class={t.branchCls}>{t.branch}</span>
+            <span class="rr-tile-lab">Approval</span>
+            <span class="rr-tile-val">{t.approvalText}</span>
+        </span>
+        <span class="rr-tile-foot">
+            <span>{t.checkedText}</span>
+            <span class="rr-tile-open" aria-hidden="true">Open ›</span>
+        </span>
+        <span class="slds-assistive-text">{t.openLabel}</span>
+    </button>
+</template>

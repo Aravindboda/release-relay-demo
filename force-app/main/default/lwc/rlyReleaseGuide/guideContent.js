@@ -183,11 +183,11 @@ function next(key) {
 }
 
 const SIGN_IN_PROBLEMS = [
-    ['"Add … as a Remote Site Setting in the hub"', 'Setup → Remote Site Settings → New, with the org\'s My Domain URL exactly as on the org card (see B. Hub org, step 6).'],
+    ['"Add … as a Remote Site Setting in the hub"', 'Setup → Remote Site Settings → New, with the org\'s My Domain URL exactly as in the org\'s Sign-in section (see B. Hub org, step 6).'],
     ['"Check Hub certificate: … must be the API name of a certificate in this hub"', 'Hub certificate on the org must be `release_relay`, the Unique Name of the certificate (B. Hub org, step 2).'],
-    ['"Check Consumer key: it must be the consumer key of the External Client App in …"', 'Copy the Consumer Key again from that org\'s External Client App (D. Each org, step 3), Edit the org card and paste it.'],
+    ['"Check Consumer key: it must be the consumer key of the External Client App in …"', 'Copy the Consumer Key again from that org\'s External Client App (D. Each org, step 3), Open the org under Connected orgs, press Edit and paste it.'],
     ['"Pre-authorize the integration user in …\'s External Client App"', 'Permitted Users = Admin approved users are pre-authorized, then add the integration user\'s profile or permission set (D. Each org, step 3).'],
-    ['"Check Login type: Production for production and Developer Edition orgs, Sandbox for sandboxes."', 'Edit the org card and pick the right Login type.'],
+    ['"Check Login type: Production for production and Developer Edition orgs, Sandbox for sandboxes."', 'Open the org under Connected orgs, press Edit and pick the right Login type.'],
     ['"Check Integration username: it must be an active user in …"', 'Type the username exactly, and check the user is active in that org.'],
     ['"The org refused the login. Check that its External Client App has the JWT bearer flow on, the hub certificate uploaded, and the user pre-authorized."', 'Check the three things in the External Client App (D. Each org, steps 2 and 3). A new app can take a few minutes before it works.']
 ];
@@ -670,7 +670,7 @@ const SETUP_SECTIONS = [
                             {
                                 title: 'Register the org on the Pipeline tab',
                                 who: 'Release Relay admin',
-                                where: 'Hub: Release Relay → Pipeline → Registered orgs → Register an org',
+                                where: 'Hub: Release Relay → Pipeline → Register an org (opens a window)',
                                 goal: 'The hub saves how to reach the org and where it sits on the route.',
                                 items: [
                                     'Org name: a short name people know, for example `SIT` or `DEV1` (examples).',
@@ -683,18 +683,18 @@ const SETUP_SECTIONS = [
                                     'Hub certificate: `release_relay`.',
                                     'Branch: the org\'s branch, for example `sit` or `dev1`.',
                                     'Git environment: the environment holding its login (C. Git provider, step 5), usually the same as the branch.',
-                                    'Press **Save**: it signs in and reads the Org Id, sandbox name and Metadata API version.'
+                                    'Press **Test sign-in and next**: it saves, signs in and reads the Org Id, sandbox name and Metadata API version. The window then walks you through Approval and Slack (Skip leaves the defaults).'
                                 ],
-                                check: 'The org card shows Connected.',
+                                check: 'Connected orgs → the org\'s environment tab: its card shows Connected.',
                                 problems: SIGN_IN_PROBLEMS,
                                 shot: { ill: 'register-org', cap: 'Register an org: the eleven things to fill in, then Save.', alt: 'Drawing of the Register an org window with callouts 1 Org name, 2 Role, 3 Salesforce environment, 4 My Domain URL, 5 Login type, 6 Integration username, 7 Connected app consumer key, 8 Hub certificate, 9 Branch, 10 Git environment, 11 Save.' }
                             },
                             {
                                 title: 'Test sign-in any time',
                                 who: 'Release Relay admin',
-                                where: 'Release Relay → Pipeline → the org\'s card → Test sign-in',
+                                where: 'Release Relay → Pipeline → Connected orgs → click the org → Test sign-in',
                                 goal: 'Proves the hub can still sign in (after a sandbox refresh, a new certificate or a changed user).',
-                                items: ['Press **Test sign-in** on the card. On a failure the card names the fix (table above).'],
+                                items: ['Click the org\'s card and press **Test sign-in** in its window. On a failure the Sign-in section names the fix (table above).'],
                                 check: 'Connected, with the time it was checked.',
                                 shot: { name: 'register', cap: 'Example: Register an org. The consumer key is saved encrypted and shown as ••••.' }
                             },
@@ -791,12 +791,12 @@ const SETUP_SECTIONS = [
                             {
                                 title: 'Set the channel on each org card',
                                 who: 'Release Relay admin',
-                                where: 'Release Relay → Pipeline → the org\'s card → Edit → Slack',
+                                where: 'Release Relay → Pipeline → Connected orgs → click the org → Edit → Slack',
                                 goal: 'Each org posts in its own channel.',
                                 items: [
                                     'Slack channel: `#channel-name` or the channel ID.',
                                     'Turn on **Post to Slack** (on a developer org: **Also post here**, so its people see their own releases).',
-                                    'Save, then press **Send test message** on the card.'
+                                    'Save, then press **Send test message** in the org\'s Slack section.'
                                 ],
                                 check: 'The test message appears in the channel.',
                                 links: [{ label: 'How to use: Pipeline tab', to: 'pipelinetab' }]
@@ -1016,11 +1016,11 @@ const SETUP_SECTIONS = [
                             ['Workflow permissions', 'Repository → Settings → Actions → General', 'Read and write; may create pull requests'],
                             ['Environment per stage org + prod', 'Repository → Settings → Environments', '4 secrets + 2 variables each'],
                             ['Integration user + External Client App per org', 'Each org: Setup', 'JWT on, hub .crt, user pre-authorized'],
-                            ['Each org registered (the hub as Hub)', 'Pipeline → Registered orgs', 'Every card Connected'],
+                            ['Each org registered (the hub as Hub)', 'Pipeline → Connected orgs', 'Every card Connected'],
                             ['Route branches', 'Pipeline → 2 · Route → Create missing branches', 'Every route branch already exists'],
                             ['Slack (optional): token, channels, test', 'RLY_Slack · Pipeline → Slack connection', 'Test message arrives'],
                             ['Approve in Slack (optional)', 'Site + Interactivity + signing secret + linked approvers', 'Approve works from the card'],
-                            ['Approval rules, deployment team', 'Pipeline → org cards · RLY_Deploy_Team', 'Set as your process needs'],
+                            ['Approval rules, deployment team', 'Pipeline → Connected orgs · RLY_Deploy_Team', 'Set as your process needs'],
                             ['Caching on, prod reviewers on', 'Session Settings · Environments → prod', 'Before real users start'],
                             ['First release', 'New Release', 'Deployed to the first stage']
                         ]
@@ -1815,13 +1815,13 @@ const USE_SECTIONS = [
                             {
                                 title: 'Switch it on',
                                 who: 'Admin',
-                                where: 'Pipeline → Back promote → Edit',
+                                where: 'Pipeline → Back promote (next to 1 · Where the code lives) → Edit',
                                 text: ['Turn on **Send production\'s changes to other orgs after a deploy**.']
                             },
                             {
                                 title: 'Choose when, and whether to approve',
                                 who: 'Admin',
-                                where: 'Pipeline → the org\'s card → Edit → Back promote',
+                                where: 'Pipeline → Connected orgs → click the org → Edit → Back promote',
                                 items: [
                                     '**When**: After every production deploy, or When an admin clicks Sync now (the default).',
                                     '**Approve before syncing**: off by default, so production\'s approval is enough. On: each sync waits for an approver.'
@@ -1959,25 +1959,48 @@ const USE_SECTIONS = [
                 title: 'Pipeline tab',
                 aside: SHOT_NOTE,
                 blocks: [
-                    { type: 'text', paras: ['The Pipeline tab holds the setup: 1 · Where the code lives (Git connection), Registered orgs, 2 · Route, Back promote and the Slack connection. Every card is read-only; **Edit** opens a window, and nothing changes until you press Save.'] },
+                    { type: 'text', paras: [
+                        'The Pipeline tab holds the setup, in sections: **1 · Where the code lives** (the Git connection) with **Back promote** next to it, **2 · Route**, **Per-org values**, **Quality gates**, **Slack connection** and **Connected orgs**.',
+                        'Every section folds: press the arrow (or the title) to open or close it. A closed section shows one grey line with what it holds, for example the provider, repository and status. Section 1 and Connected orgs start open; the tab remembers what you open or close in this browser. A section with a problem (a failed check, missing pipeline files, route warnings) opens by itself.',
+                        'Everything is read-only until you press **Edit**, and nothing changes until you press Save.'
+                    ] },
                     {
                         type: 'steps',
                         steps: [
                             {
-                                title: 'Change an org',
+                                title: 'Register an org',
                                 who: 'Admin',
-                                where: 'Pipeline → the org\'s card',
+                                where: 'Pipeline → Register an org (page header, or the + Register an org card on a Connected orgs tab)',
+                                goal: 'Add a developer org, a stage, the hub or a back promote org.',
+                                items: [
+                                    '**Register an org** opens a window. From a tab\'s **+ Register an org** card, that tab\'s Salesforce environment comes chosen.',
+                                    'Step 1 Sign-in: fill in the fields (the grey text shows examples) and press **Test sign-in and next**. If the sign-in fails, the window says why and stays on Sign-in.',
+                                    'Next steps: Approval (stages and the hub), Back promote (back promote orgs), Slack (once Slack is set up). **Skip** keeps the defaults.',
+                                    'When it is done, the window closes and Connected orgs shows the new org\'s tab, with its card lit up.'
+                                ],
+                                problems: SIGN_IN_PROBLEMS
+                            },
+                            {
+                                title: 'See and change an org',
+                                who: 'Admin',
+                                where: 'Pipeline → Connected orgs → the org\'s environment tab → its card',
                                 goal: 'Keep each org\'s sign-in, approval and Slack settings right.',
                                 items: [
-                                    '**Test sign-in** checks the hub can still sign in to the org.',
-                                    '**Edit** opens the org\'s window: Sign-in, Approval, Slack (and Back promote for those orgs).',
-                                    'Connected app consumer key: leave it blank to keep the saved key.',
-                                    'Slack channel for this org.',
-                                    '**Post to Slack** (on a developer org: Also post here).',
-                                    'Press **Save**.'
+                                    'Connected orgs has one tab per Salesforce environment (Developer sandbox, Developer Pro sandbox, Partial Copy sandbox, Full Copy sandbox, Production), each with how many orgs it has. An org with no environment is under **Not set**. Arrow keys move between the tabs.',
+                                    'Each card shows the org\'s name, role (Developer, Stage 1, Hub, Back promote), sign-in status, branch, approval rule and code scan, and when it was last checked.',
+                                    'Click a card (or press Enter on it) to open the org\'s window: Sign-in, Approval (with code scan and the two-approver rule), Back promote for those orgs, and Slack.',
+                                    '**Test sign-in** checks the hub can still sign in. **Send test message** posts to the org\'s Slack channel.',
+                                    '**Edit** turns every section of the window into a form at once. Connected app consumer key: leave it blank to keep the saved key.',
+                                    'Press **Save** (all sections are saved together; a changed sign-in is tested again) or **Cancel**. Escape asks before it drops changes. **Close** goes back to the cards.'
                                 ],
                                 problems: SIGN_IN_PROBLEMS,
-                                shot: { ill: 'org-edit', cap: 'An org card (read-only) and its Edit window.', alt: 'Drawing of an org card and its Edit window with callouts 1 Test sign-in, 2 Edit, 3 consumer key left blank, 4 Slack channel, 5 Post to Slack, 6 Save.' }
+                                shot: { ill: 'org-edit', cap: 'An org\'s window (read-only) and the same window after Edit.', alt: 'Drawing of an org card and its Edit window with callouts 1 Test sign-in, 2 Edit, 3 consumer key left blank, 4 Slack channel, 5 Post to Slack, 6 Save.' }
+                            },
+                            {
+                                title: 'Back promote',
+                                who: 'Admin',
+                                where: 'Pipeline → Back promote (next to 1 · Where the code lives)',
+                                items: ['The small Back promote card beside the Git connection shows whether it is on, when the back promote orgs get production\'s changes and how many there are. **Edit** switches it on or off. Each back promote org\'s own When and Sync now are in its window under Connected orgs.']
                             },
                             {
                                 title: 'Check the route',
