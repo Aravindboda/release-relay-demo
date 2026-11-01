@@ -132,7 +132,7 @@ private class RlyOrgControllerTest {
             Test.stopTest();
             System.assertEquals(0, mock.unsignedCalls, 'Every call carries the hub token');
             System.assert(checked.Status_Message__c.contains(RlyOrgCheck.TRACKING_HINT_SANDBOX), 'Recommends source tracking');
-            System.assert(checked.Status_Message__c.contains('set Login type to Sandbox'), 'Flags the wrong login type');
+            System.assert(checked.Status_Message__c.contains('Login type is read from the My Domain URL'), 'Flags the wrong login type');
         }
     }
 
