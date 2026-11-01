@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Approve_In_Slack__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Releases into this org can be approved from their Slack card (when Slack is connected). With Approve in Salesforce on too, either is enough.</description>
+    <label>Approve in Slack</label>
+    <type>Checkbox</type>
+</CustomField>
