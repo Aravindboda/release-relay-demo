@@ -1,0 +1,252 @@
+{
+ "request": "REL-90059",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 62,
+ "deleted": [],
+ "mergedWith": "44a459116478ff6b716acd2da1d7ba076413a767",
+ "validatedTree": "13463d5e911d07ae8c7298328ece28801ce1752c",
+ "environment": "prod",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0Afg800000K5SrNCAV",
+ "testsRun": 0,
+ "tests": [
+  "RlyApprovalRulesTest",
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyBackPromoteTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyDeletionFinderTest",
+  "RlyDeployReaderTest",
+  "RlyEvidenceTest",
+  "RlyFlowActivationTest",
+  "RlyGitAdviceTest",
+  "RlyGitProvidersTest",
+  "RlyHotfixTest",
+  "RlyHubGuardTest",
+  "RlyManualOnlyTest",
+  "RlyManualStepGateTest",
+  "RlyManualStepsTest",
+  "RlyOrgControllerTest",
+  "RlyOrgSessionTest",
+  "RlyPipelineFilesTest",
+  "RlyPromoteTest",
+  "RlyPullRequestCloseTest",
+  "RlyRaiseServiceTest",
+  "RlyReleasesFilterTest",
+  "RlyRepoSettingsTest",
+  "RlyRollbackTest",
+  "RlyRouteControllerTest",
+  "RlyScanRuleTest",
+  "RlySetupStatusTest",
+  "RlySlackActionsTest",
+  "RlySlackCardTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest",
+  "RlyTwoApproversTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyBackPromoteRun : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyConflictService",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyEvidenceController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyEvidenceHtml : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyEvidenceHtml",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyEvidenceTables",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyEvidenceText : Dependent class is invalid and needs recompilation:\n Class RlyReleaseLinks : Dependent class is invalid and needs recompilation:\n Class RlyPipelineOptions : Dependent class is invalid and needs recompilation:\n Class RlyPromotion : Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyBackPromoteRun : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyOrgController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackDelivery : Dependent class is invalid and needs recompilation:\n Class RlySlackReply : Dependent class is invalid and needs recompilation:\n Class RlyManualStepText : Dependent class is invalid and needs recompilation:\n Class RlyManualStepGate : Dependent class is invalid and needs recompilation:\n Class RlyTwoApprovers : Dependent class is invalid and needs recompilation:\n Class RlyHotfix : Dependent class is invalid and needs recompilation:\n Class RlyRaiseService : Dependent class is invalid and needs recompilation:\n Class RlyFlowChoices : Dependent class is invalid and needs recompilation:\n Class RlyEviden",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyOrgSettings",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyScanRule : Dependent class is invalid and needs recompilation:\n Class RlyReleaseStore : Dependent class is invalid and needs recompilation:\n Class RlyReleaseTransitions : Dependent class is invalid and needs recompilation:\n Class RlyReleaseOutcomes : Dependent class is invalid and needs recompilation:\n Class RlyManualOnly : Dependent class is invalid and needs recompilation:\n Class RlyManualSteps : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackDelivery : Dependent class is invalid and needs recompilation:\n Class R",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyPipelineOptions",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyPromotion : Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyBackPromoteRun : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyPromotion",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyBackPromoteRun : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRaiseService",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyFlowChoices : Dependent class is invalid and needs recompilation:\n Class RlyEvidenceText : Dependent class is invalid and needs recompilation:\n Class RlyReleaseLinks : Dependent class is invalid and needs recompilation:\n Class RlyPipelineOptions : Dependent class is invalid and needs recompilation:\n Class RlyPromotion : Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyBackPromoteRun : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Cl",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyReleaseQuery",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRollbackState : Dependent class is invalid and needs recompilation:\n Class RlyEvidenceText : Dependent class is invalid and needs recompilation:\n Class RlyReleaseLinks : Dependent class is invalid and needs recompilation:\n Class RlyPipelineOptions : Dependent class is invalid and needs recompilation:\n Class RlyPromotion : Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyBackPromoteRun : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyReleaseRows",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyReleaseStore",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleaseTransitions : Dependent class is invalid and needs recompilation:\n Class RlyReleaseOutcomes : Dependent class is invalid and needs recompilation:\n Class RlyManualOnly : Dependent class is invalid and needs recompilation:\n Class RlyManualSteps : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackDelivery : Dependent class is invalid and needs recompilation:\n Class RlySlackReply : Dependent class is invalid and needs recompilation:\n Class RlyManualStepText : Dependent class is invalid and needs recompilation:\n Cla",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyReleasesController",
+   "problem": "Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRollback",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRollbackRun : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRollbackController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRollback : Dependent class is invalid and needs recompilation:\n Class RlyRollbackRun : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRollbackPlan",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyEvidenceText : Dependent class is invalid and needs recompilation:\n Class RlyReleaseLinks : Dependent class is invalid and needs recompilation:\n Class RlyPipelineOptions : Dependent class is invalid and needs recompilation:\n Class RlyPromotion : Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyBackPromoteRun : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRollbackPreview",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRollbackPlan : Dependent class is invalid and needs recompilation:\n Class RlyEvidenceText : Dependent class is invalid and needs recompilation:\n Class RlyReleaseLinks : Dependent class is invalid and needs recompilation:\n Class RlyPipelineOptions : Dependent class is invalid and needs recompilation:\n Class RlyPromotion : Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyBackPromoteRun : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n C",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRollbackRun",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRollbackState",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyEvidenceText : Dependent class is invalid and needs recompilation:\n Class RlyReleaseLinks : Dependent class is invalid and needs recompilation:\n Class RlyPipelineOptions : Dependent class is invalid and needs recompilation:\n Class RlyPromotion : Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyBackPromoteRun : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRollbackTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRollbackView",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyScanRule",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleaseStore : Dependent class is invalid and needs recompilation:\n Class RlyReleaseTransitions : Dependent class is invalid and needs recompilation:\n Class RlyReleaseOutcomes : Dependent class is invalid and needs recompilation:\n Class RlyManualOnly : Dependent class is invalid and needs recompilation:\n Class RlyManualSteps : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackDelivery : Dependent class is invalid and needs recompilation:\n Class RlySlackReply : Dependent class is invalid and needs recompilation:\n Class",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyScanRuleTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyPipelineOptions : Dependent class is invalid and needs recompilation:\n Class RlyPromotion : Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyBackPromoteRun : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackCard",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackCardState",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Identifier name is reserved: rollback",
+   "line": 134
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyRollback",
+   "problem": "Unable to find Apex action class referenced as 'RlyRollbackController'.\nUnable to find Apex action class referenced as 'RlyRollbackController'.\nUnable to find Apex action class referenced as 'RlyRollbackController'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyRollback",
+   "problem": "Unable to find Apex action class referenced as 'RlyRollbackController'.\nUnable to find Apex action class referenced as 'RlyRollbackController'.\nUnable to find Apex action class referenced as 'RlyRollbackController'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyRollback",
+   "problem": "Unable to find Apex action class referenced as 'RlyRollbackController'.\nUnable to find Apex action class referenced as 'RlyRollbackController'.\nUnable to find Apex action class referenced as 'RlyRollbackController'."
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Admin",
+   "problem": "In field: apexClass - no ApexClass named RlyRollbackController found"
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Deploy_Team",
+   "problem": "In field: apexClass - no ApexClass named RlyRollbackController found"
+  }
+ ],
+ "testFailures": [],
+ "message": "31 component error(s)",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41310158121",
+ "finishedAt": "2026-11-01T13:14:09.689Z",
+ "excluded": [],
+ "selfUpdate": true,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
+}
