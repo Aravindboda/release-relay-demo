@@ -161,7 +161,7 @@ public with sharing class RlyPromoteStore {
          * @return the items
          */
         public List<RLY_Release_Item__c> queryItems(Set<Id> releaseIds) {
-            return [SELECT Id, Metadata_Type__c, Component_Name__c, Change_Type__c, Source__c, Is_Deletion__c FROM RLY_Release_Item__c
+            return [SELECT Id, Release__c, Metadata_Type__c, Component_Name__c, Change_Type__c, Source__c, Is_Deletion__c FROM RLY_Release_Item__c
                     WHERE Release__c IN :releaseIds WITH SYSTEM_MODE ORDER BY Metadata_Type__c, Component_Name__c LIMIT 5000];
         }
 

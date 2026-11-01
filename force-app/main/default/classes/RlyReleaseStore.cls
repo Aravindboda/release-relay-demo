@@ -6,6 +6,10 @@
  */
 public with sharing class RlyReleaseStore {
 
+    // Saved only when the release carries them: an add to an open release changes them (RlyAppendRun).
+    private static final List<String> ADD_FIELDS = new List<String>{ 'Append_State__c', 'Test_Classes__c', 'Deletions__c',
+        'Deletion_Count__c', 'Component_Count__c' };
+
     /**
      * @description A registered org with its sign-in fields (consumer key included: for Apex only, never sent to the page).
      * @param orgId the org record
@@ -113,7 +117,7 @@ public with sharing class RlyReleaseStore {
         SystemAccess access = new SystemAccess();
         List<RLY_Release__c> rows = new List<RLY_Release__c>();
         for (RLY_Release__c rel : rels) {
-            rows.add(access.flowFields(rel));
+            rows.add(access.withAddFields(rel, access.flowFields(rel)));
         }
         Map<Id, RLY_Release__c> priorRows = access.readPrior(new Map<Id, RLY_Release__c>(rows).keySet());
         access.updateRows(rows);
@@ -207,7 +211,7 @@ public with sharing class RlyReleaseStore {
                     Second_Approved_By__c, Second_Approved_By__r.Name, Second_Approved_On__c, Back_Merge_Result__c,
                     Target_Org__r.Role__c, Target_Org__r.Hotfix_Two_Approvers__c, Target_Org__r.Branch__c, Source_Org__r.Git_Environment__c,
                     Deletions__c, Deletion_Count__c, Target_Org__r.Approval_Rule__c, Target_Org__r.Approval_Types__c, Target_Org__r.Code_Scan__c,
-                    Flow_Actions__c, Flow_Results__c, Manual_Only__c
+                    Flow_Actions__c, Flow_Results__c, Manual_Only__c, Append_State__c
                 FROM RLY_Release__c WHERE Id = :releaseId WITH SYSTEM_MODE];
             return rows.isEmpty() ? null : rows[0];
         }
@@ -319,6 +323,22 @@ public with sharing class RlyReleaseStore {
                 Approved_Via__c = rel.Approved_Via__c, Second_Approved_By__c = rel.Second_Approved_By__c,
                 Second_Approved_On__c = rel.Second_Approved_On__c, Back_Merge_Result__c = rel.Back_Merge_Result__c,
                 Flow_Results__c = rel.Flow_Results__c);
+        }
+
+        /**
+         * @description Adds the fields an add to an open release changes (RlyAppendRun), when the release carries them.
+         * @param rel the release, as the flow changed it
+         * @param row the row to save
+         * @return the row
+         */
+        public RLY_Release__c withAddFields(RLY_Release__c rel, RLY_Release__c row) {
+            Map<String, Object> present = rel.getPopulatedFieldsAsMap();
+            for (String field : ADD_FIELDS) {
+                if (present.containsKey(field)) {
+                    row.put(field, present.get(field));
+                }
+            }
+            return row;
         }
     }
 }
