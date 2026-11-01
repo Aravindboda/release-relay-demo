@@ -237,18 +237,31 @@ public with sharing class RlyReleasesController {
     /**
      * @description Reads the latest status first (callouts), then returns the release. A release with nothing running
      * reads its running rollback (RlyRollbackRun.advance), or else starts or reads the queued and running back promote syncs
-     * (RlyBackPromoteRun.catchUp).
+     * (RlyBackPromoteRun.catchUp). Reads are shared: a running release read in the last RlySharedRead.FRESH_SECONDS
+     * by anyone is returned as saved, without callouts, and a save that meets another viewer's row lock returns the
+     * saved release instead of an error (RlySharedRead).
      * @param releaseId the release
      * @return the release
      */
     @AuraEnabled
     public static Detail refreshRelease(Id releaseId) {
+        return refreshWithin(releaseId, RlySharedRead.FRESH_SECONDS);
+    }
+
+    /**
+     * @description The release page's Check now button: as refreshRelease, but reads again unless the last read is
+     * RlySharedRead.CHECK_NOW_SECONDS old or less (instead of FRESH_SECONDS).
+     * @param releaseId the release
+     * @return the release
+     */
+    @AuraEnabled
+    public static Detail checkRelease(Id releaseId) {
+        return refreshWithin(releaseId, RlySharedRead.CHECK_NOW_SECONDS);
+    }
+
+    private static Detail refreshWithin(Id releaseId, Integer freshFor) {
         try {
-            if (RlyStatusReader.isOpen(RlyReleaseStore.release(releaseId))) {
-                RlyStatusReader.advance(releaseId);
-            } else {
-                RlyRollbackRun.readIdle(releaseId);
-            }
+            RlySharedRead.refresh(releaseId, freshFor);
             return detail(releaseId);
         } catch (Exception e) {
             throw handled(e);

@@ -238,6 +238,10 @@ private class RlyHomeControllerTest {
             System.assertEquals('Connected', RlyHomeSlackHealth.slackItem(s).text, 'Sent');
             s.Last_Result__c = 'Error: channel_not_found';
             System.assertEquals(RlyHomeHealth.TONE_BAD, RlyHomeSlackHealth.slackItem(s).tone, 'Failed');
+            s.Last_Result__c = RlySlackApi.BUSY_RESULT + ' (REL-00001)';
+            System.assertEquals(RlyHomeHealth.TONE_WAIT, RlyHomeSlackHealth.slackItem(s).tone, 'Rate limited: catching up, not failed');
+            s.Last_Result__c = 'Updated: REL-00001 · Deployed';
+            System.assertEquals('Connected', RlyHomeSlackHealth.slackItem(s).text, 'A card edit worked');
             System.assertEquals(null, RlyHomeSlackHealth.approveItem(null, new List<RLY_Org__c>()), 'Slack off');
             RlyReleaseTestData.route();
             update new RLY_Org__c(Id = orgId('PROD'), Approval_In__c = 'Slack');

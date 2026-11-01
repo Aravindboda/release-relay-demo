@@ -8,6 +8,7 @@
 public with sharing class RlyHomeSlackHealth {
 
     private static final String SLACK_SENT = 'Sent';
+    private static final String SLACK_UPDATED = 'Updated';
 
     /**
      * @description The Slack item.
@@ -23,7 +24,11 @@ public with sharing class RlyHomeSlackHealth {
             return RlyHomeHealth.withState(i, 'Not tested', RlyHomeHealth.TONE_WAIT);
         }
         i.title = slack.Last_Result__c;
-        return slack.Last_Result__c.startsWith(SLACK_SENT) ? RlyHomeHealth.withState(i, 'Connected', RlyHomeHealth.TONE_OK)
+        if (slack.Last_Result__c.startsWith(RlySlackApi.BUSY_RESULT)) {
+            return RlyHomeHealth.withState(i, 'Busy, catching up', RlyHomeHealth.TONE_WAIT);
+        }
+        Boolean worked = slack.Last_Result__c.startsWith(SLACK_SENT) || slack.Last_Result__c.startsWith(SLACK_UPDATED);
+        return worked ? RlyHomeHealth.withState(i, 'Connected', RlyHomeHealth.TONE_OK)
             : RlyHomeHealth.withState(i, 'Last message failed', RlyHomeHealth.TONE_BAD);
     }
 

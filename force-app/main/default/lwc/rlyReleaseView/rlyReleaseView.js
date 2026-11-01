@@ -4,6 +4,7 @@ import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import saveEvidence from '@salesforce/apex/RlyEvidenceController.saveEvidence';
 import refreshRelease from '@salesforce/apex/RlyReleasesController.refreshRelease';
+import checkRelease from '@salesforce/apex/RlyReleasesController.checkRelease';
 import bypassScan from '@salesforce/apex/RlyReleasesController.bypassScan';
 import checkAgain from '@salesforce/apex/RlyReleasesController.checkAgain';
 import approve from '@salesforce/apex/RlyReleasesController.approve';
@@ -17,12 +18,42 @@ const SEARCH_FROM = 7;
 /** Modes of RlyHubGuard.getHubStatus in which only the org gate shows. */
 const GATED_MODES = ['sandbox', 'copy', 'setup'];
 
-const POLL_SECONDS = 30;
+/** Something is running (raise, checks, deploy, rollback, sync): the page checks again every 30 s. */
+const FAST_SECONDS = 30;
+/** Waiting for a person (approval, failed checks, manual steps): every 2 minutes. A finished release isn't checked. */
+const SLOW_SECONDS = 120;
+/** Statuses that wait for a person: an approver, or the developer after failed checks or conflicts. */
+const WAITING = ['Ready for approval', 'Checks failed', 'PR open', 'Approved', 'Merging', 'Merged'];
 const RESOLVING = 'Resolving conflicts';
 const GOOD = ['Deployed', 'Ready for approval'];
 const BAD = ['Checks failed', 'Deploy failed', 'Failed', 'Rejected'];
 const RUNNING = ['Retrieving', 'Workflow running', 'Validating', 'Deploying'];
 const ENDED_BADLY = ['Failed', 'Deploy failed'];
+
+/** Deploying, but the deploy waits for manual steps before it, or a release of only manual steps waits for them. */
+function waitsForSteps(d) {
+    return Number(d.manualBeforeOpen) > 0 || (d.release.Manual_Only__c === true && Number(d.manualOpen) > 0);
+}
+
+/**
+ * Seconds until the next check: FAST_SECONDS while something runs, SLOW_SECONDS while the release waits for a person,
+ * 0 when it is finished (Deployed with no manual steps open, Rejected, Failed, Rolled back...): "Check now" still reads it.
+ * @param {object} d RlyReleasesController.Detail
+ * @returns {number} seconds, or 0 to stop checking
+ */
+function pollSeconds(d) {
+    if (!d || !d.release) {
+        return 0;
+    }
+    if (d.rollbackState && d.rollbackState.status === 'Running') {
+        return FAST_SECONDS;
+    }
+    if (d.running) {
+        return waitsForSteps(d) ? SLOW_SECONDS : FAST_SECONDS;
+    }
+    return WAITING.includes(d.release.Status__c) || Number(d.manualOpen) > 0 ? SLOW_SECONDS : 0;
+}
+
 const SYNC_STATE = {
     Synced: { label: 'Updated', cls: 'rr-pill rr-pill-ok' },
     Conflict: { label: 'Not updated', cls: 'rr-pill rr-pill-wait' },
@@ -219,6 +250,12 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     busy = false;
     cycle = 0;
     nextAt;
+    /** Seconds of the current countdown (FAST_SECONDS or SLOW_SECONDS). */
+    pollFor = FAST_SECONDS;
+    /** The tab was hidden when a check was due: it checks as soon as the tab is visible again. */
+    paused = false;
+    /** The visibilitychange listener, kept so it can be removed. */
+    visibilityHandler;
     checking = false;
     comment = '';
     reason = '';
@@ -256,11 +293,27 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     }
 
     connectedCallback() {
+        this.visibilityHandler = () => this.handleVisibility();
+        document.addEventListener('visibilitychange', this.visibilityHandler);
         this.readHubStatus();
     }
 
     disconnectedCallback() {
         this.stop();
+        document.removeEventListener('visibilitychange', this.visibilityHandler);
+    }
+
+    /** Hidden tab: no checks (the countdown stops). Visible again: checks straight away, then counts down as before. */
+    handleVisibility() {
+        if (document.hidden) {
+            if (this.nextAt) {
+                this.stop();
+                this.paused = true;
+            }
+        } else if (this.paused) {
+            this.paused = false;
+            this.load();
+        }
     }
 
     /** Reads the hub status once, then loads the release only on the hub. A failed read disables nothing. */
@@ -286,30 +339,56 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Starts the next countdown. The bar is a CSS animation of POLL_SECONDS (no JavaScript timers);
+     * Starts the next countdown. The bar is a CSS animation of 30 s or 120 s (no JavaScript timers);
      * when it ends, handleCountdownEnd checks the status again.
+     * @param {number} seconds FAST_SECONDS or SLOW_SECONDS
      */
-    startCountdown() {
+    startCountdown(seconds) {
         this.cycle += 1;
-        this.nextAt = new Date(Date.now() + POLL_SECONDS * 1000);
+        this.pollFor = seconds;
+        this.nextAt = new Date(Date.now() + seconds * 1000);
+    }
+
+    /** Counts down to the next check as the release needs it (pollSeconds); while the tab is hidden it waits instead. */
+    schedule() {
+        const seconds = pollSeconds(this.detail);
+        if (!seconds) {
+            this.stop();
+        } else if (document.hidden) {
+            this.stop();
+            this.paused = true;
+        } else {
+            this.startCountdown(seconds);
+        }
     }
 
     handleCountdownEnd() {
-        if (this.nextAt) {
+        if (!this.nextAt) {
+            return;
+        }
+        if (document.hidden) {
+            this.stop();
+            this.paused = true;
+        } else {
             this.load();
         }
     }
 
-    /** Reads the release's latest status (which moves it along), then counts down to the next check while it runs. */
-    async load() {
+    /**
+     * Reads the release's latest status (which moves it along, or gives the read another viewer made in the last 20 s),
+     * then counts down to the next check: every 30 s while it runs, every 2 minutes while it waits for a person.
+     * @param {Function} [reader] the Apex read: refreshRelease (20 s shared window), or checkRelease for Check now (5 s)
+     */
+    async load(reader = refreshRelease) {
         this.stop();
+        this.paused = false;
         if (!this._releaseId) {
             return;
         }
         this.loading = !this.detail;
         this.checking = true;
         try {
-            this.detail = await refreshRelease({ releaseId: this._releaseId });
+            this.detail = await reader({ releaseId: this._releaseId });
             this.error = undefined;
         } catch (e) {
             this.error = errorText(e);
@@ -317,9 +396,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             this.loading = false;
             this.checking = false;
         }
-        if (this.detail && this.detail.running) {
-            this.startCountdown();
-        }
+        this.schedule();
         this.dispatchEvent(new CustomEvent('changed', { detail: this.detail ? this.detail.release.Status__c : null }));
         this.tellRollback();
     }
@@ -333,8 +410,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         this.lastRollback = state;
     }
 
+    /** Check now: reads again unless someone read the release in the last 5 s. */
     refresh() {
-        this.load();
+        this.load(checkRelease);
     }
 
     /** A manual step was added or ticked: read the release again (header pill, notice, a deploy the last step started). */
@@ -430,7 +508,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         }
         return last;
     }
-    get counting() { return this.running && !!this.nextAt && !this.checking; }
+    get counting() { return !!this.nextAt && !this.checking; }
+    /** The countdown bar: 30 s, or 120 s while the release waits for a person. */
+    get meterCls() { return this.pollFor === SLOW_SECONDS ? 'rr-meter-fill rr-meter-slow' : 'rr-meter-fill'; }
     /** One key per countdown, so a fresh bar (and a fresh animation) is drawn each time. */
     get cycles() { return [{ key: 'c' + this.cycle }]; }
 
@@ -1435,6 +1515,8 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             this.reason = '';
             if (this.detail.running) {
                 this.load();
+            } else {
+                this.schedule();
             }
             this.dispatchEvent(new CustomEvent('changed', { detail: this.detail.release.Status__c }));
         } catch (e) {

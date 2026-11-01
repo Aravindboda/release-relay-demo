@@ -76,7 +76,7 @@
                             <template lwc:if={counting}>
                                 <span class="rr-meter" aria-hidden="true">
                                     <template for:each={cycles} for:item="c">
-                                        <span key={c.key} class="rr-meter-fill" onanimationend={handleCountdownEnd}></span>
+                                        <span key={c.key} class={meterCls} onanimationend={handleCountdownEnd}></span>
                                     </template>
                                 </span>
                             </template>
