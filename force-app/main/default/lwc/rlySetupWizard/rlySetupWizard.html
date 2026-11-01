@@ -1,0 +1,122 @@
+<template>
+    <section class="rr-card rr-wiz" aria-label={title}>
+        <div class="rr-hd">
+            <h2 class="rr-h2 rr-grow">{title}</h2>
+            <span class="rr-kicker">{stepText}</span>
+            <lightning-button label="Do this later" onclick={handleLater}></lightning-button>
+        </div>
+        <ol class="rr-steps" aria-label="Setup steps">
+            <template for:each={steps} for:item="s">
+                <li key={s.n} class={s.cls} aria-current={s.current}>
+                    <template lwc:if={s.done}><lightning-icon icon-name="utility:check" size="xx-small" variant="success" alternative-text="Done" class="rr-step-icon"></lightning-icon></template>
+                    <span>{s.n} {s.label}</span>
+                </li>
+            </template>
+        </ol>
+
+        <div class="rr-body rr-step-body">
+            <template lwc:if={busy}><lightning-spinner alternative-text="Checking" size="small"></lightning-spinner></template>
+
+            <!-- 1 · This org is the hub -->
+            <template lwc:if={isHubStep}>
+                <p class="rr-kicker">This org is the hub: it keeps the pipeline, the releases and the approvals, and it is the production org releases end in. Register it once, with the role Hub.</p>
+                <template lwc:if={hubRegistered}>
+                    <div class="rr-check">
+                        <span class={hubStatusCls}>{hubStatusText}</span>
+                        <span><strong>{hubOrg.Name}</strong> is registered as the hub.</span>
+                    </div>
+                    <template lwc:if={hubMessage}><p class="rr-msg rr-msg-bad">{hubMessage}</p></template>
+                </template>
+                <template lwc:if={hubNotRegistered}>
+                    <dl class="rr-ro">
+                        <div class="rr-ro-item"><dt>My Domain (read from this org)</dt><dd class="rr-mono">{hubDomain}</dd></div>
+                        <div class="rr-ro-item"><dt>Org Id</dt><dd class="rr-mono">{hubOrgId}</dd></div>
+                    </dl>
+                    <div class="rr-fields">
+                        <lightning-input class="rr-first" label="Org name" data-field="Name" value={hubForm.Name} onchange={handleHubField} max-length="40"
+                            placeholder="e.g. Production" required></lightning-input>
+                        <lightning-input label="Integration username" data-field="Username__c" value={hubForm.Username__c} onchange={handleHubField}
+                            placeholder="e.g. relay@your-org.com" required></lightning-input>
+                        <lightning-input type="password" label="Consumer key" data-field="Consumer_Key__c" value={hubForm.Consumer_Key__c} onchange={handleHubField}
+                            placeholder="From the External Client App" autocomplete="off" required
+                            field-level-help="Saved encrypted and never shown again."></lightning-input>
+                        <lightning-input label="Hub certificate" data-field="Certificate__c" value={hubForm.Certificate__c} onchange={handleHubField}
+                            placeholder="e.g. release_relay" required field-level-help="API name of the certificate in this org that signs the login."></lightning-input>
+                        <lightning-input label="Branch" data-field="Branch__c" value={hubForm.Branch__c} onchange={handleHubField} placeholder="e.g. production"></lightning-input>
+                        <lightning-input label="Git environment" data-field="Git_Environment__c" value={hubForm.Git_Environment__c} onchange={handleHubField} placeholder="e.g. production"></lightning-input>
+                    </div>
+                    <p class="rr-kicker">Test and continue saves the hub and tests its sign-in.</p>
+                </template>
+            </template>
+
+            <!-- 2 · Git connection -->
+            <template lwc:if={isGitStep}>
+                <p class="rr-kicker">Where the code lives. One connection for this pipeline; the token stays in a Named Credential.</p>
+                <div class="rr-provs" role="group" aria-label="Provider">
+                    <template for:each={providerTiles} for:item="p">
+                        <button key={p.value} type="button" class={p.cls} aria-pressed={p.pressed} data-value={p.value} onclick={pickProvider}>
+                            <strong>{p.label}</strong><span class="rr-kicker">{p.how}</span>
+                        </button>
+                    </template>
+                </div>
+                <div class="rr-fields">
+                    <lightning-input label="Repository" data-field="Repository__c" value={gitForm.Repository__c} onchange={handleGitField} placeholder={repoHint} required></lightning-input>
+                    <lightning-input label="Named Credential (token)" data-field="Named_Credential__c" value={gitForm.Named_Credential__c} onchange={handleGitField} placeholder={credHint} required></lightning-input>
+                    <lightning-input label={provider.pipeLabel} data-field="Pipeline__c" value={gitForm.Pipeline__c} onchange={handleGitField} placeholder={pipeHint}></lightning-input>
+                    <lightning-input label="Pipeline branch" data-field="Pipeline_Branch__c" value={gitForm.Pipeline_Branch__c} onchange={handleGitField} placeholder="e.g. main" required></lightning-input>
+                    <lightning-input label="Source path" data-field="Source_Path__c" value={gitForm.Source_Path__c} onchange={handleGitField} placeholder="e.g. force-app/main/default" required></lightning-input>
+                    <lightning-input type="toggle" label={scanLabel} data-field="Code_Scan__c" checked={gitForm.Code_Scan__c} onchange={handleGitField}
+                        message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                </div>
+                <template lwc:if={hasGitResult}>
+                    <div class="rr-check" role="status"><span class={gitStatusCls}>{gitStatusText}</span><span class="rr-pre">{gitMessage}</span></div>
+                </template>
+            </template>
+
+            <!-- 3 · Pipeline files -->
+            <template lwc:if={isFilesStep}>
+                <p class="rr-kicker">The pipeline files (the workflow and its script) live in your repository on {filesBranch}. {appName} adds or updates them for you.</p>
+                <div class="rr-check" role="status"><span class={filesPillCls}>{filesPill}</span><span>{filesText}</span></div>
+                <template lwc:if={filesNeedUpdate}>
+                    <c-rly-choice-chips mode="single" label="How" options={filesHowOptions} value={filesHow} onchange={handleFilesHow}></c-rly-choice-chips>
+                    <div><lightning-button class="rr-first" variant="brand" label="Update pipeline files" onclick={handleFilesUpdate} disabled={filesCantUpdate}></lightning-button></div>
+                </template>
+                <template lwc:if={filesDone}>
+                    <div class="rr-msg rr-msg-ok" role="status">
+                        <span>{filesResult.message}</span>
+                        <template lwc:if={filesResult.url}> <a href={filesResult.url} target="_blank" rel="noopener noreferrer">{filesResultLabel}</a></template>
+                    </div>
+                </template>
+            </template>
+
+            <!-- 4 · Add orgs -->
+            <template lwc:if={isOrgsStep}>
+                <p class="rr-kicker">Register the developer orgs and the stages releases go through. Each one is tested when you save it.</p>
+                <template lwc:if={hasOrgRows}>
+                    <ul class="rr-orgs" aria-label="Registered orgs">
+                        <template for:each={orgRows} for:item="o">
+                            <li key={o.id} class="rr-org-row"><strong class="rr-grow">{o.name}</strong><span class="rr-kicker">{o.role}</span><span class={o.statusCls}>{o.status}</span></li>
+                        </template>
+                    </ul>
+                </template>
+                <div><lightning-button class="rr-first" label="Register an org" icon-name="utility:add" onclick={handleRegister} disabled={hubCopy}></lightning-button></div>
+            </template>
+
+            <!-- 5 · Slack (optional) -->
+            <template lwc:if={isSlackStep}>
+                <p class="rr-kicker">Optional. Each release posts one card in its org's channel and updates it as it moves. {appName} works without Slack.</p>
+                <template lwc:if={slackConnected}><div class="rr-check"><span class="rr-pill rr-pill-ok">Connected</span><span>Slack is set up.</span></div></template>
+                <template lwc:else>
+                    <div><lightning-button class="rr-first" label="Set up Slack" onclick={handleSlack}></lightning-button></div>
+                </template>
+            </template>
+
+            <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+        </div>
+        <div class="rr-foot">
+            <span class="rr-kicker rr-grow">Every step is checked before you go on. You can leave and come back.</span>
+            <lightning-button label="Back" onclick={handleBack} disabled={cantBack}></lightning-button>
+            <lightning-button variant="brand" label={goLabel} onclick={handleGo} disabled={cantGo}></lightning-button>
+        </div>
+    </section>
+</template>
