@@ -5,6 +5,15 @@
 public with sharing class RlyEvidenceTables {
 
     private static final String TD = '</td><td>';
+    /** @description Print CSS for the PDF renderer (Flying Saucer): rows never split, headings stay with their table, short sections stay whole, long tables repeat their header on each page. */
+    public static final String PRINT_CSS = 'table{border-collapse:separate;border-spacing:0;width:100%;-fs-table-paginate:paginate}'
+        + 'thead{display:table-header-group}tr,td,th{page-break-inside:avoid}h1,h2,h3{page-break-after:avoid}'
+        + 'td,th{border-right:1px solid #999;border-bottom:1px solid #999;padding:3px;text-align:left;vertical-align:top}'
+        + 'th{border-top:1px solid #999;background:#f3f3f3}td:first-child,th:first-child{border-left:1px solid #999}'
+        + '.rr-sec{margin-top:14px}.rr-keep{page-break-inside:avoid}';
+    // A section with up to this many rows is kept on one page (moved to the next page rather than started at the bottom).
+    private static final Integer KEEP_ROWS = 15;
+    private static final List<String> KEY_VALUE_HEADER = new List<String>{ 'Item', 'Value' };
 
     /**
      * @description The manual steps section (empty without runs).
@@ -21,7 +30,7 @@ public with sharing class RlyEvidenceTables {
                 r.Step__r == null ? '' : r.Step__r.Timing__c, r.Status__c,
                 (r.Done_By__r == null ? '' : r.Done_By__r.Name + ', ') + stamp(r.Done_On__c), r.Note__c });
         }
-        return '<h2>Manual steps</h2>' + table(new List<String>{ 'Org', 'Step', 'Timing', 'Status', 'Done by', 'Note' }, rows);
+        return section('Manual steps', new List<String>{ 'Org', 'Step', 'Timing', 'Status', 'Done by', 'Note' }, rows);
     }
 
     /**
@@ -37,7 +46,7 @@ public with sharing class RlyEvidenceTables {
         for (RlyFlowResults.FlowResult r : RlyFlowResults.forRelease(rel)) {
             rows.add(new List<String>{ r.flow, RlyFlowResults.line(r) });
         }
-        return rows.isEmpty() ? '' : '<h2>Flows</h2>' + table(new List<String>{ 'Flow', 'Result' }, rows);
+        return rows.isEmpty() ? '' : section('Flows', new List<String>{ 'Flow', 'Result' }, rows);
     }
 
     /**
@@ -61,7 +70,7 @@ public with sharing class RlyEvidenceTables {
             new List<String>{ 'Tests', RlyEvidenceText.text(RlyEvidenceText.str(r.get('testLevel'))) },
             new List<String>{ 'Git', 'Not changed by a rollback: a follow-up release fixes the branch.' }
         };
-        return '<h2>Rollback</h2>' + table(null, rows);
+        return section('Rollback', null, rows);
     }
 
     /**
@@ -82,7 +91,8 @@ public with sharing class RlyEvidenceTables {
     }
 
     /**
-     * @description The history section.
+     * @description The history section, oldest first (an audit document reads top to bottom in time). Never kept whole:
+     * it is long, so it flows over pages with its header repeated.
      * @param events the events, oldest first
      * @return the HTML
      */
@@ -92,24 +102,36 @@ public with sharing class RlyEvidenceTables {
             rows.add(new List<String>{ stamp(e.Occurred_On__c), e.Event_Type__c, e.Org__r == null ? '' : e.Org__r.Name,
                 (e.Actor__r == null ? '' : e.Actor__r.Name + ' · ') + RlyEvidenceText.text(e.Via__c), e.Detail__c, e.Reference__c });
         }
-        return '<h2>History</h2>' + table(new List<String>{ 'When', 'Event', 'Org', 'Who', 'Detail', 'Reference' }, rows);
+        return '<div class="rr-sec"><h2>History, oldest first</h2>'
+            + table(new List<String>{ 'When', 'Event', 'Org', 'Who', 'Detail', 'Reference' }, rows) + '</div>';
     }
 
     /**
-     * @description A table: an optional header row, then the rows; every cell escaped.
+     * @description A section: its heading and table in one wrapper, kept on one page when it has few rows.
+     * @param heading the heading (escaped)
+     * @param header the header cells, or null for an Item / Value table
+     * @param rows the rows
+     * @return the HTML
+     */
+    public static String section(String heading, List<String> header, List<List<String>> rows) {
+        String cls = rows.size() <= KEEP_ROWS ? 'rr-sec rr-keep' : 'rr-sec';
+        return '<div class="' + cls + '"><h2>' + esc(heading) + '</h2>' + table(header, rows) + '</div>';
+    }
+
+    /**
+     * @description A table: a header row in a thead (Item / Value when none is given, so the renderer repeats it on each
+     * page), then the rows in a tbody; every cell escaped.
      * @param header the header cells, or null
      * @param rows the rows
      * @return the HTML
      */
     public static String table(List<String> header, List<List<String>> rows) {
-        List<String> out = new List<String>{ '<table>' };
-        if (header != null) {
-            out.add('<tr><th>' + String.join(escAll(header), '</th><th>') + '</th></tr>');
-        }
+        List<String> out = new List<String>{ '<table><thead><tr><th>'
+            + String.join(escAll(header == null ? KEY_VALUE_HEADER : header), '</th><th>') + '</th></tr></thead><tbody>' };
         for (List<String> r : rows) {
             out.add('<tr><td>' + String.join(escAll(r), TD) + '</td></tr>');
         }
-        out.add('</table>');
+        out.add('</tbody></table>');
         return String.join(out, '');
     }
 
