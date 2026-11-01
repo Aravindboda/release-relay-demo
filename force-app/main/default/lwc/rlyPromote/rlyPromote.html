@@ -1,0 +1,152 @@
+<template>
+    <template lwc:if={statusRead}>
+        <c-rly-org-gate status={hubStatus}></c-rly-org-gate>
+        <template lwc:if={showPage}>
+            <div class="rr-page slds-is-relative">
+                <template lwc:if={hubCopy}>
+                    <div class="slds-notify slds-notify_alert slds-alert_warning" role="alert">
+                        <lightning-icon icon-name="utility:warning" size="x-small" alternative-text="Warning" class="slds-m-right_x-small"></lightning-icon>
+                        <h2>{hubCopyMessage}</h2>
+                    </div>
+                </template>
+                <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+
+                <!-- header (board HubPromoteProd) -->
+                <section class="rr-card rr-head">
+                    <span class="rr-head-icon"><lightning-icon icon-name="utility:arrowup" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
+                    <div class="rr-head-text">
+                        <p class="rr-kicker">{kicker}</p>
+                        <h1 class="rr-title">Promote</h1>
+                    </div>
+                    <template lwc:if={isPicking}>
+                        <span class="rr-weak rr-small">Releases deployed to a stage and not yet in the next stop</span>
+                        <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Read again" title="Read again"
+                            onclick={reload} disabled={loading}></lightning-button-icon>
+                    </template>
+                </section>
+
+                <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+
+                <!-- after promoting: the new release, as New Release shows it after raising -->
+                <template lwc:if={promotedId}>
+                    <c-rly-release-view release-id={promotedId}></c-rly-release-view>
+                    <div class="rr-row">
+                        <lightning-button label="Promote more" onclick={backToPromote}></lightning-button>
+                    </div>
+                </template>
+
+                <template lwc:if={isPicking}>
+                    <template lwc:if={cantPromoteNote}><div class="rr-msg rr-msg-info" role="status">{cantPromoteNote}</div></template>
+                    <template lwc:if={noStages}>
+                        <div class="rr-empty">No stage on the route yet. An admin sets up the route on the Pipeline tab.</div>
+                    </template>
+
+                    <template for:each={stageViews} for:item="s">
+                        <div key={s.key} class="rr-stage">
+                            <section class="rr-card rr-head" aria-label={s.routeLabel}>
+                                <div class="rr-head-text">
+                                    <p class="rr-kicker">Promote</p>
+                                    <h2 class="rr-h1"><span>{s.stageName}</span> <span class="rr-arrow" aria-label="to">→</span> <span>{s.nextText}</span></h2>
+                                </div>
+                                <span class="rr-weak rr-small">{s.subText}</span>
+                            </section>
+
+                            <template lwc:if={s.empty}>
+                                <div class="rr-empty">{s.emptyText}</div>
+                            </template>
+                            <template lwc:else>
+                                <div class="rr-grid">
+                                    <!-- the releases ready in the stage: hotfixes first, then oldest deploy first -->
+                                    <section class="rr-card rr-table-card" aria-label={s.listLabel}>
+                                        <div class="rr-scroll">
+                                            <table class="slds-table slds-table_cell-buffer rr-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th scope="col" class="rr-check-col">
+                                                            <lightning-input type="checkbox" label="Select all" variant="label-hidden" checked={s.allChecked}
+                                                                data-stage={s.stageId} onchange={handleCheckAll} disabled={s.locked}></lightning-input>
+                                                        </th>
+                                                        <th scope="col">Release</th>
+                                                        <th scope="col">Raised by</th>
+                                                        <th scope="col">Deployed to {s.stageName}</th>
+                                                        <th scope="col">Tests</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <template for:each={s.rows} for:item="r">
+                                                        <tr key={r.id} class={r.rowCls}>
+                                                            <td class="rr-check-col">
+                                                                <lightning-input type="checkbox" label={r.selLabel} variant="label-hidden" checked={r.checked}
+                                                                    data-stage={s.stageId} data-id={r.id} onchange={handleCheck} disabled={s.locked}></lightning-input>
+                                                            </td>
+                                                            <td class="rr-rel">
+                                                                <span class="rr-row">
+                                                                    <template lwc:if={r.isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
+                                                                    <template lwc:if={r.manualOnly}><span class="rr-pill rr-pill-info">Manual steps only</span></template>
+                                                                    <strong>{r.name}</strong>
+                                                                    <span>{r.title}</span>
+                                                                    <template lwc:if={r.deletesText}><span class="rr-pill rr-pill-bad">{r.deletesText}</span></template>
+                                                                </span>
+                                                                <template lwc:if={r.reason}><span class="rr-reason">{r.reason}</span></template>
+                                                                <template lwc:if={r.stays}><span class="rr-reason">Stays in {s.stageName}</span></template>
+                                                            </td>
+                                                            <td>{r.raisedBy}</td>
+                                                            <td class="rr-nowrap">{r.deployedText}</td>
+                                                            <td class="rr-mono rr-tests">{r.testsText}</td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <p class="rr-pad rr-small rr-weak">{s.orderNote}</p>
+                                    </section>
+
+                                    <!-- what goes to the next stop -->
+                                    <section class="rr-card" aria-label={s.bundleTitle}>
+                                        <div class="rr-card-head"><h2 class="rr-h2">{s.bundleTitle}</h2></div>
+                                        <div class="rr-body">
+                                            <p><strong>{s.countText}</strong>{s.componentText}</p>
+                                            <p>{s.testsLead}<span class="rr-mono">{s.testsList}</span>{s.testsTail}</p>
+                                            <!-- carried manual steps (board HubManualSteps, 3) -->
+                                            <template lwc:if={s.hasManual}>
+                                                <div class="rr-manual">
+                                                    <p class="rr-cap">{s.manualTitle}</p>
+                                                    <ol class="rr-ms-list">
+                                                        <template for:each={s.manualSteps} for:item="m">
+                                                            <li key={m.key} class="rr-ms">
+                                                                <span class="rr-no" aria-hidden="true">{m.no}</span>
+                                                                <span class="rr-ms-body">
+                                                                    <span class="rr-row"><strong>{m.title}</strong><span class={m.timingCls}>{m.timingLabel}</span></span>
+                                                                    <span class="rr-small rr-weak">{m.fromRelease}</span>
+                                                                </span>
+                                                            </li>
+                                                        </template>
+                                                    </ol>
+                                                    <div class="rr-msg rr-msg-info">{s.manualNote}</div>
+                                                </div>
+                                            </template>
+                                            <template lwc:if={s.manualOnlyNote}><div class="rr-msg rr-msg-info">{s.manualOnlyNote}</div></template>
+                                            <template lwc:if={s.aloneNote}><div class="rr-msg rr-msg-warn">{s.aloneNote}</div></template>
+                                            <lightning-input label="Title" value={s.title} max-length="200" required data-stage={s.stageId}
+                                                onchange={handleTitle} disabled={s.locked}></lightning-input>
+                                            <div class="rr-msg rr-msg-info">Next: branch <span class="rr-mono">{s.branchText}</span> into <span class="rr-mono">{s.nextBranch}</span> → code scan → check-only deploy to {s.nextName} → approval → deploy.{s.approvalNote}</div>
+                                            <template lwc:if={s.error}><div class="rr-msg rr-msg-bad" role="alert">{s.error}</div></template>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <div class="rr-bar" role="status">
+                                    <div class="rr-bar-text"><strong>{s.barText}</strong></div>
+                                    <lightning-button variant="brand" label={s.buttonLabel} data-stage={s.stageId} onclick={promote} disabled={s.cantPromote}></lightning-button>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </template>
+            </div>
+        </template>
+    </template>
+    <template lwc:else>
+        <div class="rr-wait"><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></div>
+    </template>
+</template>
