@@ -1,0 +1,22 @@
+{
+ "request": "REL-00022",
+ "step": "raise",
+ "status": "Failed",
+ "mode": "promote",
+ "branch": "promote/rel-00022",
+ "target": "prod",
+ "sha": null,
+ "pr": null,
+ "url": null,
+ "commits": [],
+ "conflicts": [
+  "force-app/main/default/classes/RlyDemoGreeting.cls",
+  "force-app/main/default/classes/RlyDemoGreetingTest.cls"
+ ],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "message": "16391ab doesn't apply cleanly on prod (conflicts in force-app/main/default/classes/RlyDemoGreeting.cls, force-app/main/default/classes/RlyDemoGreetingTest.cls). Promote the releases it depends on first, or resolve it in a branch and raise that branch.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41321274712",
+ "finishedAt": "2026-11-01T15:27:05.964Z",
+ "attempt": "9a88c8f04a2a5a3dfd8a51ef95dbc334"
+}
