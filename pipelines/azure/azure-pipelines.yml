@@ -1,4 +1,6 @@
-# Release Relay pipeline files: version 9
+# Release Relay pipeline files: version 11
+# Release Relay's own metadata (the globs in .relay/exclude) is never validated, deployed or deleted;
+# options {"selfUpdate":true} (the hub updating itself, from the release-relay-hub branch) ignores the list.
 # Release Relay for Azure Pipelines. Started only from Salesforce: the Release Relay hub runs this
 # pipeline on the default branch through the Runs API, with the release as template parameters
 # (empty values arrive as '-'). Create the pipeline from this file (Pipelines > New pipeline >
@@ -10,7 +12,9 @@
 #   mode=promote make a promote/ branch from the target, cherry-pick the merge commits listed in
 #                components (from the previous stage), open a pull request, then scan and validate it.
 #   mode=hub     the hub committed its retrieve (a Metadata API zip) to the branch: convert it to
-#                source format, open a pull request into the target, scan and validate.
+#                source format (none for a release with only deletions,
+#                a .relay-inbox/<id>.deletions marker instead), remove the deleted components' files,
+#                open a pull request into the target, scan and validate.
 #   mode=resolve merge the target into the branch with the conflict choices the hub committed, then
 #                scan and validate again.
 #   mode=check   scan and validate an open pull request again.
