@@ -59,18 +59,24 @@ public with sharing class RlyPipelineRun {
         return EncodingUtil.convertToHex(Crypto.generateAesKey(128));
     }
 
-    // hub: the release's deletions (Type:Name, comma separated); a promotion's are in its carried merge commits.
+    // hub: the release's deletions (Type:Name, comma separated), only the new ones while changes are added to it
+    // (RlyAppendRun); a promotion's are in its carried merge commits.
     private static String deletions(RLY_Release__c rel, String mode) {
-        return mode == 'hub' ? String.join(RlyDeletions.of(rel), ',') : '';
+        if (mode != 'hub') {
+            return '';
+        }
+        String adding = RlyAppendInputs.deletionsInput(rel);
+        return adding != null ? adding : String.join(RlyDeletions.of(rel), ',');
     }
 
-    // hub: the selected components (not the deletions); promote: the carried merge commits, oldest first; other modes: none.
+    // hub: the selected components (not the deletions), only the new ones while changes are added; promote: the carried merge commits, oldest first; other modes: none.
     private static String components(RLY_Release__c rel, String mode) {
         if (mode == RlyPromotion.MODE) {
             return RlyCarried.mergeCommits(rel);
         }
-        if (mode != 'hub') {
-            return '';
+        String adding = mode == 'hub' ? RlyAppendInputs.componentsInput(rel) : '';
+        if (adding != null) {
+            return adding.left(60000); // not hub: none; adding to an open release: only the new ones
         }
         List<String> names = new List<String>();
         for (RLY_Release_Item__c i : RlyReleaseStore.items(rel.Id)) {

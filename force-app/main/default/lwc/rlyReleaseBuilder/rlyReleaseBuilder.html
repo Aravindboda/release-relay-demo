@@ -12,6 +12,7 @@
                 <template lwc:if={loading}>
                     <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
                 </template>
+                <template lwc:if={appendError}><div class="rr-msg rr-msg-bad" role="alert">{appendError}</div></template>
 
                 <!-- step 1: where the changes come from (board HubSourceEnvironments) -->
                 <template lwc:if={isOrigin}>
@@ -117,7 +118,7 @@
                         <span class="rr-head-icon"><lightning-icon icon-name="utility:arrowup" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
                         <div class="rr-head-text">
                             <p class="rr-kicker">{appName}</p>
-                            <h1 class="rr-title">New release</h1>
+                            <h1 class="rr-title">{selectTitle}</h1>
                         </div>
                         <ol class="rr-path" aria-label="Steps">
                             <template for:each={pathSteps} for:item="s">
@@ -132,8 +133,20 @@
                         <div class="rr-card-head rr-row">
                             <div class="rr-route-head">
                                 <h2 class="rr-h2"><span>{sourceName}</span><span class="rr-arrow-inline" aria-label="to">→</span><span>{targetText}</span></h2>
-                                <p class="rr-small rr-weak">{scopeText} · <button type="button" class="rr-textbtn" onclick={backToSource}>Change</button></p>
+                                <template lwc:if={isAppend}>
+                                    <p class="rr-small rr-weak">{scopeText}</p>
+                                </template>
+                                <template lwc:else>
+                                    <p class="rr-small rr-weak">{scopeText} · <button type="button" class="rr-textbtn" onclick={backToSource}>Change</button></p>
+                                </template>
                             </div>
+                            <template lwc:if={isAppend}>
+                                <div class="rr-segs" role="group" aria-label="Changed">
+                                    <template for:each={appendWindows} for:item="w">
+                                        <button key={w.value} type="button" class={w.cls} data-value={w.value} aria-pressed={w.pressed} onclick={handleAppendWindow} disabled={scanning}>{w.label}</button>
+                                    </template>
+                                </div>
+                            </template>
                             <div class="rr-segs" role="group" aria-label="Show">
                                 <template for:each={showButtons} for:item="s">
                                     <button key={s.value} type="button" class={s.cls} data-value={s.value} aria-pressed={s.pressed} onclick={handleShow}>{s.label}</button>
@@ -196,11 +209,12 @@
                                             <template for:each={rows} for:item="r">
                                                 <tr key={r.key} class={r.rowCls}>
                                                     <td class="rr-check-col">
-                                                        <lightning-input type="checkbox" label={r.selLabel} variant="label-hidden" data-key={r.key} checked={r.checked} onchange={handleCheck}></lightning-input>
+                                                        <lightning-input type="checkbox" label={r.selLabel} variant="label-hidden" data-key={r.key} checked={r.checked} onchange={handleCheck} disabled={r.inRelease}></lightning-input>
                                                     </td>
                                                     <td class="rr-name">
                                                         <span class="rr-mono">{r.name}</span>
                                                         <template lwc:if={r.deleted}><span class="rr-pill rr-pill-bad rr-ml">Delete</span></template>
+                                                        <template lwc:if={r.inRelease}><span class="rr-pill rr-pill-none rr-ml">{inReleaseText}</span></template>
                                                     </td>
                                                     <td>{r.typeLabel}</td>
                                                     <td><span class={r.kindCls}>{r.kind}</span></td>
@@ -236,7 +250,9 @@
                                             <template for:each={g.items} for:item="i">
                                                 <li key={i.key} class={g.chipCls}>
                                                     <span class="rr-mono">{i.name}</span>
-                                                    <button type="button" class="rr-chip-x" data-key={i.key} aria-label={i.removeLabel} title={i.removeLabel} onclick={removeItem}>×</button>
+                                                    <template lwc:if={g.removable}>
+                                                        <button type="button" class="rr-chip-x" data-key={i.key} aria-label={i.removeLabel} title={i.removeLabel} onclick={removeItem}>×</button>
+                                                    </template>
                                                 </li>
                                             </template>
                                         </ul>
@@ -247,11 +263,18 @@
                     </template>
 
                     <div class={barCls} role="status">
-                        <lightning-button label="Back" onclick={backToSource}></lightning-button>
-                        <div class="rr-manual-only">
-                            <lightning-input type="toggle" label="No metadata — only manual steps" checked={manualOnly} onchange={handleManualOnly}
-                                message-toggle-active="On" message-toggle-inactive="Off" field-level-help={manualOnlyHelp}></lightning-input>
-                        </div>
+                        <template lwc:if={isAppend}>
+                            <lightning-button label="Cancel" onclick={backToRelease}></lightning-button>
+                        </template>
+                        <template lwc:else>
+                            <lightning-button label="Back" onclick={backToSource}></lightning-button>
+                        </template>
+                        <template lwc:if={showManualOnly}>
+                            <div class="rr-manual-only">
+                                <lightning-input type="toggle" label="No metadata — only manual steps" checked={manualOnly} onchange={handleManualOnly}
+                                    message-toggle-active="On" message-toggle-inactive="Off" field-level-help={manualOnlyHelp}></lightning-input>
+                            </div>
+                        </template>
                         <div class="rr-bar-text">
                             <strong>{barText}</strong>
                             <template lwc:if={ruleBlocked}>
@@ -262,8 +285,10 @@
                                 </span>
                             </template>
                         </div>
-                        <lightning-button variant="base" label={drawerLabel} onclick={toggleDrawer} disabled={noneSelected}></lightning-button>
-                        <lightning-button variant="brand" label="Next: review" disabled={cantReview} onclick={goReview}></lightning-button>
+                        <div class="rr-bar-actions">
+                            <lightning-button variant="base" label={drawerLabel} onclick={toggleDrawer} disabled={drawerDisabled}></lightning-button>
+                            <lightning-button variant="brand" label="Next: review" disabled={cantReview} onclick={goReview}></lightning-button>
+                        </div>
                     </div>
                 </template>
 
@@ -272,7 +297,7 @@
                     <section class="rr-card rr-head">
                         <div class="rr-head-text">
                             <p class="rr-kicker">{reviewKicker}</p>
-                            <h1 class="rr-title">Review before raising</h1>
+                            <h1 class="rr-title">{reviewTitle}</h1>
                         </div>
                         <span class="rr-pill rr-pill-info">{reviewSummary}</span>
                     </section>
@@ -325,6 +350,7 @@
                             </div>
                             <div class="rr-pad rr-stack">
                                 <div class={testRunCls}>{testRunText}</div>
+                                <template lwc:if={showRaiseFields}>
                                 <lightning-input label="Title" value={title} max-length="200" required onchange={handleTitle}
                                     placeholder="What this release does, for example: Account region field and layout"></lightning-input>
                                 <lightning-textarea label="Description (optional)" value={description} max-length="5000" onchange={handleDescription}></lightning-textarea>
@@ -372,12 +398,13 @@
                                 <template lwc:if={approvalPreview}>
                                     <div class="rr-msg rr-msg-info" role="status">{approvalPreviewLead}<strong>{approvalPreview}</strong>{approvalPreviewRule}</div>
                                 </template>
+                                </template>
                                 <template lwc:if={raiseError}><div class="rr-msg rr-msg-bad" role="alert">{raiseError}</div></template>
                             </div>
                             <div class="rr-pair-foot">
                                 <lightning-button label="Back" onclick={backToSelect} disabled={raising}></lightning-button>
-                                <span class="rr-grow rr-small rr-weak">{intoText}</span>
-                                <lightning-button variant="brand" label={raiseLabel} onclick={raise} disabled={cantRaise}></lightning-button>
+                                <span class="rr-grow rr-small rr-weak">{footText}</span>
+                                <lightning-button variant="brand" label={submitLabel} onclick={submit} disabled={cantRaise}></lightning-button>
                             </div>
                         </section>
                     </div>
@@ -389,7 +416,7 @@
                         <span class="rr-head-icon"><lightning-icon icon-name="utility:arrowup" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
                         <div class="rr-head-text">
                             <p class="rr-kicker">{appName}</p>
-                            <h1 class="rr-title">New release</h1>
+                            <h1 class="rr-title">{raisedTitle}</h1>
                         </div>
                         <ol class="rr-path" aria-label="Steps">
                             <template for:each={pathSteps} for:item="s">
@@ -398,9 +425,11 @@
                         </ol>
                     </section>
                     <c-rly-release-view release-id={raisedId}></c-rly-release-view>
-                    <div class="rr-row">
-                        <lightning-button label="Raise another release" onclick={startOver}></lightning-button>
-                    </div>
+                    <template lwc:if={showRaiseFields}>
+                        <div class="rr-row">
+                            <lightning-button label="Raise another release" onclick={startOver}></lightning-button>
+                        </div>
+                    </template>
                 </template>
             </div>
         </template>

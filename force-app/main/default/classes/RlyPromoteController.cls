@@ -1,6 +1,8 @@
 /**
  * @description Promote tab: per stage, the releases deployed to it and waiting to go to its next stop (hotfixes first,
- * then oldest deploy first), and promoting a choice of them as one promotion (RlyPromotion). Approvers and admins promote.
+ * then oldest deploy first), each with its components so the page can show which older releases go too and which newer
+ * one must be added (RlyPromoteOverlap, checked again on promote), and promoting a choice of them as one promotion
+ * (RlyPromotion). Approvers and admins promote.
  */
 public with sharing class RlyPromoteController {
 
@@ -56,6 +58,8 @@ public with sharing class RlyPromoteController {
         @AuraEnabled public Integer manualSteps = 0;
         /** @description It has only manual steps (no metadata, no merge commit). */
         @AuraEnabled public Boolean manualOnly;
+        /** @description Its components and deletions as Type:Name (the page finds overlaps with them, RlyPromoteOverlap). */
+        @AuraEnabled public List<String> components = new List<String>();
     }
 
     /**
@@ -77,10 +81,13 @@ public with sharing class RlyPromoteController {
                 }
             }
             List<RLY_Release__c> waiting = RlyPromoteStore.readyIn(byStage.keySet());
-            Map<Id, Integer> stepCounts = RlyManualStepStore.stepCounts(new Map<Id, RLY_Release__c>(waiting).keySet());
+            Set<Id> waitingIds = new Map<Id, RLY_Release__c>(waiting).keySet();
+            Map<Id, Integer> stepCounts = RlyManualStepStore.stepCounts(waitingIds);
+            Map<Id, Set<String>> keys = RlyPromoteOverlap.componentsOf(waitingIds);
             for (RLY_Release__c r : waiting) {
                 Ready x = toReady(r);
                 x.manualSteps = stepCounts.containsKey(r.Id) ? stepCounts.get(r.Id) : 0;
+                x.components = new List<String>(keys.get(r.Id));
                 byStage.get(r.Target_Org__c).ready.add(x);
             }
             return board;

@@ -1,5 +1,6 @@
 import APP_NAME from '@salesforce/label/c.RLY_App_Name';
-import { LightningElement } from 'lwc';
+import { LightningElement, api, wire } from 'lwc';
+import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
 import getStart from '@salesforce/apex/RlyChangesController.getStart';
 import describeTypes from '@salesforce/apex/RlyChangesController.describeTypes';
 import listChanges from '@salesforce/apex/RlyChangesController.listChanges';
@@ -10,6 +11,8 @@ import findDeletions from '@salesforce/apex/RlyChangesController.findDeletions';
 import raiseRelease from '@salesforce/apex/RlyReleasesController.raiseRelease';
 import flowVersions from '@salesforce/apex/RlyChangesController.flowVersions';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
+import getAppend from '@salesforce/apex/RlyAppendController.getAppend';
+import appendChanges from '@salesforce/apex/RlyAppendController.appendChanges';
 
 /** Modes of RlyHubGuard.getHubStatus in which the tab shows only the org gate. */
 const GATED_MODES = ['sandbox', 'copy', 'setup'];
@@ -17,6 +20,8 @@ const GATED_MODES = ['sandbox', 'copy', 'setup'];
 const TYPES_PER_CALL = 24;
 const PARALLEL = 4;
 const PAGE = 200;
+/** The release page's tab (Releases), where Cancel in append mode goes back to. */
+const RELEASES_TAB = 'RLY_My_Releases';
 const WINDOWS = [
     { label: 'Last 7 days', value: '7' },
     { label: 'Last 30 days', value: '30' },
@@ -101,7 +106,122 @@ const ENVIRONMENTS = [
     { value: 'Full_Copy', label: 'Full Copy sandbox', hint: 'Copy of production · refresh every 29 days' }
 ];
 
-export default class RlyReleaseBuilder extends LightningElement {
+export default class RlyReleaseBuilder extends NavigationMixin(LightningElement) {
+    // ---------- append mode: add changes to an open release (RlyAppendController) ----------
+
+    _appendTo;
+    /** RlyAppendService.AppendStart: the release, its developer org, target and what's in it already. */
+    appendInfo;
+    appendError;
+
+    /**
+     * Append mode: the release to add changes to. Set by the page state c__appendTo (the release page's "Add changes
+     * from <org>") or by a parent. Steps 1 and 2 are skipped: it starts at Select for the release's org and target.
+     */
+    @api
+    get appendTo() {
+        return this._appendTo;
+    }
+    set appendTo(value) {
+        const changed = value !== this._appendTo;
+        this._appendTo = value;
+        if (changed && value && this.start) {
+            this.loadAppend();
+        }
+    }
+
+    /** Append mode came from the page state (so opening New Release again without it starts a normal release). */
+    appendFromState = false;
+
+    @wire(CurrentPageReference)
+    readPageState(ref) {
+        const id = ref && ref.state ? ref.state.c__appendTo : undefined;
+        if (id && id !== this._appendTo) {
+            this.appendFromState = true;
+            this.appendTo = id;
+        } else if (!id && ref && this.appendFromState) {
+            this.leaveAppend();
+        }
+    }
+
+    /** Back to a normal New Release. */
+    leaveAppend() {
+        this.appendFromState = false;
+        this._appendTo = undefined;
+        this.appendInfo = undefined;
+        this.appendError = undefined;
+        this.selected = new Set();
+        this.raisedId = undefined;
+        this.step = 'origin';
+    }
+
+    get isAppend() { return !!this.appendInfo; }
+    get appendName() { return this.appendInfo ? this.appendInfo.name : ''; }
+    /** Selection keys of what the release has already: they show ticked and locked. */
+    get lockedKeys() {
+        const out = new Set();
+        ((this.appendInfo && this.appendInfo.components) || []).forEach((c) => {
+            out.add(c.deleted ? deletionKey(c.type, c.name) : c.type + ':' + c.name);
+        });
+        return out;
+    }
+    get appendTests() { return (this.appendInfo && this.appendInfo.tests) || []; }
+    get appendTitle() { return 'Add changes to ' + this.appendName; }
+    get inReleaseText() { return 'In ' + this.appendName; }
+
+    /** Reads the release, then opens Select for its developer org. */
+    async loadAppend() {
+        this.appendError = undefined;
+        try {
+            const info = await getAppend({ releaseId: this._appendTo });
+            this.appendInfo = info;
+            this.orgId = info.sourceOrgId;
+            this.selected = new Set();
+            this.manualOnly = false;
+            this.raisedId = undefined;
+            if (this.windowChoice === 'date') {
+                this.windowChoice = '7';
+            }
+            this.step = 'select';
+            this.scan(false);
+        } catch (e) {
+            this.appendInfo = undefined;
+            this.appendError = errorText(e);
+        }
+    }
+
+    /** Append mode: the window buttons on Select (Since a date isn't offered there). */
+    get appendWindows() {
+        return this.windowButtons.filter((w) => w.value !== 'date');
+    }
+    handleAppendWindow(event) {
+        this.windowChoice = event.currentTarget.dataset.value;
+        this.scan(false);
+    }
+
+    /** Back to the release's page (Cancel in append mode). */
+    backToRelease() {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__navItemPage',
+            attributes: { apiName: RELEASES_TAB },
+            state: { c__release: this._appendTo }
+        });
+    }
+
+    get appendSummary() {
+        const n = this.addedItems.length;
+        const d = this.deletionItems.length;
+        const parts = [];
+        if (n) {
+            parts.push(n + (n === 1 ? ' component' : ' components'));
+        }
+        if (d) {
+            parts.push(d + (d === 1 ? ' deletion' : ' deletions'));
+        }
+        return 'Adds ' + (parts.join(' and ') || 'nothing') + ' to ' + this.appendName;
+    }
+    get appendLabel() { return this.raising ? 'Adding…' : 'Add to ' + this.appendName; }
+
     /**
      * RlyHubGuard.getHubStatus: the org's mode (hub, setup, sandbox, copy). In a sandbox, a sandbox copy of the hub or a
      * production org not set up yet this tab shows only rlyOrgGate, and nothing else is loaded.
@@ -186,6 +306,9 @@ export default class RlyReleaseBuilder extends LightningElement {
                 if (usable.length === 1) {
                     this.envChoice = usable[0].value;
                 }
+                if (this._appendTo) {
+                    this.loadAppend();
+                }
             })
             .catch((e) => {
                 this.error = errorText(e);
@@ -208,21 +331,27 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     get pathSteps() {
         const order = ['origin', 'source', 'select', 'review', 'raise'];
-        const labels = { origin: 'Where', source: 'Org', select: 'Select', review: 'Review', raise: 'Raise' };
+        const labels = { origin: 'Where', source: 'Org', select: 'Select', review: 'Review', raise: this.isAppend ? 'Add' : 'Raise' };
         const at = order.indexOf(this.step);
+        // Append mode skips Where and Org: the release's own org and target.
+        const skipped = this.isAppend ? ['origin', 'source'] : [];
         return order.map((v, i) => ({
             key: v,
-            label: (i < at ? '✓ ' : i + 1 + ' ') + labels[v],
-            cls: 'rr-step' + (i < at ? ' rr-step-done' : i === at ? ' rr-step-now' : ''),
+            label: skipped.includes(v) ? labels[v] : (i < at ? '✓ ' : i + 1 + ' ') + labels[v],
+            cls: 'rr-step' + (skipped.includes(v) ? ' rr-step-skip' : (i < at ? ' rr-step-done' : i === at ? ' rr-step-now' : '')),
             current: i === at ? 'step' : null
         }));
     }
+    get selectTitle() { return this.isAppend ? this.appendTitle : 'New release'; }
 
     // ---------- step 1: source ----------
 
     get problems() { return this.start ? this.start.problems : []; }
     get hasProblems() { return this.problems.length > 0; }
     get targetText() {
+        if (this.appendInfo) {
+            return this.appendInfo.targetName + ' · ' + this.appendInfo.targetBranch;
+        }
         return this.start && this.start.targetName ? this.start.targetName + ' · ' + this.start.targetBranch : 'not set';
     }
     get targetNote() { return '(the first stage of the route)'; }
@@ -480,7 +609,12 @@ export default class RlyReleaseBuilder extends LightningElement {
     get scanText() {
         return this.scanTotal > 1 ? 'Reading ' + this.sourceName + ': ' + this.scanDone + ' of ' + this.scanTotal + ' batches' : 'Reading ' + this.sourceName + '…';
     }
-    get sourceName() { return this.sourceOrg ? this.sourceOrg.Name : ''; }
+    get sourceName() {
+        if (this.sourceOrg) {
+            return this.sourceOrg.Name;
+        }
+        return this.appendInfo ? this.appendInfo.sourceName : '';
+    }
     get hasScanErrors() { return this.scanErrors.length > 0; }
     get scanErrorText() {
         return this.scanErrors.length + (this.scanErrors.length === 1 ? ' batch' : ' batches') + ' couldn\'t be read: ' + this.scanErrors.slice(0, 3).join(' · ');
@@ -552,14 +686,17 @@ export default class RlyReleaseBuilder extends LightningElement {
     }
 
     get rows() {
+        const locked = this.lockedKeys;
         return this.filtered.slice(0, this.shown).map((c) => {
-            const on = this.selected.has(c.key);
+            const inRelease = locked.has(c.key);
+            const on = inRelease || this.selected.has(c.key);
             const isTest = !c.deleted && c.type === 'ApexClass' && this.tests.has(c.name);
             const changed = [c.modifiedOn ? new Date(c.modifiedOn).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '', c.modifiedBy || ''].join(' ').trim();
             return {
                 ...c,
                 checked: on,
-                rowCls: (on ? 'rr-row-on' : '') + (c.deleted ? ' rr-row-del' : ''),
+                rowCls: (inRelease ? 'rr-row-locked' : (on ? 'rr-row-on' : '')) + (c.deleted ? ' rr-row-del' : ''),
+                inRelease,
                 typeLabel: isTest ? 'Apex test class' : words(c.type),
                 kind: c.standard ? 'Standard' : 'Custom',
                 kindCls: 'rr-pill ' + (c.standard ? 'rr-pill-std' : 'rr-pill-custom'),
@@ -567,7 +704,7 @@ export default class RlyReleaseBuilder extends LightningElement {
                 by: c.modifiedBy || '',
                 changedText: changed,
                 deleteText: c.deleted ? this.deleteFromText : '',
-                selLabel: (c.deleted ? 'Delete ' : 'Select ') + c.name
+                selLabel: inRelease ? c.name + ' is in ' + this.appendName : (c.deleted ? 'Delete ' : 'Select ') + c.name
             };
         });
     }
@@ -588,13 +725,17 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     /** Select all ticks changes only: deletions are never ticked for the user, each one is ticked by hand. */
     get allShownChecked() {
-        const rows = this.rows.filter((r) => !r.deleted);
+        const rows = this.rows.filter((r) => !r.deleted && !r.inRelease);
         return rows.length > 0 && rows.every((r) => r.checked);
     }
-    get noCheckAll() { return this.rows.every((r) => r.deleted); }
+    get noCheckAll() { return this.rows.every((r) => r.deleted || r.inRelease); }
 
     handleCheck(event) {
         const key = event.target.dataset.key;
+        if (this.lockedKeys.has(key)) {
+            event.target.checked = true; // already in the release: it can't be unticked
+            return;
+        }
         if (event.target.checked) {
             this.manualOnly = false;
         }
@@ -612,7 +753,7 @@ export default class RlyReleaseBuilder extends LightningElement {
             this.manualOnly = false;
         }
         const next = new Set(this.selected);
-        this.rows.filter((r) => !r.deleted).forEach((r) => (event.target.checked ? next.add(r.key) : next.delete(r.key)));
+        this.rows.filter((r) => !r.deleted && !r.inRelease).forEach((r) => (event.target.checked ? next.add(r.key) : next.delete(r.key)));
         this.selected = next;
     }
 
@@ -669,7 +810,8 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     get selectedItems() {
         const byKey = new Map(this.changes.map((c) => [c.key, c]));
-        return [...this.selected].map((k) => byKey.get(k)).filter(Boolean);
+        const locked = this.lockedKeys;
+        return [...this.selected].filter((k) => !locked.has(k)).map((k) => byKey.get(k)).filter(Boolean);
     }
 
     get apexItems() {
@@ -693,7 +835,8 @@ export default class RlyReleaseBuilder extends LightningElement {
         return b.length ? b.map((c) => this.bothText(c.type, c.name)).join(' ') : '';
     }
 
-    get ruleBlocked() { return this.apexItems.length > 0 && this.testItems.length === 0; }
+    /** Apex needs a test class: one picked now, or (adding to a release) one the release runs already. */
+    get ruleBlocked() { return this.apexItems.length > 0 && this.testItems.length === 0 && this.appendTests.length === 0; }
     get ruleOk() { return this.apexItems.length > 0 && this.testItems.length > 0; }
     get selectedCount() { return this.selected.size; }
     get noneSelected() { return this.selected.size === 0; }
@@ -721,6 +864,9 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     get barCls() { return 'rr-bar' + (this.ruleBlocked || this.bothItems.length ? ' rr-bar-bad' : ''); }
     get barText() {
+        if (this.isAppend && !this.selected.size) {
+            return 'Nothing added yet · ' + this.lockedKeys.size + ' already in ' + this.appendName;
+        }
         if (this.manualOnly) {
             return 'No metadata · only manual steps (add them on Review)';
         }
@@ -758,6 +904,9 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     toggleDrawer() { this.drawerOpen = !this.drawerOpen; }
     get drawerLabel() { return this.drawerOpen ? 'Hide selection' : 'Show selection'; }
+    /** The selection can be shown when something is picked, or (append mode) the release has components. */
+    get drawerDisabled() { return this.noneSelected && !(this.isAppend && this.lockedKeys.size); }
+    get showManualOnly() { return !this.isAppend; }
 
     get grouped() {
         const groups = {};
@@ -773,8 +922,11 @@ export default class RlyReleaseBuilder extends LightningElement {
             items: groups[g].map((c) => ({ key: c.key, name: c.name, removeLabel: 'Remove ' + c.name }))
         }));
         const del = this.deletionItems;
+        if (this.isAppend) {
+            out.unshift({ key: 'adding', label: 'Adding · ' + this.selectedItems.length, labelCls: 'rr-label', chipCls: 'rr-chip', items: [] });
+        }
         if (del.length) {
-            out.unshift({
+            out.splice(this.isAppend ? 1 : 0, 0, {
                 key: 'deleted',
                 label: this.deletedGroupLabel + ' · ' + del.length,
                 labelCls: 'rr-label rr-del',
@@ -782,7 +934,20 @@ export default class RlyReleaseBuilder extends LightningElement {
                 items: del.map((c) => ({ key: c.key, name: words(c.type) + ' ' + c.name, removeLabel: 'Don\'t delete ' + c.name }))
             });
         }
-        return out;
+        if (this.isAppend) {
+            out.unshift({
+                key: 'in-release',
+                label: 'Already in ' + this.appendName + ' · ' + this.lockedKeys.size,
+                labelCls: 'rr-label',
+                chipCls: 'rr-chip rr-chip-locked',
+                locked: true,
+                items: ((this.appendInfo && this.appendInfo.components) || []).map((c) => ({
+                    key: 'in-' + c.type + ':' + c.name + (c.deleted ? ':del' : ''),
+                    name: (c.deleted ? 'Delete ' : '') + c.name
+                }))
+            });
+        }
+        return out.map((g) => ({ ...g, removable: !g.locked }));
     }
 
     removeItem(event) {
@@ -810,7 +975,8 @@ export default class RlyReleaseBuilder extends LightningElement {
     get scopeText() {
         const w = WINDOWS.find((x) => x.value === this.windowChoice);
         const when = this.windowChoice === 'date' ? 'changed since ' + (this.sinceDate || '…') : (w ? w.label.toLowerCase() : '');
-        return when + ' · changed by ' + (this.changedBy === 'me' ? 'me' : 'anyone');
+        const by = ' · changed by ' + (this.changedBy === 'me' ? 'me' : 'anyone');
+        return this.isAppend ? 'Changed ' + when.replace(/^last/, 'in the last') + by + ' · fixed to ' + this.appendName + '\'s route' : when + by;
     }
 
     get reviewRows() {
@@ -835,6 +1001,9 @@ export default class RlyReleaseBuilder extends LightningElement {
     }
 
     get reviewSummary() {
+        if (this.isAppend) {
+            return this.appendSummary;
+        }
         if (this.manualOnly) {
             return 'Manual steps only';
         }
@@ -893,11 +1062,19 @@ export default class RlyReleaseBuilder extends LightningElement {
         return this.isHotfix ? 'Raise hotfix' : 'Raise ' + this.crWord;
     }
     get cantRaise() {
+        if (this.isAppend) {
+            return this.raising || this.hubCopy || this.noneSelected || this.ruleBlocked || this.bothItems.length > 0;
+        }
         const content = this.manualOnly ? this.manualStepCount === 0 : this.noneSelected || this.ruleBlocked || this.bothItems.length > 0;
         return this.raising || this.hubCopy || content || !(this.title || '').trim()
             || (this.isHotfix && !(this.hotfixReason || '').trim());
     }
-    get reviewKicker() { return 'New release · step 4 of 5 · Review'; }
+    get reviewKicker() { return this.isAppend ? this.appendTitle + ' · Review' : 'New release · step 4 of 5 · Review'; }
+    get reviewTitle() { return this.isAppend ? this.appendSummary + ' · the checks run again' : 'Review before raising'; }
+    get showRaiseFields() { return !this.isAppend; }
+    get raisedTitle() { return this.isAppend ? this.appendTitle : 'New release'; }
+    get footText() { return this.isAppend ? 'Commits the changes to ' + this.appendName + '\'s branch; its ' + this.crWord + ' updates and the checks run again.' : this.intoText; }
+    get submitLabel() { return this.isAppend ? this.appendLabel : this.raiseLabel; }
 
     // ---------- the hotfix flag ----------
 
@@ -949,6 +1126,12 @@ export default class RlyReleaseBuilder extends LightningElement {
         if (this.ruleBlocked) {
             return this.ruleText;
         }
+        if (this.isAppend && !this.testItems.length && this.appendTests.length) {
+            return 'Tests: ' + this.appendTests.join(', ') + ' (already in ' + this.appendName + '), in every org it deploys to.';
+        }
+        if (this.isAppend && this.testItems.length) {
+            return 'Tests: ' + [...new Set([...this.appendTests, ...this.testItems.map((t) => t.name)])].join(', ') + ' (RunSpecifiedTests) in every org it deploys to.';
+        }
         if (!this.apexItems.length) {
             const apexGone = this.deletionItems.some((c) => c.type === 'ApexClass' || c.type === 'ApexTrigger');
             return apexGone
@@ -968,7 +1151,7 @@ export default class RlyReleaseBuilder extends LightningElement {
     flowPicks = {};
 
     get flowNames() {
-        if (this.manualOnly) {
+        if (this.manualOnly || this.isAppend) {
             return [];
         }
         return [...new Set(this.addedItems.filter((c) => c.type === 'Flow').map((c) => c.name))].sort();
@@ -1110,6 +1293,35 @@ export default class RlyReleaseBuilder extends LightningElement {
         const t = this.targetStop;
         const labels = { Always: 'Always', Selected_Types: 'Only when the release contains…', Never: 'Never' };
         return t ? ' (' + t.Name + '\'s rule: ' + (labels[t.Approval_Rule__c] || t.Approval_Rule__c) + ')' : '';
+    }
+
+    /** Review's main button: raise, or in append mode add to the release. */
+    submit() {
+        if (this.isAppend) {
+            this.addToRelease();
+        } else {
+            this.raise();
+        }
+    }
+
+    /** Append mode: retrieves the picked changes and adds them to the release (the checks run again). */
+    async addToRelease() {
+        this.raising = true;
+        this.raiseError = undefined;
+        try {
+            const request = {
+                releaseId: this.appendInfo.releaseId,
+                items: this.addedItems.map((c) => ({ type: c.type, name: c.name, deleted: false, standard: !!c.standard })),
+                deletions: this.deletionItems.map((c) => ({ type: c.type, name: c.name })),
+                testClasses: this.testItems.map((t) => t.name)
+            };
+            this.raisedId = await appendChanges({ requestJson: JSON.stringify(request) });
+            this.step = 'raise';
+        } catch (e) {
+            this.raiseError = errorText(e);
+        } finally {
+            this.raising = false;
+        }
     }
 
     async raise() {

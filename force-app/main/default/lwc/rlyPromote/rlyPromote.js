@@ -22,6 +22,81 @@ function plural(n, one, many) {
     return n + ' ' + (n === 1 ? one : many);
 }
 
+function deployedAt(r) {
+    return r.deployedOn ? new Date(r.deployedOn).getTime() : null;
+}
+
+function isLater(a, b) {
+    const x = deployedAt(a);
+    const y = deployedAt(b);
+    return x !== null && y !== null && x > y;
+}
+
+function shortName(key) {
+    return String(key).split(':').slice(1).join(':');
+}
+
+/** The release going that touches the component and was deployed to the stage last. */
+function latestTouching(key, going) {
+    let latest = null;
+    going.forEach((r) => {
+        if ((r.components || []).includes(key) && (!latest || isLater(r, latest))) {
+            latest = r;
+        }
+    });
+    return latest;
+}
+
+/** One unpicked release against what goes: carried (with the release and components), blocking, or neither. */
+function judge(candidate, going) {
+    const shared = [];
+    let withRelease = null;
+    for (const key of candidate.components || []) {
+        const latest = latestTouching(key, going);
+        if (latest && isLater(candidate, latest)) {
+            return { block: { id: candidate.id, name: candidate.name, component: shortName(key), after: latest.name } };
+        }
+        if (latest) {
+            shared.push(shortName(key));
+            withRelease = withRelease || latest;
+        }
+    }
+    return shared.length ? { carry: { withName: withRelease.name, components: [...new Set(shared)] } } : {};
+}
+
+/**
+ * Mirrors RlyPromoteOverlap: the next stop gets each file as it is in the stage, so an unpicked release that changed
+ * the same component (Type:Name, deletions included) goes too when it was deployed to the stage earlier, and blocks the
+ * promotion when it was deployed later than every picked release touching that component. Carried releases count as
+ * picked for the next round.
+ */
+function overlapOf(ready, pickedIds) {
+    const going = ready.filter((r) => pickedIds.has(r.id));
+    const carried = new Map();
+    let blocked = null;
+    let added = 1;
+    while (added > 0 && !blocked) {
+        added = 0;
+        const goingIds = new Set(going.map((r) => r.id));
+        for (const candidate of ready) {
+            if (goingIds.has(candidate.id)) {
+                continue;
+            }
+            const v = judge(candidate, going);
+            if (v.block) {
+                blocked = v.block;
+                break;
+            }
+            if (v.carry) {
+                going.push(candidate);
+                carried.set(candidate.id, v.carry);
+                added += 1;
+            }
+        }
+    }
+    return { carried, blocked };
+}
+
 /**
  * The Promote tab (boards HubPromoteProd and HubHotfixBackPromote, 3): per stage, the releases deployed there and not yet
  * promoted, hotfixes first. Tick what goes to the next stop; a hotfix can go on its own. Promote raises one Promotion
@@ -145,13 +220,11 @@ export default class RlyPromote extends LightningElement {
         this.load();
     }
 
-    /** Hotfixes waiting are ticked on their own (they go first); with no hotfix, everything waiting is ticked. */
+    /** Nothing is ticked when the tab opens: the user picks what goes. */
     defaultPicks() {
         const picks = {};
         this.stages.forEach((s) => {
-            const ready = s.ready || [];
-            const hot = ready.filter((r) => r.isHotfix);
-            picks[s.stageId] = (hot.length ? hot : ready).map((r) => r.id);
+            picks[s.stageId] = [];
         });
         return picks;
     }
@@ -173,15 +246,20 @@ export default class RlyPromote extends LightningElement {
     stageView(s) {
         const ready = s.ready || [];
         const picked = new Set(this.picks[s.stageId] || []);
-        const chosen = ready.filter((r) => picked.has(r.id));
-        const onlyHotfixes = chosen.length > 0 && chosen.every((r) => r.isHotfix);
+        const picks = ready.filter((r) => picked.has(r.id));
+        const overlap = overlapOf(ready, picked);
+        // What goes: the picks and the older releases that changed the same components (carried).
+        const chosen = ready.filter((r) => picked.has(r.id) || overlap.carried.has(r.id));
+        const carriedRows = ready.filter((r) => overlap.carried.has(r.id));
+        const onlyHotfixes = picks.length > 0 && chosen.every((r) => r.isHotfix);
         const tests = [...new Set(chosen.flatMap((r) => r.tests || []))];
         const components = chosen.reduce((n, r) => n + (r.componentCount || 0), 0);
         const deletions = chosen.reduce((n, r) => n + (Number(r.deletionCount) || 0), 0);
         const busy = this.busyStage === s.stageId;
         const locked = !this.canPromote || busy;
-        const title = this.titles[s.stageId] !== undefined ? this.titles[s.stageId] : this.suggestTitle(s, chosen, onlyHotfixes);
+        const title = this.titles[s.stageId] !== undefined ? this.titles[s.stageId] : this.suggestTitle(s, picks, onlyHotfixes);
         const others = ready.length - chosen.length;
+        const blocked = overlap.blocked;
         const manual = this.manualFor(chosen, s.nextName);
         const onlyManual = chosen.length > 0 && chosen.every((r) => r.manualOnly === true);
         const someManualOnly = !onlyManual && chosen.some((r) => r.manualOnly === true);
@@ -198,9 +276,11 @@ export default class RlyPromote extends LightningElement {
             empty: ready.length === 0,
             emptyText: 'Nothing deployed to ' + s.stageName + ' is waiting to be promoted.',
             locked,
-            allChecked: ready.length > 0 && chosen.length === ready.length,
+            allChecked: ready.length > 0 && picks.length === ready.length,
             rows: ready.map((r) => {
                 const on = picked.has(r.id);
+                const carry = overlap.carried.get(r.id);
+                const blocks = !!blocked && blocked.id === r.id;
                 return {
                     id: r.id,
                     name: r.name,
@@ -208,19 +288,33 @@ export default class RlyPromote extends LightningElement {
                     isHotfix: r.isHotfix === true,
                     manualOnly: r.manualOnly === true,
                     reason: r.isHotfix ? r.hotfixReason : '',
-                    stays: !on && chosen.length > 0,
+                    stays: !on && !carry && !blocks && chosen.length > 0,
+                    carried: !!carry,
+                    goesWith: carry ? 'Goes with ' + carry.withName + ' (' + carry.components.join(', ') + ')' : '',
+                    blockText: blocks ? 'Changed ' + blocked.component + ' after ' + blocked.after : '',
                     checked: on,
                     selLabel: 'Promote ' + r.name,
                     raisedBy: r.raisedBy || '',
                     deployedText: when(r.deployedOn),
                     testsText: (r.tests || []).length ? r.tests.join(', ') : 'None',
                     deletesText: Number(r.deletionCount) ? 'Deletes ' + r.deletionCount : '',
-                    rowCls: on ? 'rr-row-on' : (r.isHotfix ? 'rr-row-hot' : '')
+                    rowCls: this.rowCls(r, on, carry, blocks)
                 };
             }),
             orderNote: 'Hotfixes are listed first, then the oldest deploy to ' + s.stageName + '. Changes are promoted in that order.',
             bundleTitle: onlyHotfixes ? 'Promote the hotfix alone' : 'Bundle into one ' + s.nextName + ' release',
-            countText: plural(chosen.length, 'release', 'releases'),
+            countText: plural(picks.length, 'release', 'releases'),
+            stageRule: s.nextName + ' gets each file as it is in ' + s.stageName + '.',
+            stageRuleTail: this.stageRuleTail(s, picks, carriedRows, blocked),
+            hasCarried: carriedRows.length > 0,
+            carriedText: carriedRows.map((r) => r.name).join(', '),
+            carriedTail: ' (older ' + (carriedRows.length === 1 ? 'change' : 'changes') + ' to '
+                + [...new Set(carriedRows.flatMap((r) => overlap.carried.get(r.id).components))].join(', ') + ' — ' + s.nextName + ' gets '
+                + s.stageName + '\'s version, which includes ' + (carriedRows.length === 1 ? 'it' : 'them') + ')',
+            blocked: !!blocked,
+            blockedText: blocked ? blocked.name + ' changed ' + blocked.component + ' after ' + blocked.after + ': add it, or wait and promote them together.' : '',
+            blockerId: blocked ? blocked.id : '',
+            addBlockerLabel: blocked ? '+ Add ' + blocked.name : '',
             componentText: ' · ' + plural(components, 'component', 'components') + (deletions ? ' · ' + plural(deletions, 'deletion', 'deletions') : ''),
             testsLead: tests.length ? 'Tests in ' + s.nextName + ': ' : 'No test classes carried: ',
             testsList: tests.join(', '),
@@ -237,10 +331,42 @@ export default class RlyPromote extends LightningElement {
             title,
             branchText: 'promote/rel-…',
             error: this.errors[s.stageId],
-            barText: plural(chosen.length, 'release', 'releases') + ' selected · ' + plural(tests.length, 'test class', 'test classes'),
-            buttonLabel: this.buttonLabel(s, chosen, onlyHotfixes, busy),
-            cantPromote: locked || this.hubCopy || chosen.length === 0 || !(title || '').trim()
+            barText: plural(picks.length, 'release', 'releases') + ' selected · ' + plural(tests.length, 'test class', 'test classes'),
+            buttonLabel: this.buttonLabel(s, picks, onlyHotfixes, busy),
+            cantPromote: locked || this.hubCopy || picks.length === 0 || !!blocked || !(title || '').trim()
         };
+    }
+
+    /** Selected, carried (dashed box), blocking (red), a hotfix, or plain. */
+    rowCls(r, on, carry, blocks) {
+        if (blocks) {
+            return 'rr-row-block';
+        }
+        if (carry) {
+            return 'rr-row-carried';
+        }
+        if (on) {
+            return 'rr-row-on';
+        }
+        return r.isHotfix ? 'rr-row-hot' : '';
+    }
+
+    /** The line after "<next> gets each file as it is in <stage>." */
+    stageRuleTail(s, picks, carriedRows, blocked) {
+        if (blocked) {
+            return ' ' + s.stageName + '\'s ' + blocked.component + ' already has ' + blocked.name + '\'s change, so ' + blocked.after + ' can\'t go without it.';
+        }
+        if (carriedRows.length) {
+            return ' The carried releases are marked promoted with ' + picks.map((r) => r.name).join(', ') + ' and leave this list.';
+        }
+        return picks.length ? '' : ' Tick the releases to promote. An older release that changed the same file goes too.';
+    }
+
+    /** "+ Add REL-00030": ticks the newer release that blocks the promotion. */
+    addBlocker(event) {
+        const stageId = event.currentTarget.dataset.stage;
+        const id = event.currentTarget.dataset.id;
+        this.setPicks(stageId, [...(this.picks[stageId] || []), id]);
     }
 
     /** What a promotion with releases that have only manual steps does: no pipeline run, or only the others' merge commits picked. */
