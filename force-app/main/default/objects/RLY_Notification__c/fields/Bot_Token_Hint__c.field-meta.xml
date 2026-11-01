@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Bot_Token_Hint__c</fullName>
+    <description>The last four characters of the Slack bot token saved from the Pipeline tab, for the masked hint. The token itself is only in the External Credential RLY_Slack (principal Bot).</description>
+    <externalId>false</externalId>
+    <label>Bot Token Hint</label>
+    <length>4</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

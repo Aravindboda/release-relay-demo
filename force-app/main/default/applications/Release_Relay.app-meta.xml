@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+    <brand>
+        <headerColor>#2347D6</headerColor>
+        <shouldOverrideOrgTheme>false</shouldOverrideOrgTheme>
+    </brand>
+    <description>Raise releases from developer orgs, approve them and deploy them through Git, all from this hub. Each person sees the tabs their permission sets grant.</description>
+    <formFactors>Large</formFactors>
+    <isNavAutoTempTabsDisabled>false</isNavAutoTempTabsDisabled>
+    <isNavPersonalizationDisabled>false</isNavPersonalizationDisabled>
+    <isNavTabPersistenceDisabled>false</isNavTabPersistenceDisabled>
+    <label>Release Relay</label>
+    <navType>Standard</navType>
+    <tabs>RLY_New_Release</tabs>
+    <tabs>RLY_My_Releases</tabs>
+    <tabs>RLY_Approvals</tabs>
+    <tabs>RLY_Promote</tabs>
+    <tabs>RLY_Pipeline</tabs>
+    <tabs>RLY_Relay_Guide</tabs>
+    <uiType>Lightning</uiType>
+</CustomApplication>

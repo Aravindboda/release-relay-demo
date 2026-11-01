@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Hotfix_Reason__c</fullName>
+    <description>Hub: why the release is a hotfix (required for a hotfix).</description>
+    <label>Hotfix Reason</label>
+    <required>false</required>
+    <type>TextArea</type>
+</CustomField>

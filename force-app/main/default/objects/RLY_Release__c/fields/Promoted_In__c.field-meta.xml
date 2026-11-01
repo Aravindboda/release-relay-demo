@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Promoted_In__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Hub: the promotion that carries this release to its stage&apos;s next stop. Cleared when that promotion is rejected, fails or is closed, so the release can be promoted again.</description>
+    <label>Promoted In</label>
+    <referenceTo>RLY_Release__c</referenceTo>
+    <relationshipLabel>Releases carried</relationshipLabel>
+    <relationshipName>Promoted_Releases_In</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>
