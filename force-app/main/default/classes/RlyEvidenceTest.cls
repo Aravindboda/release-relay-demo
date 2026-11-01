@@ -65,6 +65,20 @@ private class RlyEvidenceTest {
                 System.assert(html.contains(part), 'Has ' + part);
             }
             System.assert(!html.contains('<b>Doc</b>'), 'Escaped');
+            System.assertEquals(html.countMatches('<table>'), html.countMatches('<thead>'), 'Every table has a thead');
+            System.assert(html.contains('<h2>History, oldest first</h2>'), 'History heading says its order');
+            System.assert(html.contains('<div class="rr-sec"><h2>History'), 'History flows over pages');
+            System.assert(html.contains('<div class="rr-sec rr-keep"><h2>Approval</h2>'), 'Short sections stay on one page');
+            for (String rule : new List<String>{ 'tr,td,th{page-break-inside:avoid}', 'h1,h2,h3{page-break-after:avoid}',
+                    'thead{display:table-header-group}', '-fs-table-paginate:paginate', '.rr-keep{page-break-inside:avoid}' }) {
+                System.assert(html.contains(rule), 'Print CSS ' + rule);
+            }
+            List<List<String>> many = new List<List<String>>();
+            for (Integer i = 0; i < 16; i++) {
+                many.add(new List<String>{ 'Row ' + i, 'x' });
+            }
+            System.assert(RlyEvidenceTables.section('Long', null, many).startsWith('<div class="rr-sec"><h2>Long</h2>'), 'Long section may break');
+            System.assert(RlyEvidenceTables.table(null, many).contains('<thead><tr><th>Item</th><th>Value</th></tr></thead>'), 'Default header');
             System.assertEquals('', RlyEvidenceTables.manualSteps(new List<RLY_Manual_Step_Run__c>()), 'No steps, no section');
             System.assertEquals('', RlyEvidenceTables.esc(null), 'Null is empty');
         }
@@ -157,6 +171,11 @@ private class RlyEvidenceTest {
             System.assertEquals(1, rows.size(), 'One event');
             System.assertEquals('Load data in SIT: not needed (Already there)', rows[0].detail, 'Words');
             System.assertEquals('SIT', rows[0].orgName, 'Org');
+            RlyReleaseLog.Entry later = RlyReleaseLog.addFor(rel.Id, 'Comment', 'Later note');
+            later.row.Occurred_On__c = System.now().addMinutes(5);
+            RlyReleaseLog.flush();
+            rows = RlyReleaseHistory.events(rel.Id);
+            System.assertEquals('Later note', rows[0].detail, 'Newest first on the page');
         }
     }
 }

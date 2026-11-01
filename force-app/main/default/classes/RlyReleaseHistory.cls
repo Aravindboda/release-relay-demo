@@ -1,6 +1,6 @@
 /**
  * @description The release page's history, flows and approval reason (RlyReleasesController.DetailHistory): the events
- * of RLY_Release_Event__c oldest first, the flow activation results, and why the release needs an approver or was
+ * of RLY_Release_Event__c newest first, the flow activation results, and why the release needs an approver or was
  * approved automatically (RlyApprovalRules).
  */
 public with sharing class RlyReleaseHistory {
@@ -38,14 +38,16 @@ public with sharing class RlyReleaseHistory {
     }
 
     /**
-     * @description A release's events, oldest first.
+     * @description A release's events, newest first (the page reads "this happened after that" top down; the evidence
+     * PDF keeps them oldest first).
      * @param releaseId the release
      * @return the rows
      */
     public static List<EventRow> events(Id releaseId) {
+        List<RLY_Release_Event__c> oldestFirst = RlyReleaseLog.eventsOf(new Set<Id>{ releaseId });
         List<EventRow> out = new List<EventRow>();
-        for (RLY_Release_Event__c e : RlyReleaseLog.eventsOf(new Set<Id>{ releaseId })) {
-            out.add(rowOf(e));
+        for (Integer i = oldestFirst.size() - 1; i >= 0; i--) {
+            out.add(rowOf(oldestFirst[i]));
         }
         return out;
     }
