@@ -3,15 +3,24 @@
  "step": "deploy",
  "status": "Deployed",
  "sha": "ab7206e6352b7349345e1d9dbb2706ca7be8388a",
- "message": "Nothing deployable changed under force-app/main/default. 4 Release Relay file(s) were left out (exclude list).",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41273923615",
- "finishedAt": "2026-11-01T04:40:05.075Z",
- "attempt": "21396985d3d28ab0c86c86d820a07bcb",
- "excluded": [
-  "force-app/main/default/classes/RlyDemoHotfix.cls",
-  "force-app/main/default/classes/RlyDemoHotfix.cls-meta.xml",
-  "force-app/main/default/classes/RlyDemoHotfixTest.cls",
-  "force-app/main/default/classes/RlyDemoHotfixTest.cls-meta.xml"
+ "changed": 4,
+ "deleted": [],
+ "ok": true,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0Afg800000K37vtCAB",
+ "testsRun": 1,
+ "tests": [
+  "RlyDemoHotfixTest"
  ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "quick": false,
+ "quickNote": "The validation didn't pass with a deployment id (Skipped), so it was deployed in full.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41274791686",
+ "finishedAt": "2026-11-01T04:54:25.609Z",
+ "attempt": "21396985d3d28ab0c86c86d820a07bcb",
+ "excluded": [],
  "selfUpdate": false
 }
