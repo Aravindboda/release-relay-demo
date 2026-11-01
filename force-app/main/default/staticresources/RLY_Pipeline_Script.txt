@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 12
+// Release Relay pipeline files: version 13
 /*
  * Release Relay: one script for every pipeline job, on GitHub, GitLab, Bitbucket or Azure DevOps.
  *
@@ -29,6 +29,9 @@
  *                  (a back-promote org's branch, made from BRANCH when missing), deploy what changed
  *                  to TARGET_ENVIRONMENT's org, and push TARGET only when that deploy worked.
  *                  Writes results/<REQUEST_ID>/sync.json.
+ *   STEP=rollback  MODE=rollback: deploy a snapshot taken before an earlier deploy back into
+ *                  TARGET_ENVIRONMENT's org (and delete what that deploy added). Git isn't changed.
+ *                  Writes results/<REQUEST_ID>/rollback.json.
  *   STEP=auto      Run the steps MODE needs, in order (GitLab and Bitbucket use one job).
  *   STEP=notify    Tell the Salesforce org that raised the release to read the results now
  *                  (POST /services/apexrest/release-relay/v1/status). Never fails the run.
@@ -56,12 +59,32 @@
  * are left out of every deployment and listed in validate.json, deploy.json and sync.json as "excluded". {"selfUpdate":true} (the hub
  * updating itself, from the release-relay-hub branch) ignores the list.
  *
+ * Per-org values (.relay/values.json, read from the pipeline's own commit like .relay/exclude):
+ * {"values":{"PAYMENT_URL":{"dev1":"https://dev.pay.example","prod":"https://pay.example"}}}. Branches hold
+ * {{relay:PAYMENT_URL}}; validate, deploy and sync replace it with the target environment's value in a temporary
+ * copy of the deployment's text files (never committed), and fail when a placeholder has no value for that
+ * environment. Raises that write org metadata into a branch (modes org and hub) turn the source environment's
+ * values (6 characters or longer, longest first) back into placeholders. Results: "values" (validate, deploy, sync),
+ * "valuesTokenized" (raise). Keys starting with "_" are ignored.
+ *
+ * Quality gates (.relay/gates.json, pipeline commit, all optional):
+ * {"scan":{"failAtPriority":2},"coverage":{"minimumPerClass":75,"minimumOrgWide":75},"tests":{"requireForApex":true}}.
+ * scan.json and validate.json record "gates": { file, passed, failures }; a failed gate fails that step.
+ *
+ * Rollback snapshots: before every real deploy (deploy, full or quick, and sync) the current org versions of the
+ * deployment's components (and of the components it deletes) are retrieved and committed to the
+ * release-relay-snapshots branch at <REQUEST_ID>/<environment>/<attempt or run id>/ (manifest.json + metadata/,
+ * Metadata API format). {"snapshot":false} or selfUpdate skips it; a failed snapshot never blocks the deploy.
+ * MODE=rollback deploys one back: options {"snapshotPath":"REL-00042/prod/<id>"} (else the latest for that release
+ * and environment) and {"tests":[...]}.
+ *
  * Every input arrives as an environment variable and is validated here. Commands run with
  * execFileSync and argument arrays, never through a shell, so input can't inject commands.
  */
 'use strict';
 
 const { execFileSync } = require('child_process');
+const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -210,11 +233,14 @@ function writePrivateKey(keyFile) {
 // ---------- inputs and per-org values ----------
 
 const RESULTS_BRANCH = 'release-relay-results';
+const SNAPSHOT_BRANCH = 'release-relay-snapshots';
 const SHA_RE = /^[0-9a-f]{40}$/;
 const SCAN_EXT = ['.cls', '.trigger', '.page', '.component', '.cmp', '.js', '.html', '.flow-meta.xml'];
 const TEST_LEVELS = ['NoTestRun', 'RunLocalTests', 'RunAllTestsInOrg'];
 const WORK_DIR = '.relay';
-const EXCLUDE_FILE = path.join(WORK_DIR, 'exclude');
+const EXCLUDE_FILE = '.relay/exclude';
+const VALUES_FILE = '.relay/values.json';
+const GATES_FILE = '.relay/gates.json';
 // Release Relay's own components, by exact name (never a prefix: your own Rly* class is deployed as usual). Globs
 // relative to SOURCE_PATH; a glob matching a folder covers everything in it. "only-labels:<names>" excludes a labels
 // file only when every label in it matches. Lines in .relay/exclude are added to this list.
@@ -359,12 +385,15 @@ function runUrl() {
 
 function checkCommonInputs() {
     if (!/^REL-\d{5,}$/.test(requestId)) { fail('REQUEST_ID must look like REL-00042.'); }
-    if (!['org', 'branch', 'promote', 'hub', 'resolve', 'check', 'merge', 'sync'].includes(mode)) { fail('MODE must be org, branch, promote, hub, resolve, check, merge or sync.'); }
-    if (mode === 'sync') {
+    if (!['org', 'branch', 'promote', 'hub', 'resolve', 'check', 'merge', 'sync', 'rollback'].includes(mode)) { fail('MODE must be org, branch, promote, hub, resolve, check, merge, sync or rollback.'); }
+    if (mode === 'rollback') {
+        // A rollback works on an org and the snapshots branch only: BRANCH and TARGET aren't used.
+        if (!/^[A-Za-z0-9._-]{1,80}$/.test(targetEnv)) { fail('TARGET_ENVIRONMENT (the org to roll back) must be an environment name.'); }
+    } else if (mode === 'sync') {
         // A back promote takes the hub's production branch (any branch name) into a back-promote org's branch.
         if (!REF_RE.test(branch) || branch.includes('..')) { fail(`Branch "${branch}" isn't a valid source branch.`); }
     } else if (!BRANCH_RE.test(branch)) { fail(`Branch "${branch}" must look like feature/short-name.`); }
-    if (!REF_RE.test(target) || target.includes('..') || target === branch || target === RESULTS_BRANCH) { fail(`Target "${target}" isn't a valid target branch.`); }
+    if (mode !== 'rollback' && (!REF_RE.test(target) || target.includes('..') || target === branch || target === RESULTS_BRANCH || target === SNAPSHOT_BRANCH)) { fail(`Target "${target}" isn't a valid target branch.`); }
     if (!/^[A-Za-z0-9_./-]+$/.test(sourcePath()) || sourcePath().includes('..')) { fail('SOURCE_PATH is invalid.'); }
     if (!['github', 'gitlab', 'bitbucket', 'azure'].includes(PROVIDER)) { fail('RELAY_PROVIDER must be github, gitlab, bitbucket or azure.'); }
 }
@@ -434,6 +463,12 @@ function writeResult(name, data) {
     if (['validate', 'deploy', 'sync'].includes(name)) {
         result.excluded = deployExcluded.slice(0, 1000);
         result.selfUpdate = selfUpdate();
+        if (!result.values) {
+            result.values = deployValues || { replaced: 0, files: [], hash: '' };
+        }
+    }
+    if (['validate', 'scan'].includes(name) && !result.gates) {
+        result.gates = gatesResult(relayGates, []);
     }
     const json = JSON.stringify(result, null, 1);
     summary('```json\n' + json.slice(0, 4000) + '\n```');
@@ -480,6 +515,66 @@ function gitQuietIn(dir, args) {
     } catch (e) {
         // nothing to remove
     }
+}
+
+/** git with text on stdin and extra environment variables (a private index), returning stdout. */
+function gitWith(args, extraEnv, inputText) {
+    const out = execFileSync('git', args, { encoding: 'utf8', input: inputText === undefined ? '' : inputText,
+        env: { ...process.env, ...extraEnv }, stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
+    return String(out || '').trim();
+}
+
+/** Fetches only the tip of a branch (an orphan branch such as the snapshots, whose history isn't needed). */
+function fetchTip(name) {
+    git(['fetch', '--no-tags', '--depth=1', 'origin', `+refs/heads/${name}:refs/remotes/origin/${name}`]);
+}
+
+/**
+ * Commits files to a branch without checking it out: a private index starts from the branch's tip, drops
+ * everything under prefix, adds the files ({ rel: path in the branch, abs: local file }), and the commit is
+ * pushed. Another run pushing first is retried on the new tip. Used for the snapshots, where checking out
+ * every earlier snapshot would cost time.
+ */
+function commitFilesToBranch(branchName, prefix, files, message) {
+    const who = { GIT_AUTHOR_NAME: 'Release Relay', GIT_AUTHOR_EMAIL: 'release-relay@users.noreply.local',
+        GIT_COMMITTER_NAME: 'Release Relay', GIT_COMMITTER_EMAIL: 'release-relay@users.noreply.local' };
+    let lastError = null;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-index-'));
+        const genv = { ...who, GIT_INDEX_FILE: path.join(dir, 'index') };
+        try {
+            let parent = null;
+            if (remoteBranchExists(branchName)) {
+                fetchTip(branchName);
+                parent = git(['rev-parse', `refs/remotes/origin/${branchName}`]);
+                gitWith(['read-tree', parent], genv);
+                const old = gitWith(['ls-files', '-z', '--', prefix], genv).replace(/\0+$/, '');
+                if (old) {
+                    gitWith(['update-index', '--force-remove', '-z', '--stdin'], genv, old + '\0');
+                }
+            } else {
+                gitWith(['read-tree', '--empty'], genv);
+            }
+            if (files.length) {
+                const shas = gitWith(['hash-object', '-w', '--stdin-paths'], genv, files.map((f) => f.abs).join('\n') + '\n').split('\n');
+                if (shas.length !== files.length) {
+                    throw new Error('git hash-object returned an unexpected number of objects.');
+                }
+                gitWith(['update-index', '--add', '--index-info'], genv,
+                    files.map((f, i) => `100644 ${shas[i]}\t${f.rel}`).join('\n') + '\n');
+            }
+            const tree = gitWith(['write-tree'], genv);
+            const commit = gitWith(['commit-tree', tree, ...(parent ? ['-p', parent] : []), '-m', message], genv);
+            gitWith(['push', '-q', 'origin', `${commit}:refs/heads/${branchName}`], {});
+            return commit;
+        } catch (e) {
+            lastError = e;
+            console.log(`Saving to ${branchName} failed (attempt ${attempt}); retrying.`);
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    }
+    throw new Error(`Couldn't push to ${branchName}: ${String((lastError && (lastError.stderr || lastError.message)) || lastError).trim().slice(0, 300)}`);
 }
 
 /** Hands the merge commit to the deploy job. */
@@ -586,13 +681,14 @@ function globRegex(glob) {
     return new RegExp('^' + re + '$');
 }
 
-/** Reads .relay/exclude from the pipeline's commit (the job starts there, before any checkout), else the defaults. */
+/** Reads .relay/exclude from the pipeline's commit, else the defaults. */
 function loadExcludes() {
     let lines = BUILT_IN_EXCLUDES.slice();
     excludeSource = "Release Relay's built-in list";
     try {
-        if (fs.existsSync(EXCLUDE_FILE)) {
-            lines = lines.concat(fs.readFileSync(EXCLUDE_FILE, 'utf8').split(/\r?\n/));
+        const text = pipelineFile(EXCLUDE_FILE);
+        if (text !== null) {
+            lines = lines.concat(text.split(/\r?\n/));
             excludeSource = "Release Relay's built-in list and " + EXCLUDE_FILE;
         }
     } catch (e) {
@@ -636,14 +732,49 @@ function isExcluded(file, base) {
     if (!rel || rel.startsWith('..')) {
         return false;
     }
+    return excludeHit(rel, (nameRe) => labelsAllMatch(file, base, nameRe));
+}
+
+/** Whether a path relative to SOURCE_PATH (or a folder above it) matches the exclude list; labelsCheck decides only-labels rules. */
+function excludeHit(rel, labelsCheck) {
     const parts = rel.split('/');
     return excludeRules.some((rule) => {
         let hit = false;
         for (let i = parts.length; i >= 1 && !hit; i--) {
             hit = rule.re.test(parts.slice(0, i).join('/'));
         }
-        return hit && (!rule.labels || labelsAllMatch(file, base, rule.labels));
+        return hit && (!rule.labels || labelsCheck(rule.labels));
     });
+}
+
+/** Source paths (relative to SOURCE_PATH) a Type:Name component would have, for matching the exclude list. */
+function componentRelPaths(type, name) {
+    if (FILE_TYPES[type]) {
+        return [`${FILE_TYPES[type][0]}/${name}${FILE_TYPES[type][1]}`];
+    }
+    if (FOLDER_TYPES[type]) {
+        return [`${FOLDER_TYPES[type]}/${name}`];
+    }
+    if (CHILD_TYPES[type]) {
+        const dot = name.indexOf('.');
+        return dot < 1 ? [] : [`objects/${name.slice(0, dot)}/${CHILD_TYPES[type][0]}/${name.slice(dot + 1)}${CHILD_TYPES[type][1]}`];
+    }
+    const other = {
+        StaticResource: [`staticresources/${name}.resource`, `staticresources/${name}`],
+        CustomPermission: [`customPermissions/${name}.customPermission-meta.xml`],
+        CustomApplication: [`applications/${name}.app-meta.xml`],
+        NamedCredential: [`namedCredentials/${name}.namedCredential-meta.xml`],
+        ExternalCredential: [`externalCredentials/${name}.externalCredential-meta.xml`]
+    };
+    return other[type] || [];
+}
+
+/** Whether a Type:Name component is Release Relay's own (a rollback never touches those, even for selfUpdate). */
+function componentExcluded(type, name) {
+    if (type === 'CustomLabel') {
+        return excludeRules.some((rule) => rule.labels && rule.labels.test(name));
+    }
+    return componentRelPaths(type, name).some((rel) => excludeHit(rel, () => false));
 }
 
 // The exclude list also goes into .forceignore for the run (restored on exit), so the CLI never picks an excluded
@@ -680,6 +811,505 @@ function nothingLeftMessage() {
 
 function excludedNote() {
     return deployExcluded.length ? ` ${deployExcluded.length} Release Relay file(s) were left out (exclude list).` : '';
+}
+
+// ---------- files read from the pipeline's own commit ----------
+
+/** The commit this run started on (the default branch): its .relay files count, never a release branch's. */
+function pipelineSha() {
+    for (const name of ['RELAY_PIPELINE_SHA', 'GITHUB_SHA', 'CI_COMMIT_SHA', 'BITBUCKET_COMMIT', 'BUILD_SOURCEVERSION']) {
+        const value = (env[name] || '').trim();
+        if (SHA_RE.test(value)) {
+            return value;
+        }
+    }
+    return '';
+}
+
+let pipelineCommitReady;
+
+/**
+ * A file's text at the pipeline's commit, or null when it isn't there. Read with git show, because some jobs check
+ * out the release branch or the merge commit; when the commit can't be read, the job's own checkout (which starts
+ * on the pipeline's commit) is used.
+ */
+function pipelineFile(rel) {
+    const sha = pipelineSha();
+    if (sha) {
+        if (pipelineCommitReady === undefined) {
+            const has = () => gitQuiet(['cat-file', '-e', sha + '^{commit}']) !== null;
+            pipelineCommitReady = has() || (gitQuiet(['fetch', '--no-tags', '--depth=1', 'origin', sha]) !== null && has());
+        }
+        if (pipelineCommitReady) {
+            return gitQuiet(['show', `${sha}:${rel}`]);
+        }
+    }
+    return fs.existsSync(rel) ? fs.readFileSync(rel, 'utf8') : null;
+}
+
+// ---------- per-org values (.relay/values.json) ----------
+
+const PLACEHOLDER_RE = /\{\{relay:([A-Z0-9_]{1,60})\}\}/g;
+const VALUE_NAME_RE = /^[A-Z0-9_]{1,60}$/;
+const MIN_REVERSE_LENGTH = 6;
+
+let relayValues = { values: {}, warnings: [], error: '', present: false };
+let deployValues = null; // the last deployment's substitutions, for the result
+
+/**
+ * Parses .relay/values.json: { "values": { "NAME": { "<environment>": "value" } } }. Keys starting with "_" are
+ * ignored at every level. Returns { values, warnings, error, present }.
+ */
+function parseValues(text) {
+    const out = { values: {}, warnings: [], error: '', present: false };
+    if (text === null || text === undefined || !String(text).trim()) {
+        return out;
+    }
+    out.present = true;
+    let json;
+    try {
+        json = JSON.parse(text);
+    } catch (e) {
+        out.error = `${VALUES_FILE} isn't valid JSON (${String(e.message).slice(0, 200)}).`;
+        return out;
+    }
+    if (!json || typeof json !== 'object' || Array.isArray(json)) {
+        out.error = `${VALUES_FILE} must hold a JSON object.`;
+        return out;
+    }
+    const values = json.values;
+    if (values === undefined || values === null) {
+        return out;
+    }
+    if (typeof values !== 'object' || Array.isArray(values)) {
+        out.error = `"values" in ${VALUES_FILE} must be an object.`;
+        return out;
+    }
+    for (const [name, perEnv] of Object.entries(values)) {
+        if (name.startsWith('_')) {
+            continue;
+        }
+        if (!VALUE_NAME_RE.test(name)) {
+            out.warnings.push(`"${name.slice(0, 80)}" in ${VALUES_FILE} isn't a valid name (A-Z, 0-9 and _, up to 60 characters), so it's ignored.`);
+            continue;
+        }
+        if (!perEnv || typeof perEnv !== 'object' || Array.isArray(perEnv)) {
+            out.warnings.push(`${name} in ${VALUES_FILE} must map environment names to values, so it's ignored.`);
+            continue;
+        }
+        const envs = {};
+        for (const [envName, value] of Object.entries(perEnv)) {
+            if (envName.startsWith('_')) {
+                continue;
+            }
+            if (typeof value !== 'string') {
+                out.warnings.push(`${name} for ${envName.slice(0, 80)} in ${VALUES_FILE} isn't text, so it's ignored.`);
+                continue;
+            }
+            envs[envName] = value;
+        }
+        out.values[name] = envs;
+    }
+    return out;
+}
+
+/**
+ * Replaces {{relay:NAME}} with NAME's value for envName. Returns { text, count, missing: [names], used: [names] };
+ * a placeholder without a value stays as it is and is listed in missing.
+ */
+function substituteText(text, values, envName) {
+    let count = 0;
+    const missing = new Set();
+    const used = new Set();
+    const out = text.replace(PLACEHOLDER_RE, (whole, name) => {
+        const perEnv = values[name];
+        if (!perEnv || !Object.prototype.hasOwnProperty.call(perEnv, envName)) {
+            missing.add(name);
+            return whole;
+        }
+        count++;
+        used.add(name);
+        return perEnv[envName];
+    });
+    return { text: out, count, missing: [...missing], used: [...used] };
+}
+
+/**
+ * The values to turn back into placeholders for envName, longest first. Values shorter than 6 characters are
+ * never reverse-replaced (they could match unrelated text), and a value two names share goes to the first name.
+ * Returns { pairs: [{ name, value }], warnings }.
+ */
+function reversePairs(values, envName) {
+    const warnings = [];
+    const byValue = new Map();
+    for (const name of Object.keys(values).sort()) {
+        const value = values[name][envName];
+        if (typeof value !== 'string' || !value) {
+            continue;
+        }
+        if (value.length < MIN_REVERSE_LENGTH) {
+            warnings.push(`${name}'s value for ${envName} is shorter than ${MIN_REVERSE_LENGTH} characters, so it isn't turned back into {{relay:${name}}} in retrieved files.`);
+            continue;
+        }
+        if (byValue.has(value)) {
+            warnings.push(`${name} and ${byValue.get(value)} have the same value for ${envName}; retrieved files get {{relay:${byValue.get(value)}}}.`);
+            continue;
+        }
+        byValue.set(value, name);
+    }
+    const pairs = [...byValue.entries()].map(([value, name]) => ({ name, value }))
+        .sort((a, b) => b.value.length - a.value.length || (a.name < b.name ? -1 : 1));
+    return { pairs, warnings };
+}
+
+function escapeRegex(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Replaces exact occurrences of the pairs' values with {{relay:NAME}}, in one pass (longest value first at each
+ * position), leaving existing placeholders alone. Returns { text, count }.
+ */
+function tokenizeText(text, pairs) {
+    if (!pairs.length) {
+        return { text, count: 0 };
+    }
+    const byValue = new Map(pairs.map((p) => [p.value, p.name]));
+    const re = new RegExp('(\\{\\{relay:[A-Z0-9_]{1,60}\\}\\})|' + pairs.map((p) => escapeRegex(p.value)).join('|'), 'g');
+    let count = 0;
+    const out = text.replace(re, (m, placeholder) => {
+        if (placeholder) {
+            return m;
+        }
+        count++;
+        return `{{relay:${byValue.get(m)}}}`;
+    });
+    return { text: out, count };
+}
+
+/** A file's text, or null for binary files, files that aren't UTF-8 and files over 20 MB (left as they are). */
+function readText(file) {
+    try {
+        const buf = fs.readFileSync(file);
+        if (buf.length > 20 * 1024 * 1024 || buf.subarray(0, 8000).includes(0)) {
+            return null;
+        }
+        const text = buf.toString('utf8');
+        return Buffer.from(text, 'utf8').equals(buf) ? text : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function relToSource(file) {
+    return path.relative(sourcePath(), file).split(path.sep).join('/');
+}
+
+/** Every file a deployment of these source entries (files or bundle folders) sends, excluded files left out. */
+function deploymentFiles(sources) {
+    const files = new Set();
+    const addTree = (p) => {
+        if (!fs.existsSync(p)) {
+            return;
+        }
+        if (fs.statSync(p).isDirectory()) {
+            for (const entry of fs.readdirSync(p, { recursive: true })) {
+                const f = path.join(p, String(entry));
+                if (fs.statSync(f).isFile()) {
+                    files.add(f);
+                }
+            }
+        } else {
+            files.add(p);
+        }
+    };
+    for (const s of sources) {
+        addTree(s);
+        if (!fs.existsSync(s) || fs.statSync(s).isDirectory()) {
+            continue;
+        }
+        addTree(s.endsWith('-meta.xml') ? s.slice(0, -'-meta.xml'.length) : s + '-meta.xml');
+        const rel = relToSource(s).split('/');
+        if (rel[0] === 'objects' && rel.length === 3 && rel[2] === `${rel[1]}.object-meta.xml`) {
+            addTree(path.join(sourcePath(), 'objects', rel[1])); // the object's children go with it
+        }
+        if (rel[0] === 'staticresources' && rel.length >= 2) {
+            const dir = path.join(sourcePath(), 'staticresources');
+            const name = rel[1].split('.')[0];
+            fs.readdirSync(dir).filter((n) => n.split('.')[0] === name).forEach((n) => addTree(path.join(dir, n)));
+        }
+    }
+    return [...files].filter((f) => !isExcluded(f, null)).sort();
+}
+
+/** A copy of the project (sfdx-project.json, .forceignore, package directories) to fill values into. */
+function makeDeployCopy() {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-deploy-'));
+    process.on('exit', () => {
+        try {
+            fs.rmSync(dir, { recursive: true, force: true });
+        } catch (e) {
+            // the job ends anyway
+        }
+    });
+    let dirs = [];
+    try {
+        dirs = asList(JSON.parse(fs.readFileSync('sfdx-project.json', 'utf8')).packageDirectories)
+            .map((p) => String((p && p.path) || '').replace(/\/+$/, '')).filter(Boolean);
+    } catch (e) {
+        dirs = [];
+    }
+    if (!dirs.some((d) => sourcePath() === d || sourcePath().startsWith(d + '/'))) {
+        dirs.push(sourcePath());
+    }
+    for (const f of ['sfdx-project.json', '.forceignore']) {
+        if (fs.existsSync(f)) {
+            fs.copyFileSync(f, path.join(dir, f));
+        }
+    }
+    for (const d of dirs) {
+        if (/^[A-Za-z0-9_./-]+$/.test(d) && !d.includes('..') && !path.isAbsolute(d) && fs.existsSync(d)) {
+            fs.cpSync(d, path.join(dir, d), { recursive: true });
+        }
+    }
+    return dir;
+}
+
+/** Why a placeholder can't be filled, one sentence per name. */
+function missingValuesMessage(missing, envName) {
+    const byName = new Map();
+    missing.forEach((m) => byName.set(m.name, (byName.get(m.name) || []).concat(m.file)));
+    return [...byName.entries()].slice(0, 5).map(([name, files]) =>
+        `${name} has no value for ${envName} in ${VALUES_FILE} (used in ${files.slice(0, 3).join(', ')}${files.length > 3 ? ', ...' : ''}).`)
+        .join(' ') + (byName.size > 5 ? ` ${byName.size - 5} more name(s) have no value.` : '');
+}
+
+/** A short fingerprint of the values a deployment used, so a quick deploy never sends a validation's older values. */
+function valuesHash(used) {
+    if (!used.size) {
+        return '';
+    }
+    const list = [...used.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1));
+    return crypto.createHash('sha256').update(JSON.stringify(list)).digest('hex').slice(0, 16);
+}
+
+/**
+ * Fills {{relay:NAME}} in the deployment's text files with envName's values, in a temporary copy of the project
+ * that the deploy then runs from (plan.cwd); the checkout itself is never changed. Sets deployValues
+ * ({ replaced, files, hash }) for the result. Returns '' or why the deployment can't go ahead.
+ */
+function prepareDeployValues(plan, envName) {
+    deployValues = { replaced: 0, files: [], hash: '' };
+    if (selfUpdate()) {
+        return ''; // the hub updating itself: Release Relay's own files hold placeholder examples, never values
+    }
+    const edits = [];
+    const missing = [];
+    const used = new Map();
+    for (const f of deploymentFiles(plan.sources || [])) {
+        const text = readText(f);
+        if (text === null || !text.includes('{{relay:') || isExcluded(f, 'HEAD')) {
+            continue; // Release Relay's own files (the exclude list) are never filled
+        }
+        if (relayValues.error) {
+            return `${relayValues.error} It's needed for ${relToSource(f)}.`;
+        }
+        const r = substituteText(text, relayValues.values, envName);
+        r.missing.forEach((name) => missing.push({ name, file: relToSource(f) }));
+        if (r.count) {
+            edits.push({ file: f, text: r.text, count: r.count });
+            r.used.forEach((name) => used.set(name, relayValues.values[name][envName]));
+        }
+    }
+    if (missing.length) {
+        return missingValuesMessage(missing, envName);
+    }
+    if (!edits.length) {
+        return '';
+    }
+    const copy = makeDeployCopy();
+    for (const e of edits) {
+        fs.writeFileSync(path.join(copy, e.file), e.text);
+    }
+    plan.cwd = copy;
+    deployValues = { replaced: edits.reduce((n, e) => n + e.count, 0), files: edits.slice(0, 50).map((e) => relToSource(e.file)),
+        hash: valuesHash(used) };
+    summary(`**Per-org values:** ${deployValues.replaced} placeholder(s) in ${edits.length} file(s) filled with ${envName}'s values `
+        + `from ${VALUES_FILE} (${[...used.keys()].join(', ')}), in a temporary copy that isn't committed.`);
+    return '';
+}
+
+/**
+ * Turns the source environment's values back into {{relay:NAME}} in files just written from an org, so branches
+ * always hold placeholders. Returns { count, error }.
+ */
+function tokenizeFiles(files, envName) {
+    if (!relayValues.present || !envName || selfUpdate()) {
+        return { count: 0, error: '' };
+    }
+    if (relayValues.error) {
+        return { count: 0, error: relayValues.error };
+    }
+    const { pairs, warnings } = reversePairs(relayValues.values, envName);
+    warnings.forEach((w) => console.log('::warning::' + w));
+    let count = 0;
+    let changed = 0;
+    for (const f of files) {
+        const text = readText(f);
+        if (text === null) {
+            continue;
+        }
+        const r = tokenizeText(text, pairs);
+        if (r.count) {
+            fs.writeFileSync(f, r.text);
+            count += r.count;
+            changed++;
+        }
+    }
+    if (count || warnings.length) {
+        summary(`**Per-org values:** ${count} occurrence(s) of ${envName}'s values in ${changed} retrieved file(s) turned into `
+            + `{{relay:NAME}} placeholders (${VALUES_FILE}).` + (warnings.length ? '\n' + warnings.map((w) => `- ${w}`).join('\n') : ''));
+    }
+    return { count, error: '' };
+}
+
+// ---------- quality gates (.relay/gates.json) ----------
+
+let relayGates = { present: false, scan: null, coverage: null, tests: null, errors: [] };
+
+/** Parses .relay/gates.json: { scan: { failAtPriority }, coverage: { minimumPerClass, minimumOrgWide }, tests: { requireForApex } }. */
+function parseGates(text) {
+    const out = { present: false, scan: null, coverage: null, tests: null, errors: [] };
+    if (text === null || text === undefined || !String(text).trim()) {
+        return out;
+    }
+    out.present = true;
+    let json;
+    try {
+        json = JSON.parse(text);
+    } catch (e) {
+        out.errors.push(`${GATES_FILE} isn't valid JSON (${String(e.message).slice(0, 200)}).`);
+        return out;
+    }
+    if (!json || typeof json !== 'object' || Array.isArray(json)) {
+        out.errors.push(`${GATES_FILE} must hold a JSON object.`);
+        return out;
+    }
+    const section = (key) => (json[key] && typeof json[key] === 'object' && !Array.isArray(json[key]) ? json[key] : null);
+    const percent = (obj, key) => {
+        if (!obj || obj[key] === undefined || obj[key] === null) {
+            return null;
+        }
+        if (typeof obj[key] !== 'number' || obj[key] < 0 || obj[key] > 100) {
+            out.errors.push(`${key} in ${GATES_FILE} must be a number from 0 to 100.`);
+            return null;
+        }
+        return obj[key];
+    };
+    const scan = section('scan');
+    if (scan && scan.failAtPriority !== undefined && scan.failAtPriority !== null) {
+        if (Number.isInteger(scan.failAtPriority) && scan.failAtPriority >= 1 && scan.failAtPriority <= 5) {
+            out.scan = { failAtPriority: scan.failAtPriority };
+        } else {
+            out.errors.push(`scan.failAtPriority in ${GATES_FILE} must be a whole number from 1 (highest) to 5.`);
+        }
+    }
+    const coverage = section('coverage');
+    const perClass = percent(coverage, 'minimumPerClass');
+    const orgWide = percent(coverage, 'minimumOrgWide');
+    if (perClass !== null || orgWide !== null) {
+        out.coverage = { minimumPerClass: perClass, minimumOrgWide: orgWide };
+    }
+    const tests = section('tests');
+    if (tests && tests.requireForApex === true) {
+        out.tests = { requireForApex: true };
+    }
+    return out;
+}
+
+/** The "gates" entry of scan.json and validate.json. file is null when there's no .relay/gates.json. */
+function gatesResult(gates, failures) {
+    const all = gates.errors.concat(failures);
+    return { file: gates.present ? GATES_FILE : null, passed: all.length === 0, failures: all.slice(0, 50) };
+}
+
+/** The scan gate: findings at failAtPriority or higher (1 is highest). Returns { failures, gate }. */
+function evaluateScanGate(violations, gates) {
+    if (!gates.scan) {
+        return { failures: [], gate: null };
+    }
+    const p = gates.scan.failAtPriority;
+    const hits = violations.filter((x) => Number(x.severity) <= p);
+    const gate = { failAtPriority: p, findings: hits.length };
+    if (!hits.length) {
+        return { failures: [], gate };
+    }
+    const list = hits.slice(0, 5).map((x) => `${x.rule} (${x.file}${x.line ? ':' + x.line : ''})`).join(', ') + (hits.length > 5 ? ', ...' : '');
+    return { failures: [`${hits.length} finding${hits.length === 1 ? '' : 's'} at priority ${p} or higher: ${list}`], gate };
+}
+
+/** tests.requireForApex: a deployment with Apex that would run no tests fails before it's sent. */
+function evaluateTestsGate(apex, testLevel, gates) {
+    if (!gates.tests || !gates.tests.requireForApex || !apex.length || testLevel !== 'NoTestRun') {
+        return [];
+    }
+    return [`This release deploys Apex (${apex.slice(0, 5).join(', ')}${apex.length > 5 ? ', ...' : ''}) but names no tests. `
+        + `Add its test classes to the release in Release Relay (${GATES_FILE}: tests.requireForApex).`];
+}
+
+/**
+ * The coverage gate, from the validation's per-class coverage (runTestResult.codeCoverage). minimumPerClass applies
+ * to the Apex classes and triggers the release deploys; minimumOrgWide only when the validation ran every local
+ * test (RunLocalTests, RunAllTestsInOrg), the only case where the coverage covers the org. Returns
+ * { failures, coverage: { minimumPerClass, minimumOrgWide, perClass: [{ name, percent }], orgWide } }.
+ */
+function evaluateCoverageGate(codeCoverage, apex, testLevel, gates) {
+    if (!gates.coverage) {
+        return { failures: [], coverage: null };
+    }
+    const { minimumPerClass, minimumOrgWide } = gates.coverage;
+    const rows = asList(codeCoverage).map((c) => {
+        const total = Number(c && c.numLocations) || 0;
+        const notCovered = Number(c && c.numLocationsNotCovered) || 0;
+        return { name: String((c && c.name) || ''), total, covered: Math.max(0, total - notCovered) };
+    }).filter((r) => r.name);
+    const pct = (covered, total) => (covered / total) * 100;
+    const shown = (x) => Math.floor(x * 10) / 10;
+    const wanted = new Set(apex.map((n) => n.toLowerCase()));
+    const failures = [];
+    const perClass = [];
+    const seen = new Set();
+    for (const r of rows) {
+        const key = r.name.toLowerCase();
+        if (!wanted.has(key) || seen.has(key) || r.total === 0) {
+            continue;
+        }
+        seen.add(key);
+        const p = pct(r.covered, r.total);
+        perClass.push({ name: r.name, percent: shown(p) });
+        if (minimumPerClass !== null && p < minimumPerClass) {
+            failures.push(`${r.name} ${shown(p)}% < ${minimumPerClass}%`);
+        }
+    }
+    let orgWide = null;
+    if (['RunLocalTests', 'RunAllTestsInOrg'].includes(testLevel) && rows.length) {
+        const total = rows.reduce((n, r) => n + r.total, 0);
+        if (total > 0) {
+            orgWide = shown(pct(rows.reduce((n, r) => n + r.covered, 0), total));
+            if (minimumOrgWide !== null && orgWide < minimumOrgWide) {
+                failures.push(`Org-wide coverage ${orgWide}% < ${minimumOrgWide}%`);
+            }
+        }
+    }
+    return { failures, coverage: { minimumPerClass, minimumOrgWide, perClass: perClass.slice(0, 200), orgWide } };
+}
+
+function gatesSummary(step, result) {
+    if (!result.file && result.passed) {
+        return;
+    }
+    summary(`**Quality gates (${GATES_FILE}), ${step}:** ${result.passed ? 'passed' : 'failed'}`
+        + (result.failures.length ? '\n' + result.failures.map((f) => `- ${f}`).join('\n') : ''));
 }
 
 /**
@@ -757,8 +1387,11 @@ function buildDeployment(base, head) {
         destructive = path.join(WORK_DIR, 'destructiveChangesPost.xml');
         fs.writeFileSync(destructive, manifest(apiVersion(), [...deletions.values()]));
     }
+    // The Apex classes and triggers the deployment sends or deletes, for the quality gates.
+    const apex = [...new Set(existing.map((d) => componentFor(d)).concat([...deletions.values()])
+        .filter((c) => c && APEX_TYPES.has(c.type)).map((c) => c.name))].sort();
     return { pkg, destructive, changed: existing.length, deleted: deletions.size,
-        deletedList: [...deletions.keys()] };
+        deletedList: [...deletions.keys()], sources: existing, apex };
 }
 
 function asList(value) {
@@ -786,29 +1419,41 @@ function releaseTests() {
  * else RunLocalTests. plan.ownTests false ignores the release's tests (a back promote has none).
  */
 function deployTo(alias, plan, checkOnly) {
-    const tests = plan.ownTests === false ? null : releaseTests();
-    const testLevel = tests ? (tests.length ? 'RunSpecifiedTests' : 'NoTestRun')
-        : TEST_LEVELS.includes(v('DEPLOY_TEST_LEVEL')) ? v('DEPLOY_TEST_LEVEL') : (plan.defaultTestLevel || 'RunLocalTests');
-    const args = ['project', 'deploy', 'start', '--manifest', plan.pkg, '--target-org', alias,
+    const { tests, testLevel } = testLevelFor(plan);
+    // plan.cwd: the temporary copy with per-org values filled in (manifests then go by absolute path).
+    const abs = (p) => (plan.cwd ? path.resolve(p) : p);
+    const args = ['project', 'deploy', 'start', '--manifest', abs(plan.pkg), '--target-org', alias,
         '--test-level', testLevel, '--wait', DEPLOY_WAIT, '--json'];
     (tests || []).forEach((t) => args.push('--tests', t));
     if (plan.destructive) {
-        args.push('--post-destructive-changes', plan.destructive);
+        args.push('--post-destructive-changes', abs(plan.destructive));
     }
     if (checkOnly) {
         args.push('--dry-run');
     }
-    return runDeploy(args, testLevel, tests);
+    return runDeploy(args, testLevel, tests, plan.cwd);
+}
+
+/** The test level a deployment of plan uses, and the release's tests (null when it sent none). */
+function testLevelFor(plan) {
+    const tests = plan.ownTests === false ? null : releaseTests();
+    const testLevel = tests ? (tests.length ? 'RunSpecifiedTests' : 'NoTestRun')
+        : TEST_LEVELS.includes(v('DEPLOY_TEST_LEVEL')) ? v('DEPLOY_TEST_LEVEL') : (plan.defaultTestLevel || 'RunLocalTests');
+    return { tests, testLevel };
 }
 
 /** WAIT for every deploy command: the deploy and validate jobs' time limits leave room for it. */
 const DEPLOY_WAIT = '110';
 
-/** Runs an sf project deploy command (--json) and turns its output into a result for Salesforce. */
-function runDeploy(args, testLevel, tests) {
+/**
+ * Runs an sf project deploy command (--json) and turns its output into a result for Salesforce. The per-class
+ * code coverage is attached as a hidden property (codeCoverage), for the coverage gate, and isn't written out.
+ */
+function runDeploy(args, testLevel, tests, cwd) {
     let raw;
     try {
-        raw = execFileSync('sf', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
+        raw = execFileSync('sf', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024,
+            ...(cwd ? { cwd } : {}) });
     } catch (e) {
         raw = e.stdout ? String(e.stdout) : '';
         if (!raw) {
@@ -830,7 +1475,7 @@ function runDeploy(args, testLevel, tests) {
         name: t.name, method: t.methodName, message: t.message
     }));
     const ok = out.status === 0 && r.success !== false && !componentErrors.length && !testFailures.length;
-    return {
+    const result = {
         ok,
         testLevel,
         deployId: r.id || null,
@@ -844,6 +1489,10 @@ function runDeploy(args, testLevel, tests) {
         message: ok ? '' : (componentErrors.length ? `${componentErrors.length} component error(s)`
             : testFailures.length ? `${testFailures.length} test failure(s)` : (out.message || r.errorMessage || 'Deployment failed')).toString().slice(0, 1500)
     };
+    Object.defineProperty(result, 'codeCoverage', {
+        value: asList(details.runTestResult && details.runTestResult.codeCoverage), enumerable: false
+    });
+    return result;
 }
 
 
@@ -857,9 +1506,14 @@ async function stepScan() {
     const files = changedFiles(base, 'HEAD')
         .filter((f) => f.status !== 'D' && SCAN_EXT.some((ext) => f.file.endsWith(ext)) && fs.existsSync(f.file))
         .map((f) => f.file);
+    // The gates file itself being unreadable fails the scan whatever it finds; the scan gate needs findings.
+    const gatesOnly = gatesResult(relayGates, []);
+    const scanGate = relayGates.scan ? { failAtPriority: relayGates.scan.failAtPriority, findings: 0 } : null;
     if (!files.length) {
-        writeResult('scan', { status: 'Skipped', total: 0, blocking: 0, files: [], violations: [],
-            message: 'No code files in this pull request.' });
+        gatesSummary('scan', gatesOnly);
+        writeResult('scan', { status: gatesOnly.passed ? 'Skipped' : 'Failed', total: 0, blocking: 0, files: [], violations: [],
+            message: gatesOnly.passed ? 'No code files in this pull request.' : gatesOnly.failures.join(' '),
+            gate: scanGate, gates: gatesOnly });
         return;
     }
     const threshold = Math.min(5, Math.max(1, parseInt(v('SCAN_BLOCK_SEVERITY'), 10) || 2));
@@ -873,7 +1527,8 @@ async function stepScan() {
     } catch (e) {
         if (!fs.existsSync(outFile)) {
             writeResult('scan', { status: 'Error', total: 0, blocking: 0, files, violations: [],
-                message: 'Code Analyzer didn\'t run. Open the workflow run for the log.' });
+                message: 'Code Analyzer didn\'t run. Open the workflow run for the log.', gate: scanGate,
+                gates: gatesResult(relayGates, relayGates.scan ? ['The scan didn\'t run, so the scan gate couldn\'t be checked.'] : []) });
             return;
         }
     }
@@ -881,7 +1536,8 @@ async function stepScan() {
     try {
         report = JSON.parse(fs.readFileSync(outFile, 'utf8'));
     } catch (e) {
-        writeResult('scan', { status: 'Error', total: 0, blocking: 0, files, violations: [], message: 'The scan report couldn\'t be read.' });
+        writeResult('scan', { status: 'Error', total: 0, blocking: 0, files, violations: [], message: 'The scan report couldn\'t be read.',
+            gate: scanGate, gates: gatesResult(relayGates, relayGates.scan ? ['The scan report couldn\'t be read, so the scan gate couldn\'t be checked.'] : []) });
         return;
     }
     const root = process.cwd() + path.sep;
@@ -901,8 +1557,12 @@ async function stepScan() {
     const counts = {};
     violations.forEach((v) => { counts[v.severityLabel] = (counts[v.severityLabel] || 0) + 1; });
     const blocking = violations.filter((v) => v.severity <= threshold).length;
+    const evaluated = evaluateScanGate(violations, relayGates);
+    const gates = gatesResult(relayGates, evaluated.failures);
+    gatesSummary('scan', gates);
+    const messages = [blocking ? `${blocking} violation(s) at ${SEVERITY[threshold]} or above.` : ''].concat(gates.failures).filter(Boolean);
     writeResult('scan', {
-        status: blocking ? 'Failed' : 'Passed',
+        status: blocking || !gates.passed ? 'Failed' : 'Passed',
         total: violations.length,
         blocking,
         threshold,
@@ -911,7 +1571,9 @@ async function stepScan() {
         counts,
         files,
         violations: violations.slice(0, 200),
-        message: blocking ? `${blocking} violation(s) at ${SEVERITY[threshold]} or above.` : ''
+        message: messages.join(' ').slice(0, 1500),
+        gate: evaluated.gate,
+        gates
     });
 }
 
@@ -1140,12 +1802,13 @@ function writesRaiseResult() {
 
 /**
  * results/<REQUEST_ID>/raise.json, the same shape for modes hub and promote:
- * { status: 'Opened' | 'Failed', mode, branch, target, sha, pr, url, commits, conflicts, deleted, message }.
- * deleted: the Type:Name entries mode hub removed from BRANCH (always [] for promote).
+ * { status: 'Opened' | 'Failed', mode, branch, target, sha, pr, url, commits, conflicts, deleted, valuesTokenized, message }.
+ * deleted: the Type:Name entries mode hub removed from BRANCH (always [] for promote). valuesTokenized: how many
+ * occurrences of the source environment's values (.relay/values.json) became {{relay:NAME}} (always 0 for promote).
  */
 function raiseResult(status, data) {
     writeResult('raise', { status, mode, branch, target, sha: null, pr: null, url: null,
-        commits: [], conflicts: [], deleted: [], message: '', ...data });
+        commits: [], conflicts: [], deleted: [], valuesTokenized: 0, message: '', ...data });
 }
 
 /** Ends the raise; a hub run first says why in raise.json. */
@@ -1225,6 +1888,12 @@ async function stepRaise() {
         const args = ['project', 'retrieve', 'start', '--target-org', 'source-org', '--ignore-conflicts', '--wait', '30'];
         components.forEach((c) => args.push('--metadata', c.entry));
         run('sf', args, { stdio: ['ignore', 'inherit', 'inherit'] });
+        // The org's own values (its URLs, ids, ...) go into the branch as {{relay:NAME}} placeholders.
+        const retrieved = [...new Set(git(['ls-files', '-z', '-m', '-o', '--exclude-standard', '--', sourcePath()]).split('\0').filter(Boolean))];
+        const tokens = tokenizeFiles(retrieved, sourceEnv);
+        if (tokens.error) {
+            fail(tokens.error);
+        }
     }
 
     const missing = [];
@@ -1437,6 +2106,12 @@ async function raiseFromHub() {
         }
         git(['rm', '-q', '--', zipFile]);
     }
+    // The developer org's own values go into the branch as {{relay:NAME}} placeholders.
+    const tokens = tokenizeFiles(copied.map((r) => path.join(sourcePath(), r)), sourceEnv);
+    if (tokens.error) {
+        raiseFailed(tokens.error, { deleted });
+    }
+    const valuesTokenized = tokens.count;
     if (fs.existsSync(markerFile)) {
         if (gitQuiet(['ls-files', '--error-unmatch', '--', markerFile]) !== null) {
             git(['rm', '-q', '-f', '--', markerFile]);
@@ -1465,7 +2140,7 @@ async function raiseFromHub() {
         testsLine(),
         'Every item was selected and reviewed in Release Relay. Approve it in Salesforce; Release Relay merges it.'
     ].filter(Boolean).join('\n\n');
-    await openAndRecord(body, { sha, deleted });
+    await openAndRecord(body, { sha, deleted, valuesTokenized });
 }
 
 /**
@@ -1563,18 +2238,44 @@ async function stepValidate() {
         validatedTree = git(['rev-parse', 'HEAD^{tree}']); // a quick deploy needs exactly this tree
         if (!plan) {
             writeResult('validate', deployExcluded.length
-                ? { status: 'Failed', message: nothingLeftMessage(), excluded: deployExcluded.slice(0, 1000) }
-                : { status: 'Skipped', message: 'Nothing deployable changed under ' + sourcePath() + '.' });
+                ? { status: 'Failed', message: nothingLeftMessage(), excluded: deployExcluded.slice(0, 1000), gates: gatesResult(relayGates, []) }
+                : { status: 'Skipped', message: 'Nothing deployable changed under ' + sourcePath() + '.', gates: gatesResult(relayGates, []) });
+            return;
+        }
+        // Per-org values are filled for the TARGET org, so a quick deploy of this validation sends them too.
+        const valuesProblem = prepareDeployValues(plan, targetEnv);
+        if (valuesProblem) {
+            writeResult('validate', { status: 'Failed', changed: plan.changed, deleted: plan.deletedList, mergedWith, validatedTree,
+                environment: targetEnv, ok: false, message: valuesProblem.slice(0, 1500), gates: gatesResult(relayGates, []) });
+            return;
+        }
+        // Gates that need no org: a broken gates file, Apex without tests. They fail before anything is sent.
+        const early = gatesResult(relayGates, evaluateTestsGate(plan.apex, testLevelFor(plan).testLevel, relayGates));
+        if (!early.passed) {
+            gatesSummary('validate', early);
+            writeResult('validate', { status: 'Failed', changed: plan.changed, deleted: plan.deletedList, mergedWith, validatedTree,
+                environment: targetEnv, ok: false, testLevel: testLevelFor(plan).testLevel, message: early.failures.join(' ').slice(0, 1500),
+                gates: early });
             return;
         }
         login('target-org');
     } catch (e) {
-        writeResult('validate', { status: 'Error', message: e.message.slice(0, 1500) });
+        writeResult('validate', { status: 'Error', message: e.message.slice(0, 1500), gates: gatesResult(relayGates, []) });
         return;
     }
     const r = deployTo('target-org', plan, true);
-    writeResult('validate', { status: r.ok ? 'Passed' : 'Failed', changed: plan.changed, deleted: plan.deletedList,
-        mergedWith, validatedTree, environment: targetEnv, ...r });
+    // The coverage gate reads the coverage of a validation that passed and ran tests.
+    let coverageCheck = { failures: [], coverage: null };
+    if (r.ok && TESTED_LEVELS.includes(r.testLevel) && r.testsRun > 0) {
+        coverageCheck = evaluateCoverageGate(r.codeCoverage, plan.apex, r.testLevel, relayGates);
+    }
+    const gates = gatesResult(relayGates, coverageCheck.failures);
+    gatesSummary('validate', gates);
+    const passed = r.ok && gates.passed;
+    writeResult('validate', { status: passed ? 'Passed' : 'Failed', changed: plan.changed, deleted: plan.deletedList,
+        mergedWith, validatedTree, environment: targetEnv, ...r, ok: passed,
+        message: r.ok && !gates.passed ? gates.failures.join(' ').slice(0, 1500) : r.message,
+        gates, ...(coverageCheck.coverage ? { coverage: coverageCheck.coverage } : {}) });
 }
 
 const CONFLICT_TEXT_LIMIT = 15000;
@@ -1815,11 +2516,18 @@ async function stepDeploy() {
                 : { status: 'Deployed', sha, message: 'Nothing deployable changed under ' + sourcePath() + '.' });
             return;
         }
+        const valuesProblem = prepareDeployValues(plan, targetEnv);
+        if (valuesProblem) {
+            writeResult('deploy', { status: 'Failed', sha, changed: plan.changed, deleted: plan.deletedList, message: valuesProblem.slice(0, 1500) });
+            process.exit(1);
+        }
         login('target-org');
     } catch (e) {
         writeResult('deploy', { status: 'Failed', sha, message: e.message.slice(0, 1500) });
         process.exit(1);
     }
+    // The org's current versions of what this deploy changes, for a rollback. Never blocks the deploy.
+    const snapshot = takeSnapshot(plan, sha);
     const check = quickDeployCheck(sha);
     let r = null;
     let quickNote = check.note;
@@ -1845,7 +2553,7 @@ async function stepDeploy() {
         }
     }
     writeResult('deploy', { status: r.ok ? 'Deployed' : 'Failed', sha, changed: plan.changed, deleted: plan.deletedList,
-        ...r, quick, quickNote: quickNote || '' });
+        ...r, quick, quickNote: quickNote || '', snapshot });
     if (!r.ok) {
         process.exit(1);
     }
@@ -1901,6 +2609,11 @@ function quickDeployCheck(sha) {
     // The validation must have used the same exclude setting: an older pipeline's validation included every file.
     if ((val.selfUpdate === true) !== selfUpdate() || (!selfUpdate() && !Array.isArray(val.excluded) && deployExcluded.length)) {
         return { note: 'The validation used a different exclude list setting (selfUpdate, or a pipeline before version 11), so it was deployed in full.' };
+    }
+    // The validation sent the per-org values of its time: a change to .relay/values.json since then needs a full deploy.
+    const validatedValues = val.values && typeof val.values.hash === 'string' ? val.values.hash : '';
+    if (validatedValues !== ((deployValues && deployValues.hash) || '')) {
+        return { note: `The per-org values (${VALUES_FILE}) aren't the ones the validation used, so it was deployed in full.` };
     }
     if (val.environment && val.environment !== targetEnv) {
         return { note: `The validation ran against ${val.environment}, not ${targetEnv}, so it was deployed in full.` };
@@ -2014,25 +2727,367 @@ async function stepSync() {
                     : `Nothing deployable changed under ${sourcePath()}. ${target} now includes ${branch}.${excludedNote()}` });
             return;
         }
+        const valuesProblem = prepareDeployValues(plan, targetEnv);
+        if (valuesProblem) {
+            stop({ sha: head, message: `${valuesProblem} Nothing was deployed or pushed.`.slice(0, 1500) });
+        }
         login('target-org');
     } catch (e) {
         stop({ sha: head, message: String(e.message || e).slice(0, 1500) });
     }
     plan.ownTests = false;
     plan.defaultTestLevel = apexChanged ? 'RunLocalTests' : 'NoTestRun';
+    const snapshot = takeSnapshot(plan, head);
     const r = deployTo('target-org', plan, false);
     if (!r.ok) {
-        stop({ sha: head, deployId: r.deployId || null, testsRun: r.testsRun || 0,
+        stop({ sha: head, deployId: r.deployId || null, testsRun: r.testsRun || 0, snapshot,
             message: `Deploying to ${targetEnv} failed, so ${target} wasn't updated: ${deployFailureText(r)}` });
     }
     try {
         push();
     } catch (e) {
-        stop({ sha: head, deployId: r.deployId || null, testsRun: r.testsRun || 0,
+        stop({ sha: head, deployId: r.deployId || null, testsRun: r.testsRun || 0, snapshot,
             message: `Deployed to ${targetEnv}, but pushing ${target} failed (branch rules?). The next sync deploys these changes again: ${String(e.message || e).slice(0, 500)}` });
     }
-    result('Deployed', { sha: head, deployId: r.deployId || null, testsRun: r.testsRun || 0,
+    result('Deployed', { sha: head, deployId: r.deployId || null, testsRun: r.testsRun || 0, snapshot,
         message: `Deployed ${plan.changed} change(s)${plan.deleted ? ` and ${plan.deleted} deletion(s)` : ''} from ${branch} (${r.testLevel}).${excludedNote()}` });
+}
+
+// ---------- rollback snapshots ----------
+
+const SNAPSHOT_PATH_RE = /^REL-\d{5,}\/[A-Za-z0-9._-]{1,80}\/[A-Za-z0-9._-]{1,80}$/;
+
+/** A path segment from a name: letters, digits, . _ - only. */
+function safeSegment(value) {
+    const s = String(value || '').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 80);
+    return !s || /^\.+$/.test(s) ? '_' : s;
+}
+
+/** This run's id for the snapshot folder: the hub's attempt token, else the provider's run id. */
+function snapshotRunId() {
+    if (runToken) {
+        return runToken;
+    }
+    if (env.GITHUB_RUN_ID) {
+        return `${env.GITHUB_RUN_ID}-${env.GITHUB_RUN_ATTEMPT || '1'}`;
+    }
+    return env.CI_JOB_ID || env.BITBUCKET_BUILD_NUMBER || env.BUILD_BUILDID || String(Date.now());
+}
+
+function xmlUnescape(value) {
+    return value.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+}
+
+/** The Type:Name members of a package.xml (or destructiveChanges*.xml). */
+function parsePackageXml(xml) {
+    const items = [];
+    for (const block of String(xml || '').matchAll(/<types>([\s\S]*?)<\/types>/g)) {
+        const type = (/<name>\s*([^<]+?)\s*<\/name>/.exec(block[1]) || [])[1];
+        if (!type) {
+            continue;
+        }
+        for (const m of block[1].matchAll(/<members>\s*([^<]+?)\s*<\/members>/g)) {
+            items.push({ type, name: xmlUnescape(m[1]) });
+        }
+    }
+    return items;
+}
+
+/**
+ * Sorts the components a snapshot asked for by what the retrieve said: found (in fileProperties), absent (a
+ * "cannot be found" message: the deploy adds them) or unresolved (neither; never restored or deleted by a rollback).
+ */
+function classifyRetrieved(requested, fileProperties, messages) {
+    const have = new Set();
+    for (const fp of asList(fileProperties)) {
+        if (fp && fp.type && fp.fullName) {
+            have.add(`${fp.type}:${fp.fullName}`.toLowerCase());
+        }
+    }
+    const missing = new Set();
+    for (const m of asList(messages)) {
+        const text = typeof m === 'string' ? m : String((m && (m.problem || m.message)) || '');
+        const hit = /Entity of type '([^']+)' named '([^']+)' cannot be found/i.exec(text);
+        if (hit) {
+            missing.add(`${hit[1]}:${hit[2]}`.toLowerCase());
+        }
+    }
+    const haveList = [...have];
+    const found = [];
+    const absent = [];
+    const unresolved = [];
+    for (const c of requested) {
+        const key = `${c.type}:${c.name}`.toLowerCase();
+        if (have.has(key) || haveList.some((h) => h.startsWith(key + '/'))) {
+            found.push(c);
+        } else if (missing.has(key)) {
+            absent.push(c);
+        } else {
+            unresolved.push(c);
+        }
+    }
+    return { found, absent, unresolved };
+}
+
+/**
+ * manifest.json of a snapshot: { request, environment, takenAt, sha, existing, added, deleted, unresolved }, each list
+ * Type:Name. existing: deployed components the org already had (restored by a rollback); added: deployed components
+ * the org didn't have (deleted by a rollback); deleted: components the release deletes that the org had (restored);
+ * unresolved: components the retrieve said nothing about (left alone).
+ */
+function buildSnapshotManifest(meta, deployItems, deletedItems, classified) {
+    const key = (c) => `${c.type}:${c.name}`;
+    const found = new Set(classified.found.map(key));
+    const absent = new Set(classified.absent.map(key));
+    const deployKeys = [...new Set(deployItems.map(key))];
+    const deletedKeys = [...new Set(deletedItems.map(key))].filter((k) => !deployKeys.includes(k));
+    return {
+        request: meta.request,
+        environment: meta.environment,
+        takenAt: meta.takenAt,
+        sha: meta.sha,
+        existing: deployKeys.filter((k) => found.has(k)).sort(),
+        added: deployKeys.filter((k) => absent.has(k)).sort(),
+        deleted: deletedKeys.filter((k) => found.has(k)).sort(),
+        unresolved: [...new Set(classified.unresolved.map(key))].sort()
+    };
+}
+
+/** Removes Release Relay's own fields (exclude list) from Metadata API object files, so a rollback never sends them. */
+function stripExcludedFields(objectName, xml) {
+    return xml.replace(/[ \t]*<fields>\s*<fullName>([^<]+)<\/fullName>[\s\S]*?<\/fields>\s*\n?/g, (block, fullName) =>
+        (excludeHit(`objects/${objectName}/fields/${fullName.trim()}.field-meta.xml`, () => false) ? '' : block));
+}
+
+function walkFiles(root) {
+    if (!fs.existsSync(root)) {
+        return [];
+    }
+    return fs.readdirSync(root, { recursive: true }).map(String).filter((f) => fs.statSync(path.join(root, f)).isFile())
+        .map((f) => f.split(path.sep).join('/')).sort();
+}
+
+/**
+ * Before a real deploy: retrieves the org's current versions of the deployment's components and of the components it
+ * deletes (Metadata API format), and commits them with manifest.json to release-relay-snapshots at
+ * <REQUEST_ID>/<environment>/<run id>/. Returns deploy.json's "snapshot": { branch, path, existing, added },
+ * { skipped } or { error } (a failed snapshot is a warning; the deploy goes ahead).
+ */
+function takeSnapshot(plan, sha) {
+    if (options.snapshot === false) {
+        return { skipped: 'Snapshots are off for this release (options.snapshot is false).' };
+    }
+    if (selfUpdate()) {
+        return { skipped: 'The hub updating itself (selfUpdate) takes no snapshot.' };
+    }
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-snapshot-'));
+    try {
+        const deployItems = parsePackageXml(fs.readFileSync(plan.pkg, 'utf8')).filter((c) => !c.name.includes('*'));
+        const deletedItems = plan.destructive ? parsePackageXml(fs.readFileSync(plan.destructive, 'utf8')) : [];
+        const requested = [...new Map(deployItems.concat(deletedItems).map((c) => [`${c.type}:${c.name}`, c])).values()];
+        if (!requested.length) {
+            return { skipped: 'Nothing to snapshot.' };
+        }
+        const requestPkg = path.join(tmp, 'package.xml');
+        fs.writeFileSync(requestPkg, manifest(apiVersion(), requested));
+        const retrieveDir = path.join(tmp, 'retrieve');
+        fs.mkdirSync(retrieveDir);
+        let raw;
+        try {
+            raw = execFileSync('sf', ['project', 'retrieve', 'start', '--manifest', requestPkg, '--target-metadata-dir', retrieveDir,
+                '--target-org', 'target-org', '--wait', '30', '--json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
+        } catch (e) {
+            raw = e.stdout ? String(e.stdout) : '';
+            if (!raw) {
+                throw new Error('The retrieve failed: ' + String(e.stderr || e.message).replace(/\s+/g, ' ').slice(0, 400));
+            }
+        }
+        let out;
+        try {
+            out = JSON.parse(raw);
+        } catch (e) {
+            throw new Error('The Salesforce CLI returned output that isn\'t JSON.');
+        }
+        const r = out.result || {};
+        if (out.status !== 0 && !r.fileProperties) {
+            throw new Error('The retrieve failed: ' + String(out.message || r.errorMessage || 'no reason given').slice(0, 400));
+        }
+        const zip = walkFiles(retrieveDir).find((f) => f.endsWith('.zip'));
+        const extracted = path.join(tmp, 'extracted');
+        fs.mkdirSync(extracted);
+        if (zip) {
+            execFileSync('unzip', ['-q', '-o', path.join(retrieveDir, zip), '-d', extracted], { stdio: ['ignore', 'pipe', 'pipe'] });
+        }
+        const pkgFile = walkFiles(extracted).filter((f) => f.split('/').pop() === 'package.xml').sort((a, b) => a.length - b.length)[0];
+        const root = pkgFile ? path.join(extracted, path.dirname(pkgFile)) : extracted;
+        const messages = asList(r.messages).concat(asList(r.response && r.response.messages), asList(out.warnings));
+        const classified = classifyRetrieved(requested, r.fileProperties, messages);
+        if (classified.found.length && !zip) {
+            throw new Error('The retrieve returned no files.');
+        }
+        const snap = buildSnapshotManifest({ request: requestId, environment: targetEnv, takenAt: new Date().toISOString(), sha },
+            deployItems, deletedItems, classified);
+        const keep = snap.existing.concat(snap.deleted).map((k) => {
+            const m = /^([^:]+):(.+)$/.exec(k);
+            return { type: m[1], name: m[2] };
+        });
+        // The snapshot's package.xml names exactly what it holds, so a rollback can deploy the folder as it is.
+        fs.writeFileSync(path.join(root, 'package.xml'), manifest(apiVersion(), keep));
+        for (const f of walkFiles(root).filter((x) => /^objects\/[^/]+\.object$/.test(x))) {
+            const file = path.join(root, f);
+            fs.writeFileSync(file, stripExcludedFields(path.basename(f, '.object'), fs.readFileSync(file, 'utf8')));
+        }
+        const snapPath = `${requestId}/${safeSegment(targetEnv)}/${safeSegment(snapshotRunId())}`;
+        const manifestFile = path.join(tmp, 'manifest.json');
+        fs.writeFileSync(manifestFile, JSON.stringify(snap, null, 1) + '\n');
+        const files = [{ rel: `${snapPath}/manifest.json`, abs: manifestFile }].concat(walkFiles(root)
+            .filter((f) => !/[\t\n\r]/.test(f)).map((f) => ({ rel: `${snapPath}/metadata/${f}`, abs: path.join(root, f) })));
+        commitFilesToBranch(SNAPSHOT_BRANCH, snapPath, files, `${requestId} ${targetEnv}: snapshot before deploying ${String(sha).slice(0, 7)}`);
+        summary(`**Snapshot:** ${snap.existing.length} component(s) as they were in ${targetEnv}, ${snap.added.length} new, `
+            + `${snap.deleted.length} to be deleted, saved to ${SNAPSHOT_BRANCH} at \`${snapPath}\` (MODE=rollback restores it).`
+            + (snap.unresolved.length ? ` ${snap.unresolved.length} component(s) couldn't be told apart (not rolled back): ${snap.unresolved.slice(0, 5).join(', ')}.` : ''));
+        return { branch: SNAPSHOT_BRANCH, path: snapPath, existing: snap.existing.length, added: snap.added.length };
+    } catch (e) {
+        const message = String((e && e.message) || e).slice(0, 500);
+        console.log(`::warning::No rollback snapshot was taken: ${message}`);
+        summary(`**Snapshot:** not taken (${message}). The deploy goes ahead; this deploy can't be rolled back by Release Relay.`);
+        return { error: message };
+    } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+    }
+}
+
+// ---------- step: rollback ----------
+
+/** The snapshot to roll back to: options.snapshotPath, else the latest for this release and environment. */
+function findSnapshot() {
+    if (!remoteBranchExists(SNAPSHOT_BRANCH)) {
+        throw new Error(`There are no snapshots yet (no ${SNAPSHOT_BRANCH} branch): nothing was deployed by pipeline version 13 or later.`);
+    }
+    fetchTip(SNAPSHOT_BRANCH);
+    const tip = `refs/remotes/origin/${SNAPSHOT_BRANCH}`;
+    const envDir = `${requestId}/${safeSegment(targetEnv)}`;
+    let snapPath = typeof options.snapshotPath === 'string' ? options.snapshotPath.trim().replace(/\/+$/, '') : '';
+    if (snapPath) {
+        if (!SNAPSHOT_PATH_RE.test(snapPath) || !snapPath.startsWith(envDir + '/') || snapPath.split('/').some((s) => /^\.+$/.test(s))) {
+            throw new Error(`snapshotPath "${snapPath.slice(0, 200)}" must look like ${envDir}/<id>: a snapshot of this release in this environment.`);
+        }
+    } else {
+        const ids = (gitQuiet(['ls-tree', '--name-only', `${tip}:${envDir}`]) || '').split('\n').filter(Boolean);
+        if (!ids.length) {
+            throw new Error(`No snapshot of ${targetEnv} for ${requestId}: Release Relay (version 13 or later) hasn't deployed it there, or snapshots were off.`);
+        }
+        const dated = ids.map((id) => {
+            let takenAt = '';
+            try {
+                takenAt = String(JSON.parse(gitQuiet(['show', `${tip}:${envDir}/${id}/manifest.json`]) || '{}').takenAt || '');
+            } catch (e) {
+                takenAt = '';
+            }
+            return { id, takenAt };
+        }).sort((a, b) => (a.takenAt < b.takenAt ? 1 : a.takenAt > b.takenAt ? -1 : (a.id < b.id ? 1 : -1)));
+        snapPath = `${envDir}/${dated[0].id}`;
+    }
+    const raw = gitQuiet(['show', `${tip}:${snapPath}/manifest.json`]);
+    if (!raw) {
+        throw new Error(`Snapshot ${snapPath} isn't on ${SNAPSHOT_BRANCH}.`);
+    }
+    let snap;
+    try {
+        snap = JSON.parse(raw);
+    } catch (e) {
+        throw new Error(`${snapPath}/manifest.json on ${SNAPSHOT_BRANCH} isn't valid JSON.`);
+    }
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-rollback-'));
+    process.on('exit', () => fs.rmSync(tmp, { recursive: true, force: true }));
+    const dir = path.join(tmp, 'x', snapPath, 'metadata');
+    if (gitQuiet(['cat-file', '-e', `${tip}:${snapPath}/metadata`]) !== null) {
+        const tar = path.join(tmp, 'snapshot.tar');
+        git(['archive', '--format=tar', '-o', tar, tip, '--', `${snapPath}/metadata`]);
+        fs.mkdirSync(path.join(tmp, 'x'));
+        execFileSync('tar', ['-xf', tar, '-C', path.join(tmp, 'x')], { stdio: ['ignore', 'pipe', 'pipe'] });
+    }
+    fs.mkdirSync(dir, { recursive: true });
+    return { path: snapPath, manifest: snap, dir };
+}
+
+/** Type:Name strings to items, Release Relay's own components left out. Returns { keep, skipped }. */
+function rollbackItems(list) {
+    const keep = [];
+    const skipped = [];
+    for (const entry of asList(list).map(String)) {
+        const m = /^([A-Za-z]{2,80}):(.+)$/.exec(entry);
+        if (!m) {
+            continue;
+        }
+        (componentExcluded(m[1], m[2]) ? skipped : keep).push({ type: m[1], name: m[2], entry });
+    }
+    return { keep, skipped };
+}
+
+/**
+ * MODE=rollback: deploys a snapshot back into TARGET_ENVIRONMENT's org: the components it holds (existing and deleted)
+ * as they were, and destructiveChangesPost for the ones the deploy added. Release branches aren't touched.
+ * Writes results/<REQUEST_ID>/rollback.json:
+ * { status: 'Rolled back' | 'Failed', environment, deployId, restored, removed, snapshot, message, testLevel, testsRun,
+ *   componentErrors, testFailures }.
+ */
+async function stepRollback() {
+    orgEnv = targetEnv;
+    const result = (status, data) => writeResult('rollback', { status, environment: targetEnv || null, deployId: null,
+        restored: 0, removed: 0, snapshot: null, message: '', ...data });
+    const stop = (data) => {
+        result('Failed', data);
+        process.exit(1);
+    };
+    if (mode !== 'rollback') {
+        fail('STEP=rollback needs MODE=rollback.');
+    }
+    let snap;
+    try {
+        snap = findSnapshot();
+    } catch (e) {
+        stop({ message: String(e.message || e).slice(0, 1500) });
+    }
+    const restore = rollbackItems(asList(snap.manifest.existing).concat(asList(snap.manifest.deleted)));
+    const remove = rollbackItems(snap.manifest.added);
+    const skipped = restore.skipped.concat(remove.skipped).map((c) => c.entry);
+    if (!restore.keep.length && !remove.keep.length) {
+        stop({ snapshot: snap.path, message: `Snapshot ${snap.path} holds nothing to roll back`
+            + (skipped.length ? ` (only Release Relay's own components: ${skipped.slice(0, 5).join(', ')}).` : '.') });
+    }
+    fs.writeFileSync(path.join(snap.dir, 'package.xml'), manifest(apiVersion(), restore.keep));
+    const destructive = path.join(snap.dir, 'destructiveChangesPost.xml');
+    fs.rmSync(destructive, { force: true });
+    if (remove.keep.length) {
+        fs.writeFileSync(destructive, manifest(apiVersion(), remove.keep));
+    }
+    try {
+        login('target-org');
+    } catch (e) {
+        stop({ snapshot: snap.path, message: String(e.message || e).slice(0, 1500) });
+    }
+    const tests = releaseTests();
+    const apex = restore.keep.concat(remove.keep).some((c) => APEX_TYPES.has(c.type));
+    // Tests given: those. Apex in production (or an org not confirmed as a sandbox): every local test. Else none.
+    const testLevel = tests && tests.length ? 'RunSpecifiedTests' : (apex && targetIsSandbox() !== true ? 'RunLocalTests' : 'NoTestRun');
+    const args = ['project', 'deploy', 'start', '--metadata-dir', snap.dir, '--target-org', 'target-org',
+        '--test-level', testLevel, '--wait', DEPLOY_WAIT, '--json'];
+    if (testLevel === 'RunSpecifiedTests') {
+        tests.forEach((t) => args.push('--tests', t));
+    }
+    const r = runDeploy(args, testLevel, testLevel === 'RunSpecifiedTests' ? tests : []);
+    const details = { deployId: r.deployId || null, snapshot: snap.path, testLevel, testsRun: r.testsRun || 0,
+        componentErrors: r.componentErrors || [], testFailures: r.testFailures || [] };
+    const skippedNote = skipped.length ? ` ${skipped.length} Release Relay component(s) were left alone (exclude list).` : '';
+    if (!r.ok) {
+        stop({ ...details, message: `Rolling ${targetEnv} back to snapshot ${snap.path} failed, so the org is unchanged: ${deployFailureText(r)}` });
+    }
+    const taken = snap.manifest.takenAt ? ` (taken ${snap.manifest.takenAt}` + (snap.manifest.sha ? `, before deploying ${String(snap.manifest.sha).slice(0, 7)})` : ')') : '';
+    const message = `Rolled ${targetEnv} back to snapshot ${snap.path}${taken}: restored ${restore.keep.length} component(s), `
+        + `removed ${remove.keep.length} the release had added (${testLevel}).${skippedNote} Git wasn't changed: a follow-up release brings the branches in line.`;
+    summary(`**Rollback:** ${message}`);
+    result('Rolled back', { ...details, restored: restore.keep.length, removed: remove.keep.length, message });
 }
 
 // ---------- step: auto (one job runs everything MODE needs) ----------
@@ -2040,6 +3095,8 @@ async function stepSync() {
 async function stepAuto() {
     if (mode === 'sync') {
         await stepSync();
+    } else if (mode === 'rollback') {
+        await stepRollback();
     } else if (['org', 'branch', 'promote', 'hub', 'resolve'].includes(mode)) {
         await stepRaise();
         await stepScan();
@@ -2078,7 +3135,8 @@ async function stepNotify() {
 
 // ---------- main ----------
 
-const STEPS = { raise: stepRaise, scan: stepScan, validate: stepValidate, merge: stepMerge, deploy: stepDeploy, sync: stepSync, auto: stepAuto };
+const STEPS = { raise: stepRaise, scan: stepScan, validate: stepValidate, merge: stepMerge, deploy: stepDeploy, sync: stepSync,
+    rollback: stepRollback, auto: stepAuto };
 
 async function main() {
     if (step === 'notify') {
@@ -2086,12 +3144,16 @@ async function main() {
         return;
     }
     checkCommonInputs();
+    // The pipeline's own settings, read before any step checks out another commit.
     loadExcludes();
-    if (selfUpdate() && target !== 'release-relay-hub') {
+    relayValues = parseValues(pipelineFile(VALUES_FILE));
+    relayValues.warnings.forEach((w) => console.log('::warning::' + w));
+    relayGates = parseGates(pipelineFile(GATES_FILE));
+    if (selfUpdate() && target !== 'release-relay-hub' && mode !== 'rollback') {
         summary(`**Note:** selfUpdate is set but the target is ${target}; the hub's own updates belong on release-relay-hub.`);
     }
     if (!STEPS[step]) {
-        fail('STEP must be raise, scan, validate, merge, deploy, sync or auto.');
+        fail('STEP must be raise, scan, validate, merge, deploy, sync, rollback or auto.');
     }
     preparePush();
     await STEPS[step]();

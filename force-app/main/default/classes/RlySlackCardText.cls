@@ -47,7 +47,7 @@ public with sharing class RlySlackCardText {
      * @return the line (mrkdwn)
      */
     public static String manualOnlySteps(RLY_Release__c rel) {
-        String approval = rel.Status__c == 'Ready for approval' ? RlySlackCard.WAITING : stateEmoji(rel.Approval_Status__c);
+        String approval = RlySlackCardState.awaitsApprover(rel) ? RlySlackCard.WAITING : stateEmoji(rel.Approval_Status__c);
         String deploy = stateEmoji(rel.Deploy_Status__c) + (rel.Deploy_Status__c == 'Deployed' ? ' Manual steps done' : ' Manual steps');
         return String.join(new List<String>{ ':white_circle: Scan, validation: ' + RlyManualOnly.NOT_NEEDED,
             approval + ' Approval', deploy }, '   ');

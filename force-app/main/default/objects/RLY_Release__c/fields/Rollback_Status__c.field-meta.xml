@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Rollback_Status__c</fullName>
+    <description>Hub: the latest rollback of this release in one org (Rollback_Org__c): Running (the pipeline deploys the snapshot taken before the deploy), Rolled back or Failed. Status__c stays as it was; Git is not changed.</description>
+    <label>Rollback Status</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Running</fullName>
+                <default>false</default>
+                <label>Rolling back</label>
+            </value>
+            <value>
+                <fullName>Rolled_Back</fullName>
+                <default>false</default>
+                <label>Rolled back</label>
+            </value>
+            <value>
+                <fullName>Failed</fullName>
+                <default>false</default>
+                <label>Rollback failed</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

@@ -170,3 +170,9 @@
 
 /* while the org's mode is read (RlyHubGuard.getHubStatus) */
 .rr-wait { position: relative; min-height: 120px; }
+
+/* Per-org values and Quality gates (board HubRollbackValuesGates 4): read-only, from the repository */
+.rr-repo-head { gap: 4px 12px; }
+.rr-table-wrap { overflow-x: auto; max-width: 100%; }
+.rr-values th, .rr-values td { font-size: 12px; vertical-align: top; }
+.rr-values td .rr-mono { white-space: nowrap; }

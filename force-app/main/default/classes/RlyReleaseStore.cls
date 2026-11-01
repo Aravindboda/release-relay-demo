@@ -141,7 +141,7 @@ public with sharing class RlyReleaseStore {
          */
         public RLY_Org__c readOrg(Id orgId) {
             List<RLY_Org__c> rows = [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Username__c, Consumer_Key__c, Client_Id__c,
-                                            Certificate__c, Branch__c, Git_Environment__c, Stage_Order__c
+                                            Certificate__c, Branch__c, Git_Environment__c, Stage_Order__c, Code_Scan__c
                                      FROM RLY_Org__c WHERE Id = :orgId WITH SYSTEM_MODE];
             return rows.isEmpty() ? null : rows[0];
         }
@@ -151,7 +151,7 @@ public with sharing class RlyReleaseStore {
          * @return the stage, or null
          */
         public RLY_Org__c readFirstStage() {
-            List<RLY_Org__c> rows = [SELECT Id, Name, Branch__c, Git_Environment__c FROM RLY_Org__c
+            List<RLY_Org__c> rows = [SELECT Id, Name, Branch__c, Git_Environment__c, Code_Scan__c FROM RLY_Org__c
                                      WHERE Role__c = 'Stage' WITH SYSTEM_MODE ORDER BY Stage_Order__c ASC NULLS LAST, Name LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
         }
@@ -162,7 +162,7 @@ public with sharing class RlyReleaseStore {
          */
         public List<RLY_Org__c> readRouteOrgs() {
             return [SELECT Id, Name, Role__c, Branch__c, Git_Environment__c, Stage_Order__c, Status__c, Source_Tracking__c, Environment__c,
-                           Hotfix_Two_Approvers__c
+                           Hotfix_Two_Approvers__c, Code_Scan__c
                     FROM RLY_Org__c WHERE Role__c IN ('Stage', 'Hub') WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }
 
@@ -206,7 +206,7 @@ public with sharing class RlyReleaseStore {
                     Release_Type__c, Is_Hotfix__c, Hotfix_Reason__c, Promoted_In__c, Promoted_In__r.Name, Carried_Releases__c,
                     Second_Approved_By__c, Second_Approved_By__r.Name, Second_Approved_On__c, Back_Merge_Result__c,
                     Target_Org__r.Role__c, Target_Org__r.Hotfix_Two_Approvers__c, Target_Org__r.Branch__c, Source_Org__r.Git_Environment__c,
-                    Deletions__c, Deletion_Count__c, Target_Org__r.Approval_Rule__c, Target_Org__r.Approval_Types__c,
+                    Deletions__c, Deletion_Count__c, Target_Org__r.Approval_Rule__c, Target_Org__r.Approval_Types__c, Target_Org__r.Code_Scan__c,
                     Flow_Actions__c, Flow_Results__c, Manual_Only__c
                 FROM RLY_Release__c WHERE Id = :releaseId WITH SYSTEM_MODE];
             return rows.isEmpty() ? null : rows[0];
