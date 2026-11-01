@@ -78,6 +78,8 @@ export default class RlyManualSteps extends LightningElement {
     /** Org names offered under Pick orgs (New Release passes the route; a release reads it when needed). */
     @api orgOptions;
     @api disabled = false;
+    /** Open org (RlyOrgLinks.OrgLink rows from the release page): admins and the deployment team get a "Log in to <org> ↗" link per org tab; the hub is never in it. */
+    @api orgLinks;
 
     /** New Release: the steps so far (StepInput rows), so they survive going back to the select step. */
     @api
@@ -235,6 +237,12 @@ export default class RlyManualSteps extends LightningElement {
         });
     }
     get selectedOrg() { return this.orgs.find((o) => o.orgId === this.selectedOrgId); }
+    /** The selected tab's login link, or null (not allowed, the hub, or no My Domain). */
+    get loginLink() {
+        const links = Array.isArray(this.orgLinks) ? this.orgLinks : [];
+        const link = links.find((l) => l.orgId === this.selectedOrgId);
+        return link && link.loginUrl ? { url: link.loginUrl, label: 'Log in to ' + link.name + ' ↗', title: 'Opens ' + link.name + ' in a new window' } : null;
+    }
     get panelLabel() { return this.selectedOrg ? 'Manual steps in ' + this.selectedOrg.orgName : 'Manual steps'; }
 
     /** The deploy gate: the deploy into this org waits for its open before deploy steps. */

@@ -79,3 +79,6 @@
 }
 .rr-grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 @media (max-width: 600px) { .rr-grid2 { grid-template-columns: minmax(0, 1fr); } }
+
+/* build 22: Log in to <org> ↗ on each org tab (admins and the deployment team) */
+.rr-login { min-height: 24px; line-height: 22px; padding: 0 10px; font-size: 12px; }
