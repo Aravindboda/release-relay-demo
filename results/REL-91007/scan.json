@@ -1,0 +1,112 @@
+{
+ "request": "REL-91007",
+ "step": "scan",
+ "status": "Passed",
+ "total": 6,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Moderate": 6
+ },
+ "files": [
+  "force-app/main/default/classes/RlyArchiveBatch.cls",
+  "force-app/main/default/classes/RlyArchiveController.cls",
+  "force-app/main/default/classes/RlyArchiveEligible.cls",
+  "force-app/main/default/classes/RlyArchiveNightly.cls",
+  "force-app/main/default/classes/RlyArchivePass.cls",
+  "force-app/main/default/classes/RlyArchiveRest.cls",
+  "force-app/main/default/classes/RlyArchiveRestTest.cls",
+  "force-app/main/default/classes/RlyArchiveRunner.cls",
+  "force-app/main/default/classes/RlyArchiveRuns.cls",
+  "force-app/main/default/classes/RlyArchiveRunsTest.cls",
+  "force-app/main/default/classes/RlyArchiveService.cls",
+  "force-app/main/default/classes/RlyArchiveSettings.cls",
+  "force-app/main/default/classes/RlyArchiveStats.cls",
+  "force-app/main/default/classes/RlyArchiveTest.cls",
+  "force-app/main/default/classes/RlyArchiveTestData.cls",
+  "force-app/main/default/classes/RlyArchiveViews.cls",
+  "force-app/main/default/classes/RlyHomeControllerTest.cls",
+  "force-app/main/default/classes/RlyHomeHealth.cls",
+  "force-app/main/default/lwc/rlyArchive/rlyArchive.html",
+  "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
+  "force-app/main/default/lwc/rlyArchiveText/rlyArchiveText.js",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/rlyReleaseGuide.html",
+  "force-app/main/default/lwc/rlyReleaseGuide/rlyReleaseGuide.js"
+ ],
+ "violations": [
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
+   "line": 787,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
+   "line": 791,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
+   "line": 797,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
+   "line": 807,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
+   "line": 812,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+   "line": 3140,
+   "message": "Inline rule disablement not allowed: @lwc/lwc/no-async-operation",
+   "url": null
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41357340710",
+ "finishedAt": "2026-11-01T22:29:47.634Z"
+}
