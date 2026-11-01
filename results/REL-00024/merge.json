@@ -1,0 +1,23 @@
+{
+ "request": "REL-00024",
+ "step": "merge",
+ "status": "Merged",
+ "pr": 91,
+ "sha": "9853f1f7d71b685f78564925b2a21b0a2435e40e",
+ "method": "merge",
+ "sync": [
+  {
+   "branch": "sit",
+   "status": "Conflict",
+   "message": "sit couldn't take prod automatically: 2 file(s) conflict (force-app/main/default/classes/RelayDemoGreeting.cls-meta.xml, force-app/main/default/classes/RelayDemoGreetingTest.cls-meta.xml)."
+  },
+  {
+   "branch": "dev1",
+   "status": "Conflict",
+   "message": "dev1 couldn't take prod automatically: 2 file(s) conflict (force-app/main/default/classes/RelayDemoGreeting.cls-meta.xml, force-app/main/default/classes/RelayDemoGreetingTest.cls-meta.xml)."
+  }
+ ],
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41325179872",
+ "finishedAt": "2026-11-01T16:13:22.431Z",
+ "attempt": "eb14bcf1b12c99d7f6469a328961caf7"
+}
