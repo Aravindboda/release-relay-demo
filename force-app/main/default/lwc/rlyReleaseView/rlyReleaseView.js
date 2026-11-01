@@ -64,10 +64,21 @@ const EVENT_LOOK = {
     Merged_Back: { title: 'Merged back', icon: 'utility:merge', cls: 'rr-tli rr-c-git' },
     Promoted: { title: 'Promoted', icon: 'utility:forward', cls: 'rr-tli rr-c-git' },
     Back_Promoted: { title: 'Back promoted', icon: 'utility:back', cls: 'rr-tli rr-c-git' },
-    Comment: { title: 'Comment', icon: 'utility:comments', cls: 'rr-tli rr-c-git' }
+    Comment: { title: 'Comment', icon: 'utility:comments', cls: 'rr-tli rr-c-git' },
+    Rolled_Back: { title: 'Rolled back', icon: 'utility:undo', cls: 'rr-tli rr-c-rb' },
+    Rollback_Failed: { title: 'Rollback failed', icon: 'utility:error', cls: 'rr-tli rr-c-fail' }
 };
 /** Types whose title names the org: "Deployed to <org>", "Approved for <org>"… */
-const EVENT_ORG_WORD = { Approved: ' for ', Rejected: ' for ', Deployed: ' to ', Deploy_Failed: ' in ', Validation: ' in ', Manual_Step: ' in ', Flow_Activated: ' in ', Auto_Approved: ' for ' };
+const EVENT_ORG_WORD = {
+    Approved: ' for ', Rejected: ' for ', Deployed: ' to ', Deploy_Failed: ' in ', Validation: ' in ', Manual_Step: ' in ',
+    Flow_Activated: ' in ', Auto_Approved: ' for ', Rolled_Back: ' in ', Rollback_Failed: ' in '
+};
+/** RLY_Release__c.Rollback_Status__c (RlyRollbackState): the header pill's tone per rollback state (board HubRollbackValuesGates 2). */
+const ROLLBACK_PILL = { Running: 'rr-pill rr-pill-info', Rolled_Back: 'rr-pill rr-pill-wait', Failed: 'rr-pill rr-pill-bad' };
+const ROLLED_BACK = 'Rolled_Back';
+const ROLLBACK_RUNNING = 'Running';
+/** Where .relay/gates.json failures come from when a result doesn't name the file. */
+const GATES_FILE = '.relay/gates.json';
 /** Events whose outcome (passed / failed) is in their detail line. */
 const CHECK_EVENTS = ['Scan', 'Validation', 'Flow_Activated'];
 /** RLY_Release__c.Flow_Actions__c / FlowChoice.choice → the Review step's label. */
@@ -214,6 +225,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     set releaseId(value) {
         this._releaseId = value;
         this.detail = undefined;
+        this.lastRollback = undefined;
         if (value && this.statusRead && !this.gated) {
             this.load();
         }
@@ -285,6 +297,16 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             this.startCountdown();
         }
         this.dispatchEvent(new CustomEvent('changed', { detail: this.detail ? this.detail.release.Status__c : null }));
+        this.tellRollback();
+    }
+
+    /** The rollback state moved (started, rolled back, failed): the list around this view reads its rows again. */
+    tellRollback() {
+        const state = this.detail && this.detail.rollback ? this.detail.rollback.status || '' : '';
+        if (this.lastRollback !== undefined && state !== this.lastRollback) {
+            this.dispatchEvent(new CustomEvent('rollbackchanged', { detail: state }));
+        }
+        this.lastRollback = state;
     }
 
     refresh() {
@@ -319,6 +341,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     /** The header pill: Detail.phase (for example Resolving conflicts), else the status. */
     get phase() { return (this.detail && this.detail.phase) || this.rel.Status__c; }
     get phaseCls() { return pillCls(this.phase); }
+    /** The header and Status pill: the latest rollback ("Rolled back in PROD") when there is one, else the phase. */
+    get headPill() { return this.rollback.label || this.phase; }
+    get headPillCls() { return this.rollback.label ? (ROLLBACK_PILL[this.rollback.status] || 'rr-pill rr-pill-none') : this.phaseCls; }
     get resolving() { return this.phase === RESOLVING; }
     get provider() { return providerOf(this.detail, this.rel.PR_URL__c); }
     /** Pull request, merge request (GitLab) or the neutral change request when the provider isn't known. */
@@ -343,10 +368,11 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             } else if (i === pos.index) {
                 state = pos.failed ? 'lost' : 'current';
             }
+            const rolledBack = p.key === 'deploy' && this.rollback.status === ROLLED_BACK;
             return {
                 ...p,
-                label: p.key === 'pr' ? this.crLabel : p.label,
-                cls: 'rr-path-item rr-path-' + state,
+                label: rolledBack ? 'Rolled back' : (p.key === 'pr' ? this.crLabel : p.label),
+                cls: 'rr-path-item rr-path-' + (rolledBack ? 'rb' : state),
                 current: i === pos.index ? 'step' : null,
                 stateText: { done: 'Done', lost: 'Failed', current: 'Current', todo: 'Not yet' }[state]
             };
@@ -414,6 +440,10 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         steps.push(this.approvalStep());
         steps.push(this.deployStep());
         this.backMergeSteps().forEach((st) => steps.push(st));
+        const rollbackStep = this.rollbackStep();
+        if (rollbackStep) {
+            steps.push(rollbackStep);
+        }
         const backPromote = this.backPromoteStep();
         if (backPromote) {
             steps.push(backPromote);
@@ -548,9 +578,13 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         if (scan.message && !scan.total) {
             return scan.message;
         }
+        const gate = scan.gate && scan.gate.failAtPriority ? ' · gate: fails at priority ' + scan.gate.failAtPriority + ' or higher' : '';
+        if (scan.gate && scan.gate.findings) {
+            return scan.gate.findings + ' scan finding' + (scan.gate.findings === 1 ? '' : 's') + ' at priority ' + scan.gate.failAtPriority + ' or higher' + gate;
+        }
         if (scan.total) {
             return scan.total + ' finding' + (scan.total === 1 ? '' : 's') + ', ' + (scan.blocking || 0) + ' at '
-                + (scan.thresholdLabel || 'High') + ' or above' + (scan.blocking ? ' (blocking)' : ': below the bar, so they don\'t block');
+                + (scan.thresholdLabel || 'High') + ' or above' + (scan.blocking ? ' (blocking)' : ': below the bar, so they don\'t block') + gate;
         }
         return r.Scan_Status__c === 'Passed' ? 'No findings.' : '';
     }
@@ -569,7 +603,14 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         }
         return (val.status === 'Passed' ? 'Check-only deploy passed' : val.message || val.status)
             + (val.testLevel ? ' · ' + val.testLevel + (val.testsRun ? ', ' + val.testsRun + ' tests run' : '') : '')
-            + (val.mergedWith ? ' · merged with ' + r.Target_Branch__c + ' at ' + String(val.mergedWith).substring(0, 7) : '');
+            + (val.mergedWith ? ' · merged with ' + r.Target_Branch__c + ' at ' + String(val.mergedWith).substring(0, 7) : '')
+            + this.valuesText(val);
+    }
+
+    /** Per-org values (.relay/values.json) the pipeline put in for the target: " · 2 per-org values filled in". */
+    valuesText(result) {
+        const n = result && result.values ? Number(result.values.replaced) || 0 : 0;
+        return n ? ' · ' + n + (n === 1 ? ' per-org value' : ' per-org values') + ' filled in' : '';
     }
 
     approvalStep() {
@@ -697,17 +738,46 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
 
     // ---------- results ----------
 
+    /**
+     * Findings with their priority (PMD 1 = most serious, the pipeline's severity). With a scan gate (scan.json gate,
+     * .relay/gates.json) the findings that broke it get a red pill and the rest grey; without one, by severity.
+     */
     get violations() {
-        return (this.scan.violations || []).slice(0, 100).map((v, i) => ({
-            key: 'v' + i, ...v, sevCls: SEVERITY_CLS[v.severityLabel] || 'rr-pill rr-pill-none',
-            where: (v.file || '').split('/').pop() + (v.line ? ':' + v.line : '')
-        }));
+        const gate = this.scan.gate && Number(this.scan.gate.failAtPriority);
+        return (this.scan.violations || []).slice(0, 100).map((v, i) => {
+            const priority = Number(v.severity) || '';
+            let sevCls = SEVERITY_CLS[v.severityLabel] || 'rr-pill rr-pill-none';
+            if (gate) {
+                sevCls = priority && priority <= gate ? 'rr-pill rr-pill-bad' : 'rr-pill rr-pill-none';
+            }
+            return {
+                key: 'v' + i, ...v, priority: priority || v.severityLabel || '', sevCls: sevCls + ' rr-prio',
+                where: (v.file || '').split('/').pop() + (v.line ? ':' + v.line : '')
+            };
+        });
+    }
+
+    /** gates.failures of scan.json and validate.json (.relay/gates.json), shown as they are. */
+    get gateFailures() {
+        const out = [];
+        [this.scan, this.validation].forEach((r, n) => {
+            const g = r && r.gates;
+            if (g && g.passed === false && Array.isArray(g.failures)) {
+                g.failures.forEach((f, i) => out.push({ key: 'g' + n + '-' + i, text: String(f), file: g.file }));
+            }
+        });
+        return out;
+    }
+    get hasGateFailures() { return this.gateFailures.length > 0; }
+    get gatesFile() {
+        const named = this.gateFailures.find((g) => g.file);
+        return named ? named.file : GATES_FILE;
     }
     get hasViolations() { return this.violations.length > 0; }
 
     get problems() {
         const out = [];
-        [['Validation', this.validation], ['Deploy', this.deploy]].forEach(([label, r]) => {
+        [['Validation', this.validation], ['Deploy', this.deploy], ['Rollback', this.rollbackResult]].forEach(([label, r]) => {
             (r.componentErrors || []).forEach((c, i) => out.push({ key: label + 'c' + i, label, what: c.type + ' ' + c.name + (c.line ? ':' + c.line : ''), message: c.problem }));
             (r.testFailures || []).forEach((t, i) => out.push({ key: label + 't' + i, label, what: t.name + '.' + t.method, message: t.message }));
             (r.coverageWarnings || []).forEach((w, i) => out.push({ key: label + 'w' + i, label, what: w.name || 'Coverage', message: w.message }));
@@ -1016,6 +1086,10 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         }
         lines.push('Approval: ' + this.approvalSummary);
         lines.push('Status: ' + this.phase + (r.Merge_Commit__c ? ' · merge ' + r.Merge_Commit__c.substring(0, 7) : ''));
+        if (this.rollback.label) {
+            lines.push('Rollback: ' + this.rollback.label + ' by ' + (this.rollback.byName || '') + ', ' + when(this.rollback.rolledBackOn)
+                + (this.rollback.reason ? ': ' + this.rollback.reason : ''));
+        }
         this.flowRows.forEach((f) => lines.push('Flow ' + f.name + ': ' + (f.parts.length ? f.parts.map((p) => p.text).join(' · ') : f.choiceText)));
         if (d.manualSummary) {
             lines.push('Manual steps: ' + d.manualSummary);
@@ -1071,6 +1145,74 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
 
     toast(message, variant) {
         this.dispatchEvent(new ShowToastEvent({ title: (this.rel.Name || 'Release'), message, variant }));
+    }
+
+    // ---------- roll back (board HubRollbackValuesGates, panels 1 and 2) ----------
+
+    rollbackOpen = false;
+    /** The rollback state the page last read (undefined before the first read). */
+    lastRollback;
+
+    /** Detail.rollback (RlyRollbackView.View): the latest rollback and whether this user may roll back. */
+    get rollback() { return (this.detail && this.detail.rollback) || {}; }
+    get rollbackResult() { return parse(this.rollback.resultJson) || {}; }
+    /** Release Relay admins and the deployment team, on the hub, for a deployed release; hidden for everyone else. */
+    get showRollback() { return this.rollback.canRollBack === true && !this.hubCopy; }
+    get rollbackDisabled() { return this.rollback.busy === true || this.busy; }
+    get rollbackTitle() { return this.rollbackDisabled ? 'A deploy or rollback is running' : 'Put an org back the way it was before this release'; }
+
+    openRollback() {
+        this.rollbackOpen = true;
+    }
+
+    closeRollback() {
+        this.rollbackOpen = false;
+    }
+
+    /** The dialog started the rollback: read the release again, which follows the rollback until it ends. */
+    rollbackStarted(event) {
+        this.rollbackOpen = false;
+        this.toast('Rolling back in ' + ((event.detail && event.detail.orgName) || 'the org') + '. Git is not changed.', 'success');
+        this.load();
+    }
+
+    /** "PROD was rolled back on 1 Nov 14:20 by Ana. The prod branch in Git still has this release's changes: …" */
+    get rolledBackNotice() {
+        const rb = this.rollback;
+        if (rb.status !== ROLLED_BACK) {
+            return '';
+        }
+        const branch = this.rollbackResult.branch || '';
+        return rb.orgName + ' was rolled back on ' + when(rb.rolledBackOn) + (rb.byName ? ' by ' + rb.byName : '') + '. The '
+            + (branch ? branch + ' branch' : 'branch') + ' in Git still has this release\'s changes: raise a release to fix the branch.';
+    }
+
+    /** The Roll back <org> step: running, done (restored, removed) or failed (the errors are under Deployment errors). */
+    rollbackStep() {
+        const rb = this.rollback;
+        if (!rb.status) {
+            return null;
+        }
+        const res = this.rollbackResult;
+        const tests = Array.isArray(res.tests) ? res.tests.length : 0;
+        let state = 'Running';
+        let label = 'Running';
+        let text = 'Started ' + timeOnly(rb.rolledBackOn) + (rb.byName ? ' by ' + rb.byName : '') + ' · deploying the snapshot'
+            + (tests ? ', running ' + tests + (tests === 1 ? ' test' : ' tests') : '');
+        if (rb.status === ROLLED_BACK) {
+            state = 'Done';
+            label = 'Done';
+            text = when(rb.rolledBackOn) + ' · restored ' + (res.restored || 0) + ', removed ' + (res.removed || 0)
+                + (res.deployId ? ' · ' + res.deployId : '') + (res.testsRun ? ' · ' + res.testsRun + ' tests run' : '');
+        } else if (rb.status !== ROLLBACK_RUNNING) {
+            state = 'Failed';
+            label = 'Failed';
+            text = res.message || 'The rollback failed. The org is unchanged.';
+        }
+        return {
+            key: 'rollback', title: 'Roll back ' + (rb.orgName || ''), state, label, badge: state === 'Running' ? '↺' : '',
+            text, reason: rb.reason ? '“' + rb.reason + '”' : '', reasonCls: 'rr-small rr-weak', link: res.runUrl || '', linkLabel: 'Pipeline run'
+        };
     }
 
     // ---------- actions ----------

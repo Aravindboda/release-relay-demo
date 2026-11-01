@@ -1,0 +1,72 @@
+<template>
+    <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="rr-rb-title" aria-describedby="rr-rb-intro"
+        class="slds-modal slds-fade-in-open rr-modal" onkeydown={handleKeydown}>
+        <div class="slds-modal__container rr-modal-container">
+            <button type="button" class="slds-button slds-button_icon rr-close" title="Close" onclick={cancel}>
+                <lightning-icon icon-name="utility:close" size="x-small" alternative-text="Close"></lightning-icon>
+            </button>
+            <div class="slds-modal__header rr-modal-head">
+                <h1 id="rr-rb-title" class="slds-modal__title slds-hyphenate">{heading}</h1>
+                <p id="rr-rb-intro" class="rr-small rr-weak">Puts an org back the way it was before this release. Nothing happens until you press Roll back.</p>
+            </div>
+            <div class="slds-modal__content rr-modal-body slds-is-relative">
+                <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+                <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+
+                <p class="rr-label"><abbr class="slds-required" title="required">*</abbr>Org to roll back</p>
+                <div class="rr-chips" role="radiogroup" aria-label="Org to roll back">
+                    <template for:each={chips} for:item="c">
+                        <button key={c.key} type="button" role="radio" class={c.cls} aria-checked={c.checked} data-id={c.orgId}
+                            disabled={c.off} title={c.title} onclick={pickOrg}>
+                            <template lwc:if={c.picked}><lightning-icon icon-name="utility:check" size="xx-small" variant="inverse" alternative-text="" class="rr-chip-icon"></lightning-icon></template>
+                            <strong>{c.orgName}</strong><span class="rr-chip-sub">{c.sub}</span>
+                        </button>
+                    </template>
+                </div>
+                <template lwc:if={noChoices}><p class="rr-small rr-weak">{noChoicesText}</p></template>
+
+                <template lwc:if={preview}>
+                    <p class="rr-kicker rr-head-line">{whatHeading}</p>
+                    <ul class="rr-what">
+                        <template lwc:if={restoreCount}><li>Restores <strong>{restoreText}</strong> to how they were before {ownerName} deployed{deployedText}.</li></template>
+                        <template lwc:if={removeCount}><li>Removes <strong>{removeText}</strong> the release added.</li></template>
+                        <li><strong>Git is not changed</strong> — raise a release to fix the branch.</li>
+                    </ul>
+                    <template lwc:if={promotionNote}><div class="rr-msg rr-msg-info">{promotionNote}</div></template>
+
+                    <dl class="rr-snap">
+                        <dt>Snapshot</dt><dd>{takenText} · <span class="rr-mono">{snapshotPath}</span></dd>
+                        <template lwc:if={restoreCount}><dt>Restore</dt><dd>{restoreList}</dd></template>
+                        <template lwc:if={removeCount}><dt>Remove</dt><dd>{removeList}</dd></template>
+                    </dl>
+
+                    <template for:each={laterLines} for:item="l">
+                        <div key={l.key} class="rr-msg rr-msg-warn" role="status">{l.text}</div>
+                    </template>
+
+                    <template lwc:if={production}>
+                        <p class="rr-label">Tests in production</p>
+                        <div class="rr-seg" role="radiogroup" aria-label="Tests in production">
+                            <template for:each={testChoices} for:item="t">
+                                <button key={t.value} type="button" role="radio" class={t.cls} aria-checked={t.checked} data-value={t.value}
+                                    disabled={t.off} onclick={pickTests}>{t.label}</button>
+                            </template>
+                        </div>
+                        <p class="rr-small rr-weak">{testsHint}</p>
+                    </template>
+                    <template lwc:else>
+                        <p class="rr-small rr-weak">No tests run in a sandbox rollback.</p>
+                    </template>
+                </template>
+
+                <lightning-input label="Why roll back" required max-length="255" value={reason} onchange={handleReason}
+                    placeholder="What went wrong after the deploy" class="rr-reason"></lightning-input>
+            </div>
+            <div class="slds-modal__footer rr-modal-foot">
+                <lightning-button label="Cancel" onclick={cancel} disabled={busy}></lightning-button>
+                <lightning-button variant="destructive" label="Roll back" onclick={confirm} disabled={confirmDisabled}></lightning-button>
+            </div>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+</template>

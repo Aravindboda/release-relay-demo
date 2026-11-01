@@ -1,6 +1,6 @@
 /**
- * @description The evidence document's tables (RlyEvidenceHtml): manual steps per org, flows, the history, and the
- * table, escaping and date helpers.
+ * @description The evidence document's tables (RlyEvidenceHtml): manual steps per org, flows, the latest rollback,
+ * quality gate failures, the history, and the table, escaping and date helpers.
  */
 public with sharing class RlyEvidenceTables {
 
@@ -38,6 +38,47 @@ public with sharing class RlyEvidenceTables {
             rows.add(new List<String>{ r.flow, RlyFlowResults.line(r) });
         }
         return rows.isEmpty() ? '' : '<h2>Flows</h2>' + table(new List<String>{ 'Flow', 'Result' }, rows);
+    }
+
+    /**
+     * @description The rollback section (empty when the release was never rolled back).
+     * @param row the rollback fields (RlyRollbackState.rowOf)
+     * @return the HTML
+     */
+    public static String rollback(RLY_Release__c row) {
+        String label = RlyRollbackState.label(row);
+        if (label == null) {
+            return '';
+        }
+        Map<String, Object> r = RlyRollbackState.result(row);
+        List<List<String>> rows = new List<List<String>>{
+            new List<String>{ 'Status', label },
+            new List<String>{ 'By', RlyRollbackState.byName(row) + ', ' + stamp(row.Rollback_On__c) },
+            new List<String>{ 'Why', row.Rollback_Reason__c },
+            new List<String>{ 'Snapshot', RlyEvidenceText.str(r.get('snapshot')) },
+            new List<String>{ 'Result', RlyRollbackState.counts(row) + ' · ' + RlyEvidenceText.text(RlyEvidenceText.str(r.get('message'))) },
+            new List<String>{ 'Deploy id', RlyEvidenceText.str(r.get('deployId')) },
+            new List<String>{ 'Tests', RlyEvidenceText.text(RlyEvidenceText.str(r.get('testLevel'))) },
+            new List<String>{ 'Git', 'Not changed by a rollback: a follow-up release fixes the branch.' }
+        };
+        return '<h2>Rollback</h2>' + table(null, rows);
+    }
+
+    /**
+     * @description The quality gate failures (.relay/gates.json) the code scan and the validation recorded.
+     * @param rel the release, with Scan_Result__c and Validation_Result__c
+     * @return the failures, scan first
+     */
+    public static List<String> gateFailures(RLY_Release__c rel) {
+        List<String> out = new List<String>();
+        for (String body : new List<String>{ rel.Scan_Result__c, rel.Validation_Result__c }) {
+            Object gates = RlyEvidenceText.parse(body).get('gates');
+            Object failures = gates instanceof Map<String, Object> ? ((Map<String, Object>) gates).get('failures') : null;
+            for (Object f : failures instanceof List<Object> ? (List<Object>) failures : new List<Object>()) {
+                out.add(String.valueOf(f));
+            }
+        }
+        return out;
     }
 
     /**
