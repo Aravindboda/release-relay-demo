@@ -17,7 +17,8 @@ public with sharing class RlyPipelineOptions {
      * @return the options
      */
     public static Map<String, Object> forMode(RLY_Release__c rel, String mode) {
-        List<String> tests = String.isBlank(rel.Test_Classes__c) ? new List<String>() : rel.Test_Classes__c.split(',');
+        List<String> tests = RlyDeletions.withoutDeletedTests(
+            String.isBlank(rel.Test_Classes__c) ? new List<String>() : rel.Test_Classes__c.split(','), rel);
         Map<String, Object> options = new Map<String, Object>{ 'hub' => true, 'label' => rel.Org_Label__c };
         if (!runsLocalTests(rel, tests)) {
             options.put('tests', tests);
