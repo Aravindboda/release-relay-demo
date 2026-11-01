@@ -1,4 +1,7 @@
-# Release Relay pipeline files: version 13
+# Release Relay pipeline files: version 14
+# Version 14: a promotion can take each changed file as it is in the previous stage (options.stageBranch) and stops on
+# a hotfix the stage doesn't have (raise.json "clash"); changes can be added to an open release (mode hub with
+# options.append and options.appendZip; raise.json "appended").
 # Version 13: per-org values (.relay/values.json: {{relay:NAME}} placeholders filled per target org at deploy time,
 # turned back into placeholders when org metadata is written to a branch), quality gates (.relay/gates.json: scan
 # priority, Apex coverage, tests required for Apex), rollback snapshots before every deploy (release-relay-snapshots
@@ -9,12 +12,15 @@
 #   mode=org     retrieve the selected components from the source org, apply deletions, commit to a
 #                new branch, open a pull request into the target branch, then scan and validate it.
 #   mode=branch  open a pull request from a branch that already exists, then scan and validate it.
-#   mode=promote make a promote/ branch from the target, cherry-pick the merge commits listed in
-#                components (from the previous stage), open a pull request, then scan and validate it.
+#   mode=promote make a promote/ branch from the target with each file the merge commits listed in
+#                components changed, as it is in options.stageBranch (the previous stage; without it the
+#                commits are cherry-picked), open a pull request, then scan and validate it.
 #   mode=hub     the Release Relay hub committed its retrieve (a Metadata API zip) to the branch:
 #                convert it to source format (none for a release with only deletions,
 #                a .relay-inbox/<id>.deletions marker instead), remove the deleted components' files,
 #                open a pull request into the target, scan and validate.
+#                options {"append":true,"appendZip":".relay-inbox/<id>-add-<k>.zip"}: add that zip's changes to the
+#                open release's branch (no new pull request), then scan and validate again.
 #   mode=resolve merge the target into the branch with the conflict choices the hub committed, then
 #                scan and validate again.
 #   mode=check   scan and validate an open pull request again (after a fix, or on request).
@@ -74,7 +80,7 @@ on:
         required: true
         type: string
       components:
-        description: Type:Name list to retrieve, comma separated (promote = merge commits to cherry-pick)
+        description: Type:Name list to retrieve, comma separated (promote = the releases' merge commits)
         required: false
         type: string
         default: ''

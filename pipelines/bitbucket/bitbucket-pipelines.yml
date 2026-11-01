@@ -1,4 +1,7 @@
-# Release Relay pipeline files: version 13
+# Release Relay pipeline files: version 14
+# Version 14: a promotion can take each changed file as it is in the previous stage (options.stageBranch) and stops on
+# a hotfix the stage doesn't have (raise.json "clash"); changes can be added to an open release (mode hub with
+# options.append and options.appendZip; raise.json "appended"). See pipelines/README.md.
 # Version 13: per-org values (.relay/values.json), quality gates (.relay/gates.json), rollback snapshots before every
 # deploy (release-relay-snapshots branch) and MODE=rollback, and a cached Salesforce CLI. See pipelines/README.md.
 # Release Relay's own metadata (its components by exact name, plus .relay/exclude) is never validated, deployed or deleted;
@@ -10,12 +13,15 @@
 #   MODE=org     retrieve the selected components from the source org, apply deletions, commit to a
 #                new branch, open a pull request into the target branch, then scan and validate it.
 #   MODE=branch  open a pull request from a branch that already exists, then scan and validate it.
-#   MODE=promote make a promote/ branch from the target, cherry-pick the merge commits listed in
-#                COMPONENTS (from the previous stage), open a pull request, then scan and validate it.
+#   MODE=promote make a promote/ branch from the target with each file the merge commits listed in
+#                COMPONENTS changed, as it is in OPTIONS.stageBranch (the previous stage; without it the commits
+#                are cherry-picked), open a pull request, then scan and validate it.
 #   MODE=hub     the hub committed its retrieve (a Metadata API zip) to the branch: convert it to
 #                source format (none for a release with only deletions,
 #                a .relay-inbox/<id>.deletions marker instead), remove the deleted components' files,
 #                open a pull request into the target, scan and validate.
+#                OPTIONS {"append":true,"appendZip":".relay-inbox/<id>-add-<k>.zip"}: add that zip's changes to
+#                the open release's branch (no new pull request), then scan and validate again.
 #   MODE=resolve merge the target into the branch with the conflict choices the hub committed, then
 #                scan and validate again.
 #   MODE=check   scan and validate an open pull request again.
@@ -64,7 +70,7 @@ pipelines:
           - name: TITLE
             description: Pull request title
           - name: COMPONENTS
-            description: Type:Name list to retrieve, comma separated (promote = merge commits to cherry-pick)
+            description: Type:Name list to retrieve, comma separated (promote = the releases' merge commits)
             default: '-'
           - name: DELETIONS
             description: Type:Name list to delete, comma separated
