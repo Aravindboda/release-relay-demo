@@ -1,4 +1,4 @@
-<!-- Release Relay pipeline files: version 13 -->
+<!-- Release Relay pipeline files: version 14 -->
 # Release Relay pipelines for GitLab, Bitbucket and Azure DevOps
 
 These files do what `.github/workflows/release-relay.yml` does on GitHub, with the same modes
@@ -60,7 +60,8 @@ the target's lines where they conflict; otherwise a conflict is reported for tha
 `quickDeploy` (false: always deploy in full; see Quick deploy), and `selfUpdate` (true: the hub updating itself;
 the exclude list is ignored, see Release Relay's own metadata), `snapshot` (false: no rollback snapshot before the
 deploy), and for `rollback`: `snapshotPath` (`REL-00042/prod/<id>`; blank = the latest snapshot of that release in
-that environment) and `tests`.
+that environment) and `tests`. Version 14 adds `stageBranch` (mode `promote`: the previous stage's branch; see
+Promotion from the stage) and `append` with `appendZip` (mode `hub`: see Adding changes to an open release).
 
 **Result files** on `release-relay-results`, `results/<REQUEST_ID>/<step>.json`, each with `request`, `step`,
 `status`, `runUrl`, `finishedAt` and `attempt`:
@@ -69,7 +70,11 @@ that environment) and `tests`.
   `target`, `sha` (the branch head pushed), `pr` (number), `url`, `commits` (promote: the merge commits picked),
   `conflicts` (promote: files a commit conflicted on), `deleted` (mode `hub`: the `Type:Name` deletions removed
   from the branch; `[]` otherwise), `valuesTokenized` (mode `hub`: occurrences of the source org's values turned
-  into `{{relay:NAME}}`; `0` otherwise), `message`.
+  into `{{relay:NAME}}`; `0` otherwise), `appended` (true for changes added to an open release), `message`. A
+  promotion from the stage adds `files` (how many files the releases changed) and `fromStage` (the stage branch),
+  and when it stops on a hotfix, `conflicts` (the files) and `clash` (`[{ "file", "targetBlob", "stageBlob" }]`).
+  Changes added to an open release add `files` (files written) and `appendZip`; `pr` and `url` are the open pull
+  request's (null when none is found).
 - `validate.json` and `deploy.json` list `deleted` (`Type:Name`): the components deployed as
   `destructiveChangesPost.xml` because their files were removed.
 - `validate.json`, `deploy.json` and `sync.json` list `excluded` (repo paths): changed or deleted files that match
@@ -155,6 +160,24 @@ git commit -m "Remove Release Relay's own files (excluded from deployments)" && 
 Repeat for each developer branch. Remove them from `prod` only after the hub's updates come from
 `release-relay-hub`; otherwise the next merge-back from `prod` would bring the deletions to the other branches
 (still harmless to the orgs, since they are excluded).
+
+**Promotion from the stage (mode `promote`, `stageBranch`).** `components` lists the releases' merge commits;
+`stageBranch` names the previous stage's branch (`sit`). The job lists every file each commit changed against its
+first parent, makes `branch` from `target`, and takes each file as it is now in `stageBranch` (a file the stage no
+longer has is removed from `target`). Older releases still waiting in the stage and later fixes to the same file
+come along, so nothing has to apply as a patch. Before writing, each file `target` has must be a version the stage
+has had (its current version, or one in its last 200 commits that changed the file); otherwise `target` holds a
+change the stage never got, usually a hotfix not merged back down, and the job stops with `clash` in `raise.json`:
+merge `target` into `stageBranch`, then promote again. One commit, `REL-00042: promote 2 release(s) from sit`,
+lists the commits. Without `stageBranch` the commits are cherry-picked as before.
+
+**Adding changes to an open release (mode `hub`, `append`).** The hub retrieves the new components, commits the zip
+to the release's existing `branch` as `.relay-inbox/<REQUEST_ID>-add-<k>.zip`, and dispatches mode `hub` with
+`{"append":true,"appendZip":".relay-inbox/REL-00042-add-1.zip"}` (and the release's `tests`, old and new). The job
+converts it exactly like a new hub raise (per-org values become placeholders), removes `deletions` (any already
+removed from the branch are skipped), removes the zip, commits `REL-00042: more changes from DEV1`, and pushes. It
+opens no pull request: the open one updates. `raise.json` says `Opened` with `appended: true`; scan and validate
+run again. A missing branch or zip fails the raise.
 
 **Mode `sync` (back promote).** `branch` = the hub's production branch, `target` = the back-promote org's branch,
 `environment` = the production org's environment, `target_environment` = the back-promote org's environment

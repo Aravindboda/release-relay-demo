@@ -10,6 +10,14 @@ ignores the list. The copies already in `prod`, `sit` and the developer branches
 removing them from `sit` and the developer branches is safe, because excluded paths are never deleted in the orgs.
 See `pipelines/README.md`, "Release Relay's own metadata".
 
+## Pipeline version 14: promotion from the stage, adding to an open release
+
+- **Promotion from the stage** (`options.stageBranch`): a promotion takes each file its releases changed as it is in
+  the previous stage's branch, so older stage releases and fixes to the same file come along without conflicts. A
+  hotfix in the target that the stage doesn't have stops it (`raise.json` `clash`): merge the target into the stage.
+- **Adding to an open release** (mode `hub`, `options.append`, `options.appendZip`): more changes from the developer
+  org go onto the release's branch; the open pull request updates and the checks run again.
+
 ## Pipeline version 13: per-org values, quality gates, rollback
 
 - **Per-org values** (`.relay/values.json`): branches hold `{{relay:NAME}}` placeholders; validate, deploy and sync
