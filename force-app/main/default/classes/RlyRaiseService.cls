@@ -127,7 +127,7 @@ public with sharing class RlyRaiseService {
             Target_Branch__c = target.Branch__c, Source_Environment__c = source.Git_Environment__c,
             Target_Environment__c = target.Git_Environment__c,
             Test_Classes__c = String.join(new List<String>(tests), ','),
-            Scan_Status__c = route.git.Code_Scan__c ? 'Pending' : 'Not configured',
+            Scan_Status__c = RlyScanRule.statusFor(route.git, target),
             Validation_Status__c = String.isBlank(target.Git_Environment__c) ? 'Not configured' : 'Pending',
             Approval_Status__c = 'Pending', Deploy_Status__c = 'Pending', Last_Synced__c = System.now());
     }

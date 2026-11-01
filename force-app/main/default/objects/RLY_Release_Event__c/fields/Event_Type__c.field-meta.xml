@@ -80,6 +80,16 @@
                 <label>Back promoted</label>
             </value>
             <value>
+                <fullName>Rolled_Back</fullName>
+                <default>false</default>
+                <label>Rolled back</label>
+            </value>
+            <value>
+                <fullName>Rollback_Failed</fullName>
+                <default>false</default>
+                <label>Rollback failed</label>
+            </value>
+            <value>
                 <fullName>Comment</fullName>
                 <default>false</default>
                 <label>Comment</label>

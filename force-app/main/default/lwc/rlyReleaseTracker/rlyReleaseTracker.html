@@ -80,6 +80,7 @@
                                         <template lwc:if={r.deletesText}><span class="rr-pill rr-pill-bad">{r.deletesText}</span></template>
                                         <template lwc:if={r.manualText}><span class="rr-pill rr-pill-wait">{r.manualText}</span></template>
                                         <span class={r.pillCls}>{r.status}</span>
+                                        <template lwc:if={r.rollbackFailed}><span class="rr-pill rr-pill-bad">Rollback failed</span></template>
                                         <span class="rr-grow"></span>
                                         <span class="rr-weak rr-small">{r.when}</span>
                                     </span>
@@ -120,7 +121,7 @@
                                     title={expandLabel} onclick={toggleWide}></lightning-button-icon>
                             </div>
                             <div class="rr-detail-body">
-                                <c-rly-release-view release-id={selectedId} onchanged={handleChanged}></c-rly-release-view>
+                                <c-rly-release-view release-id={selectedId} onchanged={handleChanged} onrollbackchanged={handleRollbackChanged}></c-rly-release-view>
                             </div>
                         </template>
                         <template lwc:else>

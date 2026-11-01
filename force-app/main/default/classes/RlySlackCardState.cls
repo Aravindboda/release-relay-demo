@@ -13,7 +13,7 @@ public with sharing class RlySlackCardState {
 
     /**
      * @description Whether a change moved anything the card shows: the status (or phase), the approval, the deploy, the
-     * checks, the pull request or the branches merged back.
+     * checks, the pull request, the branches merged back or a rollback.
      * @param prior the release before the change
      * @param rel the release now
      * @return true when the card needs editing
@@ -25,7 +25,8 @@ public with sharing class RlySlackCardState {
     private static String fingerprint(RLY_Release__c rel) {
         List<Object> parts = new List<Object>{ rel.Status__c, rel.Pending_Run__c, rel.Approval_Status__c, rel.Approved_By__c,
             rel.Approved_Via__c, rel.Second_Approved_By__c, rel.Deploy_Status__c, rel.Scan_Status__c, rel.Validation_Status__c,
-            rel.PR_Number__c, String.isBlank(rel.Back_Merge_Result__c) ? 0 : rel.Back_Merge_Result__c.hashCode() };
+            rel.PR_Number__c, String.isBlank(rel.Back_Merge_Result__c) ? 0 : rel.Back_Merge_Result__c.hashCode(),
+            RlyRollbackState.fingerprint(rel) };
         return String.join(parts, '|');
     }
 
