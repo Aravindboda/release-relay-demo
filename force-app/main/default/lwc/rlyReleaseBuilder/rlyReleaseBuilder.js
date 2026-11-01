@@ -100,7 +100,7 @@ function marked(c) {
 const ORG_LIMIT = 50;
 // Salesforce's sandbox types, smallest first. Production is the hub, where releases end, so it isn't a source.
 const ENVIRONMENTS = [
-    { value: 'Developer', label: 'Developer sandbox', hint: 'Metadata only · refresh every day' },
+    { value: 'Developer', label: 'Developer sandbox or Developer Edition', hint: 'Metadata only' },
     { value: 'Developer_Pro', label: 'Developer Pro sandbox', hint: 'Metadata, more storage · refresh every day' },
     { value: 'Partial_Copy', label: 'Partial Copy sandbox', hint: 'Metadata and sample data · refresh every 5 days' },
     { value: 'Full_Copy', label: 'Full Copy sandbox', hint: 'Copy of production · refresh every 29 days' }
