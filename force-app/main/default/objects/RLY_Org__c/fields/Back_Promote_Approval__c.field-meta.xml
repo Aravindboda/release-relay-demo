@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Back_Promote_Approval__c</fullName>
-    <defaultValue>false</defaultValue>
-    <description>For a back promote org: each sync waits for an approver before it runs.</description>
-    <label>Approve Before Syncing</label>
-    <type>Checkbox</type>
-</CustomField>

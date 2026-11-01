@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Is_Hotfix__c</fullName>
-    <defaultValue>false</defaultValue>
-    <description>Hub: an urgent release from a developer org (Release Relay Hotfix permission). It is listed first for approval and promotion and can be promoted on its own.</description>
-    <label>Hotfix</label>
-    <type>Checkbox</type>
-</CustomField>
