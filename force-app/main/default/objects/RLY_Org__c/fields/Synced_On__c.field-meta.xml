@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Synced_On__c</fullName>
-    <description>For a back promote org: when its last successful sync started (everything production had then is in it).</description>
-    <label>Synced On</label>
-    <required>false</required>
-    <type>DateTime</type>
-</CustomField>

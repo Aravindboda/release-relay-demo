@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CustomPermission xmlns="http://soap.sforce.com/2006/04/metadata">
-    <description>Can edit the Release Relay connection (repository, GitHub environment, target branches) from the Release Relay tab.</description>
-    <isLicensed>false</isLicensed>
-    <label>Release Relay Admin</label>
-</CustomPermission>

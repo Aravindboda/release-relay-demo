@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Last_Checked__c</fullName>
-    <description>When the hub last signed in to this org.</description>
-    <label>Last Checked</label>
-    <required>false</required>
-    <type>DateTime</type>
-</CustomField>
