@@ -1,0 +1,43 @@
+{
+ "request": "REL-90040",
+ "step": "scan",
+ "status": "Passed",
+ "total": 1,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Info": 1
+ },
+ "files": [
+  "force-app/main/default/classes/RlyBotToken.cls",
+  "force-app/main/default/classes/RlyOrgController.cls",
+  "force-app/main/default/classes/RlyOrgValidator.cls",
+  "force-app/main/default/classes/RlySetupStatus.cls",
+  "force-app/main/default/classes/RlySetupStatusTest.cls",
+  "force-app/main/default/classes/RlySlack.cls",
+  "force-app/main/default/classes/RlySlackController.cls",
+  "force-app/main/default/lwc/rlyChoiceChips/rlyChoiceChips.html",
+  "force-app/main/default/lwc/rlyChoiceChips/rlyChoiceChips.js",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+  "force-app/main/default/lwc/rlySetupWizard/rlySetupWizard.html",
+  "force-app/main/default/lwc/rlySetupWizard/rlySetupWizard.js"
+ ],
+ "violations": [
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "DetectCopyPasteForJavascript",
+   "engine": "cpd",
+   "file": "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+   "line": 48,
+   "message": "Duplicate code detected for language 'javascript'. Found 2 code locations containing the same block of code consisting of 127 tokens across 9 lines.",
+   "url": "https://docs.pmd-code.org/latest/pmd_userdocs_cpd.html#refactoring-duplicates"
+  }
+ ],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41267591106",
+ "finishedAt": "2026-11-01T03:04:35.566Z"
+}
