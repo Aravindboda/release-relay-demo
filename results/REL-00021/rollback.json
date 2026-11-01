@@ -1,0 +1,69 @@
+{
+ "request": "REL-00021",
+ "step": "rollback",
+ "status": "Failed",
+ "environment": "sit",
+ "deployId": "0AfgL00000cKkdWSAS",
+ "restored": 0,
+ "removed": 0,
+ "snapshot": "REL-00021/sit/dd58be7d25499edb6c316ebe876faa1e",
+ "message": "Rolling sit back to snapshot REL-00021/sit/dd58be7d25499edb6c316ebe876faa1e failed, so the org is unchanged: 10 test failure(s) | LSOSubmitForApprovalTest.testSubmitSnapshotsApproverAndMovesLineToPending: System.AssertException: Assertion Failed: A submitted line should move to Pending.: Expected: Pending, Actual: Draft | RlyReleaseControllerTest.editFileSavesToBranchAndRechecks: System.AssertException: Assertion Failed: Scan pending: Expected: Pending, Actual: Not configured | RlyReleaseControllerTest.pipelineNotifiesWhenARunEnds: System.AssertException: Assertion Failed: Status goes back through the dev environment: Expected: {\"notify\":\"dev\"}, Actual: {\"notify\":\"dev\",\"scan\":\"off\"} | RlyReleaseControllerTest.raisesFromExistingBranch: System.AuraHandledException: You have uncommitted work pending. Please commit or rollback before calling out | RlyReleaseControllerTest.raisesFromOrgChanges: System.AuraHandledException: You have uncommitted work pending. Please commit or rollback before calling out",
+ "testLevel": "RunLocalTests",
+ "testsRun": 281,
+ "componentErrors": [],
+ "testFailures": [
+  {
+   "name": "LSOSubmitForApprovalTest",
+   "method": "testSubmitSnapshotsApproverAndMovesLineToPending",
+   "message": "System.AssertException: Assertion Failed: A submitted line should move to Pending.: Expected: Pending, Actual: Draft"
+  },
+  {
+   "name": "RlyReleaseControllerTest",
+   "method": "editFileSavesToBranchAndRechecks",
+   "message": "System.AssertException: Assertion Failed: Scan pending: Expected: Pending, Actual: Not configured"
+  },
+  {
+   "name": "RlyReleaseControllerTest",
+   "method": "pipelineNotifiesWhenARunEnds",
+   "message": "System.AssertException: Assertion Failed: Status goes back through the dev environment: Expected: {\"notify\":\"dev\"}, Actual: {\"notify\":\"dev\",\"scan\":\"off\"}"
+  },
+  {
+   "name": "RlyReleaseControllerTest",
+   "method": "raisesFromExistingBranch",
+   "message": "System.AuraHandledException: You have uncommitted work pending. Please commit or rollback before calling out"
+  },
+  {
+   "name": "RlyReleaseControllerTest",
+   "method": "raisesFromOrgChanges",
+   "message": "System.AuraHandledException: You have uncommitted work pending. Please commit or rollback before calling out"
+  },
+  {
+   "name": "RlyReleaseControllerTest",
+   "method": "rejectBypassAndRerun",
+   "message": "System.AssertException: Assertion Failed: Scan pending again: Expected: Pending, Actual: Not configured"
+  },
+  {
+   "name": "RlyReleaseControllerTest",
+   "method": "syncFlagsFailedScanAndIgnoresOldResults",
+   "message": "System.AssertException: Assertion Failed: Failed scan blocks approval: Expected: Checks failed, Actual: PR open"
+  },
+  {
+   "name": "RlyReleaseControllerTest",
+   "method": "syncMergedThenDeployed",
+   "message": "System.AssertException: Assertion Failed: Merged and deployed: Status sync failed: SObject row was retrieved via SOQL without querying the requested field: RLY_Release__c.Pending_Run__c: Expected: Deployed, Actual: Merging"
+  },
+  {
+   "name": "RlyReleaseControllerTest",
+   "method": "syncMovesPassedChecksToApproval",
+   "message": "System.AssertException: Assertion Failed: Checks passed: Status sync failed: SObject row was retrieved via SOQL without querying the requested field: RLY_Release__c.Pending_Run__c: Expected: Ready for approval, Actual: PR open"
+  },
+  {
+   "name": "RlyReleaseControllerTest",
+   "method": "syncTracksRunAndPullRequest",
+   "message": "System.AssertException: Assertion Failed: Run found by request number: Expected: 555, Actual: null"
+  }
+ ],
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41321583078",
+ "finishedAt": "2026-11-01T15:34:50.475Z",
+ "attempt": "d1f8da702e255fd1b90708928ef24ca5"
+}
