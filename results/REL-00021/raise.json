@@ -1,0 +1,22 @@
+{
+ "request": "REL-00021",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rel-00021",
+ "target": "sit",
+ "sha": "d0df702e41ce14630ec371025fd1e9b89182fd6e",
+ "pr": 85,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/85",
+ "commits": [],
+ "conflicts": [],
+ "deleted": [
+  "ApexClass:RlyDemoSearch",
+  "ApexClass:RlyDemoSearchTest"
+ ],
+ "valuesTokenized": 0,
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41320565441",
+ "finishedAt": "2026-11-01T15:18:55.723Z",
+ "attempt": "e366631fa2af160b1e666245e53027d6"
+}
