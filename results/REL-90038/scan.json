@@ -1,0 +1,20 @@
+{
+ "request": "REL-90038",
+ "step": "scan",
+ "status": "Passed",
+ "total": 0,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {},
+ "files": [
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/rlyReleaseGuide.html",
+  "force-app/main/default/lwc/rlyReleaseGuide/rlyReleaseGuide.js"
+ ],
+ "violations": [],
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41266063359",
+ "finishedAt": "2026-11-01T02:40:21.155Z"
+}
