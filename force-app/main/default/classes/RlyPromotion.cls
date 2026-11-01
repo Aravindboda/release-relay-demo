@@ -1,7 +1,8 @@
 /**
  * @description Promotions: a release record (Release_Type__c Promotion) from a stage org to its next stop on the route,
  * carrying the merge commits of releases already deployed to that stage (Carried_Releases__c, oldest deploy first;
- * each carried release points back with Promoted_In__c). It is saved queued (Status Submitted) and started on the next
+ * each carried release points back with Promoted_In__c), with the carried releases' manual step runs for the next stop
+ * (RlyManualStepRuns.forPromotion). It is saved queued (Status Submitted) and started on the next
  * read of its page (pipeline mode promote, branch promote/rel-xxxxx), because the run is named after the record and
  * a callout can't follow the insert in one transaction. From there it is checked, approved, merged and deployed like
  * any release.
@@ -65,8 +66,12 @@ public with sharing class RlyPromotion {
         promotion.Title__c = title;
         fill(promotion, carried);
         List<RLY_Release_Item__c> items = RlyCarried.items(carried);
-        promotion.Component_Count__c = items.size();
+        List<String> deletions = RlyCarried.deletions(carried);
+        promotion.Component_Count__c = RlyCarried.addedCount(items);
+        promotion.Deletion_Count__c = deletions.size();
+        promotion.Deletions__c = deletions.isEmpty() ? null : String.join(deletions, ',').left(RlyDeletions.MAX_LENGTH);
         RlyPromoteStore.insertPromotion(promotion, items, new Map<Id, RLY_Release__c>(carried).keySet());
+        RlyManualStepRuns.forPromotion(promotion, nextOrg);
         return promotion.Id;
     }
 

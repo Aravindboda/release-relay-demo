@@ -6,6 +6,7 @@
  *   listFolderChanges changes of one folder type
  *   listTracked       changes from source tracking (one call, when the org has it)
  *   detectTests       which of these Apex classes are tests
+ *   findDeletions     components on the org's branch that the org doesn't have (orgs without source tracking)
  * Calls are short, so the page runs several at once and keeps the results per org.
  * Raising the release is RlyReleasesController.raiseRelease.
  */
@@ -100,6 +101,21 @@ public with sharing class RlyChangesController {
         }
         try {
             return RlyChangeFinder.testClasses(source(orgId), classNames);
+        } catch (Exception e) {
+            throw handled(e);
+        }
+    }
+
+    /**
+     * @description Deletion candidates of an org without source tracking: on its branch, not in the org. They may also
+     * have come from another org through the branch, so the page never pre-selects them.
+     * @param orgId the developer org
+     * @return the candidates, each with deleted = true
+     */
+    @AuraEnabled
+    public static List<RlyChangeFinder.Change> findDeletions(Id orgId) {
+        try {
+            return RlyDeletionFinder.find(source(orgId));
         } catch (Exception e) {
             throw handled(e);
         }

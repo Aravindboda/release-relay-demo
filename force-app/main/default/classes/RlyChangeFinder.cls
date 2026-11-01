@@ -24,7 +24,7 @@ public with sharing class RlyChangeFinder {
         @AuraEnabled public String name;
         /** @description A standard object, field or picklist. */
         @AuraEnabled public Boolean standard;
-        /** @description Deleted in the org (source tracking only). */
+        /** @description Deleted in the org (source tracking), or a deletion candidate (RlyDeletionFinder). */
         @AuraEnabled public Boolean deleted;
         /** @description Who changed it last. */
         @AuraEnabled public String modifiedBy;

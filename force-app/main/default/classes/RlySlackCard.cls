@@ -94,7 +94,7 @@ public with sharing class RlySlackCard {
 
     private static String deployLine(RLY_Release__c rel) {
         if (rel.Status__c == 'Deployed') {
-            return DONE + ' Deployed to ' + RlySlackMessage.esc(targetName(rel));
+            return DONE + ' Deployed to ' + RlySlackMessage.esc(targetName(rel) + RlyManualStepText.stillOpen(rel, targetName(rel)));
         }
         return waitingInGit(rel) ? WAITING + ' Waiting for ' + RlySlackMessage.esc(RlyGitName.reviewers()) + ' reviewers before deploying'
             : ':rocket: Deploying to ' + RlySlackMessage.esc(targetName(rel));

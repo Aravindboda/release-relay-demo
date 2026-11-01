@@ -130,8 +130,19 @@
                         </template>
                     </div>
                     <lightning-input type="search" label="Search" variant="label-hidden" placeholder="Search by name or type" onchange={handleSearch} class="rr-search"></lightning-input>
+                    <template lwc:if={canFindDeletions}>
+                        <lightning-button label={findLabel} icon-name="utility:delete" onclick={findDeleted} disabled={cantFindDeletions}></lightning-button>
+                    </template>
                     <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Read the org again" title="Read the org again" onclick={refresh} disabled={scanning}></lightning-button-icon>
                 </div>
+
+                <template lwc:if={findingDeletions}>
+                    <div class="rr-pad rr-finding" aria-live="polite">
+                        <span class="rr-spin-box"><lightning-spinner alternative-text="Finding deleted components" size="small"></lightning-spinner></span>
+                        <p class="rr-small rr-weak">Comparing {ownBranch}'s branch with {sourceName}…</p>
+                    </div>
+                </template>
+                <template lwc:if={deletionResult}><div class={deletionResultCls} role="status">{deletionResult}</div></template>
 
                 <template lwc:if={scanning}>
                     <div class="rr-pad" aria-live="polite">
@@ -163,7 +174,7 @@
                                 <thead>
                                     <tr>
                                         <th scope="col" class="rr-check-col">
-                                            <lightning-input type="checkbox" label="Select all shown" variant="label-hidden" checked={allShownChecked} onchange={handleCheckAll}></lightning-input>
+                                            <lightning-input type="checkbox" label="Select all shown changes" variant="label-hidden" checked={allShownChecked} disabled={noCheckAll} onchange={handleCheckAll}></lightning-input>
                                         </th>
                                         <th scope="col">Name</th>
                                         <th scope="col">Type</th>
@@ -179,11 +190,14 @@
                                             </td>
                                             <td class="rr-name">
                                                 <span class="rr-mono">{r.name}</span>
-                                                <template lwc:if={r.deleted}><span class="rr-pill rr-pill-bad rr-ml">Deleted</span></template>
+                                                <template lwc:if={r.deleted}><span class="rr-pill rr-pill-bad rr-ml">Delete</span></template>
                                             </td>
                                             <td>{r.typeLabel}</td>
                                             <td><span class={r.kindCls}>{r.kind}</span></td>
-                                            <td class="rr-weak">{r.changedText}</td>
+                                            <td class="rr-weak">
+                                                <template lwc:if={r.deleted}><span class="rr-del rr-block">{r.deleteText}</span></template>
+                                                {r.changedText}
+                                            </td>
                                         </tr>
                                     </template>
                                 </tbody>
@@ -195,11 +209,16 @@
                         </div>
 
                         <div class="rr-manual">
-                            <p class="rr-label">Not in the list? Add it by name</p>
+                            <p class="rr-label">{manualLabel}</p>
                             <div class="rr-manual-row">
+                                <div class="rr-segs" role="group" aria-label="Add or delete">
+                                    <template for:each={manualButtons} for:item="m">
+                                        <button key={m.value} type="button" class={m.cls} data-value={m.value} aria-pressed={m.pressed} onclick={handleManualMode}>{m.label}</button>
+                                    </template>
+                                </div>
                                 <lightning-combobox label="Type" variant="label-hidden" value={manualType} options={typeOptions} onchange={handleManualType} class="rr-manual-type"></lightning-combobox>
                                 <lightning-input label="API name" variant="label-hidden" placeholder="API name" value={manualName} onchange={handleManualName} class="rr-grow"></lightning-input>
-                                <lightning-button label="Add" onclick={addManual}></lightning-button>
+                                <lightning-button label={manualAction} onclick={addManual}></lightning-button>
                             </div>
                             <template lwc:if={manualError}><p class="rr-small rr-bad">{manualError}</p></template>
                         </div>
@@ -216,10 +235,10 @@
                     <div class="rr-pad rr-drawer-body">
                         <template for:each={grouped} for:item="g">
                             <div key={g.key}>
-                                <p class="rr-label">{g.label}</p>
+                                <p class={g.labelCls}>{g.label}</p>
                                 <ul class="rr-chips">
                                     <template for:each={g.items} for:item="i">
-                                        <li key={i.key} class="rr-chip">
+                                        <li key={i.key} class={g.chipCls}>
                                             <span class="rr-mono">{i.name}</span>
                                             <button type="button" class="rr-chip-x" data-key={i.key} aria-label={i.removeLabel} title={i.removeLabel} onclick={removeItem}>×</button>
                                         </li>
@@ -260,6 +279,7 @@
 
             <div class="rr-review">
                 <nav class="rr-card rr-files" aria-label="Components in this release">
+                    <p class="rr-files-head">In this release</p>
                     <ul class="rr-file-list">
                         <template for:each={reviewRows} for:item="r">
                             <li key={r.key} class="rr-file">
@@ -271,6 +291,20 @@
                             </li>
                         </template>
                     </ul>
+                    <template lwc:if={hasDeletions}>
+                        <p class="rr-files-head rr-del">{deletedGroupLabel}</p>
+                        <ul class="rr-file-list" aria-label={deletedGroupLabel}>
+                            <template for:each={reviewDeletions} for:item="r">
+                                <li key={r.key} class="rr-file rr-file-del">
+                                    <span class="rr-file-text">
+                                        <strong class="rr-file-name">{r.name}</strong>
+                                        <span class="rr-small">{r.subText}</span>
+                                    </span>
+                                    <button type="button" class="rr-chip-x" data-key={r.key} aria-label={r.removeLabel} title={r.removeLabel} onclick={removeItem} disabled={raising}>×</button>
+                                </li>
+                            </template>
+                        </ul>
+                    </template>
                 </nav>
 
                 <section class="rr-card rr-pair" aria-label="Release">
@@ -302,6 +336,9 @@
                                 </template>
                             </div>
                         </template>
+                        <!-- manual steps (board HubManualSteps, 1): sent with the raise as manualSteps -->
+                        <c-rly-manual-steps draft value={manualSteps} org-options={routeOrgNames} disabled={raising}
+                            onstepschange={handleManualSteps}></c-rly-manual-steps>
                         <template lwc:if={raiseError}><div class="rr-msg rr-msg-bad" role="alert">{raiseError}</div></template>
                     </div>
                     <div class="rr-pair-foot">

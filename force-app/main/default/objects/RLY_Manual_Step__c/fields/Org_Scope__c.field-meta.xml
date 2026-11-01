@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Org_Scope__c</fullName>
+    <description>Blank: every org on the route. Otherwise the names of the registered orgs it applies to, comma separated.</description>
+    <externalId>false</externalId>
+    <label>Org Scope</label>
+    <length>255</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

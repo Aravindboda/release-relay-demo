@@ -1,6 +1,7 @@
 /**
  * @description Plays a developer org for the change-listing tests: the Metadata API (describeMetadata and
- * listMetadata from the components added) and the REST/Tooling queries (SourceMember, User, ApexClass).
+ * listMetadata from the components added), the REST/Tooling queries (SourceMember, User, ApexClass) and, for the
+ * deletion finder, the Git tree of a branch (gitTree).
  * fault answers with a SOAP fault; garbage answers with something that isn't XML.
  */
 @IsTest
@@ -13,6 +14,8 @@ public with sharing class RlyMetadataMock implements HttpCalloutMock {
     public Boolean fault = false;
     /** @description Answer SOAP calls with something that isn't XML. */
     public Boolean garbage = false;
+    /** @description The Git tree (GET /git/trees/) the Git provider answers with, or null for 404. */
+    public String gitTree;
 
     private static final String SOAP_HEAD = '<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope '
         + 'xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns="http://soap.sforce.com/2006/04/metadata"><soapenv:Body>';
@@ -67,7 +70,7 @@ public with sharing class RlyMetadataMock implements HttpCalloutMock {
             return res;
         }
         res.setHeader('Content-Type', 'application/json');
-        String body = query(url);
+        String body = url.contains('/git/trees/') ? gitTree : query(url);
         res.setStatusCode(body == null ? 404 : 200);
         res.setBody(body == null ? '[]' : body);
         return res;

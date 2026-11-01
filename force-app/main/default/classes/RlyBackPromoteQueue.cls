@@ -1,7 +1,8 @@
 /**
  * @description Queues back promote syncs (RlyBackPromote): Sync now for one org, or after a deploy to the hub for every
  * After_Deploy org. A sync is a release record from the hub org to the back promote org, saved waiting for approval
- * (Back_Promote_Approval__c) or queued (Status Submitted) to start on the next read (RlyBackPromoteRun). DML only.
+ * (Back_Promote_Approval__c) or queued (Status Submitted) to start on the next read (RlyBackPromoteRun), with the
+ * manual step runs it needs (RlyBackPromoteSteps.forSyncs). DML only.
  */
 public with sharing class RlyBackPromoteQueue {
 
@@ -24,6 +25,7 @@ public with sharing class RlyBackPromoteQueue {
         }
         RLY_Release__c sync = newSync(requireHub(), o);
         RlyPromoteStore.insertSyncs(new List<RLY_Release__c>{ sync });
+        RlyBackPromoteSteps.forSyncs(new List<RLY_Release__c>{ sync }, new List<RLY_Org__c>{ o });
         return sync.Id;
     }
 
@@ -39,12 +41,14 @@ public with sharing class RlyBackPromoteQueue {
         RLY_Org__c hub = RlyPromoteStore.hub();
         List<RLY_Release__c> latest = RlyPromoteStore.latestSyncs();
         List<RLY_Release__c> syncs = new List<RLY_Release__c>();
-        for (RLY_Org__c o : RlyPromoteStore.backPromoteOrgs()) {
+        List<RLY_Org__c> orgs = RlyPromoteStore.backPromoteOrgs();
+        for (RLY_Org__c o : orgs) {
             if (RlyBackPromote.whenOf(o) == RlyBackPromote.WHEN_AFTER_DEPLOY && !hasOpenSync(o.Id, latest) && isUsable(hub) && isUsable(o)) {
                 syncs.add(newSync(hub, o));
             }
         }
         RlyPromoteStore.insertSyncs(syncs);
+        RlyBackPromoteSteps.forSyncs(syncs, orgs);
     }
 
     /**

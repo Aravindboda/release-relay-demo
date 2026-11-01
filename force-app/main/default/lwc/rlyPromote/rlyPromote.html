@@ -75,6 +75,7 @@
                                                             <template lwc:if={r.isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
                                                             <strong>{r.name}</strong>
                                                             <span>{r.title}</span>
+                                                            <template lwc:if={r.deletesText}><span class="rr-pill rr-pill-bad">{r.deletesText}</span></template>
                                                         </span>
                                                         <template lwc:if={r.reason}><span class="rr-reason">{r.reason}</span></template>
                                                         <template lwc:if={r.stays}><span class="rr-reason">Stays in {s.stageName}</span></template>
@@ -96,6 +97,24 @@
                                 <div class="rr-body">
                                     <p><strong>{s.countText}</strong>{s.componentText}</p>
                                     <p>{s.testsLead}<span class="rr-mono">{s.testsList}</span>{s.testsTail}</p>
+                                    <!-- carried manual steps (board HubManualSteps, 3) -->
+                                    <template lwc:if={s.hasManual}>
+                                        <div class="rr-manual">
+                                            <p class="rr-cap">{s.manualTitle}</p>
+                                            <ol class="rr-ms-list">
+                                                <template for:each={s.manualSteps} for:item="m">
+                                                    <li key={m.key} class="rr-ms">
+                                                        <span class="rr-no" aria-hidden="true">{m.no}</span>
+                                                        <span class="rr-ms-body">
+                                                            <span class="rr-row"><strong>{m.title}</strong><span class={m.timingCls}>{m.timingLabel}</span></span>
+                                                            <span class="rr-small rr-weak">{m.fromRelease}</span>
+                                                        </span>
+                                                    </li>
+                                                </template>
+                                            </ol>
+                                            <div class="rr-msg rr-msg-info">{s.manualNote}</div>
+                                        </div>
+                                    </template>
                                     <template lwc:if={s.aloneNote}><div class="rr-msg rr-msg-warn">{s.aloneNote}</div></template>
                                     <lightning-input label="Title" value={s.title} max-length="200" required data-stage={s.stageId}
                                         onchange={handleTitle} disabled={s.locked}></lightning-input>

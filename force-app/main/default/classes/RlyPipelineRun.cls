@@ -31,7 +31,7 @@ public with sharing class RlyPipelineRun {
 
     /**
      * @description The pipeline's inputs; options (RlyPipelineOptions) carry the hub flag, the org label, the tests,
-     * the scan switch, validateMerged, syncBranches and attempt. Each run gets a new token (Check_Token__c, saved by
+     * the scan switch, validateMerged, syncBranches and attempt; mode hub also sends the deletions. Each run gets a new token (Check_Token__c, saved by
      * the caller) that its result files echo as attempt.
      * @param rel the release
      * @param mode hub, promote, check, resolve, merge or sync
@@ -47,7 +47,7 @@ public with sharing class RlyPipelineRun {
             'branch' => branch, 'target' => rel.Target_Branch__c,
             'title' => (rel.Name + ': ' + rel.Title__c).left(200),
             'components' => components(rel, mode),
-            'deletions' => '', 'options' => JSON.serialize(RlyPipelineOptions.forMode(rel, mode))
+            'deletions' => deletions(rel, mode), 'options' => JSON.serialize(RlyPipelineOptions.forMode(rel, mode))
         };
     }
 
@@ -59,7 +59,12 @@ public with sharing class RlyPipelineRun {
         return EncodingUtil.convertToHex(Crypto.generateAesKey(128));
     }
 
-    // hub: the selected components; promote: the carried merge commits, oldest first; other modes: none.
+    // hub: the release's deletions (Type:Name, comma separated); a promotion's are in its carried merge commits.
+    private static String deletions(RLY_Release__c rel, String mode) {
+        return mode == 'hub' ? String.join(RlyDeletions.of(rel), ',') : '';
+    }
+
+    // hub: the selected components (not the deletions); promote: the carried merge commits, oldest first; other modes: none.
     private static String components(RLY_Release__c rel, String mode) {
         if (mode == RlyPromotion.MODE) {
             return RlyCarried.mergeCommits(rel);
@@ -69,7 +74,9 @@ public with sharing class RlyPipelineRun {
         }
         List<String> names = new List<String>();
         for (RLY_Release_Item__c i : RlyReleaseStore.items(rel.Id)) {
-            names.add(i.Metadata_Type__c + ':' + i.Component_Name__c);
+            if (i.Is_Deletion__c != true) {
+                names.add(i.Metadata_Type__c + ':' + i.Component_Name__c);
+            }
         }
         return String.join(names, ',').left(60000);
     }

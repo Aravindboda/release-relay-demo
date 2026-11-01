@@ -19,7 +19,8 @@ public with sharing class RlySlackReply {
             'Ready for approval' => RlySlackCard.DONE + ' Checks passed: code scan ' + RlySlackCard.text(rel.Scan_Status__c).toLowerCase()
                 + ', validation in ' + target + ' ' + RlySlackCard.text(rel.Validation_Status__c).toLowerCase(),
             'Checks failed' => ':red_circle: Checks failed: ' + RlySlackMessage.esc(RlySlackMessage.checksReason(rel).replace('\n', '; ')),
-            'Deployed' => ':rocket: Deployed to ' + target,
+            'Deployed' => ':rocket: Deployed to ' + target + (rel.Status__c == 'Deployed'
+                ? RlySlackMessage.esc(RlyManualStepText.stillOpen(rel, RlySlackCard.targetName(rel))) : ''),
             'Deploy failed' => RlySlackCard.FAILED + ' Deploy to ' + target + ' failed: ' + RlySlackMessage.esc(RlySlackCard.text(rel.Error_Message__c).left(300)),
             'Rejected' => RlySlackCard.statusLine(rel, approverName)
         };

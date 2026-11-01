@@ -347,6 +347,7 @@ const SECTIONS = [
                                 items: [
                                     'Types are on the left with counts; changes on the right. Filter custom, standard or both, and search by name.',
                                     'Not in the list? Add it by type and API name at the bottom.',
+                                    'Components to remove show a red **Delete** pill (see Deleting components).',
                                     'The bar at the bottom counts your Apex and test classes. Red means Apex without a test class: tick the suggested test or add it.'
                                 ],
                                 shot: { name: 'select', cap: 'Example: Select, with the test rule in the bar.' }
@@ -366,6 +367,51 @@ const SECTIONS = [
                                 text: [
                                     'The path at the top shows Raised → Pull request → Checks → Approval → Deploy. While something runs the page checks every 30 seconds; **Check now** checks at once.',
                                     'Code scan findings and deployment errors are listed under the progress. Fix them in your org and raise again, or ask an approver to bypass a blocking code scan.'
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'deletions',
+        group: 'daily',
+        label: 'Deleting components',
+        cards: [
+            {
+                key: 'del-main',
+                title: 'Deleting components',
+                blocks: [
+                    { type: 'text', paras: ['A release can remove components as well as bring them. Deletions are removed from the target branch, and on deploy from the target org (as `destructiveChangesPost.xml`). They travel with the release: promoted to production and merged back down like any change.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Orgs with source tracking',
+                                where: 'New Release → Select',
+                                text: ['Components you deleted in the org are listed with the changes, with a red **Delete** pill and **Delete from** the target. The **Deleted** type on the left counts them.']
+                            },
+                            {
+                                title: 'Orgs without source tracking',
+                                where: 'New Release → Select',
+                                text: [
+                                    'Press **Find deleted components**. The hub compares the files in your org\'s own branch with what is in the org and lists what is in the branch but not in the org.',
+                                    'They may have been deleted in your org, or came from another org through the branch and were never deployed to yours. Nothing is ticked for you: **tick only what you deleted**.'
+                                ]
+                            },
+                            {
+                                title: 'Delete by name',
+                                where: 'New Release → Select',
+                                text: ['Not in the list? At the bottom choose **Delete**, the type and the API name, for example Apex Class and `OldHelper`.']
+                            },
+                            {
+                                title: 'Review',
+                                where: 'New Release → Review',
+                                text: [
+                                    'Deletions are listed in red under **Deleted from** the target. A component can\'t be both added and deleted in one release.',
+                                    'Deleting Apex needs no test class unless Apex is also added. Into production, Salesforce runs the local tests when Apex is deleted.'
                                 ]
                             }
                         ]
@@ -531,6 +577,61 @@ const SECTIONS = [
                                 title: 'Follow it',
                                 where: 'The release page',
                                 text: ['The promotion lists what it **Carries**; each carried release shows **Promoted in** with a link. If the promotion is rejected or fails, the releases it carried are ready to promote again.']
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'manual',
+        group: 'daily',
+        label: 'Manual steps',
+        cards: [
+            {
+                key: 'ms-main',
+                title: 'Manual steps',
+                blocks: [
+                    { type: 'text', paras: ['Some changes can\'t be deployed as metadata: profile or permission access, data loads, setup settings, a connected app setting, a scheduled job to start. Add them to the release as **manual steps**. They travel with the release through every org on the route and to back promote orgs, in order, and the **deployment team** checks each one off per org.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Add them when you raise',
+                                where: 'New Release → Review → Manual steps',
+                                items: [
+                                    'Press **Add a manual step**: a title, the category (Profile or permission access, Data, Setup configuration, Other), **When** (Before deploy or After deploy) and the exact instructions, for example `Profile Sales User: Account.Region__c read/edit`.',
+                                    '**Also in back promote orgs** is on by default. **Orgs**: all orgs on the route, or pick the orgs it applies to.',
+                                    'Order them with the up and down arrows: the deployment team does them in that order. Up to 50 steps.',
+                                    'Until the release is first deployed, the person who raised it (or an admin) can add, edit, reorder and delete steps on the release page.'
+                                ]
+                            },
+                            {
+                                title: 'Before deploy and after deploy',
+                                where: 'The release page → Manual steps',
+                                items: [
+                                    '**Before deploy**: the deploy into an org doesn\'t start until that org\'s before deploy steps are done. An approved release waits with **Approved. Deploys when the deployment team finishes n manual steps before deploy.** The last tick starts the deploy.',
+                                    '**After deploy**: shown as open work in that org after the deploy. The release and the Approvals tab show **n manual steps** while any are open.'
+                                ]
+                            },
+                            {
+                                title: 'The deployment team checks them off',
+                                where: 'The release page → Manual steps → one tab per org',
+                                items: [
+                                    'Only users with the `RLY_Deploy_Team` permission set (Release Relay Deployment Team) or `RLY_Admin` tick steps.',
+                                    'Tick a step when it is done: the page records who did it and when. **Not needed** asks for a note (for example: already set in this org). **Reopen** puts it back to do.',
+                                    '**Show instructions** opens what exactly to do.'
+                                ]
+                            },
+                            {
+                                title: 'They follow promote and back promote',
+                                where: 'Promote tab and back promote orgs',
+                                items: [
+                                    'A promotion carries the manual steps of every release it carries, in deploy order (the releases in the order they are promoted, then each step\'s order). The Promote tab lists them under the bundle.',
+                                    'A back promote sync carries the steps with **Also in back promote orgs** of every release the org is behind, in deploy order.',
+                                    'Steps scoped to some orgs only show up in those orgs.'
+                                ]
                             }
                         ]
                     }

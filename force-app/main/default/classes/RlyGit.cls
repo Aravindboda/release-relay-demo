@@ -90,7 +90,7 @@ public abstract with sharing class RlyGit {
      * @description The shape a repository name must have.
      * @return the pattern
      */
-    public abstract Pattern repositoryPattern();
+    protected abstract Pattern repositoryPattern();
 
     /**
      * @description The shape a repository name must have, in words.
@@ -172,6 +172,16 @@ public abstract with sharing class RlyGit {
      */
     public virtual String getFileRaw(String path, String ref) {
         return (String) failUnsupported('Reading files');
+    }
+
+    /**
+     * @description The paths of every file on a branch under a path (the deletion candidates of a developer org).
+     * @param branch the branch
+     * @param path the folder, for example force-app/main/default (blank: the whole branch)
+     * @return the file paths
+     */
+    public virtual List<String> listFiles(String branch, String path) {
+        return (List<String>) failUnsupported('Listing files');
     }
 
     /**

@@ -17,7 +17,10 @@ public with sharing class RlyPipelineOptions {
      */
     public static Map<String, Object> forMode(RLY_Release__c rel, String mode) {
         List<String> tests = String.isBlank(rel.Test_Classes__c) ? new List<String>() : rel.Test_Classes__c.split(',');
-        Map<String, Object> options = new Map<String, Object>{ 'hub' => true, 'label' => rel.Org_Label__c, 'tests' => tests };
+        Map<String, Object> options = new Map<String, Object>{ 'hub' => true, 'label' => rel.Org_Label__c };
+        if (!runsLocalTests(rel, tests)) {
+            options.put('tests', tests);
+        }
         if (String.isNotBlank(rel.Check_Token__c)) {
             options.put('attempt', rel.Check_Token__c);
         }
@@ -32,6 +35,12 @@ public with sharing class RlyPipelineOptions {
             addSyncBranches(rel, options);
         }
         return options;
+    }
+
+    // Deleting Apex in production needs tests: without tests of its own, a release into the hub that deletes Apex sends
+    // no tests list, so the pipeline runs the local tests (RunLocalTests). Sandboxes keep NoTestRun.
+    private static Boolean runsLocalTests(RLY_Release__c rel, List<String> tests) {
+        return tests.isEmpty() && isHub(rel) && RlyDeletions.deletesApex(rel);
     }
 
     // A merge into the first stage brings the developer branches up to date; a merge into the hub every stage branch

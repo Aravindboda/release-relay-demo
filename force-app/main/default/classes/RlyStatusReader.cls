@@ -71,31 +71,44 @@ public with sharing class RlyStatusReader {
         }
     }
 
-    // When the retrieve is done: commit the zip to the release branch and start the pipeline (mode hub).
+    // When the retrieve is done: commit the zip to the release branch and start the pipeline (mode hub). A release with
+    // only deletions has no retrieve: it commits its marker file (.relay-inbox/<REL>.deletions) instead of a zip.
     // The release branch starts from the developer org's own branch, so Git merges it with what's in the target.
     private static void afterRetrieve(RLY_Release__c rel, RlyGit git) {
         RLY_Org__c source = RlyReleaseStore.org(rel.Source_Org__c);
-        RlyRetrieve.RetrieveStatus st = RlyRetrieve.check(source, rel.Retrieve_Id__c);
-        if (!st.done) {
-            return;
-        }
-        String problem = retrieveProblem(st, source);
-        if (problem != null) {
-            fail(rel, problem);
-            return;
-        }
         String branch = RlyPipelineRun.branchName(rel);
+        RlyGitFile file = String.isBlank(rel.Retrieve_Id__c) ? RlyDeletions.marker(rel, branch) : retrievedZip(rel, source, branch);
+        if (file == null) {
+            if (String.isBlank(rel.Retrieve_Id__c)) {
+                fail(rel, 'The release has no components and no deletions.');
+            }
+            return;
+        }
         if (!git.branchExists(branch)) {
             git.createBranch(branch, baseBranch(source, rel));
         }
-        git.putFile(new RlyGitFile('.relay-inbox/' + rel.Name + '.zip', branch)
-            .withContent(st.zipBase64, rel.Name + ': components from ' + source.Name));
+        git.putFile(file);
         git.startPipeline(RlyPipelineRun.inputs(rel, 'hub', branch));
         rel.Source_Branch__c = branch;
         rel.Status__c = 'Workflow running';
         rel.Pending_Run__c = 'hub';
         rel.Checks_Requested__c = System.now();
         rel.Error_Message__c = null;
+    }
+
+    // The retrieved zip as a file to commit; null while the retrieve runs or when it failed (the release is then Failed).
+    private static RlyGitFile retrievedZip(RLY_Release__c rel, RLY_Org__c source, String branch) {
+        RlyRetrieve.RetrieveStatus st = RlyRetrieve.check(source, rel.Retrieve_Id__c);
+        if (!st.done) {
+            return null;
+        }
+        String problem = retrieveProblem(st, source);
+        if (problem != null) {
+            fail(rel, problem);
+            return null;
+        }
+        return new RlyGitFile('.relay-inbox/' + rel.Name + '.zip', branch)
+            .withContent(st.zipBase64, rel.Name + ': components from ' + source.Name);
     }
 
     // The developer org's branch; releases raised before every dev org had one start from the target, as they did.

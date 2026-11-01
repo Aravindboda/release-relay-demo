@@ -1,5 +1,6 @@
 /**
- * @description Releases and Approvals tabs, and the last step of New Release (raising it). A release page asks for its
+ * @description Releases and Approvals tabs, and the last step of New Release (raising it). The Releases tab filters on
+ * the server (listReleasesFor, countReleases); the Approvals tab uses listReleases. A release page asks for its
  * latest status every few seconds while something is running (refreshRelease), which moves it along
  * (RlyStatusReader.advance).
  */
@@ -15,6 +16,10 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public String releaseType;
         /** @description For a promotion: the release numbers it carries. */
         @AuraEnabled public List<String> carried = new List<String>();
+        /** @description Number of components it deletes. */
+        @AuraEnabled public Integer deletionCount;
+        /** @description Manual steps of its deploy still to do. */
+        @AuraEnabled public Integer manualOpen = 0;
     }
 
     /** @description One row of the release list. */
@@ -43,6 +48,10 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public String validation;
         /** @description A hotfix (same as isHotfix; kept for older pages). */
         @AuraEnabled public Boolean hotfix;
+        /** @description The user who raised it. */
+        @AuraEnabled public Id raisedById;
+        /** @description When its status was last read, or null. */
+        @AuraEnabled public Datetime lastChecked;
     }
 
     /** @description A release a promotion carries. */
@@ -91,6 +100,14 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public Boolean needsSecondApprover;
         /** @description The first approver's name while it waits for the second, or null. */
         @AuraEnabled public String firstApprover;
+        /** @description The components it deletes, as Type:Name. */
+        @AuraEnabled public List<String> deletions = new List<String>();
+        /** @description Manual steps of its deploy into its target still to do. */
+        @AuraEnabled public Integer manualOpen = 0;
+        /** @description Of those, the ones before deploy (the deploy waits for them). */
+        @AuraEnabled public Integer manualBeforeOpen = 0;
+        /** @description For example "2 manual steps: 1 before deploy (open), 1 after deploy", or null when there are none. */
+        @AuraEnabled public String manualSummary;
     }
 
     /** @description One release, as its page shows it. */
@@ -134,39 +151,36 @@ public with sharing class RlyReleasesController {
      */
     @AuraEnabled
     public static List<Row> listReleases(String view) {
-        List<Row> out = new List<Row>();
-        List<RLY_Release__c> rels = RlyReleaseStore.releases(view);
-        Map<Id, String> names = RlyReleaseLinks.carriedNames(rels);
-        for (RLY_Release__c r : rels) {
-            Row row = toRow(r);
-            for (Id carriedId : RlyCarried.ids(r)) {
-                if (names.containsKey(carriedId)) {
-                    row.carried.add(names.get(carriedId));
-                }
-            }
-            out.add(row);
-        }
-        return out;
+        return RlyReleaseRows.build(RlyReleaseStore.releases(view));
     }
 
-    private static Row toRow(RLY_Release__c r) {
-        Row row = new Row();
-        row.id = r.Id;
-        row.name = r.Name;
-        row.title = r.Title__c;
-        row.status = r.Status__c;
-        row.source = r.Source_Org__r.Name;
-        row.target = r.Target_Org__r.Name + ' · ' + r.Target_Branch__c;
-        row.raisedBy = r.CreatedBy.Name;
-        row.raisedOn = r.CreatedDate;
-        row.components = r.Component_Count__c;
-        row.scan = r.Scan_Status__c;
-        row.validation = r.Validation_Status__c;
-        row.hotfix = RlyHotfix.isHotfix(r);
-        row.isHotfix = row.hotfix;
-        row.hotfixReason = r.Hotfix_Reason__c;
-        row.releaseType = RlyPromotion.typeOf(r);
-        return row;
+    /**
+     * @description The Releases tab's list, filtered on the server.
+     * @param filterJson {"raisedById": a user Id or blank for everyone, "state": "open" (default), "deployed", "failed",
+     * "closed" or "all", "searchText": part of the release number or title}
+     * @return up to 200 rows, newest first (open: hotfixes first)
+     */
+    @AuraEnabled
+    public static List<Row> listReleasesFor(String filterJson) {
+        try {
+            return RlyReleaseRows.build(RlyReleaseQuery.releasesFor(RlyReleaseQuery.parse(filterJson)));
+        } catch (Exception e) {
+            throw handled(e);
+        }
+    }
+
+    /**
+     * @description The counts on the Releases tab's state chips.
+     * @param raisedById the user who raised them, or blank for everyone
+     * @return the count by state: open, deployed, failed, closed and all
+     */
+    @AuraEnabled
+    public static Map<String, Integer> countReleases(String raisedById) {
+        try {
+            return RlyReleaseQuery.countsFor(raisedById);
+        } catch (Exception e) {
+            throw handled(e);
+        }
     }
 
     /**

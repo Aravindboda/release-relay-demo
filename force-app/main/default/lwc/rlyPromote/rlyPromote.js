@@ -2,6 +2,9 @@ import APP_NAME from '@salesforce/label/c.RLY_App_Name';
 import { LightningElement } from 'lwc';
 import getPromote from '@salesforce/apex/RlyPromoteController.getPromote';
 import promote from '@salesforce/apex/RlyPromoteController.promote';
+import getSteps from '@salesforce/apex/RlyManualStepController.getSteps';
+
+const TIMING_LABEL = { Before_Deploy: 'Before deploy', After_Deploy: 'After deploy' };
 
 function errorText(e) {
     return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
@@ -32,6 +35,8 @@ export default class RlyPromote extends LightningElement {
     errors = {};
     busyStage;
     promotedId;
+    /** releaseId → its manual steps (StepRow, in sequence), read for releases with Ready.manualSteps. */
+    stepsByRelease = {};
 
     connectedCallback() {
         this.load();
@@ -50,6 +55,52 @@ export default class RlyPromote extends LightningElement {
         } finally {
             this.loading = false;
         }
+        this.loadSteps();
+    }
+
+    /** The manual steps of the releases waiting (only those that have some), to list them in the bundle panel. */
+    async loadSteps() {
+        const ids = this.stages.flatMap((s) => (s.ready || []).filter((r) => Number(r.manualSteps) > 0).map((r) => r.id));
+        const found = {};
+        await Promise.all(ids.map(async (id) => {
+            try {
+                const board = await getSteps({ releaseId: id });
+                found[id] = [...((board && board.steps) || [])].sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+            } catch {
+                found[id] = null;
+            }
+        }));
+        this.stepsByRelease = found;
+    }
+
+    /**
+     * The manual steps the promotion carries into the next stop, in deploy order (the releases in the order they are
+     * promoted, then each step's sequence). Steps scoped to other orgs are left out.
+     */
+    manualFor(chosen, nextName) {
+        let count = 0;
+        const list = [];
+        chosen.forEach((r) => {
+            const steps = this.stepsByRelease[r.id];
+            if (!Array.isArray(steps)) {
+                count += Number(r.manualSteps) || 0;
+                return;
+            }
+            steps.filter((st) => {
+                const names = (st.orgScope || '').split(',').map((x) => x.trim()).filter((x) => x);
+                return names.length === 0 || names.includes(nextName);
+            }).forEach((st) => {
+                list.push({
+                    key: r.id + '-' + st.id,
+                    title: st.title,
+                    timingLabel: TIMING_LABEL[st.timing] || st.timing || '',
+                    timingCls: 'rr-pill ' + (st.timing === 'Before_Deploy' ? 'rr-pill-wait' : 'rr-pill-info'),
+                    fromRelease: st.fromRelease || r.name
+                });
+            });
+        });
+        count += list.length;
+        return { count, list: list.map((x, i) => ({ ...x, no: i + 1 })) };
     }
 
     reload() {
@@ -88,10 +139,12 @@ export default class RlyPromote extends LightningElement {
         const onlyHotfixes = chosen.length > 0 && chosen.every((r) => r.isHotfix);
         const tests = [...new Set(chosen.flatMap((r) => r.tests || []))];
         const components = chosen.reduce((n, r) => n + (r.componentCount || 0), 0);
+        const deletions = chosen.reduce((n, r) => n + (Number(r.deletionCount) || 0), 0);
         const busy = this.busyStage === s.stageId;
         const locked = !this.canPromote || busy;
         const title = this.titles[s.stageId] !== undefined ? this.titles[s.stageId] : this.suggestTitle(s, chosen, onlyHotfixes);
         const others = ready.length - chosen.length;
+        const manual = this.manualFor(chosen, s.nextName);
         return {
             key: 'st-' + s.stageId,
             stageId: s.stageId,
@@ -120,13 +173,14 @@ export default class RlyPromote extends LightningElement {
                     raisedBy: r.raisedBy || '',
                     deployedText: when(r.deployedOn),
                     testsText: (r.tests || []).length ? r.tests.join(', ') : 'None',
+                    deletesText: Number(r.deletionCount) ? 'Deletes ' + r.deletionCount : '',
                     rowCls: on ? 'rr-row-on' : (r.isHotfix ? 'rr-row-hot' : '')
                 };
             }),
             orderNote: 'Hotfixes are listed first, then the oldest deploy to ' + s.stageName + '. Changes are promoted in that order.',
             bundleTitle: onlyHotfixes ? 'Promote the hotfix alone' : 'Bundle into one ' + s.nextName + ' release',
             countText: plural(chosen.length, 'release', 'releases'),
-            componentText: ' · ' + plural(components, 'component', 'components'),
+            componentText: ' · ' + plural(components, 'component', 'components') + (deletions ? ' · ' + plural(deletions, 'deletion', 'deletions') : ''),
             testsLead: tests.length ? 'Tests in ' + s.nextName + ': ' : 'No test classes carried: ',
             testsList: tests.join(', '),
             testsTail: tests.length ? ' (RunSpecifiedTests, 75% each)' : 'deploys run without tests (NoTestRun) unless the target requires them.',
@@ -134,6 +188,10 @@ export default class RlyPromote extends LightningElement {
                 ? 'Only the hotfix\'s changes go to ' + s.nextName + '. Other work waiting in ' + s.stageName + ' isn\'t included.' : '',
             approvalNote: chosen.some((r) => r.isHotfix)
                 ? ' A hotfix can need a 2nd approver into ' + s.nextName + ', and the person who raised it can\'t approve it.' : '',
+            hasManual: manual.count > 0,
+            manualTitle: 'Manual steps in ' + s.nextName + ', in this order · ' + manual.count,
+            manualSteps: manual.list,
+            manualNote: 'The promotion carries them in deploy order. ' + s.nextName + '\'s deploy waits for its before deploy steps.',
             title,
             branchText: 'promote/rel-…',
             error: this.errors[s.stageId],

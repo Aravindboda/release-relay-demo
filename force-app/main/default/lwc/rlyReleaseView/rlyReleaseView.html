@@ -15,6 +15,7 @@
                     <template lwc:if={isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
                     <template lwc:if={typeLabel}><span class="rr-pill rr-pill-info">{typeLabel}</span></template>
                     <span class={phaseCls}>{phase}</span>
+                    <template lwc:if={manualOpenText}><span class="rr-pill rr-pill-wait">{manualOpenText}</span></template>
                     <template lwc:if={detail.slackUrl}>
                         <a class="slds-button slds-button_neutral" href={detail.slackUrl} target="_blank" rel="noopener">Open in Slack</a>
                     </template>
@@ -165,6 +166,19 @@
                                 </ul>
                             </dd>
                         </template>
+                        <template lwc:if={hasDeletions}>
+                            <dt class="rr-del">Deletes</dt>
+                            <dd>
+                                <ul class="rr-carried rr-deletes" aria-label={deletesLabel}>
+                                    <template for:each={deletions} for:item="d">
+                                        <li key={d.key}><span class="rr-mono">{d.name}</span><span class="rr-small rr-sp">{d.type}</span></li>
+                                    </template>
+                                </ul>
+                            </dd>
+                        </template>
+                        <template lwc:if={detail.manualSummary}>
+                            <dt>Manual steps</dt><dd class="rr-break">{detail.manualSummary}</dd>
+                        </template>
                         <template lwc:if={promotedIn}>
                             <dt>Promoted in</dt><dd><a href={promotedIn.href} data-id={promotedIn.id} onclick={openRelease}>{promotedIn.name}</a></dd>
                         </template>
@@ -182,8 +196,20 @@
                             <dd key={i.key} class="rr-break">{i.name}</dd>
                         </template>
                     </dl>
+                    <template lwc:if={hasDeletions}>
+                        <p class="rr-del-head">{deletesLabel}</p>
+                        <dl class="rr-dl rr-items rr-del-items">
+                            <template for:each={deletions} for:item="d">
+                                <dt key={d.dtKey}>{d.type}</dt>
+                                <dd key={d.key} class="rr-break"><span class="rr-pill rr-pill-bad">Delete</span><span class="rr-sp">{d.name}</span></dd>
+                            </template>
+                        </dl>
+                    </template>
                 </section>
             </div>
+
+            <!-- manual steps (board HubManualSteps, 2): per org checklist for the deployment team -->
+            <c-rly-manual-steps release-id={releaseId} release-name={rel.Name} status={rel.Status__c} onstepschange={handleStepsChange}></c-rly-manual-steps>
 
             <!-- actions -->
             <template lwc:if={showFooter}>
