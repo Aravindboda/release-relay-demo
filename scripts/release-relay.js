@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 11
+// Release Relay pipeline files: version 12
 /*
  * Release Relay: one script for every pipeline job, on GitHub, GitLab, Bitbucket or Azure DevOps.
  *
@@ -50,10 +50,10 @@
  * The deploy step quick deploys the release's validation (no tests run again) when the merge is exactly
  * what was validated; {"quickDeploy":false} always deploys in full. deploy.json says which: quick, quickNote.
  *
- * Release Relay's own metadata (Rly* classes, rly* LWCs, RLY_* objects, tabs, permission sets, ...) is never
- * deployed or deleted by validate, deploy (full or quick) or sync: the globs in .relay/exclude (read from the
- * pipeline's own commit, like this script; built-in defaults when the file is missing) are left out of every
- * deployment and listed in validate.json, deploy.json and sync.json as "excluded". {"selfUpdate":true} (the hub
+ * Release Relay's own metadata (its classes, LWCs, objects, tabs, permission sets, ... listed by exact name in
+ * BUILT_IN_EXCLUDES, plus any globs in .relay/exclude read from the pipeline's own commit) is never deployed or
+ * deleted by validate, deploy (full or quick) or sync. A release whose every changed file is excluded fails. They
+ * are left out of every deployment and listed in validate.json, deploy.json and sync.json as "excluded". {"selfUpdate":true} (the hub
  * updating itself, from the release-relay-hub branch) ignores the list.
  *
  * Every input arrives as an environment variable and is validated here. Commands run with
@@ -215,13 +215,82 @@ const SCAN_EXT = ['.cls', '.trigger', '.page', '.component', '.cmp', '.js', '.ht
 const TEST_LEVELS = ['NoTestRun', 'RunLocalTests', 'RunAllTestsInOrg'];
 const WORK_DIR = '.relay';
 const EXCLUDE_FILE = path.join(WORK_DIR, 'exclude');
-// Used when the pipeline's commit has no .relay/exclude. Globs relative to SOURCE_PATH; a glob matching a folder
-// covers everything in it. "only-labels:<glob>" excludes a labels file only when every label in it matches.
-const DEFAULT_EXCLUDES = [
-    'classes/Rly*', 'triggers/Rly*', 'lwc/rly*', 'aura/rly*', 'objects/RLY_*', 'objects/User/fields/RLY_*',
-    'tabs/RLY_*', 'permissionsets/RLY_*', 'customPermissions/RLY_*', 'staticresources/RLY_*',
-    'applications/Release_Relay.app-meta.xml', 'namedCredentials/RLY_*', 'externalCredentials/RLY_*',
-    'flexipages/RLY_*', 'layouts/RLY_*', 'labels/CustomLabels.labels-meta.xml only-labels:RLY_*'
+// Release Relay's own components, by exact name (never a prefix: your own Rly* class is deployed as usual). Globs
+// relative to SOURCE_PATH; a glob matching a folder covers everything in it. "only-labels:<names>" excludes a labels
+// file only when every label in it matches. Lines in .relay/exclude are added to this list.
+const BUILT_IN_EXCLUDES = [ // RLY-EXCLUDES: generated from the hub package.xml, exact names only
+    'objects/RLY_Git_Connection__c', 'objects/RLY_Notification__c', 'objects/RLY_Manual_Step__c',
+    'objects/RLY_Manual_Step_Run__c', 'objects/RLY_Org__c', 'objects/RLY_Release_Event__c',
+    'objects/User/fields/RLY_Slack_Member_Id__c.field-meta.xml', 'classes/RlyApprovalService.cls*',
+    'classes/RlyApprovalServiceTest.cls*', 'classes/RlyAzureRepos.cls*', 'classes/RlyBitbucket.cls*',
+    'classes/RlyChangeFinder.cls*', 'classes/RlyChangesController.cls*', 'classes/RlyChangesControllerTest.cls*',
+    'classes/RlyCheckReader.cls*', 'classes/RlyCheckReaderTest.cls*', 'classes/RlyConflictResult.cls*',
+    'classes/RlyConflictRules.cls*', 'classes/RlyConflictService.cls*', 'classes/RlyConflictServiceTest.cls*',
+    'classes/RlyConsumerKeyTest.cls*', 'classes/RlyDeployReader.cls*', 'classes/RlyDeployReaderTest.cls*',
+    'classes/RlyFlowScenario.cls*', 'classes/RlyGit.cls*', 'classes/RlyGitAdvice.cls*',
+    'classes/RlyGitAdviceTest.cls*', 'classes/RlyPullRequestCloseTest.cls*', 'classes/RlyGitCheck.cls*',
+    'classes/RlyGitFile.cls*', 'classes/RlyGitHub.cls*', 'classes/RlyGitLab.cls*', 'classes/RlyGitProvidersTest.cls*',
+    'classes/RlyGitRequest.cls*', 'classes/RlyGitValidator.cls*', 'classes/RlyHotfix.cls*',
+    'classes/RlyHotfixTest.cls*', 'classes/RlyHttpMock.cls*', 'classes/RlyMetadata.cls*',
+    'classes/RlyMetadataMock.cls*', 'classes/RlyOrgCheck.cls*', 'classes/RlyOrgCheckMock.cls*',
+    'classes/RlyOrgController.cls*', 'classes/RlyOrgControllerTest.cls*', 'classes/RlyOrgSession.cls*',
+    'classes/RlyOrgSessionTest.cls*', 'classes/RlyOrgValidator.cls*', 'classes/RlyPipelineFiles.cls*',
+    'classes/RlyPipelineFilesTest.cls*', 'classes/RlyPipelineOptions.cls*', 'classes/RlyPipelineRun.cls*',
+    'classes/RlyPipelineUpdate.cls*', 'classes/RlyPullRequestClose.cls*', 'classes/RlyRaiseRoute.cls*',
+    'classes/RlyRaiseRules.cls*', 'classes/RlyRaiseService.cls*', 'classes/RlyRaiseServiceTest.cls*',
+    'classes/RlyReleaseException.cls*', 'classes/RlyReleaseStart.cls*', 'classes/RlyReleaseStore.cls*',
+    'classes/RlyReleaseTestData.cls*', 'classes/RlyReleasesController.cls*', 'classes/RlyReleasesFilterTest.cls*',
+    'classes/RlyReleaseQuery.cls*', 'classes/RlyReleaseRows.cls*', 'classes/RlyRetrieve.cls*',
+    'classes/RlyRouteController.cls*', 'classes/RlyRouteControllerTest.cls*', 'classes/RlyRouteRules.cls*',
+    'classes/RlySignInAdvice.cls*', 'classes/RlySlack.cls*', 'classes/RlySlackController.cls*',
+    'classes/RlySlackMessage.cls*', 'classes/RlySlackRules.cls*', 'classes/RlySlackTest.cls*',
+    'classes/RlySoapClient.cls*', 'classes/RlyStatusReader.cls*', 'classes/RlyStatusReaderTest.cls*',
+    'classes/RlyTestData.cls*', 'classes/RlyTestRule.cls*', 'classes/RlyApprover.cls*',
+    'classes/RlyApprovalRuns.cls*', 'classes/RlySlackApi.cls*', 'classes/RlySlackCard.cls*',
+    'classes/RlyReleasePhase.cls*', 'classes/RlySlackDelivery.cls*', 'classes/RlySlackDirectory.cls*',
+    'classes/RlySlackSignature.cls*', 'classes/RlySlackAction.cls*', 'classes/RlySlackActions.cls*',
+    'classes/RlySlackPayload.cls*', 'classes/RlySlackReply.cls*', 'classes/RlyGitName.cls*',
+    'classes/RlySlackActionsTest.cls*', 'classes/RlyApprovalRunsTest.cls*', 'classes/RlyBackPromote.cls*',
+    'classes/RlyBackPromoteQueue.cls*', 'classes/RlyBackPromoteRun.cls*', 'classes/RlyBackPromoteSummary.cls*',
+    'classes/RlyCarried.cls*', 'classes/RlyDeletionFinder.cls*', 'classes/RlyDeletionFinderTest.cls*',
+    'classes/RlyDeletionPaths.cls*', 'classes/RlyDeletionRules.cls*', 'classes/RlyDeletions.cls*',
+    'classes/RlyOrgSettings.cls*', 'classes/RlyPromoteController.cls*', 'classes/RlyPromoteStore.cls*',
+    'classes/RlyPromotion.cls*', 'classes/RlyReleaseEffects.cls*', 'classes/RlyReleaseLinks.cls*',
+    'classes/RlySlackCardText.cls*', 'classes/RlyTwoApprovers.cls*', 'classes/RlyPromoteTest.cls*',
+    'classes/RlyBackPromoteTest.cls*', 'classes/RlyTwoApproversTest.cls*', 'classes/RlyManualSteps.cls*',
+    'classes/RlyManualStepStore.cls*', 'classes/RlyManualStepRules.cls*', 'classes/RlyManualStepRuns.cls*',
+    'classes/RlyManualStepGate.cls*', 'classes/RlyManualStepCheck.cls*', 'classes/RlyManualStepBoard.cls*',
+    'classes/RlyManualStepEdit.cls*', 'classes/RlyManualStepController.cls*', 'classes/RlyManualStepsTest.cls*',
+    'classes/RlyManualStepGateTest.cls*', 'classes/RlyManualStepScope.cls*', 'classes/RlyManualStepText.cls*',
+    'classes/RlyBackPromoteSteps.cls*', 'classes/RlyApprovalRuleOrg.cls*', 'classes/RlyApprovalRules.cls*',
+    'classes/RlyApprovalRulesTest.cls*', 'classes/RlyApprovalWords.cls*', 'classes/RlyAutoApproval.cls*',
+    'classes/RlyEvidenceController.cls*', 'classes/RlyEvidenceHtml.cls*', 'classes/RlyEvidenceTables.cls*',
+    'classes/RlyEvidenceTest.cls*', 'classes/RlyEvidenceText.cls*', 'classes/RlyFlowActivation.cls*',
+    'classes/RlyFlowActivationTest.cls*', 'classes/RlyFlowChoices.cls*', 'classes/RlyFlowResults.cls*',
+    'classes/RlyFlowVersions.cls*', 'classes/RlyHubGuard.cls*', 'classes/RlyHubGuardTest.cls*',
+    'classes/RlyReleaseHistory.cls*', 'classes/RlyReleaseLog.cls*', 'classes/RlyReleaseOutcomes.cls*',
+    'classes/RlyReleaseTransitions.cls*', 'classes/RlySandboxCopy.cls*', 'classes/RlyBotToken.cls*',
+    'classes/RlySetupStatus.cls*', 'classes/RlySetupStatusTest.cls*', 'classes/RlyManualOnly.cls*',
+    'classes/RlyManualOnlyTest.cls*', 'lwc/rlyApprovalQueue', 'lwc/rlyManualSteps', 'lwc/rlySetupWizard',
+    'lwc/rlyChoiceChips', 'lwc/rlyMergeConflicts', 'lwc/rlyPipeline', 'lwc/rlyPromote', 'lwc/rlyReleaseBuilder',
+    'lwc/rlyReleaseGuide', 'lwc/rlyReleaseTracker', 'lwc/rlyReleaseView', 'tabs/RLY_Approvals.tab-meta.xml',
+    'tabs/RLY_My_Releases.tab-meta.xml', 'tabs/RLY_New_Release.tab-meta.xml', 'tabs/RLY_Pipeline.tab-meta.xml',
+    'tabs/RLY_Promote.tab-meta.xml', 'tabs/RLY_Relay_Guide.tab-meta.xml', 'applications/Release_Relay.app-meta.xml',
+    'customPermissions/RLY_Admin.customPermission-meta.xml',
+    'customPermissions/RLY_Deploy_Team.customPermission-meta.xml',
+    'customPermissions/RLY_Hotfix.customPermission-meta.xml', 'permissionsets/RLY_Admin.permissionset-meta.xml',
+    'permissionsets/RLY_Approver.permissionset-meta.xml', 'permissionsets/RLY_Deploy_Team.permissionset-meta.xml',
+    'permissionsets/RLY_Developer.permissionset-meta.xml', 'permissionsets/RLY_Slack_Site.permissionset-meta.xml',
+    'staticresources/RLY_Guide_Setup.*', 'staticresources/RLY_Guide_Setup', 'staticresources/RLY_Guide_Shots.*',
+    'staticresources/RLY_Guide_Shots', 'staticresources/RLY_Pipeline_Azure.*', 'staticresources/RLY_Pipeline_Azure',
+    'staticresources/RLY_Pipeline_Bitbucket.*', 'staticresources/RLY_Pipeline_Bitbucket',
+    'staticresources/RLY_Pipeline_GitHub.*', 'staticresources/RLY_Pipeline_GitHub',
+    'staticresources/RLY_Pipeline_GitLab.*', 'staticresources/RLY_Pipeline_GitLab',
+    'staticresources/RLY_Pipeline_Script.*', 'staticresources/RLY_Pipeline_Script',
+    'externalCredentials/RLY_Slack.externalCredential-meta.xml',
+    'namedCredentials/RLY_Slack.namedCredential-meta.xml',
+    'labels/CustomLabels.labels-meta.xml only-labels:RLY_App_Name', 'objects/RLY_Release__c',
+    'objects/RLY_Release_Item__c'
 ];
 const PROVIDER = (env.RELAY_PROVIDER || 'github').toLowerCase();
 
@@ -519,15 +588,15 @@ function globRegex(glob) {
 
 /** Reads .relay/exclude from the pipeline's commit (the job starts there, before any checkout), else the defaults. */
 function loadExcludes() {
-    let lines = DEFAULT_EXCLUDES;
-    excludeSource = 'built-in defaults';
+    let lines = BUILT_IN_EXCLUDES.slice();
+    excludeSource = "Release Relay's built-in list";
     try {
         if (fs.existsSync(EXCLUDE_FILE)) {
-            lines = fs.readFileSync(EXCLUDE_FILE, 'utf8').split(/\r?\n/);
-            excludeSource = EXCLUDE_FILE;
+            lines = lines.concat(fs.readFileSync(EXCLUDE_FILE, 'utf8').split(/\r?\n/));
+            excludeSource = "Release Relay's built-in list and " + EXCLUDE_FILE;
         }
     } catch (e) {
-        // unreadable: keep the defaults
+        // unreadable: the built-in list alone
     }
     excludeRules = [];
     for (const raw of lines) {
@@ -602,6 +671,13 @@ function applyForceIgnore() {
 }
 
 /** A sentence for result messages when files were left out, or ''. */
+/** Why a release whose every changed file is on the exclude list deploys nothing: it fails instead of passing. */
+function nothingLeftMessage() {
+    const names = deployExcluded.slice(0, 5).map((f) => path.basename(f)).join(', ');
+    return `Nothing was deployed: all ${deployExcluded.length} changed file(s) are on Release Relay's exclude list (${names}`
+        + `${deployExcluded.length > 5 ? ', ...' : ''}). Release Relay's own components are only deployed by a hub update.`;
+}
+
 function excludedNote() {
     return deployExcluded.length ? ` ${deployExcluded.length} Release Relay file(s) were left out (exclude list).` : '';
 }
@@ -1486,7 +1562,9 @@ async function stepValidate() {
         plan = buildDeployment(base, 'HEAD');
         validatedTree = git(['rev-parse', 'HEAD^{tree}']); // a quick deploy needs exactly this tree
         if (!plan) {
-            writeResult('validate', { status: 'Skipped', message: 'Nothing deployable changed under ' + sourcePath() + '.' + excludedNote() });
+            writeResult('validate', deployExcluded.length
+                ? { status: 'Failed', message: nothingLeftMessage(), excluded: deployExcluded.slice(0, 1000) }
+                : { status: 'Skipped', message: 'Nothing deployable changed under ' + sourcePath() + '.' });
             return;
         }
         login('target-org');
@@ -1732,7 +1810,9 @@ async function stepDeploy() {
         git(['checkout', '-q', '--detach', sha]);
         plan = buildDeployment(`${sha}^1`, sha);
         if (!plan) {
-            writeResult('deploy', { status: 'Deployed', sha, message: 'Nothing deployable changed under ' + sourcePath() + '.' + excludedNote() });
+            writeResult('deploy', deployExcluded.length
+                ? { status: 'Failed', sha, message: nothingLeftMessage(), excluded: deployExcluded.slice(0, 1000) }
+                : { status: 'Deployed', sha, message: 'Nothing deployable changed under ' + sourcePath() + '.' });
             return;
         }
         login('target-org');

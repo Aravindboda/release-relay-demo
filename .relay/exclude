@@ -1,26 +1,10 @@
-# Release Relay pipeline files: version 11
-# Release Relay's own metadata. Validate, deploy (full and quick) and sync never deploy or delete a file that
-# matches a line here; the results list the files left out as "excluded". Runs with {"selfUpdate":true} (the hub
-# updating itself from the release-relay-hub branch) ignore this list.
+# Release Relay pipeline files: version 12
+# Extra files Release Relay should never deploy or delete, added to its built-in list. The built-in list
+# (BUILT_IN_EXCLUDES in scripts/release-relay.js) names Release Relay's own components exactly, so your own
+# classes are deployed even when their names start with "Rly". Runs with {"selfUpdate":true} (the hub updating
+# itself from the release-relay-hub branch) ignore both lists.
 #
 # One glob per line, relative to SOURCE_PATH (force-app/main/default). * matches within a folder name, ** across
 # folders, ? one character. A glob that matches a folder covers everything in it. # starts a comment.
-# "only-labels:<glob>" after a labels file excludes it only when every label in it matches (a file that also
-# holds your own labels is deployed as usual).
+# "only-labels:<glob>" after a labels file excludes it only when every label in it matches.
 # The pipeline reads this file from its own commit (the default branch), never from a release branch.
-classes/Rly*
-triggers/Rly*
-lwc/rly*
-aura/rly*
-objects/RLY_*
-objects/User/fields/RLY_*
-tabs/RLY_*
-permissionsets/RLY_*
-customPermissions/RLY_*
-staticresources/RLY_*
-applications/Release_Relay.app-meta.xml
-namedCredentials/RLY_*
-externalCredentials/RLY_*
-flexipages/RLY_*
-layouts/RLY_*
-labels/CustomLabels.labels-meta.xml only-labels:RLY_*
