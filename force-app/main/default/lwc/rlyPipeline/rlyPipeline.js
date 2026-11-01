@@ -582,7 +582,7 @@ export default class RlyPipeline extends LightningElement {
             messageCls: o.Status__c === 'Failed' ? 'rr-msg rr-msg-bad' : 'rr-msg rr-msg-info',
             checking: this.checkingId === o.Id,
             cantCheck: this.checkingId === o.Id || this.hubCopy,
-            checkLabel: this.checkingId === o.Id ? 'Signing in…' : 'Test sign-in',
+            checkLabel: this.checkingId === o.Id ? 'Checking…' : 'Check connection',
             isDeveloper,
             isBackPromote,
             bp,
@@ -1345,7 +1345,7 @@ export default class RlyPipeline extends LightningElement {
     get gitStatusCls() { return GIT_STATUS_CLS[this.gitStatus] || GIT_STATUS_CLS['Not checked']; }
     get gitMessage() { return this.git && !this.gitShortMessage ? this.git.Status_Message__c : null; }
     get gitMessageCls() { return this.git && this.git.Status__c === 'Failed' ? 'rr-msg rr-msg-bad' : 'rr-msg rr-msg-info'; }
-    get gitCheckLabel() { return this.gitBusy ? 'Testing…' : 'Test connection'; }
+    get gitCheckLabel() { return this.gitBusy ? 'Checking…' : 'Check connection'; }
 
     /** What the Git connection card shows, as text. */
     get gitFacts() {
@@ -1799,7 +1799,7 @@ export default class RlyPipeline extends LightningElement {
         }
         return this.slackStatus.startsWith('Error') ? 'rr-pill rr-pill-bad' : 'rr-pill rr-pill-none';
     }
-    get slackTestLabel() { return this.slackTesting ? 'Testing…' : 'Test'; }
+    get slackTestLabel() { return this.slackTesting ? 'Checking…' : 'Check connection'; }
     /** The secret itself never comes to the page: only a masked hint of the saved one. */
     get slackSecretText() {
         const hint = this.slack.signingSecretHint;
@@ -1834,7 +1834,7 @@ export default class RlyPipeline extends LightningElement {
         const items = [
             { key: 'app', title: 'Slack app created', text: 'You do this in Slack (Guide → Set up → Slack).', done: this.tokenSaved },
             { key: 'tok', title: 'Bot token saved', text: 'Paste it with Edit → Bot token.', done: this.tokenSaved },
-            { key: 'test', title: 'Test', text: 'Checks the token and shows your workspace name.', done: !!this.slack.connected },
+            { key: 'test', title: 'Check connection', text: 'Checks the token and shows your workspace name.', done: !!this.slack.connected },
             { key: 'ch', title: 'Pick a channel per org', text: 'Connected orgs → open the org → Edit → Slack.', done: this.anyOrgChannel }
         ];
         const next = items.findIndex((i) => !i.done);
@@ -1964,7 +1964,7 @@ export default class RlyPipeline extends LightningElement {
             return 'Save';
         }
         if (this.editingKind === 'signin') {
-            return 'Test sign-in and next';
+            return 'Check connection and next';
         }
         return this.flowIsLast ? 'Save and finish' : 'Save and next';
     }
@@ -2336,7 +2336,7 @@ export default class RlyPipeline extends LightningElement {
             }
             this.beginSection(orgId, 'signin');
             this.editError = 'Saved, but the sign-in didn\'t work yet' + (o && o.Status_Message__c ? ': ' + o.Status_Message__c : '.')
-                + ' Fix the details, then Test sign-in and next.';
+                + ' Fix the details, then Check connection and next.';
         });
     }
 
