@@ -1,0 +1,73 @@
+{
+ "request": "REL-90055",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 23,
+ "deleted": [],
+ "mergedWith": "c2e9d0d663d3c201fd83c07f9ab0aeafcb3e7e6f",
+ "validatedTree": "ecff1b58c1bab540992e57d99ad1b1cb49effa95",
+ "environment": "sit",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cKYu5SAG",
+ "testsRun": 213,
+ "tests": [
+  "RlyApprovalRulesTest",
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyBackPromoteTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyDeletionFinderTest",
+  "RlyDeployReaderTest",
+  "RlyEvidenceTest",
+  "RlyFlowActivationTest",
+  "RlyGitAdviceTest",
+  "RlyGitProvidersTest",
+  "RlyHotfixTest",
+  "RlyHubGuardTest",
+  "RlyManualOnlyTest",
+  "RlyManualStepGateTest",
+  "RlyManualStepsTest",
+  "RlyOrgControllerTest",
+  "RlyOrgSessionTest",
+  "RlyPipelineFilesTest",
+  "RlyPromoteTest",
+  "RlyPullRequestCloseTest",
+  "RlyRaiseServiceTest",
+  "RlyReleasesFilterTest",
+  "RlyRouteControllerTest",
+  "RlySetupStatusTest",
+  "RlySlackActionsTest",
+  "RlySlackCardTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest",
+  "RlyTwoApproversTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [
+  {
+   "name": "RlySlackCardTest",
+   "method": "cardLinesForEachState",
+   "message": "System.AssertException: Assertion Failed: Approve offered"
+  }
+ ],
+ "message": "1 test failure(s)",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41309214264",
+ "finishedAt": "2026-11-01T13:06:04.572Z",
+ "excluded": [],
+ "selfUpdate": true,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
+}
