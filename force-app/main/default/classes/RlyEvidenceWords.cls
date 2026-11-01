@@ -4,8 +4,18 @@
  */
 public with sharing class RlyEvidenceWords {
 
-    private static final Integer LONG_WORD = 30;
-    private static final String BREAK_POINT = '&#8203;';
+    private static final Integer LONG_WORD = 26;
+    private static final Integer SLASH_RUN = 12;
+    // The PDF renderer ignores zero-width break points, so a long word gets a real space where it may wrap.
+    private static final String BREAK_POINT = ' ';
+    // Column widths (percent) per table, by its header; a two-column table gives the value most of the width.
+    private static final Map<String, List<Integer>> COLUMN_WIDTHS = new Map<String, List<Integer>>{
+        'Item|Value' => new List<Integer>{ 28, 72 },
+        'Change|Type|Name' => new List<Integer>{ 15, 25, 60 },
+        'Severity|Rule|Where|Message' => new List<Integer>{ 9, 13, 38, 40 },
+        'Org|Step|Timing|Status|Done by|Note' => new List<Integer>{ 10, 36, 13, 10, 17, 14 },
+        'When|Event|Org|Who|Detail|Reference' => new List<Integer>{ 13, 13, 7, 15, 32, 20 }
+    };
 
     /**
      * @description A picklist value as words: To_Do is "To do", After_Deploy is "After deploy".
@@ -21,8 +31,9 @@ public with sharing class RlyEvidenceWords {
     }
 
     /**
-     * @description Adds break points to long words (links, deploy ids, file paths): after each / and every 30
-     * characters, so a table cell wraps them instead of running off the page.
+     * @description Adds break points to long words (links, file paths): after a / that ends a long enough run, and
+     * every 26 characters, so a table cell wraps them instead of running into the next column. Deploy ids (18
+     * characters) and other short words stay whole.
      * @param html escaped text
      * @return the text with break points
      */
@@ -40,12 +51,22 @@ public with sharing class RlyEvidenceWords {
         for (Integer i = 0; i < word.length(); i++) {
             String ch = word.substring(i, i + 1);
             out += ch;
-            run = ch == '/' ? 0 : run + 1;
-            if (ch == '/' || run >= LONG_WORD) {
+            run++;
+            if ((ch == '/' && run >= SLASH_RUN) || run >= LONG_WORD) {
                 out += BREAK_POINT;
                 run = 0;
             }
         }
         return out;
+    }
+
+    /**
+     * @description The column widths for a table's header (percent), or an empty list to let the renderer share them.
+     * @param header the header cells
+     * @return the widths
+     */
+    public static List<Integer> widths(List<String> header) {
+        List<Integer> w = header == null ? null : COLUMN_WIDTHS.get(String.join(header, '|'));
+        return w == null ? new List<Integer>() : w;
     }
 }

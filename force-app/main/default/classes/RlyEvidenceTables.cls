@@ -6,7 +6,7 @@ public with sharing class RlyEvidenceTables {
 
     private static final String TD = '</td><td>';
     /** @description Print CSS for the PDF renderer (Flying Saucer): rows never split, headings stay with their table, short sections stay whole, long tables repeat their header on each page. */
-    public static final String PRINT_CSS = 'table{border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;'
+    public static final String PRINT_CSS = 'table{border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;font-size:9pt;'
         + '-fs-table-paginate:paginate}td,th{word-wrap:break-word}'
         + 'thead{display:table-header-group}tr,td,th{page-break-inside:avoid}h1,h2,h3{page-break-after:avoid}'
         + 'td,th{border-right:1px solid #999;border-bottom:1px solid #999;padding:3px;text-align:left;vertical-align:top}'
@@ -100,7 +100,7 @@ public with sharing class RlyEvidenceTables {
     public static String history(List<RLY_Release_Event__c> events) {
         List<List<String>> rows = new List<List<String>>();
         for (RLY_Release_Event__c e : events) {
-            rows.add(new List<String>{ stamp(e.Occurred_On__c), e.Event_Type__c, e.Org__r == null ? '' : e.Org__r.Name,
+            rows.add(new List<String>{ stamp(e.Occurred_On__c), RlyEvidenceWords.words(e.Event_Type__c), e.Org__r == null ? '' : e.Org__r.Name,
                 (e.Actor__r == null ? '' : e.Actor__r.Name + ' · ') + RlyEvidenceText.text(e.Via__c), e.Detail__c, e.Reference__c });
         }
         return '<div class="rr-sec"><h2>History, oldest first</h2>'
@@ -127,8 +127,13 @@ public with sharing class RlyEvidenceTables {
      * @return the HTML
      */
     public static String table(List<String> header, List<List<String>> rows) {
-        List<String> out = new List<String>{ '<table><thead><tr><th>'
-            + String.join(escAll(header == null ? KEY_VALUE_HEADER : header), '</th><th>') + '</th></tr></thead><tbody>' };
+        List<String> head = header == null ? KEY_VALUE_HEADER : header;
+        String cols = '';
+        for (Integer w : RlyEvidenceWords.widths(head)) {
+            cols += '<col style="width:' + w + '%"/>';
+        }
+        List<String> out = new List<String>{ '<table>' + (cols == '' ? '' : '<colgroup>' + cols + '</colgroup>') + '<thead><tr><th>'
+            + String.join(escAll(head), '</th><th>') + '</th></tr></thead><tbody>' };
         for (List<String> r : rows) {
             out.add('<tr><td>' + String.join(escAll(r), TD) + '</td></tr>');
         }
