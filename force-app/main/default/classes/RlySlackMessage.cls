@@ -1,9 +1,37 @@
 /**
  * @description The legacy webhook message for a release event (used only when the Slack app isn't set up): a header
  * (REL · event), the title, the route, who raised it, the reason when its checks failed, and a button that opens the
- * release on the hub's Releases tab. Also the shared pieces of the Slack card: the link, the reason and escaping.
+ * release on the hub's Releases tab, and its post (postWebhook). Also the shared pieces of the Slack card: the link, the reason and escaping.
  */
 public with sharing class RlySlackMessage {
+
+    private static final Integer TIMEOUT_MS = 10000;
+
+    /**
+     * @description Posts a message to the legacy incoming webhook. Never throws.
+     * @param webhookUrl the webhook URL (RLY_Notification__c.Webhook_URL__c)
+     * @param payload the message as JSON (forRelease)
+     * @param what what is sent, for the result
+     * @return the result for Last_Result__c
+     */
+    public static String postWebhook(String webhookUrl, String payload, String what) {
+        String result;
+        try {
+            HttpRequest req = new HttpRequest();
+            req.setMethod('POST');
+            req.setEndpoint(webhookUrl.trim());
+            req.setTimeout(TIMEOUT_MS);
+            req.setHeader('Content-Type', 'application/json');
+            req.setBody(payload);
+            HttpResponse res = new Http().send(req);
+            Integer code = res.getStatusCode();
+            result = code >= 200 && code < 300 ? 'Sent: ' + what
+                : 'Failed: HTTP ' + code + ' for ' + what + ' ' + String.valueOf(res.getBody()).left(120);
+        } catch (Exception e) {
+            result = 'Failed: ' + what + ': ' + e.getMessage();
+        }
+        return result;
+    }
 
     /**
      * @description The message as JSON.

@@ -58,10 +58,10 @@ public with sharing class RlyManualStepCheck {
         }
         apply(run, m.status, note);
         RLY_Release__c rel = releaseToMove(run);
-        String oldStatus = rel == null ? null : rel.Status__c;
+        RLY_Release__c prior = rel == null ? null : rel.clone(true, true, true, true);
         if (rel != null) {
             move(rel, run);
-            RlySlack.notifyTransition(rel, oldStatus); // callouts before any DML
+            RlySlackCardSync.notifyChange(prior, rel); // callouts (the Slack card too) before any DML
         }
         RlyManualStepStore.saveRuns(new List<RLY_Manual_Step_Run__c>{ run });
         RlyReleaseLog.manualStep(run);

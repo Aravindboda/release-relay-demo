@@ -1,4 +1,6 @@
-# Release Relay pipeline files: version 12
+# Release Relay pipeline files: version 13
+# Version 13: per-org values (.relay/values.json), quality gates (.relay/gates.json), rollback snapshots before every
+# deploy (release-relay-snapshots branch) and MODE=rollback, and a cached Salesforce CLI. See pipelines/README.md.
 # Release Relay's own metadata (its components by exact name, plus .relay/exclude) is never validated, deployed or deleted;
 # options {"selfUpdate":true} (the hub updating itself, from the release-relay-hub branch) ignores the list.
 # Release Relay for GitLab CI/CD. Started only from Salesforce (the Release Relay hub creates a
@@ -19,6 +21,8 @@
 #   MODE=sync    back promote: merge BRANCH (the hub's production branch) into TARGET (a back-promote
 #                org's branch, made from BRANCH when missing), deploy what changed to the org in
 #                TARGET_ENVIRONMENT, and push TARGET only when that deploy worked.
+#   MODE=rollback deploy a snapshot taken before an earlier deploy back into the org in TARGET_ENVIRONMENT
+#                (OPTIONS.snapshotPath, else the latest for the release and environment); Git isn't changed.
 # Validation and deployment run only when TARGET_ENVIRONMENT is set. Each step writes its result as
 # JSON to the release-relay-results branch, where Salesforce reads it.
 #
@@ -60,14 +64,34 @@ stages:
   # (the default branch's commit this pipeline runs on).
   before_script:
     - git show "$CI_COMMIT_SHA:scripts/release-relay.js" > /tmp/release-relay.js
+    # relay_install_sf: the Salesforce CLI (major version 2) from the job cache (.relay-sf, see .relay-sf-cache),
+    # installed again when missing or older than 30 days.
+    - |
+      relay_install_sf() {
+        relay_sf="$CI_PROJECT_DIR/.relay-sf"
+        relay_age=$(( $(date +%s) - $(cat "$relay_sf/.installed" 2>/dev/null || echo 0) ))
+        if [ ! -x "$relay_sf/bin/sf" ] || [ "$relay_age" -gt 2592000 ]; then
+          rm -rf "$relay_sf"
+          npm install --global --prefix "$relay_sf" @salesforce/cli@2 --silent --no-audit --no-fund \
+            && date +%s > "$relay_sf/.installed"
+        fi
+        export PATH="$CI_PROJECT_DIR/.relay-sf/bin:$PATH"
+      }
     # keytool turns an SF_JKS keystore into the key; only needed when a keystore is set.
     - |
       if env | grep -Eq '^([A-Z0-9_]+_)?SF_JKS=.'; then
         apt-get update -qq && apt-get install -y -qq openjdk-17-jre-headless > /dev/null
       fi
 
+# The jobs that use the Salesforce CLI keep it in the cache (GitLab skips the upload when nothing changed).
+.relay-sf-cache:
+  cache:
+    key: relay-sf-cli2-node22
+    paths:
+      - .relay-sf/
+
 release-relay-raise:
-  extends: .release-relay
+  extends: [.release-relay, .relay-sf-cache]
   stage: relay-raise
   timeout: 30m
   environment:
@@ -78,12 +102,12 @@ release-relay-raise:
   script:
     - |
       if [ "$MODE" = hub ] || { [ "$MODE" = org ] && [ -n "$COMPONENTS" ] && [ "$COMPONENTS" != "-" ]; }; then
-        npm install --global @salesforce/cli@2 --silent
+        relay_install_sf
       fi
     - STEP=raise node /tmp/release-relay.js
 
 release-relay-scan:
-  extends: .release-relay
+  extends: [.release-relay, .relay-sf-cache]
   stage: relay-check
   timeout: 30m
   needs:
@@ -93,12 +117,13 @@ release-relay-scan:
     - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $REQUEST_ID && $MODE =~ /^(org|branch|promote|hub|resolve|check)$/ && $OPTIONS !~ /"scan"\s*:\s*"off"/'
   script:
     - apt-get update -qq && apt-get install -y -qq openjdk-17-jre-headless > /dev/null
-    - npm install --global @salesforce/cli@2 --silent
+    - relay_install_sf
+    # The plugin lives in the job's home folder (not cached): installed each time.
     - sf plugins install code-analyzer
     - STEP=scan node /tmp/release-relay.js
 
 release-relay-validate:
-  extends: .release-relay
+  extends: [.release-relay, .relay-sf-cache]
   stage: relay-check
   timeout: 2h
   needs:
@@ -112,7 +137,7 @@ release-relay-validate:
   rules:
     - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $REQUEST_ID && $MODE =~ /^(org|branch|promote|hub|resolve|check)$/ && $TARGET_ENVIRONMENT && $TARGET_ENVIRONMENT != "-"'
   script:
-    - npm install --global @salesforce/cli@2 --silent
+    - relay_install_sf
     - STEP=validate node /tmp/release-relay.js
 
 release-relay-merge:
@@ -133,7 +158,7 @@ release-relay-merge:
       dotenv: relay-merge.env
 
 release-relay-deploy:
-  extends: .release-relay
+  extends: [.release-relay, .relay-sf-cache]
   stage: relay-deploy
   timeout: 2h
   needs:
@@ -145,13 +170,13 @@ release-relay-deploy:
   rules:
     - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $REQUEST_ID && $MODE == "merge" && $TARGET_ENVIRONMENT && $TARGET_ENVIRONMENT != "-"'
   script:
-    - npm install --global @salesforce/cli@2 --silent
+    - relay_install_sf
     - STEP=deploy node /tmp/release-relay.js
 
 # Back promote: production's changes into a back-promote org. A real deployment to the target org's
 # environment, like the deploy job, so its login, protection and approvals apply.
 release-relay-sync:
-  extends: .release-relay
+  extends: [.release-relay, .relay-sf-cache]
   stage: relay-sync
   timeout: 2h
   needs: []
@@ -160,8 +185,25 @@ release-relay-sync:
   rules:
     - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $REQUEST_ID && $MODE == "sync" && $TARGET_ENVIRONMENT && $TARGET_ENVIRONMENT != "-"'
   script:
-    - npm install --global @salesforce/cli@2 --silent
+    - relay_install_sf
     - STEP=sync node /tmp/release-relay.js
+
+# Rollback: deploys a snapshot (taken before an earlier deploy) back into the org. A real deployment to the target
+# org's environment, like the deploy job. Only the pipeline's commit is needed, so the clone is shallow.
+release-relay-rollback:
+  extends: [.release-relay, .relay-sf-cache]
+  stage: relay-deploy
+  timeout: 2h
+  needs: []
+  variables:
+    GIT_DEPTH: "1"
+  environment:
+    name: $TARGET_ENVIRONMENT
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $REQUEST_ID && $MODE == "rollback" && $TARGET_ENVIRONMENT && $TARGET_ENVIRONMENT != "-"'
+  script:
+    - relay_install_sf
+    - STEP=rollback node /tmp/release-relay.js
 
 # Tells the Salesforce org named in OPTIONS.notify to read the results now. Its login is read as
 # <NOTIFY>_SF_USERNAME etc. (prefixed variables). A failure here never fails the pipeline.

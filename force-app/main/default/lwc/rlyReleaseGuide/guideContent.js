@@ -728,7 +728,7 @@ const SETUP_SECTIONS = [
                 title: 'E. Slack (optional)',
                 aside: 'Skip this if you don\'t use Slack: everything works without it',
                 blocks: [
-                    { type: 'text', paras: ['With Slack each release posts one card in its target org\'s channel and updates it as it moves. Approving in Slack is a further, optional part (steps 7 to 13).'] },
+                    { type: 'text', paras: ['With Slack each release posts one card in its target org\'s channel and updates it as it moves. Approving in Slack is a further, optional part (steps 7 to 13).', 'The card always shows the release\'s current state (approved, waiting for manual steps, deploying, deployed, failed, rejected); the events you tick only choose the extra messages (thread replies and new posts). There is no background job: the hub notices a deploy finishing when someone has Release Relay open (its pages keep checking), and then updates the card.'] },
                     {
                         type: 'steps',
                         steps: [

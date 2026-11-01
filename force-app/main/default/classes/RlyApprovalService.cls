@@ -5,8 +5,9 @@
  * (RlySlackAction checks a linked Slack user's permission sets). A hotfix into an org that needs two approvers waits for
  * a second one (RlyTwoApprovers). A deploy whose manual steps before deploy aren't done yet is approved but waits
  * (RlyManualStepGate); the deployment team's last check starts it (RlyManualStepCheck). A release with only manual steps
- * has nothing to merge: approving it starts its manual steps in the target (RlyManualOnly). Callouts come first (Slack too, when the new status is an event)
- * and the saves last.
+ * has nothing to merge: approving it starts its manual steps in the target (RlyManualOnly). Callouts come first (Slack
+ * too: the release's card is edited on every change, a first approval or a deploy waiting for manual steps included, and
+ * the selected events add their messages) and the saves last. A Slack failure never stops the change.
  */
 public with sharing class RlyApprovalService {
 
@@ -35,12 +36,13 @@ public with sharing class RlyApprovalService {
             throw new RlyReleaseException('Say why the findings are accepted (at least 10 characters).');
         }
         String oldStatus = rel.Status__c;
+        RLY_Release__c before = rel.clone(true, true, true, true);
         rel.Scan_Status__c = 'Bypassed';
         rel.Scan_Bypassed_By__c = UserInfo.getUserId();
         rel.Scan_Bypass_Reason__c = reason.trim().left(2000);
         RlyCheckReader.decide(rel);
         RlyAutoApproval.afterBypass(rel, oldStatus);
-        saveAndNotify(rel, oldStatus);
+        saveAndNotify(before, rel);
         return rel;
     }
 
@@ -55,8 +57,9 @@ public with sharing class RlyApprovalService {
         if (rel == null || (rel.Status__c != 'Checks failed' && rel.Status__c != 'Ready for approval') || rel.PR_Number__c == null) {
             throw new RlyReleaseException('Checks can run again on an open pull request that isn\'t approved yet.');
         }
+        RLY_Release__c before = rel.clone(true, true, true, true);
         RlyApprovalRuns.startChecks(rel, RlyReleaseStore.git(), 'check');
-        RlyReleaseStore.save(rel);
+        saveAndNotify(before, rel);
         return rel;
     }
 
@@ -86,9 +89,9 @@ public with sharing class RlyApprovalService {
         if (rel == null || rel.Status__c != 'Ready for approval') {
             throw new RlyReleaseException('Only a release that\'s ready for approval can be approved.');
         }
-        String oldStatus = rel.Status__c;
+        RLY_Release__c before = rel.clone(true, true, true, true);
         if (RlyManualStepGate.waitsInstead(rel, who)) {
-            RlyReleaseStore.save(rel); // the first of two approvals, or the deploy waits for manual steps: no event
+            saveAndNotify(before, rel); // the first of two approvals, or the deploy waits for manual steps: the card says so
             return rel;
         }
         RLY_Release__c prior = rel.clone(true, true, true, true);
@@ -100,7 +103,7 @@ public with sharing class RlyApprovalService {
             RlyApprovalRuns.startMerge(rel, git, who);
             RlyTwoApprovers.keepBoth(rel, prior);
         }
-        saveAndNotify(rel, oldStatus);
+        saveAndNotify(before, rel);
         if (rel.Status__c == 'Deployed') {
             RlyBackPromoteQueue.afterDeploy(rel); // manual steps only, nothing left to do: deployed on approval
         }
@@ -133,7 +136,7 @@ public with sharing class RlyApprovalService {
         if (String.isBlank(who.comment)) {
             throw new RlyReleaseException('Say why it\'s rejected, so the developer knows what to change.');
         }
-        String oldStatus = rel.Status__c;
+        RLY_Release__c before = rel.clone(true, true, true, true);
         if (rel.PR_Number__c != null) {
             closePullRequest(rel, who);
         }
@@ -143,7 +146,7 @@ public with sharing class RlyApprovalService {
         rel.Approved_Via__c = who.via;
         rel.Approved_On__c = System.now();
         rel.Approval_Comment__c = who.comment.left(2000);
-        saveAndNotify(rel, oldStatus);
+        saveAndNotify(before, rel);
         return rel;
     }
 
@@ -156,9 +159,10 @@ public with sharing class RlyApprovalService {
         }
     }
 
-    // Slack hears about a status that's an event (callout first), then the release and the Slack result are saved.
-    private static void saveAndNotify(RLY_Release__c rel, String oldStatus) {
-        RlySlack.notifyTransition(rel, oldStatus);
+    // Slack hears about the change (callouts first: the card is edited, a selected event adds its messages), then the
+    // release and the Slack result are saved.
+    private static void saveAndNotify(RLY_Release__c before, RLY_Release__c rel) {
+        RlySlackCardSync.notifyChange(before, rel);
         RlyReleaseStore.save(rel);
         RlySlack.saveResults();
     }
