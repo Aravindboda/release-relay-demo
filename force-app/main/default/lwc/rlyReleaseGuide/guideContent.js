@@ -580,11 +580,15 @@ const SETUP_SECTIONS = [
                                 check: 'Environment variables lists SF_INSTANCE_URL and SF_JKS_ALIAS.'
                             },
                             {
-                                title: 'Leave the exclude list in place',
+                                title: 'The exclude list (nothing to do)',
                                 who: 'Git admin',
                                 where: 'Repository → main → .relay/exclude',
-                                goal: 'Release Relay\'s own components (Rly classes, rly components, RLY_ objects and so on) never travel to your orgs through a normal release.',
-                                items: ['If `.relay/exclude` is there, keep it. Without it the pipeline uses the same built-in list.']
+                                goal: 'Release Relay\'s own components never travel to your orgs through a normal release.',
+                                items: [
+                                    'The pipeline knows Release Relay\'s own components by exact name, so your own classes are deployed even when their names start with "Rly".',
+                                    'To keep other files out of every release, add one line each to `.relay/exclude` (optional).',
+                                    'A release whose every file is on the list fails with "Nothing was deployed" instead of showing Deployed.'
+                                ]
                             }
                         ]
                     },
@@ -880,18 +884,20 @@ const SETUP_SECTIONS = [
                                 check: 'The card shows Approve and Reject, and pressing Approve moves the release on.'
                             },
                             {
-                                title: 'Approve in Slack: if pressing Approve shows an error',
+                                title: 'Approve in Slack: give the Site guest user its credentials',
                                 who: 'Salesforce admin',
-                                where: 'Setup → Sites → your Site → Public Access Settings',
-                                goal: 'The Slack callback runs as the Site guest user; it needs to read the Slack credential to update the card.',
+                                where: 'Setup → Permission Sets → Release Relay Slack Site',
+                                goal: 'The Slack callback runs as the Site guest user. It starts the deploy through your Git credential and answers in Slack through the Slack credential, so it needs both. Without them pressing Approve does nothing at all. Apex checks Slack\'s signature and the linked approver before either is used.',
                                 items: [
-                                    'On the guest user\'s profile (Public Access Settings) → **Object Settings** → **User External Credentials** → **Edit** → tick **Read** and **View All** → **Save**.',
-                                    'Check the guest user\'s `RLY_Slack_Site` permission set lists **External Credential Principal Access** → `RLY_Slack - Bot` (it is already in `RLY_Slack_Site`; add it if someone removed it).',
+                                    'The guest **profile** (Setup → Sites → your Site → **Public Access Settings** → **Edit**): under Standard Object Permissions find **User External Credentials** and tick **Read** → **Save**. The permission set doesn\'t offer this object for guest users.',
+                                    '**External Credential Principal Access** → **Edit** → move your Git credential\'s principal (the one starting `RLY_GitHub - `, or your provider\'s credential) to Enabled → **Save**.',
+                                    'Check `RLY_Slack - Bot` is in the same list (it is already in `RLY_Slack_Site`; add it if someone removed it).',
                                     'Check the Request URL in the Slack app ends with `/services/apexrest/rly/slack/actions` and starts with your Site URL, and that the signing secret was saved (step 7).'
                                 ],
                                 problems: [
                                     ['Slack shows "This app responded with status code 404" or similar', 'The Request URL is wrong or the Site isn\'t Active: copy it again from Pipeline → Slack connection.'],
-                                    ['Slack shows an error after a few seconds and the card doesn\'t change', 'Give the guest user Read and View All on User External Credentials (above), and check the RLY_Slack - Bot principal access.']
+                                    ['Slack shows an error after a few seconds and the card doesn\'t change', 'Give the guest user Read and View All on User External Credentials (above), and check the RLY_Slack - Bot principal access.'],
+                                    ['Pressing Approve does nothing and the release stays Ready for approval', 'The guest user can\'t use the Git credential or read User External Credentials: do both items above. To see it for yourself, add a debug log for the Site guest user (Setup → Debug Logs) and press Approve again.']
                                 ]
                             }
                         ]
