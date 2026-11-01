@@ -724,7 +724,7 @@ const SETUP_SECTIONS = [
                 title: 'E. Slack (optional)',
                 aside: 'Skip this if you don\'t use Slack: everything works without it',
                 blocks: [
-                    { type: 'text', paras: ['With Slack each release posts one card in its target org\'s channel and updates it as it moves. Approving in Slack is a further, optional part (steps 7 to 11).'] },
+                    { type: 'text', paras: ['With Slack each release posts one card in its target org\'s channel and updates it as it moves. Approving in Slack is a further, optional part (steps 7 to 13).'] },
                     {
                         type: 'steps',
                         steps: [
@@ -798,59 +798,101 @@ const SETUP_SECTIONS = [
                                 links: [{ label: 'How to use: Pipeline tab', to: 'pipelinetab' }]
                             },
                             {
-                                title: 'Approve in Slack: copy the signing secret',
-                                who: 'Slack admin',
-                                where: 'Your app → Basic Information → App Credentials → Signing Secret → Show',
-                                goal: 'Proves that an Approve press really comes from your Slack app.',
-                                items: ['Copy it, then Release Relay → Pipeline → Slack connection → Edit → **Signing secret** → Save. It is saved encrypted; leave the box blank later to keep it.'],
-                                problems: [['"The signing secret has no spaces: copy it again from the Slack app (Basic Information)."', 'Copy the Signing Secret again, not the Client Secret or the token.']]
+                                title: 'Approve in Slack: copy the signing secret into the hub',
+                                who: 'Slack admin + Release Relay admin',
+                                where: 'Slack app settings (api.slack.com/apps) → your app → Basic Information → App Credentials',
+                                goal: 'Proves that an Approve or Reject press really comes from your Slack app.',
+                                items: [
+                                    'Under **App Credentials**, find **Signing Secret** and press **Show**. Copy it (not the Client Secret, not the token).',
+                                    'In Salesforce: Release Relay → **Pipeline** → **Slack connection** → **Edit**.',
+                                    'Open **Approve in Slack** → paste it into **Signing secret**.',
+                                    'Press **Save and test**. It is saved encrypted and never shown again; leave the box blank later to keep it.'
+                                ],
+                                check: 'The Slack connection shows the signing secret as saved.',
+                                problems: [['"The signing secret has no spaces: copy it again from the Slack app (Basic Information)."', 'Copy the Signing Secret again from Basic Information → App Credentials, not the Client Secret or the bot token.']]
                             },
                             {
-                                title: 'Approve in Slack: a Site for Slack to reach',
+                                title: 'Approve in Slack: a Site that Slack can reach',
                                 who: 'Salesforce admin',
-                                where: 'Setup → Sites → New (register a Sites domain first if asked)',
-                                goal: 'Slack sends the button press to the hub through a public Salesforce Site, which only accepts signed requests.',
+                                where: 'Setup → Quick Find: Sites → Sites',
+                                goal: 'Slack sends each button press to the hub through a public Salesforce Site. The Site only accepts requests signed with your signing secret.',
                                 items: [
-                                    'Site Label: for example `Release Relay Slack`.',
+                                    'If the page asks you to register a Site domain first (no Sites yet): type a domain name, press **Check Availability**, tick the terms, press **Register My Salesforce Site Domain**.',
+                                    'Press **New**. Site Label: for example `Release Relay Slack` (Site Name fills in by itself).',
                                     'Tick **Active**.',
-                                    'Active Site Home Page: any page, for example `InMaintenance`. Save.',
-                                    'Public Access Settings → View Users → the site guest user → Permission Set Assignments → add `RLY_Slack_Site`.'
+                                    'Active Site Home Page: press the lookup and pick any page, for example `InMaintenance`. Press **Save**.',
+                                    'On the Site\'s page press **Public Access Settings** → **Assigned Users** → open the site guest user (for example "Release Relay Slack Site Guest User").',
+                                    'On the guest user: **Permission Set Assignments** → **Edit Assignments** → add `RLY_Slack_Site` → **Save**.',
+                                    'Back on Setup → Sites, copy the Site\'s **Site URL** (for example `https://your-domain.my.salesforce-sites.com/` — your own URL; a site with a path ends with that path).'
                                 ],
-                                check: 'Pipeline → Slack connection shows the Interactivity Request URL.',
+                                check: 'The Site shows Active and its guest user has the permission set RLY_Slack_Site.',
                                 shot: { ill: 'slack-site', cap: 'A Site, active, with RLY_Slack_Site on its guest user.', alt: 'Drawing of the Site Edit page with callouts 1 Site Label, 2 Active, 3 Active Site Home Page, 4 RLY_Slack_Site permission set on the guest user.' }
                             },
                             {
                                 title: 'Approve in Slack: turn on Interactivity',
                                 who: 'Slack admin',
-                                where: 'Your app → Interactivity & Shortcuts',
+                                where: 'Slack app settings (api.slack.com/apps) → your app → Interactivity & Shortcuts',
                                 goal: 'Tells Slack where to send Approve and Reject.',
                                 items: [
-                                    'Switch **Interactivity** on.',
-                                    'Request URL: copy it from Pipeline → Slack connection. It ends with `/services/apexrest/rly/slack/actions`.',
-                                    'Press **Save Changes**.',
-                                    'The signing secret is on Basic Information (step 7).'
+                                    'First open **Socket Mode** (left menu) and make sure **Enable Socket Mode** is Off. While it is on, Slack sends button presses over its own connection, never to Salesforce, and the Request URL box is hidden.',
+                                    'Switch **Interactivity** to On.',
+                                    'Request URL: the Site URL you copied, followed by `/services/apexrest/rly/slack/actions`. For example `https://your-domain.my.salesforce-sites.com/services/apexrest/rly/slack/actions` (no double slash; keep the site\'s path if it has one). Pipeline → Slack connection shows the same URL with a Copy button.',
+                                    'Press **Save Changes** at the bottom.',
+                                    'If Slack shows a yellow banner asking to reinstall the app, press **reinstall your app** → Allow.',
+                                    'If Save Changes stays grey, open **App Manifest** instead, add `"interactivity": { "is_enabled": true, "request_url": "<your URL>" }` inside `"settings"`, and press Save Changes there.'
                                 ],
-                                shot: { ill: 'slack-interactivity', cap: 'Interactivity on, Request URL from the Slack connection card, and the signing secret.', alt: 'Drawing of Slack app settings with callouts 1 Interactivity on, 2 Request URL ending in services/apexrest/rly/slack/actions, 3 Save Changes, 4 Signing Secret Show.' }
+                                check: 'Socket Mode is Off; Interactivity shows On with your Request URL.',
+                                shot: { ill: 'slack-interactivity', cap: 'Interactivity on, Request URL = Site URL + /services/apexrest/rly/slack/actions, Save Changes.', alt: 'Drawing of Slack app settings with callouts 1 Interactivity on, 2 Request URL ending in services/apexrest/rly/slack/actions, 3 Save Changes, 4 Signing Secret Show.' }
+                            },
+                            {
+                                title: 'Approve in Slack: link each approver',
+                                who: 'Each approver + Release Relay admin',
+                                where: 'Slack → the approver\'s profile; then Release Relay → Pipeline → Slack connection → Edit → Approve in Slack → Approvers',
+                                goal: 'Only approvers linked to a Slack member may press Approve or Reject.',
+                                items: [
+                                    'Each approver, in Slack: click their own name or picture → **Profile** → **⋮** (More) → **Copy member ID**. It looks like `U0…`.',
+                                    'In Release Relay: Pipeline → **Slack connection** → **Edit** → **Approve in Slack** → **Approvers**: paste each member ID next to that person\'s name → **Save**.'
+                                ],
+                                check: 'Each approver shows Linked.',
+                                problems: [['Approve in Slack says you can\'t approve', 'Link that person\'s member ID, and check they have the permission set `RLY_Approver`.']]
                             },
                             {
                                 title: 'Approve in Slack: turn it on per org',
                                 who: 'Release Relay admin',
-                                where: 'Release Relay → Pipeline → the org\'s card → Edit → Approval',
-                                goal: 'Each org decides where it is approved.',
-                                items: ['Turn on **Approve in Slack** (Approve in Salesforce may stay on too: either is enough).'],
+                                where: 'Release Relay → Pipeline → the org\'s card → Approval → Edit',
+                                goal: 'Each org decides where its releases are approved.',
+                                items: [
+                                    'In the org\'s **Approval** section choose **Approve in Slack** (Approve in Salesforce may stay on too: either is enough) → **Save**.',
+                                    'Do this on every org whose releases should be approved from Slack (the hub too, if you want).'
+                                ],
                                 links: [{ label: 'Approval rules', to: 'approvalrules' }]
                             },
                             {
-                                title: 'Approve in Slack: link the approvers',
+                                title: 'Approve in Slack: check it',
                                 who: 'Release Relay admin',
-                                where: 'Release Relay → Pipeline → Slack connection → Approvers linked → Show',
-                                goal: 'Only linked approvers may press Approve or Reject.',
+                                where: 'Slack → the org\'s channel',
+                                goal: 'See the buttons before you rely on them.',
                                 items: [
-                                    'Each approver copies their member ID in Slack: their profile → ⋮ More → **Copy member ID** (it looks like `U0…`).',
-                                    'Paste it next to their name and Save.'
+                                    'Raise a small release (or use one already waiting) so that it is **Ready for approval** in an org with Approve in Slack on.',
+                                    'Its card in that org\'s channel shows **Approve** and **Reject** under the status line.',
+                                    'A linked approver presses **Approve**: the card updates to Deploying, and the release page shows "approved in Slack".'
                                 ],
-                                check: 'The approver shows Linked.',
-                                problems: [['Approve in Slack says you can\'t approve', 'Link that person\'s member ID, and check they have `RLY_Approver`.']]
+                                check: 'The card shows Approve and Reject, and pressing Approve moves the release on.'
+                            },
+                            {
+                                title: 'Approve in Slack: if pressing Approve shows an error',
+                                who: 'Salesforce admin',
+                                where: 'Setup → Sites → your Site → Public Access Settings',
+                                goal: 'The Slack callback runs as the Site guest user; it needs to read the Slack credential to update the card.',
+                                items: [
+                                    'On the guest user\'s profile (Public Access Settings) → **Object Settings** → **User External Credentials** → **Edit** → tick **Read** and **View All** → **Save**.',
+                                    'Check the guest user\'s `RLY_Slack_Site` permission set lists **External Credential Principal Access** → `RLY_Slack - Bot` (it is already in `RLY_Slack_Site`; add it if someone removed it).',
+                                    'Check the Request URL in the Slack app ends with `/services/apexrest/rly/slack/actions` and starts with your Site URL, and that the signing secret was saved (step 7).'
+                                ],
+                                problems: [
+                                    ['Slack shows "This app responded with status code 404" or similar', 'The Request URL is wrong or the Site isn\'t Active: copy it again from Pipeline → Slack connection.'],
+                                    ['Slack shows an error after a few seconds and the card doesn\'t change', 'Give the guest user Read and View All on User External Credentials (above), and check the RLY_Slack - Bot principal access.']
+                                ]
                             }
                         ]
                     },
@@ -1105,10 +1147,26 @@ const USE_SECTIONS = [
                                 who: 'Developer',
                                 where: 'New Release → Review → Raise release (or Raise hotfix)',
                                 goal: 'The hub retrieves the components and the pipeline opens the pull request.',
-                                items: ['Press **Raise release**. The release page opens and follows it step by step.'],
+                                items: ['Press **Raise release**. The release page opens and follows it step by step. (Only manual steps? See the next step.)'],
                                 check: 'The release page shows Retrieving, then Workflow running, then Validating.',
                                 problems: [['Failed: a component wasn\'t found', 'Read the reason, fix the selection and raise again.']],
                                 links: [{ label: 'Follow a release', to: 'follow' }]
+                            },
+                            {
+                                title: 'Raise manual steps only (no metadata)',
+                                who: 'Developer',
+                                where: 'New Release → Select → No metadata — only manual steps',
+                                goal: 'A change done by hand (for example profile access) is still tracked, approved, done in order in every org and promoted, without any components.',
+                                items: [
+                                    'Pick your org as usual. On **Select**, switch on **No metadata — only manual steps** in the bar at the bottom (it clears any ticked components), then press **Next: review**.',
+                                    'On Review give it a **Title** and **Add a manual step** for each thing to do (at least one), in order, with Before deploy or After deploy.',
+                                    'Press **Raise manual steps**.',
+                                    'There is no retrieve, Git branch, pull request, pipeline run, code scan or validation: the release page shows them as "Not needed: manual steps only".',
+                                    'It goes straight to approval in the first stage (that org\'s approval rule decides; production always needs an approver). After approval the deployment team checks the steps off; when all of them are Done or Not needed it shows **Deployed** in that org.',
+                                    'Promote it like any release: it is listed on the Promote tab with a **Manual steps only** pill. A promotion of only such releases has no pipeline run either; mixed with other releases, only their changes are picked and every manual step goes along in order.'
+                                ],
+                                check: 'The release shows the Manual steps only pill and goes to Ready for approval.',
+                                links: [{ label: 'Manual steps', to: 'manual' }, { label: 'Promote', to: 'promote' }]
                             }
                         ]
                     }
@@ -1379,8 +1437,10 @@ const USE_SECTIONS = [
                                     '**Also in back promote orgs** is on by default. **Orgs**: all orgs on the route, or pick the orgs it applies to.',
                                     'Order them with the up and down arrows: the deployment team does them in that order. Up to 50 steps.',
                                     'A flow set to **Leave inactive** adds the step **Activate flow <name>** (Setup, After deploy, every org) for you.',
-                                    'Until the release is first deployed, the person who raised it (or an admin) can add, edit, reorder and delete steps on the release page.'
-                                ]
+                                    'Until the release is first deployed, the person who raised it (or an admin) can add, edit, reorder and delete steps on the release page.',
+                                    'Nothing to deploy, only steps? On Select switch on **No metadata — only manual steps** and raise **manual steps only**: no Git or pipeline, approval then the steps (see Raise a release, step 6). Such a release keeps at least one step.'
+                                ],
+                                links: [{ label: 'Raise a release', to: 'raise' }]
                             },
                             {
                                 title: 'The deployment team checks them off',
@@ -1769,7 +1829,8 @@ const USE_SECTIONS = [
                             ['Closed', 'The pull request was closed in the Git provider.', 'Raise again if still needed.'],
                             ['Failed', 'The release couldn\'t be raised (for example a component wasn\'t found).', 'Read the reason; raise again.']
                         ]
-                    }
+                    },
+                    { type: 'note', text: '**Manual steps only** releases skip Retrieving, Workflow running and Validating: Submitted → Ready for approval → Deploying while the deployment team does the manual steps in that org → Deployed when all of them are Done or Not needed.' }
                 ]
             }
         ]

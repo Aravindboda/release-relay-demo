@@ -72,6 +72,7 @@
                             <span class="rr-card-top">
                                 <template lwc:if={r.isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
                                 <template lwc:if={r.typeLabel}><span class="rr-pill rr-pill-run">{r.typeLabel}</span></template>
+                                <template lwc:if={r.manualOnly}><span class="rr-pill rr-pill-run">Manual steps only</span></template>
                                 <span class="rr-no">{r.name}</span>
                                 <template lwc:if={r.deletesText}><span class="rr-pill rr-pill-bad">{r.deletesText}</span></template>
                                 <template lwc:if={r.manualText}><span class="rr-pill rr-pill-wait">{r.manualText}</span></template>

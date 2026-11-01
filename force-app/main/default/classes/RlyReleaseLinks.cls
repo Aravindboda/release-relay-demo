@@ -45,6 +45,7 @@ public with sharing class RlyReleaseLinks {
         c.name = r.Name;
         c.title = r.Title__c;
         c.isHotfix = r.Is_Hotfix__c == true;
+        c.manualOnly = RlyManualOnly.isManualOnly(r);
         return c;
     }
 

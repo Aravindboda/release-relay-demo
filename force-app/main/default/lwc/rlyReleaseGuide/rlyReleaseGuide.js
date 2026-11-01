@@ -146,6 +146,11 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
             if (main && main.scrollIntoView) {
                 main.scrollIntoView({ block: 'start' });
             }
+            // The section opened: its first heading takes the focus, so keyboard and screen reader users land there too.
+            const heading = this.template.querySelector('.rr-main .rr-h2');
+            if (heading && heading.focus) {
+                heading.focus({ preventScroll: true });
+            }
         }
         if (this.focusClose) {
             const close = this.template.querySelector('.rr-close');
@@ -462,10 +467,41 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
         this.loadFilesIfShown();
     }
 
-    /** A button inside a section that opens another section, from its top. */
+    /**
+     * A button that opens a section (the setup checklist's Open, the Next buttons, links inside steps): another section opens
+     * from its top; the section already on screen scrolls to its first step instead, so Open always visibly goes there.
+     */
     handleLink(event) {
+        if (event.currentTarget.dataset.name === this.section.key) {
+            this.goToFirstStep();
+            return;
+        }
         this.handleNav(event);
         this.scrollTop = true;
+    }
+
+    /** The section on screen: scrolls to its first numbered step (or the first part after the checklist), focuses its heading and highlights it. */
+    goToFirstStep() {
+        const main = this.template.querySelector('.rr-main');
+        if (!main) {
+            return;
+        }
+        let target = main.querySelector('.rr-stp');
+        if (!target) {
+            const blocks = Array.from(main.querySelectorAll('.rr-block'));
+            const at = blocks.findIndex((el) => !!el.querySelector('.rr-cklist'));
+            target = blocks[at + 1] || blocks[0] || main;
+        }
+        if (target.scrollIntoView) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        const heading = target.querySelector('.rr-h3') || target;
+        if (heading.focus) {
+            heading.focus({ preventScroll: true });
+        }
+        target.classList.remove('rr-flash');
+        target.addEventListener('animationend', () => target.classList.remove('rr-flash'), { once: true });
+        target.classList.add('rr-flash');
     }
 
     /** Ticks or unticks a setup stage (kept in this browser). */

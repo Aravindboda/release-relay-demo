@@ -207,7 +207,7 @@ public with sharing class RlyReleaseStore {
                     Second_Approved_By__c, Second_Approved_By__r.Name, Second_Approved_On__c, Back_Merge_Result__c,
                     Target_Org__r.Role__c, Target_Org__r.Hotfix_Two_Approvers__c, Target_Org__r.Branch__c, Source_Org__r.Git_Environment__c,
                     Deletions__c, Deletion_Count__c, Target_Org__r.Approval_Rule__c, Target_Org__r.Approval_Types__c,
-                    Flow_Actions__c, Flow_Results__c
+                    Flow_Actions__c, Flow_Results__c, Manual_Only__c
                 FROM RLY_Release__c WHERE Id = :releaseId WITH SYSTEM_MODE];
             return rows.isEmpty() ? null : rows[0];
         }
@@ -239,7 +239,7 @@ public with sharing class RlyReleaseStore {
         public List<RLY_Release__c> waitingForApproval() {
             return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
                            CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c
+                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
                     FROM RLY_Release__c WHERE Source_Org__c != null AND Status__c IN ('Ready for approval', 'Checks failed')
                     WITH SYSTEM_MODE ORDER BY Is_Hotfix__c DESC, CreatedDate ASC LIMIT 200];
         }
@@ -251,7 +251,7 @@ public with sharing class RlyReleaseStore {
         public List<RLY_Release__c> allReleases() {
             return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
                            CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c
+                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
                     FROM RLY_Release__c WHERE Source_Org__c != null WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
         }
 
@@ -263,7 +263,7 @@ public with sharing class RlyReleaseStore {
         public List<RLY_Release__c> raisedBy(Id userId) {
             return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
                            CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c
+                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
                     FROM RLY_Release__c WHERE Source_Org__c != null AND CreatedById = :userId
                     WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
         }

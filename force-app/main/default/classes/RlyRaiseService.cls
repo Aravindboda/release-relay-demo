@@ -5,6 +5,8 @@
  * with Is_Deletion__c) need no retrieve: a release with only deletions is saved Retrieving without a retrieve id, and
  * the next read commits its marker file instead of a zip (RlyStatusReader). Manual steps sent with it are checked
  * before the callout and saved with their runs in the first stage after the release (RlyManualStepRuns.addToRaised).
+ * A release with only manual steps (no components, no deletions) needs no retrieve either: it is saved queued with
+ * Manual_Only__c (RlyManualOnly) and its page's next read takes it to the approval point of its target org.
  */
 public with sharing class RlyRaiseService {
 
@@ -72,17 +74,29 @@ public with sharing class RlyRaiseService {
         rel.Deletion_Count__c = deletions.size();
         rel.Deletions__c = deletions.isEmpty() ? null : String.join(deletions, ',');
         rel.Flow_Actions__c = RlyFlowChoices.toField(flowChoices);
+        if (RlyRaiseRules.isManualOnly(req)) {
+            RlyManualOnly.mark(rel); // no retrieve, branch or pipeline: its page's next read takes it to approval
+        }
         List<RLY_Release_Item__c> items = buildItems(added);
         items.addAll(deletionItems(deletions));
         RlyReleaseStore.insertRelease(rel, items);
         RlyManualStepRuns.addToRaised(rel, steps, route.target);
-        RlyReleaseLog.add(rel, 'Raised', 'Raised from ' + route.source.Name + ' into ' + route.target.Name + ': '
-            + added.size() + (added.size() == 1 ? ' component' : ' components')
-            + (deletions.isEmpty() ? '' : ', ' + deletions.size() + (deletions.size() == 1 ? ' deletion' : ' deletions'))
-            + (steps.isEmpty() ? '' : ', ' + RlyManualSteps.stepWords(steps.size())))
+        RlyReleaseLog.add(rel, 'Raised', 'Raised from ' + route.source.Name + ' into ' + route.target.Name + ': ' + contentWords(rel, deletions, steps))
             .inOrg(route.source.Id).byActor(UserInfo.getUserId(), RlyReleaseLog.VIA_SALESFORCE);
         RlyReleaseLog.flush();
         return rel.Id;
+    }
+
+    // "3 components, 1 deletion, 2 manual steps", or "manual steps only: 2 manual steps".
+    private static String contentWords(RLY_Release__c rel, List<String> deletions, List<RLY_Manual_Step__c> steps) {
+        String stepText = steps.isEmpty() ? '' : RlyManualSteps.stepWords(steps.size());
+        if (RlyManualOnly.isManualOnly(rel)) {
+            return 'manual steps only: ' + stepText;
+        }
+        Integer added = rel.Component_Count__c == null ? 0 : rel.Component_Count__c.intValue();
+        return added + (added == 1 ? ' component' : ' components')
+            + (deletions.isEmpty() ? '' : ', ' + deletions.size() + (deletions.size() == 1 ? ' deletion' : ' deletions'))
+            + (steps.isEmpty() ? '' : ', ' + stepText);
     }
 
     // The selected flows' API names.

@@ -1,5 +1,6 @@
 /**
- * @description The rules a release request must meet before anything is called or saved: components selected,
+ * @description The rules a release request must meet before anything is called or saved: components selected (or, for a
+ * release with only manual steps, at least one manual step),
  * a title, a source and target (RlyRaiseRoute: a developer org with its own branch, into the first stage), a checked Git connection, supported names,
  * and supported deletions (RlyDeletionRules). The test rule is RlyTestRule.
  */
@@ -20,7 +21,7 @@ public with sharing class RlyRaiseRules {
      * @param req the request
      */
     public static void checkRequest(RlyRaiseService.RaiseRequest req) {
-        if (req == null || (isEmpty(req.items) && isEmpty(req.deletions))) {
+        if (req == null || (isEmpty(req.items) && isEmpty(req.deletions) && !hasSteps(req))) {
             throw new RlyReleaseException('Select at least one component.');
         }
         if (String.isBlank(req.title) || req.title.trim().length() > 200) {
@@ -30,6 +31,19 @@ public with sharing class RlyRaiseRules {
 
     private static Boolean isEmpty(List<RlyRaiseService.Item> items) {
         return items == null || items.isEmpty();
+    }
+
+    /**
+     * @description Whether the request has manual steps only: no components, no deletions and at least one manual step.
+     * @param req the request
+     * @return true for a manual-steps-only release
+     */
+    public static Boolean isManualOnly(RlyRaiseService.RaiseRequest req) {
+        return req != null && isEmpty(req.items) && isEmpty(req.deletions) && hasSteps(req);
+    }
+
+    private static Boolean hasSteps(RlyRaiseService.RaiseRequest req) {
+        return req.manualSteps != null && !req.manualSteps.isEmpty();
     }
 
     /**

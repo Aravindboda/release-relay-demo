@@ -575,6 +575,9 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     handleCheck(event) {
         const key = event.target.dataset.key;
+        if (event.target.checked) {
+            this.manualOnly = false;
+        }
         const next = new Set(this.selected);
         if (event.target.checked) {
             next.add(key);
@@ -585,6 +588,9 @@ export default class RlyReleaseBuilder extends LightningElement {
     }
 
     handleCheckAll(event) {
+        if (event.target.checked) {
+            this.manualOnly = false;
+        }
         const next = new Set(this.selected);
         this.rows.filter((r) => !r.deleted).forEach((r) => (event.target.checked ? next.add(r.key) : next.delete(r.key)));
         this.selected = next;
@@ -671,10 +677,33 @@ export default class RlyReleaseBuilder extends LightningElement {
     get ruleOk() { return this.apexItems.length > 0 && this.testItems.length > 0; }
     get selectedCount() { return this.selected.size; }
     get noneSelected() { return this.selected.size === 0; }
-    get cantReview() { return this.noneSelected || this.ruleBlocked || this.scanning || this.bothItems.length > 0; }
+    get cantReview() {
+        return this.manualOnly ? false : this.noneSelected || this.ruleBlocked || this.scanning || this.bothItems.length > 0;
+    }
+
+    // ---------- a release with only manual steps (no metadata) ----------
+
+    /** "No metadata: only manual steps": Next with nothing selected; Review then needs at least one manual step. */
+    manualOnly = false;
+    handleManualOnly(event) {
+        this.manualOnly = event.target.checked;
+        if (this.manualOnly) {
+            this.selected = new Set();
+            this.drawerOpen = false;
+        }
+    }
+    get manualOnlyHelp() {
+        return 'For a change done by hand (for example profile access): no components, no Git branch, pull request or pipeline run. '
+            + 'It is approved in ' + this.target + ' and the deployment team checks the steps off in each org.';
+    }
+    get manualStepCount() { return (this.manualSteps || []).length; }
+    get needsManualStep() { return this.manualOnly && this.manualStepCount === 0; }
 
     get barCls() { return 'rr-bar' + (this.ruleBlocked || this.bothItems.length ? ' rr-bar-bad' : ''); }
     get barText() {
+        if (this.manualOnly) {
+            return 'No metadata · only manual steps (add them on Review)';
+        }
         const n = this.selected.size;
         const parts = [n + ' selected'];
         const d = this.deletionItems.length;
@@ -786,6 +815,9 @@ export default class RlyReleaseBuilder extends LightningElement {
     }
 
     get reviewSummary() {
+        if (this.manualOnly) {
+            return 'Manual steps only';
+        }
         const added = this.addedItems;
         const n = added.length;
         const types = new Set(added.map((c) => c.type)).size;
@@ -825,6 +857,9 @@ export default class RlyReleaseBuilder extends LightningElement {
         return ['GitHub', 'Bitbucket', 'AzureDevOps', 'Azure DevOps'].includes(p) ? 'pull request' : 'change request';
     }
     get intoText() {
+        if (this.manualOnly) {
+            return 'Manual steps into ' + this.targetText + ': no ' + this.crWord + ', goes straight to approval';
+        }
         const w = this.crWord;
         return w.charAt(0).toUpperCase() + w.slice(1) + ' into ' + this.targetText;
     }
@@ -832,10 +867,14 @@ export default class RlyReleaseBuilder extends LightningElement {
         if (this.raising) {
             return 'Raising…';
         }
+        if (this.manualOnly) {
+            return 'Raise manual steps';
+        }
         return this.isHotfix ? 'Raise hotfix' : 'Raise ' + this.crWord;
     }
     get cantRaise() {
-        return this.raising || this.hubCopy || this.noneSelected || this.ruleBlocked || this.bothItems.length > 0 || !(this.title || '').trim()
+        const content = this.manualOnly ? this.manualStepCount === 0 : this.noneSelected || this.ruleBlocked || this.bothItems.length > 0;
+        return this.raising || this.hubCopy || content || !(this.title || '').trim()
             || (this.isHotfix && !(this.hotfixReason || '').trim());
     }
     get reviewKicker() { return 'New release · step 4 of 5 · Review'; }
@@ -874,12 +913,16 @@ export default class RlyReleaseBuilder extends LightningElement {
     handleManualSteps(event) {
         this.manualSteps = event.detail.steps || [];
     }
-    get testRunCls() { return 'rr-msg ' + (this.ruleBlocked || this.bothItems.length ? 'rr-msg-bad' : 'rr-msg-info'); }
+    get testRunCls() { return 'rr-msg ' + (!this.manualOnly && (this.ruleBlocked || this.bothItems.length) ? 'rr-msg-bad' : 'rr-msg-info'); }
 
     handleTitle(event) { this.title = event.target.value; }
     handleDescription(event) { this.description = event.target.value; }
 
     get testRunText() {
+        if (this.manualOnly) {
+            return 'Manual steps only. Not needed: retrieve, Git branch, ' + this.crWord + ', pipeline run, code scan and validation. '
+                + 'It goes to approval in ' + this.target + ', then the deployment team does the steps in order in each org.';
+        }
         if (this.bothItems.length) {
             return this.bothError;
         }
@@ -905,6 +948,9 @@ export default class RlyReleaseBuilder extends LightningElement {
     flowPicks = {};
 
     get flowNames() {
+        if (this.manualOnly) {
+            return [];
+        }
         return [...new Set(this.addedItems.filter((c) => c.type === 'Flow').map((c) => c.name))].sort();
     }
     get hasFlows() { return this.flowNames.length > 0; }
@@ -1025,7 +1071,8 @@ export default class RlyReleaseBuilder extends LightningElement {
             return '';
         }
         if (t.Approval_Rule__c === 'Never') {
-            return 'Approved automatically when the checks pass (' + t.Name + '\'s rule: Never).';
+            return this.manualOnly ? 'Approved automatically on raise (' + t.Name + '\'s rule: Never); then the deployment team does the steps.'
+                : 'Approved automatically when the checks pass (' + t.Name + '\'s rule: Never).';
         }
         if (t.Approval_Rule__c !== 'Selected_Types') {
             return 'Always needs approval in ' + t.Name + '.';
@@ -1049,19 +1096,20 @@ export default class RlyReleaseBuilder extends LightningElement {
         this.raising = true;
         this.raiseError = undefined;
         try {
-            const items = this.addedItems.map((c) => ({ type: c.type, name: c.name, deleted: false, standard: !!c.standard }));
-            const deletions = this.deletionItems.map((c) => ({ type: c.type, name: c.name }));
+            const only = this.manualOnly;
+            const items = only ? [] : this.addedItems.map((c) => ({ type: c.type, name: c.name, deleted: false, standard: !!c.standard }));
+            const deletions = only ? [] : this.deletionItems.map((c) => ({ type: c.type, name: c.name }));
             const request = {
                 sourceOrgId: this.orgId,
                 title: this.title.trim(),
                 description: this.description,
                 items,
                 deletions,
-                testClasses: this.testItems.map((t) => t.name),
+                testClasses: only ? [] : this.testItems.map((t) => t.name),
                 isHotfix: this.isHotfix,
                 hotfixReason: this.isHotfix ? this.hotfixReason.trim() : null,
                 manualSteps: this.manualSteps,
-                flowChoices: this.flowChoices
+                flowChoices: only ? [] : this.flowChoices
             };
             this.raisedId = await raiseRelease({ requestJson: JSON.stringify(request) });
             this.step = 'raise';
@@ -1079,6 +1127,7 @@ export default class RlyReleaseBuilder extends LightningElement {
         this.hotfix = false;
         this.hotfixReason = '';
         this.manualSteps = [];
+        this.manualOnly = false;
         this.flowPicks = {};
         this.flowInfo = {};
         this.raisedId = undefined;

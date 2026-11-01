@@ -222,3 +222,7 @@
 .rr-flow { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; border-top: 1px solid #f3f3f3; }
 .rr-flow:first-of-type { border-top: 0; }
 .rr-flow-pick { font-size: 12px; }
+
+/* a release with only manual steps: the toggle in the Select bar and the note on Review */
+.rr-manual-only { flex: 0 0 auto; display: flex; align-items: center; }
+.rr-files-note { margin: 6px 10px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }

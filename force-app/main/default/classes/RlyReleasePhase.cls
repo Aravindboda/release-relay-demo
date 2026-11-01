@@ -29,7 +29,7 @@ public with sharing class RlyReleasePhase {
             return heldNotice;
         }
         if (rel.Status__c == RlyPromotion.QUEUED) {
-            return 'Starting the pipeline run.';
+            return queuedNotice(rel);
         }
         if (rel.Status__c == 'Deploying' && rel.Deploy_Status__c == 'Deploying' && RlyApprovalRuns.approvedInGit(rel)) {
             return 'Waiting for ' + RlyGitName.reviewers() + ' reviewers before deploying.';
@@ -37,10 +37,16 @@ public with sharing class RlyReleasePhase {
         return null;
     }
 
-    // Waiting for a second approver, or for the deployment team's manual steps before deploy.
+    private static String queuedNotice(RLY_Release__c rel) {
+        return RlyManualOnly.isManualOnly(rel) ? 'Manual steps only: no pipeline run. Going to approval.' : 'Starting the pipeline run.';
+    }
+
+    // Waiting for a second approver, for the deployment team's manual steps before deploy, or (manual steps only) for the
+    // manual steps that finish its deploy.
     private static String held(RLY_Release__c rel) {
         String secondNotice = RlyTwoApprovers.notice(rel);
-        return secondNotice != null ? secondNotice : RlyManualStepGate.notice(rel);
+        String gateNotice = secondNotice != null ? secondNotice : RlyManualStepGate.notice(rel);
+        return gateNotice != null ? gateNotice : RlyManualOnly.notice(rel);
     }
 
     /**

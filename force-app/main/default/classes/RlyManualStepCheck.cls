@@ -2,7 +2,8 @@
  * @description The deployment team checks manual steps off per org (RlyManualSteps): Done, Not needed (with a note) or
  * back to To do. Only the deployment team (RLY_Deploy_Team) and admins may. When the last Before deploy run of a deploy is
  * checked off and the release is approved and waiting for it (RlyManualStepGate), the deploy starts as the approval would
- * have started it (mode merge; a queued back promote sync: its sync run). This is a user's click, so the callout is
+ * have started it (mode merge; a queued back promote sync: its sync run). A release with only manual steps (RlyManualOnly)
+ * is Deployed when its last run in the org it is deploying into is checked off. This is a user's click, so the callout is
  * allowed: callouts come first (Slack too), the saves last.
  */
 public with sharing class RlyManualStepCheck {
@@ -56,20 +57,46 @@ public with sharing class RlyManualStepCheck {
             throw new RlyReleaseException('This manual step isn\'t there any more. Reload the page.');
         }
         apply(run, m.status, note);
-        RLY_Release__c rel = run.Status__c == RlyManualSteps.STATUS_TO_DO ? null : releaseToStart(run);
+        RLY_Release__c rel = releaseToMove(run);
+        String oldStatus = rel == null ? null : rel.Status__c;
         if (rel != null) {
-            String oldStatus = rel.Status__c;
-            start(rel);
+            move(rel, run);
             RlySlack.notifyTransition(rel, oldStatus); // callouts before any DML
         }
         RlyManualStepStore.saveRuns(new List<RLY_Manual_Step_Run__c>{ run });
         RlyReleaseLog.manualStep(run);
         if (rel != null) {
-            RlyReleaseStore.save(rel);
-            RlySlack.saveResults();
+            saveMoved(rel);
         }
         RlyReleaseLog.flush();
         return m.releaseId == null ? run.Release__c : m.releaseId;
+    }
+
+    // The release this check moves: its deploy starts (the last Before deploy run of an approved release), or a release
+    // with only manual steps is finished (its last run in the org it is deploying into).
+    private static RLY_Release__c releaseToMove(RLY_Manual_Step_Run__c run) {
+        if (run.Status__c == RlyManualSteps.STATUS_TO_DO) {
+            return null;
+        }
+        RLY_Release__c rel = releaseToStart(run);
+        return rel != null ? rel : RlyManualOnly.finishedBy(run);
+    }
+
+    private static void move(RLY_Release__c rel, RLY_Manual_Step_Run__c run) {
+        if (RlyManualStepGate.isWaiting(rel)) {
+            RlyApprovalRuns.startAfterSteps(rel);
+        }
+        RlyManualOnly.finishIfDone(rel, run.Id);
+    }
+
+    // Saves the release (it was waiting or deploying); a deploy to the hub that finished now queues the back promote syncs
+    // (DML only).
+    private static void saveMoved(RLY_Release__c rel) {
+        RlyReleaseStore.save(rel);
+        RlySlack.saveResults();
+        if (rel.Status__c == 'Deployed') {
+            RlyBackPromoteQueue.afterDeploy(rel);
+        }
     }
 
     // A known status, and the note (required for Not_Needed), trimmed.
@@ -100,28 +127,5 @@ public with sharing class RlyManualStepCheck {
         }
         RLY_Release__c rel = RlyReleaseStore.release(run.Release__c);
         return rel != null && rel.Target_Org__c == run.Org__c && RlyManualStepGate.isWaiting(rel) ? rel : null;
-    }
-
-    // Starts the deploy as the approval would have: the merge (or the sync run), or the checks again when the target moved
-    // since they passed (the approval is then cleared: the release is approved again after the checks).
-    private static void start(RLY_Release__c rel) {
-        try {
-            RLY_Git_Connection__c conn = RlyReleaseStore.git();
-            RlyGit git = RlyGit.forConnection(conn);
-            if (RlyPromotion.typeOf(rel) == RlyPromotion.TYPE_BACK_PROMOTE && rel.Status__c == RlyPromotion.QUEUED) {
-                RlyBackPromoteRun.dispatch(rel, git);
-            } else if (RlyApprovalRuns.targetMoved(rel, git)) {
-                RlyApprovalRuns.startChecks(rel, conn, RlyPipelineRun.RECHECK);
-                rel.Approval_Status__c = 'Pending';
-                rel.Approved_By__c = null;
-                rel.Approved_On__c = null;
-                rel.Second_Approved_By__c = null;
-                rel.Second_Approved_On__c = null;
-            } else {
-                RlyApprovalRuns.dispatchMerge(rel, git);
-            }
-        } catch (Exception e) {
-            rel.Error_Message__c = ('The manual steps are done, but the deploy couldn\'t start: ' + e.getMessage()).left(2000);
-        }
     }
 }

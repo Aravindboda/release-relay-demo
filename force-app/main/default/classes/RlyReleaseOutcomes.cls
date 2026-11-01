@@ -73,8 +73,9 @@ public with sharing class RlyReleaseOutcomes {
 
     private static void deployed(RLY_Release__c rel, Boolean sync) {
         RlyEvidenceText.Deploy d = RlyEvidenceText.deployOf(rel.Deploy_Result__c);
+        String how = RlyManualOnly.isManualOnly(rel) ? ': ' + RlyManualOnly.PILL.toLowerCase() + ', all done' : d.suffix();
         RlyReleaseLog.add(rel, sync ? 'Back_Promoted' : 'Deployed', (sync ? 'Back promoted to ' : 'Deployed to ')
-            + RlyReleaseTransitions.targetName(rel) + d.suffix()).inOrg(rel.Target_Org__c).withReference(d.deployId);
+            + RlyReleaseTransitions.targetName(rel) + how).inOrg(rel.Target_Org__c).withReference(d.deployId);
     }
 
     private static void ended(RLY_Release__c rel) {

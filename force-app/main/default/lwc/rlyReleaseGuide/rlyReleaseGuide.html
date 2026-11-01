@@ -33,12 +33,12 @@
                 <template for:each={cards} for:item="c">
                     <section key={c.key} class="rr-card" aria-label={c.title}>
                         <div class="rr-hd">
-                            <h2 class="rr-h2 rr-grow">{c.title}</h2>
+                            <h2 class="rr-h2 rr-grow" tabindex="-1">{c.title}</h2>
                             <template lwc:if={c.aside}><span class="rr-small rr-weak">{c.aside}</span></template>
                         </div>
 
                         <template for:each={c.blocks} for:item="b">
-                            <div key={b.key} class="rr-block">
+                            <div key={b.key} class="rr-block" tabindex="-1">
                                 <!-- paragraphs -->
                                 <template lwc:if={b.isText}>
                                     <div class="rr-pad">
@@ -128,7 +128,7 @@
                                         <div key={st.key} class="rr-stp" data-step={st.num}>
                                             <span class="rr-num" aria-hidden="true">{st.num}</span>
                                             <div class="rr-stp-body">
-                                                <h3 class="rr-h3">{st.title}<template lwc:if={st.who}><span class="rr-who">{st.who}</span></template></h3>
+                                                <h3 class="rr-h3" tabindex="-1">{st.title}<template lwc:if={st.who}><span class="rr-who">{st.who}</span></template></h3>
                                                 <template lwc:if={st.where}><span class="rr-where"><span class="slds-assistive-text">Where: </span>{st.where}</span></template>
                                                 <template lwc:if={st.goal}>
                                                     <p class="rr-goal"><span class="rr-strong">Why: </span><template for:each={st.goal.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></p>
