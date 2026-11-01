@@ -52,23 +52,30 @@ const BUILDER_TAB = 'RLY_New_Release';
 const BRANCH_OK = 'Synced';
 /** RLY_Release_Event__c.Event_Type__c: the History card's title and icon per event (board HubApprovalFlowsEvidence 3). */
 const EVENT_LOOK = {
-    Raised: { title: 'Raised', icon: 'utility:add', cls: 'rr-tli rr-c-raise' },
-    Pull_Request: { title: 'Pull request opened', icon: 'utility:merge', cls: 'rr-tli rr-c-git' },
-    Scan: { title: 'Code scan', icon: 'utility:check', cls: 'rr-tli rr-c-scan' },
-    Validation: { title: 'Check-only deploy', icon: 'utility:check', cls: 'rr-tli rr-c-val' },
-    Approved: { title: 'Approved', icon: 'utility:approval', cls: 'rr-tli rr-c-appr' },
-    Rejected: { title: 'Rejected', icon: 'utility:close', cls: 'rr-tli rr-c-fail' },
-    Auto_Approved: { title: 'Approved automatically', icon: 'utility:settings', cls: 'rr-tli rr-c-auto' },
-    Deployed: { title: 'Deployed', icon: 'utility:upload', cls: 'rr-tli rr-c-dep' },
-    Deploy_Failed: { title: 'Deploy failed', icon: 'utility:error', cls: 'rr-tli rr-c-fail' },
-    Manual_Step: { title: 'Manual step done', icon: 'utility:task', cls: 'rr-tli rr-c-man' },
-    Flow_Activated: { title: 'Flow activated', icon: 'utility:flow', cls: 'rr-tli rr-c-flow' },
-    Merged_Back: { title: 'Merged back', icon: 'utility:merge', cls: 'rr-tli rr-c-git' },
-    Promoted: { title: 'Promoted', icon: 'utility:forward', cls: 'rr-tli rr-c-git' },
-    Back_Promoted: { title: 'Back promoted', icon: 'utility:back', cls: 'rr-tli rr-c-git' },
-    Comment: { title: 'Comment', icon: 'utility:comments', cls: 'rr-tli rr-c-git' },
-    Rolled_Back: { title: 'Rolled back', icon: 'utility:undo', cls: 'rr-tli rr-c-rb' },
-    Rollback_Failed: { title: 'Rollback failed', icon: 'utility:error', cls: 'rr-tli rr-c-fail' }
+    Raised: { title: 'Raised', icon: 'utility:add' },
+    Pull_Request: { title: 'Pull request opened', icon: 'utility:merge' },
+    Scan: { title: 'Code scan', icon: 'utility:check' },
+    Validation: { title: 'Check-only deploy', icon: 'utility:check' },
+    Approved: { title: 'Approved', icon: 'utility:approval' },
+    Rejected: { title: 'Rejected', icon: 'utility:close' },
+    Auto_Approved: { title: 'Approved automatically', icon: 'utility:settings' },
+    Deployed: { title: 'Deployed', icon: 'utility:upload' },
+    Deploy_Failed: { title: 'Deploy failed', icon: 'utility:error' },
+    Manual_Step: { title: 'Manual step done', icon: 'utility:task' },
+    Flow_Activated: { title: 'Flow activated', icon: 'utility:flow' },
+    Merged_Back: { title: 'Merged back', icon: 'utility:merge' },
+    Promoted: { title: 'Promoted', icon: 'utility:forward' },
+    Back_Promoted: { title: 'Back promoted', icon: 'utility:back' },
+    Comment: { title: 'Comment', icon: 'utility:comments' },
+    Rolled_Back: { title: 'Rolled back', icon: 'utility:undo' },
+    Rollback_Failed: { title: 'Rollback failed', icon: 'utility:error' }
+};
+/** History dot colour per event type (anything else is blue): green done, red failed, amber rolled back or waiting. */
+const EVENT_TONE = {
+    Deployed: 'ok', Approved: 'ok', Auto_Approved: 'ok', Manual_Step: 'ok', Merged_Back: 'ok', Back_Promoted: 'ok',
+    Scan: 'ok', Validation: 'ok', Flow_Activated: 'ok',
+    Rejected: 'bad', Deploy_Failed: 'bad', Rollback_Failed: 'bad',
+    Rolled_Back: 'wait'
 };
 /** Types whose title names the org: "Deployed to <org>", "Approved for <org>"… */
 const EVENT_ORG_WORD = {
@@ -166,6 +173,15 @@ function timeOnly(value) {
 
 function when(value) {
     return value ? new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+}
+
+/** The history dot's tone: red failed, amber rolled back or waiting (a conflict, a second approver), green done, blue other. */
+function eventTone(e, failed) {
+    const tone = failed ? 'bad' : EVENT_TONE[e.eventType] || 'info';
+    if (tone === 'ok' && /waiting|conflict/i.test(e.detail || '')) {
+        return 'wait';
+    }
+    return tone;
 }
 
 /** Where the release is on the path: the index of the current stop, and whether that stop failed. */
@@ -1029,11 +1045,11 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         return n ? n + ' failed' : '';
     }
 
-    // ---------- history (Detail.events, oldest first) ----------
+    // ---------- history (Detail.events, newest first: a vertical path reading "this happened after that") ----------
 
     get events() {
         const list = this.detail && Array.isArray(this.detail.events) ? [...this.detail.events] : [];
-        list.sort((a, b) => new Date(a.occurredOn || 0) - new Date(b.occurredOn || 0));
+        list.sort((a, b) => new Date(b.occurredOn || 0) - new Date(a.occurredOn || 0));
         let lastDay = '';
         return list.map((e, i) => {
             const look = EVENT_LOOK[e.eventType] || EVENT_LOOK.Comment;
@@ -1041,14 +1057,14 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             const whenText = day === lastDay ? timeOnly(e.occurredOn) : when(e.occurredOn);
             lastDay = day;
             const orgWord = EVENT_ORG_WORD[e.eventType];
-            const checked = CHECK_EVENTS.includes(e.eventType);
-            const failed = checked && /fail|error|block/i.test(e.detail || '');
+            const failed = CHECK_EVENTS.includes(e.eventType) && /fail|error|block/i.test(e.detail || '');
             const ref = e.reference || '';
             return {
                 key: e.id || 'e' + i,
                 title: e.title || this.eventTitle(e, look, failed) + (orgWord && e.orgName ? orgWord + e.orgName : ''),
                 icon: look.icon,
-                cls: failed ? 'rr-tli rr-c-fail' : look.cls,
+                cls: 'rr-vt-dot rr-vt-' + eventTone(e, failed),
+                hasArrow: i < list.length - 1,
                 who: [e.actorName, e.via].filter(Boolean).join(' · '),
                 whenText,
                 detail: e.detail || '',
@@ -1057,6 +1073,26 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             };
         });
     }
+    // ---------- Open org (admins and the deployment team; the hub is never listed) ----------
+
+    /** RlyOrgLinks.OrgLink rows: the route's orgs with their login address (My Domain + "/"), empty for everyone else. */
+    get orgLinks() {
+        const links = this.detail && Array.isArray(this.detail.orgLinks) ? this.detail.orgLinks : [];
+        return links.filter((l) => l && l.loginUrl).map((l) => ({
+            ...l,
+            menuLabel: 'Log in to ' + l.name,
+            menuTitle: l.environment ? l.name + ' · ' + l.environment : l.name
+        }));
+    }
+    get hasOrgLinks() { return this.orgLinks.length > 0; }
+    /** Opens the chosen org's login page (or single sign-on) in a new window; no sign-in details, only its address. */
+    openOrg(event) {
+        const link = this.orgLinks.find((l) => l.orgId === event.detail.value);
+        if (link) {
+            window.open(link.loginUrl, '_blank', 'noopener,noreferrer');
+        }
+    }
+
     /** "Code scan passed", "Check-only deploy failed", "Flow activation failed": the event's line says which. */
     eventTitle(e, look, failed) {
         if (e.eventType === 'Flow_Activated') {
