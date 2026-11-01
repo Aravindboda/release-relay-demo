@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Slack_Post__c</fullName>
-    <defaultValue>false</defaultValue>
-    <description>Post release cards to the Slack channel. For a developer org: also post a one-line copy of its releases&apos; events there.</description>
-    <label>Post to Slack</label>
-    <type>Checkbox</type>
-</CustomField>

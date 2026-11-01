@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Is_Deletion__c</fullName>
-    <defaultValue>false</defaultValue>
-    <description>Hub: the release deletes this component (removed from the branch and, on deploy, from the target org).</description>
-    <label>Is Deletion</label>
-    <type>Checkbox</type>
-</CustomField>
