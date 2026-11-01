@@ -22,6 +22,7 @@ public with sharing class RlyConflictService {
      * @return the release as saved
      */
     public static RLY_Release__c commitResolutions(Id releaseId, String requestJson) {
+        RlyHubGuard.requireHub();
         RLY_Release__c rel = RlyReleaseStore.release(releaseId);
         if (rel == null) {
             throw new RlyReleaseException('Release not found.');

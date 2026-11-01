@@ -214,3 +214,15 @@
 .rr-files-head.rr-del { color: #8e030f; margin-top: 12px; }
 .rr-file-del { color: #8e030f; }
 .rr-file-del:hover { background: #fef1ee; }
+
+/* Review: flows (board HubApprovalFlowsEvidence 2) */
+.rr-msg-wait { background: #fef1cd; color: #5e3600; }
+.rr-break { overflow-wrap: anywhere; }
+.rr-flows { border-top: 1px solid var(--rr-line); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.rr-flow { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; border-top: 1px solid #f3f3f3; }
+.rr-flow:first-of-type { border-top: 0; }
+.rr-flow-pick { font-size: 12px; }
+
+/* a release with only manual steps: the toggle in the Select bar and the note on Review */
+.rr-manual-only { flex: 0 0 auto; display: flex; align-items: center; }
+.rr-files-note { margin: 6px 10px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }

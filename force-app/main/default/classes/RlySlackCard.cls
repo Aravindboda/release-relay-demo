@@ -2,7 +2,7 @@
  * @description The Slack card of a release (one message per release, edited as it moves) and the one-line replies
  * in its thread. The card: a title line (REL · title, "Hotfix: " first for a hotfix), "Why: <reason>" for a hotfix and
  * "Promotes REL-…" for a promotion, a status line (emoji, status, route, who raised or approved
- * it), a steps line, Approve and Reject while it's ready for approval into an org approved in Slack, and a button
+ * it), a steps line (manual steps only: no Git or pipeline steps), Approve and Reject while it's ready for approval into an org approved in Slack, and a button
  * that opens the release in the hub. Emoji are Slack short codes. The thread replies are RlySlackReply.
  */
 public with sharing class RlySlackCard {
@@ -38,7 +38,7 @@ public with sharing class RlySlackCard {
      */
     public static Map<String, Object> card(RLY_Release__c rel, String approverName) {
         String title = RlySlackCardText.title(rel);
-        String body = '*' + RlySlackMessage.esc(title) + '*\n' + RlySlackCardText.aboutLines(rel) + statusLine(rel, approverName) + '\n' + stepsLine(rel);
+        String body = '*' + RlySlackMessage.esc(title) + '*\n' + RlySlackCardText.aboutLines(rel) + statusLine(rel, approverName) + '\n' + stepsLine(rel) + RlyReleaseHistory.slackLine(rel);
         List<Object> blocks = new List<Object>{
             new Map<String, Object>{ 'type' => 'section', 'text' => new Map<String, Object>{ 'type' => 'mrkdwn', 'text' => body.left(2900) } },
             new Map<String, Object>{ 'type' => 'actions', 'block_id' => 'rly_actions', 'elements' => buttons(rel) }
@@ -128,6 +128,9 @@ public with sharing class RlySlackCard {
      * @return the line
      */
     public static String stepsLine(RLY_Release__c rel) {
+        if (RlyManualOnly.isManualOnly(rel)) {
+            return RlySlackCardText.manualOnlySteps(rel);
+        }
         List<String> steps = new List<String>{
             (rel.Status__c == 'Retrieving' ? WAITING : DONE) + ' Collected',
             rel.PR_Number__c != null ? DONE + ' PR #' + rel.PR_Number__c.intValue() : NOT_YET + ' PR',

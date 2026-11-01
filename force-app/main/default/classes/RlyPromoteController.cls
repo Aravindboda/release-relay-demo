@@ -54,6 +54,8 @@ public with sharing class RlyPromoteController {
         @AuraEnabled public Integer deletionCount;
         /** @description Its number of manual steps (they travel with it; getSteps lists them). */
         @AuraEnabled public Integer manualSteps = 0;
+        /** @description It has only manual steps (no metadata, no merge commit). */
+        @AuraEnabled public Boolean manualOnly;
     }
 
     /**
@@ -94,6 +96,7 @@ public with sharing class RlyPromoteController {
      */
     @AuraEnabled
     public static Id promote(String requestJson) {
+        RlyHubGuard.requireHub();
         try {
             if (!canPromote()) {
                 throw new RlyReleaseException('Only approvers can promote releases (permission set Release Relay Approver).');
@@ -132,6 +135,7 @@ public with sharing class RlyPromoteController {
         x.tests = RlyReleasePhase.tests(r);
         x.componentCount = r.Component_Count__c == null ? 0 : r.Component_Count__c.intValue();
         x.deletionCount = r.Deletion_Count__c == null ? 0 : r.Deletion_Count__c.intValue();
+        x.manualOnly = RlyManualOnly.isManualOnly(r);
         return x;
     }
 

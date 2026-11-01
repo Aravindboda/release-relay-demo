@@ -8,6 +8,8 @@ import listTracked from '@salesforce/apex/RlyChangesController.listTracked';
 import detectTests from '@salesforce/apex/RlyChangesController.detectTests';
 import findDeletions from '@salesforce/apex/RlyChangesController.findDeletions';
 import raiseRelease from '@salesforce/apex/RlyReleasesController.raiseRelease';
+import flowVersions from '@salesforce/apex/RlyChangesController.flowVersions';
+import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 
 const TYPES_PER_CALL = 24;
 const PARALLEL = 4;
@@ -29,6 +31,27 @@ const TYPE_GROUPS = [
     ['Data model', ['CustomObject', 'CustomField', 'StandardValueSet', 'GlobalValueSet', 'RecordType', 'ValidationRule', 'BusinessProcess', 'CustomMetadata']],
     ['Access and UI', ['Layout', 'FlexiPage', 'PermissionSet', 'PermissionSetGroup', 'Profile', 'CustomTab', 'CustomApplication', 'ListView', 'QuickAction', 'CompactLayout']]
 ];
+
+/** RaiseRequest.flowChoices[].choice: what happens to a flow after it's deployed into each org. */
+const FLOW_KEEP = 'Keep';
+const FLOW_ACTIVATE = 'Activate';
+const FLOW_INACTIVE = 'Inactive';
+const FLOW_STATUS_CLS = { Active: 'rr-pill rr-pill-info', Draft: 'rr-pill rr-pill-wait', InvalidDraft: 'rr-pill rr-pill-bad', Obsolete: 'rr-pill rr-pill-none' };
+const FLOW_STATUS_LABEL = { Active: 'Active', Draft: 'Draft', InvalidDraft: 'Invalid draft', Obsolete: 'Obsolete' };
+/**
+ * Approval preview on Review (board HubApprovalFlowsEvidence 2). The hub decides with RlyApprovalRules when the checks
+ * pass; this mirrors its buckets only to tell the user early. Anything not listed is "Other".
+ */
+const TYPE_BUCKETS = {
+    ApexClass: 'Apex', ApexTrigger: 'Apex', Flow: 'Flows', FlowDefinition: 'Flows',
+    Profile: 'Profiles_Permissions', PermissionSet: 'Profiles_Permissions', PermissionSetGroup: 'Profiles_Permissions',
+    CustomPermission: 'Profiles_Permissions', MutingPermissionSet: 'Profiles_Permissions',
+    CustomObject: 'Objects_Fields', CustomField: 'Objects_Fields', RecordType: 'Objects_Fields', ValidationRule: 'Objects_Fields'
+};
+const BUCKET_WORDS = {
+    Apex: 'an Apex class', Flows: 'a Flow', Profiles_Permissions: 'a Profile or permission set', Objects_Fields: 'an object or field',
+    Deletions: 'deletions', Manual_Steps: 'manual steps', Hotfix: 'a hotfix', Other: 'other changes'
+};
 
 function errorText(e) {
     return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
@@ -76,6 +99,22 @@ const ENVIRONMENTS = [
 ];
 
 export default class RlyReleaseBuilder extends LightningElement {
+    /** RlyHubGuard.getHubStatus: whether this org is a sandbox copy of the hub (then a banner, and the actions are off). */
+    hubStatus;
+    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
+    get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
+
+    /** Reads the hub status once. A failed read shows nothing: the server refuses the actions anyway. */
+    readHubStatus() {
+        getHubStatus()
+            .then((status) => {
+                this.hubStatus = status;
+            })
+            .catch(() => {
+                this.hubStatus = undefined;
+            });
+    }
+
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
     get appName() { return APP_NAME; }
     windows = WINDOWS;
@@ -110,10 +149,6 @@ export default class RlyReleaseBuilder extends LightningElement {
     shown = PAGE;
     selected = new Set();
     drawerOpen = false;
-    manualType = 'ApexClass';
-    manualName = '';
-    manualMode = 'add';
-    manualError;
     allTypes = [];
 
     // deletions found from the branch (orgs without source tracking)
@@ -122,6 +157,7 @@ export default class RlyReleaseBuilder extends LightningElement {
     deletionResultBad = false;
 
     connectedCallback() {
+        this.readHubStatus();
         this.loading = true;
         getStart()
             .then((s) => {
@@ -300,10 +336,16 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     handleWindow(event) { this.windowChoice = event.currentTarget.dataset.value; }
     handleSince(event) { this.sinceDate = event.target.value; }
+    /** Today as yyyy-mm-dd in the user's time zone: changes can't come from the future. */
+    get today() {
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    get sinceInFuture() { return this.isSinceDate && !!this.sinceDate && this.sinceDate > this.today; }
     handleBy(event) { this.changedBy = event.currentTarget.dataset.value; }
 
     get cantScan() {
-        return !this.orgId || this.hasProblems || (this.isSinceDate && !this.sinceDate);
+        return !this.orgId || this.hasProblems || (this.isSinceDate && !this.sinceDate) || this.sinceInFuture;
     }
 
     get sinceIso() {
@@ -533,6 +575,9 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     handleCheck(event) {
         const key = event.target.dataset.key;
+        if (event.target.checked) {
+            this.manualOnly = false;
+        }
         const next = new Set(this.selected);
         if (event.target.checked) {
             next.add(key);
@@ -543,6 +588,9 @@ export default class RlyReleaseBuilder extends LightningElement {
     }
 
     handleCheckAll(event) {
+        if (event.target.checked) {
+            this.manualOnly = false;
+        }
         const next = new Set(this.selected);
         this.rows.filter((r) => !r.deleted).forEach((r) => (event.target.checked ? next.add(r.key) : next.delete(r.key)));
         this.selected = next;
@@ -594,76 +642,8 @@ export default class RlyReleaseBuilder extends LightningElement {
 
     // ---------- add by name ----------
 
-    get typeOptions() {
-        const types = this.allTypes.length ? this.allTypes : ['ApexClass', 'ApexTrigger', 'CustomField', 'CustomObject', 'Layout', 'PermissionSet', 'Flow'];
-        return types.map((t) => ({ label: words(t), value: t }));
-    }
-
-    handleManualType(event) { this.manualType = event.detail.value; }
-    handleManualName(event) { this.manualName = event.target.value; this.manualError = undefined; }
-    get isManualDelete() { return this.manualMode === 'delete'; }
-    get manualButtons() {
-        return [{ label: 'Add', value: 'add' }, { label: 'Delete', value: 'delete' }].map((b) => ({
-            ...b, cls: 'rr-seg' + (b.value === this.manualMode ? ' rr-seg-on' : ''), pressed: b.value === this.manualMode ? 'true' : 'false' }));
-    }
-    get manualLabel() { return this.isManualDelete ? 'Not in the list? Delete it by name' : 'Not in the list? Add it by name'; }
-    get manualAction() { return this.isManualDelete ? 'Delete' : 'Add'; }
-    handleManualMode(event) {
-        this.manualMode = event.currentTarget.dataset.value;
-        this.manualError = undefined;
-    }
     /** The message when a component is picked to be added and to be deleted. */
     bothText(type, name) { return type + ' ' + name + ' is both added and deleted.'; }
-
-    async addManual() {
-        const name = (this.manualName || '').trim();
-        if (!name || /[,:\r\n]/.test(name)) {
-            this.manualError = 'Enter the API name, for example AccountServiceTest or Account.Region__c.';
-            return;
-        }
-        if (this.isManualDelete) {
-            this.addManualDeletion(name);
-            return;
-        }
-        const key = this.manualType + ':' + name;
-        if (this.selected.has(deletionKey(this.manualType, name))) {
-            this.manualError = this.bothText(this.manualType, name);
-            return;
-        }
-        if (!this.changes.some((c) => c.key === key)) {
-            const isStd = (this.manualType === 'CustomObject' && !name.includes('__'))
-                || (this.manualType === 'CustomField' && name.includes('.') && !name.split('.')[1].includes('__'))
-                || this.manualType === 'StandardValueSet';
-            this.changes = [{ key, type: this.manualType, name, standard: isStd, deleted: false, modifiedBy: '(added by name)', modifiedOn: null }, ...this.changes];
-        }
-        if (this.manualType === 'ApexClass') {
-            try {
-                const found = await detectTests({ orgId: this.orgId, classNames: [name] });
-                if (found.length) {
-                    this.tests = new Set([...this.tests, ...found]);
-                }
-            } catch (e) {
-                this.manualError = errorText(e);
-            }
-        }
-        this.selected = new Set([...this.selected, key]);
-        this.manualName = '';
-    }
-
-    /** Delete by name: the user names it, so it is ticked. */
-    addManualDeletion(name) {
-        const type = this.manualType;
-        const key = deletionKey(type, name);
-        if (this.selectedItems.some((c) => !c.deleted && c.type === type && c.name === name)) {
-            this.manualError = this.bothText(type, name);
-            return;
-        }
-        if (!this.changes.some((c) => c.key === key)) {
-            this.changes = [{ key, type, name, standard: false, deleted: true, modifiedBy: '(deleted by name)', modifiedOn: null }, ...this.changes];
-        }
-        this.selected = new Set([...this.selected, key]);
-        this.manualName = '';
-    }
 
     // ---------- the selection and the test rule ----------
 
@@ -697,10 +677,33 @@ export default class RlyReleaseBuilder extends LightningElement {
     get ruleOk() { return this.apexItems.length > 0 && this.testItems.length > 0; }
     get selectedCount() { return this.selected.size; }
     get noneSelected() { return this.selected.size === 0; }
-    get cantReview() { return this.noneSelected || this.ruleBlocked || this.scanning || this.bothItems.length > 0; }
+    get cantReview() {
+        return this.manualOnly ? false : this.noneSelected || this.ruleBlocked || this.scanning || this.bothItems.length > 0;
+    }
+
+    // ---------- a release with only manual steps (no metadata) ----------
+
+    /** "No metadata: only manual steps": Next with nothing selected; Review then needs at least one manual step. */
+    manualOnly = false;
+    handleManualOnly(event) {
+        this.manualOnly = event.target.checked;
+        if (this.manualOnly) {
+            this.selected = new Set();
+            this.drawerOpen = false;
+        }
+    }
+    get manualOnlyHelp() {
+        return 'For a change done by hand (for example profile access): no components, no Git branch, pull request or pipeline run. '
+            + 'It is approved in ' + this.target + ' and the deployment team checks the steps off in each org.';
+    }
+    get manualStepCount() { return (this.manualSteps || []).length; }
+    get needsManualStep() { return this.manualOnly && this.manualStepCount === 0; }
 
     get barCls() { return 'rr-bar' + (this.ruleBlocked || this.bothItems.length ? ' rr-bar-bad' : ''); }
     get barText() {
+        if (this.manualOnly) {
+            return 'No metadata · only manual steps (add them on Review)';
+        }
         const n = this.selected.size;
         const parts = [n + ' selected'];
         const d = this.deletionItems.length;
@@ -775,6 +778,7 @@ export default class RlyReleaseBuilder extends LightningElement {
     goReview() {
         this.drawerOpen = false;
         this.step = 'review';
+        this.readFlows();
     }
 
     backToSelect() {
@@ -811,6 +815,9 @@ export default class RlyReleaseBuilder extends LightningElement {
     }
 
     get reviewSummary() {
+        if (this.manualOnly) {
+            return 'Manual steps only';
+        }
         const added = this.addedItems;
         const n = added.length;
         const types = new Set(added.map((c) => c.type)).size;
@@ -850,6 +857,9 @@ export default class RlyReleaseBuilder extends LightningElement {
         return ['GitHub', 'Bitbucket', 'AzureDevOps', 'Azure DevOps'].includes(p) ? 'pull request' : 'change request';
     }
     get intoText() {
+        if (this.manualOnly) {
+            return 'Manual steps into ' + this.targetText + ': no ' + this.crWord + ', goes straight to approval';
+        }
         const w = this.crWord;
         return w.charAt(0).toUpperCase() + w.slice(1) + ' into ' + this.targetText;
     }
@@ -857,10 +867,14 @@ export default class RlyReleaseBuilder extends LightningElement {
         if (this.raising) {
             return 'Raising…';
         }
+        if (this.manualOnly) {
+            return 'Raise manual steps';
+        }
         return this.isHotfix ? 'Raise hotfix' : 'Raise ' + this.crWord;
     }
     get cantRaise() {
-        return this.raising || this.noneSelected || this.ruleBlocked || this.bothItems.length > 0 || !(this.title || '').trim()
+        const content = this.manualOnly ? this.manualStepCount === 0 : this.noneSelected || this.ruleBlocked || this.bothItems.length > 0;
+        return this.raising || this.hubCopy || content || !(this.title || '').trim()
             || (this.isHotfix && !(this.hotfixReason || '').trim());
     }
     get reviewKicker() { return 'New release · step 4 of 5 · Review'; }
@@ -899,12 +913,16 @@ export default class RlyReleaseBuilder extends LightningElement {
     handleManualSteps(event) {
         this.manualSteps = event.detail.steps || [];
     }
-    get testRunCls() { return 'rr-msg ' + (this.ruleBlocked || this.bothItems.length ? 'rr-msg-bad' : 'rr-msg-info'); }
+    get testRunCls() { return 'rr-msg ' + (!this.manualOnly && (this.ruleBlocked || this.bothItems.length) ? 'rr-msg-bad' : 'rr-msg-info'); }
 
     handleTitle(event) { this.title = event.target.value; }
     handleDescription(event) { this.description = event.target.value; }
 
     get testRunText() {
+        if (this.manualOnly) {
+            return 'Manual steps only. Not needed: retrieve, Git branch, ' + this.crWord + ', pipeline run, code scan and validation. '
+                + 'It goes to approval in ' + this.target + ', then the deployment team does the steps in order in each org.';
+        }
         if (this.bothItems.length) {
             return this.bothError;
         }
@@ -920,22 +938,178 @@ export default class RlyReleaseBuilder extends LightningElement {
         return 'Runs ' + this.testItems.map((t) => t.name).join(', ') + ' (RunSpecifiedTests) in every org it deploys to. Each Apex class and trigger needs 75% coverage.';
     }
 
+    // ---------- flows: versions and the After deploy choice (board HubApprovalFlowsEvidence 2) ----------
+
+    /** RlyChangesController.flowVersions: FlowInfo by flow name, read from the source org when Review opens. */
+    flowInfo = {};
+    flowsLoading = false;
+    flowsError;
+    /** The After deploy choice per flow name (Keep by default), sent as RaiseRequest.flowChoices. */
+    flowPicks = {};
+
+    get flowNames() {
+        if (this.manualOnly) {
+            return [];
+        }
+        return [...new Set(this.addedItems.filter((c) => c.type === 'Flow').map((c) => c.name))].sort();
+    }
+    get hasFlows() { return this.flowNames.length > 0; }
+    get flowCountText() { const n = this.flowNames.length; return n + (n === 1 ? ' flow' : ' flows'); }
+
+    readFlows() {
+        const names = this.flowNames;
+        if (!names.length || !this.orgId) {
+            return;
+        }
+        this.flowsLoading = true;
+        this.flowsError = undefined;
+        flowVersions({ orgId: this.orgId, names })
+            .then((list) => {
+                const next = {};
+                (list || []).forEach((f) => {
+                    next[f.name] = f;
+                });
+                this.flowInfo = next;
+            })
+            .catch((e) => {
+                this.flowInfo = {};
+                this.flowsError = 'Couldn\'t read the flow versions from ' + this.sourceName + ': ' + errorText(e);
+            })
+            .finally(() => {
+                this.flowsLoading = false;
+            });
+    }
+
+    /** The stages and the hub the release deploys to, in route order. */
+    get routeTargets() {
+        return ((this.start && this.start.routeStops) || []).filter((o) => o.Role__c === 'Stage' || o.Role__c === 'Hub')
+            .map((o) => ({ name: o.Name, order: o.Role__c === 'Hub' ? Number.MAX_SAFE_INTEGER : Number(o.Stage_Order__c || 0) }))
+            .sort((a, b) => a.order - b.order)
+            .map((o) => o.name);
+    }
+    get routeTargetsText() {
+        const names = this.routeTargets;
+        if (names.length < 2) {
+            return names[0] || 'each org';
+        }
+        return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+    }
+    get flowsKicker() {
+        const from = this.flowsLoading ? 'Reading versions from ' + this.sourceName + '…' : 'Versions read from ' + this.sourceName + ' just now.';
+        return from + ' Choose what happens to each flow after it\'s deployed to ' + this.routeTargetsText + '.';
+    }
+    get flowChoiceOptions() {
+        const src = this.sourceName || 'the developer org';
+        return [
+            { label: 'Keep as in ' + src, value: FLOW_KEEP },
+            { label: 'Activate in each org', value: FLOW_ACTIVATE },
+            { label: 'Leave inactive: add a manual step to activate', value: FLOW_INACTIVE }
+        ];
+    }
+
+    get flowRows() {
+        return this.flowNames.map((name) => {
+            const f = this.flowInfo[name];
+            const choice = this.flowPicks[name] || FLOW_KEEP;
+            const status = f && f.latestStatus;
+            const draft = !!f && status !== 'Active';
+            let where = 'in ' + this.sourceName;
+            if (draft) {
+                where += f.active ? ' · active: Version ' + f.active : ' · no active version';
+            }
+            return {
+                name,
+                choice,
+                versionText: f ? 'Version ' + f.latest + ' · ' + (FLOW_STATUS_LABEL[status] || status || 'Unknown') : (this.flowsLoading ? 'Reading…' : 'Version unknown'),
+                versionCls: (f && FLOW_STATUS_CLS[status]) || 'rr-pill rr-pill-none',
+                where: f ? where : '',
+                draftText: draft && choice !== FLOW_ACTIVATE
+                    ? 'Version ' + f.latest + ' is a draft. It deploys inactive: ' + this.routeTargetsText + ' keep running their current version unless you choose Activate.'
+                    : '',
+                stepText: choice === FLOW_INACTIVE
+                    ? 'Adds manual step “Activate flow ' + name + '” · Setup · After deploy · every org. It shows on the release\'s Manual steps once raised.'
+                    : '',
+                groupLabel: 'After deploy: ' + name
+            };
+        });
+    }
+
+    handleFlowChoice(event) {
+        this.flowPicks = { ...this.flowPicks, [event.target.dataset.name]: event.detail.value };
+    }
+
+    /** RaiseRequest.flowChoices: one {name, choice} per selected flow. */
+    get flowChoices() {
+        return this.flowNames.map((name) => ({ name, choice: this.flowPicks[name] || FLOW_KEEP }));
+    }
+
+    // ---------- approval preview: the first stage's approval rule (RLY_Org__c.Approval_Rule__c / Approval_Types__c) ----------
+
+    get targetStop() {
+        const name = this.start && this.start.targetName;
+        return ((this.start && this.start.routeStops) || []).find((o) => o.Name === name);
+    }
+
+    /** The release's kinds of change, as RlyApprovalRules buckets them. */
+    get releaseBuckets() {
+        const out = new Set(this.addedItems.map((c) => TYPE_BUCKETS[c.type] || 'Other'));
+        if (this.deletionItems.length) {
+            out.add('Deletions');
+        }
+        if ((this.manualSteps || []).length || this.flowChoices.some((f) => f.choice === FLOW_INACTIVE)) {
+            out.add('Manual_Steps');
+        }
+        if (this.isHotfix) {
+            out.add('Hotfix');
+        }
+        return out;
+    }
+
+    get approvalPreview() {
+        const t = this.targetStop;
+        if (!t || !t.Approval_Rule__c) {
+            return '';
+        }
+        if (t.Approval_Rule__c === 'Never') {
+            return this.manualOnly ? 'Approved automatically on raise (' + t.Name + '\'s rule: Never); then the deployment team does the steps.'
+                : 'Approved automatically when the checks pass (' + t.Name + '\'s rule: Never).';
+        }
+        if (t.Approval_Rule__c !== 'Selected_Types') {
+            return 'Always needs approval in ' + t.Name + '.';
+        }
+        const ticked = String(t.Approval_Types__c || '').split(';');
+        const hits = Object.keys(BUCKET_WORDS).filter((b) => ticked.includes(b) && this.releaseBuckets.has(b)).map((b) => BUCKET_WORDS[b]);
+        if (!hits.length) {
+            return 'Approved automatically when the checks pass: nothing in this release needs approval in ' + t.Name + '.';
+        }
+        const list = hits.length > 1 ? hits.slice(0, -1).join(', ') + ' and ' + hits[hits.length - 1] : hits[0];
+        return 'Needs approval: contains ' + list + '.';
+    }
+    get approvalPreviewLead() { return 'Approval in ' + (this.targetStop ? this.targetStop.Name : '') + ': '; }
+    get approvalPreviewRule() {
+        const t = this.targetStop;
+        const labels = { Always: 'Always', Selected_Types: 'Only when the release contains…', Never: 'Never' };
+        return t ? ' (' + t.Name + '\'s rule: ' + (labels[t.Approval_Rule__c] || t.Approval_Rule__c) + ')' : '';
+    }
+
     async raise() {
         this.raising = true;
         this.raiseError = undefined;
         try {
-            const items = this.addedItems.map((c) => ({ type: c.type, name: c.name, deleted: false, standard: !!c.standard }));
-            const deletions = this.deletionItems.map((c) => ({ type: c.type, name: c.name }));
+            const only = this.manualOnly;
+            const items = only ? [] : this.addedItems.map((c) => ({ type: c.type, name: c.name, deleted: false, standard: !!c.standard }));
+            const deletions = only ? [] : this.deletionItems.map((c) => ({ type: c.type, name: c.name }));
             const request = {
                 sourceOrgId: this.orgId,
                 title: this.title.trim(),
                 description: this.description,
                 items,
                 deletions,
-                testClasses: this.testItems.map((t) => t.name),
+                testClasses: only ? [] : this.testItems.map((t) => t.name),
                 isHotfix: this.isHotfix,
                 hotfixReason: this.isHotfix ? this.hotfixReason.trim() : null,
-                manualSteps: this.manualSteps
+                manualSteps: this.manualSteps,
+                flowChoices: only ? [] : this.flowChoices
             };
             this.raisedId = await raiseRelease({ requestJson: JSON.stringify(request) });
             this.step = 'raise';
@@ -953,6 +1127,9 @@ export default class RlyReleaseBuilder extends LightningElement {
         this.hotfix = false;
         this.hotfixReason = '';
         this.manualSteps = [];
+        this.manualOnly = false;
+        this.flowPicks = {};
+        this.flowInfo = {};
         this.raisedId = undefined;
         this.step = 'source';
     }

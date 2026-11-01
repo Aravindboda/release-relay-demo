@@ -109,4 +109,17 @@ public with sharing class RlyOrgValidator {
     private static Boolean isBad(String optionalValue, Pattern p) {
         return String.isNotBlank(optionalValue) && !p.matcher(optionalValue.trim()).matches();
     }
+
+    /**
+     * @description Reads the org details the page sends.
+     * @param orgJson the org's fields as JSON
+     * @return the org
+     */
+    public static RLY_Org__c readInput(String orgJson) {
+        try {
+            return (RLY_Org__c) JSON.deserialize(orgJson, RLY_Org__c.class);
+        } catch (Exception e) {
+            throw new AuraHandledException('The org details couldn\'t be read.');
+        }
+    }
 }

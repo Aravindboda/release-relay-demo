@@ -201,8 +201,8 @@ public with sharing class RlyManualStepStore {
          * @return the run, or null
          */
         public RLY_Manual_Step_Run__c queryRun(Id runId) {
-            List<RLY_Manual_Step_Run__c> rows = [SELECT Id, Step__c, Step__r.Timing__c, Release__c, Org__c, Status__c, Note__c,
-                                                        Done_By__c, Done_On__c
+            List<RLY_Manual_Step_Run__c> rows = [SELECT Id, Step__c, Step__r.Timing__c, Step__r.Title__c, Release__c, Org__c, Org__r.Name,
+                                                        Status__c, Note__c, Done_By__c, Done_On__c
                                                  FROM RLY_Manual_Step_Run__c WHERE Id = :runId WITH SYSTEM_MODE];
             return rows.isEmpty() ? null : rows[0];
         }

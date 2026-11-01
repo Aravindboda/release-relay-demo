@@ -1,5 +1,11 @@
 <template>
     <div class={pageCls}>
+        <template lwc:if={hubCopy}>
+            <div class="slds-notify slds-notify_alert slds-alert_warning" role="alert">
+                <lightning-icon icon-name="utility:warning" size="x-small" alternative-text="Warning" class="slds-m-right_x-small"></lightning-icon>
+                <h2>{hubCopyMessage}</h2>
+            </div>
+        </template>
         <template lwc:if={loading}>
             <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
         </template>
@@ -83,7 +89,8 @@
                             </div>
                         </div>
                         <template lwc:if={isSinceDate}>
-                            <lightning-input type="date" label="Since" value={sinceDate} onchange={handleSince} class="rr-date"></lightning-input>
+                            <lightning-input type="date" label="Since" value={sinceDate} max={today} onchange={handleSince} class="rr-date"
+                                message-when-range-overflow="Pick today or an earlier date."></lightning-input>
                         </template>
                         <div class="rr-col">
                             <p class="rr-label">Changed by</p>
@@ -208,20 +215,6 @@
                             </template>
                         </div>
 
-                        <div class="rr-manual">
-                            <p class="rr-label">{manualLabel}</p>
-                            <div class="rr-manual-row">
-                                <div class="rr-segs" role="group" aria-label="Add or delete">
-                                    <template for:each={manualButtons} for:item="m">
-                                        <button key={m.value} type="button" class={m.cls} data-value={m.value} aria-pressed={m.pressed} onclick={handleManualMode}>{m.label}</button>
-                                    </template>
-                                </div>
-                                <lightning-combobox label="Type" variant="label-hidden" value={manualType} options={typeOptions} onchange={handleManualType} class="rr-manual-type"></lightning-combobox>
-                                <lightning-input label="API name" variant="label-hidden" placeholder="API name" value={manualName} onchange={handleManualName} class="rr-grow"></lightning-input>
-                                <lightning-button label={manualAction} onclick={addManual}></lightning-button>
-                            </div>
-                            <template lwc:if={manualError}><p class="rr-small rr-bad">{manualError}</p></template>
-                        </div>
                     </div>
                 </div>
             </section>
@@ -252,6 +245,10 @@
 
             <div class={barCls} role="status">
                 <lightning-button label="Back" onclick={backToSource}></lightning-button>
+                <div class="rr-manual-only">
+                    <lightning-input type="toggle" label="No metadata — only manual steps" checked={manualOnly} onchange={handleManualOnly}
+                        message-toggle-active="On" message-toggle-inactive="Off" field-level-help={manualOnlyHelp}></lightning-input>
+                </div>
                 <div class="rr-bar-text">
                     <strong>{barText}</strong>
                     <template lwc:if={ruleBlocked}>
@@ -276,10 +273,16 @@
                 </div>
                 <span class="rr-pill rr-pill-info">{reviewSummary}</span>
             </section>
+            <template lwc:if={needsManualStep}>
+                <div class="rr-msg rr-msg-wait" role="status">Manual steps only: add at least one manual step below to raise it.</div>
+            </template>
 
             <div class="rr-review">
                 <nav class="rr-card rr-files" aria-label="Components in this release">
                     <p class="rr-files-head">In this release</p>
+                    <template lwc:if={manualOnly}>
+                        <p class="rr-files-note rr-small rr-weak"><span class="rr-pill rr-pill-info">Manual steps only</span> No components: only the manual steps below.</p>
+                    </template>
                     <ul class="rr-file-list">
                         <template for:each={reviewRows} for:item="r">
                             <li key={r.key} class="rr-file">
@@ -336,9 +339,36 @@
                                 </template>
                             </div>
                         </template>
+                        <!-- flows (board HubApprovalFlowsEvidence, 2): version in the source org and the After deploy choice, sent as flowChoices -->
+                        <template lwc:if={hasFlows}>
+                            <div class="rr-flows" role="group" aria-label="Flows">
+                                <div class="rr-row">
+                                    <strong class="rr-grow">Flows</strong>
+                                    <span class="rr-pill rr-pill-none">{flowCountText}</span>
+                                </div>
+                                <p class="rr-kicker">{flowsKicker}</p>
+                                <template lwc:if={flowsError}><div class="rr-msg rr-msg-wait" role="status">{flowsError}</div></template>
+                                <template for:each={flowRows} for:item="f">
+                                    <div key={f.name} class="rr-flow">
+                                        <div class="rr-row">
+                                            <strong class="rr-break">{f.name}</strong>
+                                            <span class={f.versionCls}>{f.versionText}</span>
+                                            <span class="rr-small rr-weak">{f.where}</span>
+                                        </div>
+                                        <template lwc:if={f.draftText}><div class="rr-msg rr-msg-wait">{f.draftText}</div></template>
+                                        <lightning-radio-group type="button" variant="label-inline" class="rr-flow-pick" label="After deploy" name={f.groupLabel}
+                                            options={flowChoiceOptions} value={f.choice} data-name={f.name} onchange={handleFlowChoice} disabled={raising}></lightning-radio-group>
+                                        <template lwc:if={f.stepText}><p class="rr-kicker">{f.stepText}</p></template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
                         <!-- manual steps (board HubManualSteps, 1): sent with the raise as manualSteps -->
                         <c-rly-manual-steps draft value={manualSteps} org-options={routeOrgNames} disabled={raising}
                             onstepschange={handleManualSteps}></c-rly-manual-steps>
+                        <template lwc:if={approvalPreview}>
+                            <div class="rr-msg rr-msg-info" role="status">{approvalPreviewLead}<strong>{approvalPreview}</strong>{approvalPreviewRule}</div>
+                        </template>
                         <template lwc:if={raiseError}><div class="rr-msg rr-msg-bad" role="alert">{raiseError}</div></template>
                     </div>
                     <div class="rr-pair-foot">

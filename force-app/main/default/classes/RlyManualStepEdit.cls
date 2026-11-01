@@ -54,7 +54,8 @@ public with sharing class RlyManualStepEdit {
     }
 
     /**
-     * @description Deletes a step (and its runs) and renumbers the release's runs in its current target.
+     * @description Deletes a step (and its runs) and renumbers the release's runs in its current target. The last step of
+     * a release with only manual steps can't be deleted.
      * @param stepId the step
      * @return the release the step belonged to
      */
@@ -62,6 +63,9 @@ public with sharing class RlyManualStepEdit {
         RLY_Manual_Step__c step = stepOf(stepId);
         RLY_Release__c rel = RlyReleaseStore.release(step.Release__c);
         RlyManualStepRules.requireEdit(rel);
+        if (RlyManualOnly.isManualOnly(rel) && RlyManualStepStore.stepsOf(new Set<Id>{ rel.Id }).size() <= 1) {
+            throw new RlyReleaseException('A release with only manual steps needs at least one. Change this step instead.');
+        }
         RlyManualStepStore.deleteStep(step.Id);
         RlyManualStepRuns.refresh(rel);
         return rel.Id;

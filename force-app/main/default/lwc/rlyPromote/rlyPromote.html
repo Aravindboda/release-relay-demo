@@ -1,5 +1,11 @@
 <template>
     <div class="rr-page slds-is-relative">
+        <template lwc:if={hubCopy}>
+            <div class="slds-notify slds-notify_alert slds-alert_warning" role="alert">
+                <lightning-icon icon-name="utility:warning" size="x-small" alternative-text="Warning" class="slds-m-right_x-small"></lightning-icon>
+                <h2>{hubCopyMessage}</h2>
+            </div>
+        </template>
         <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
 
         <!-- header (board HubPromoteProd) -->
@@ -73,6 +79,7 @@
                                                     <td class="rr-rel">
                                                         <span class="rr-row">
                                                             <template lwc:if={r.isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
+                                                            <template lwc:if={r.manualOnly}><span class="rr-pill rr-pill-info">Manual steps only</span></template>
                                                             <strong>{r.name}</strong>
                                                             <span>{r.title}</span>
                                                             <template lwc:if={r.deletesText}><span class="rr-pill rr-pill-bad">{r.deletesText}</span></template>
@@ -115,6 +122,7 @@
                                             <div class="rr-msg rr-msg-info">{s.manualNote}</div>
                                         </div>
                                     </template>
+                                    <template lwc:if={s.manualOnlyNote}><div class="rr-msg rr-msg-info">{s.manualOnlyNote}</div></template>
                                     <template lwc:if={s.aloneNote}><div class="rr-msg rr-msg-warn">{s.aloneNote}</div></template>
                                     <lightning-input label="Title" value={s.title} max-length="200" required data-stage={s.stageId}
                                         onchange={handleTitle} disabled={s.locked}></lightning-input>

@@ -3,6 +3,7 @@ import { LightningElement } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import IS_ADMIN from '@salesforce/customPermission/RLY_Admin';
 import SHOTS from '@salesforce/resourceUrl/RLY_Guide_Shots';
+import SETUP_PICS from '@salesforce/resourceUrl/RLY_Guide_Setup';
 import PIPE_GITHUB from '@salesforce/resourceUrl/RLY_Pipeline_GitHub';
 import PIPE_GITLAB from '@salesforce/resourceUrl/RLY_Pipeline_GitLab';
 import PIPE_BITBUCKET from '@salesforce/resourceUrl/RLY_Pipeline_Bitbucket';
@@ -11,6 +12,7 @@ import PIPE_SCRIPT from '@salesforce/resourceUrl/RLY_Pipeline_Script';
 import getSetup from '@salesforce/apex/RlyRouteController.getSetup';
 import getPipelineFiles from '@salesforce/apex/RlyRouteController.getPipelineFiles';
 import SECTIONS, { GROUPS, PROVIDERS, PIPELINE_FILES } from './guideContent';
+import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 
 const PIPELINE_TAB = 'RLY_Pipeline';
 const RESOURCE_URLS = {
@@ -20,6 +22,27 @@ const RESOURCE_URLS = {
     RLY_Pipeline_Azure: PIPE_AZURE,
     RLY_Pipeline_Script: PIPE_SCRIPT
 };
+
+/** Where each browser keeps the ticks of the setup checklist (a convenience only: nothing depends on it). */
+const DONE_KEY = 'rlyGuideSetupDone';
+
+function readDone() {
+    try {
+        const raw = window.localStorage.getItem(DONE_KEY);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+        return {};
+    }
+}
+
+function writeDone(done) {
+    try {
+        window.localStorage.setItem(DONE_KEY, JSON.stringify(done));
+    } catch {
+        // Storage blocked (private window, previews): the ticks then last for this page only.
+    }
+}
 
 const MARK = /(`[^`]+`|\*\*[^*]+\*\*)/;
 
@@ -64,6 +87,22 @@ function filesStatusText(st) {
 
 /** The Release Relay guide: a left navigation (Start here, Daily use, Reference) and the chosen section on the right. */
 export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
+    /** RlyHubGuard.getHubStatus: whether this org is a sandbox copy of the hub (then a banner, and the actions are off). */
+    hubStatus;
+    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
+    get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
+
+    /** Reads the hub status once. A failed read shows nothing: the server refuses the actions anyway. */
+    readHubStatus() {
+        getHubStatus()
+            .then((status) => {
+                this.hubStatus = status;
+            })
+            .catch(() => {
+                this.hubStatus = undefined;
+            });
+    }
+
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
     get appName() { return APP_NAME; }
     current = IS_ADMIN ? 'setup' : 'how';
@@ -77,8 +116,13 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
     pipeLoading = false;
     pipeError;
     showOtherFiles = false;
+    /** The setup checklist's ticks, by section key (kept in this browser). */
+    setupDone = {};
+    scrollTop = false;
 
     connectedCallback() {
+        this.setupDone = readDone();
+        this.readHubStatus();
         this.loadFilesIfShown();
         // The Git connection decides which provider tab opens first (admins only: the setup sections are theirs).
         if (IS_ADMIN) {
@@ -96,6 +140,18 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
     }
 
     renderedCallback() {
+        if (this.scrollTop) {
+            this.scrollTop = false;
+            const main = this.template.querySelector('.rr-main');
+            if (main && main.scrollIntoView) {
+                main.scrollIntoView({ block: 'start' });
+            }
+            // The section opened: its first heading takes the focus, so keyboard and screen reader users land there too.
+            const heading = this.template.querySelector('.rr-main .rr-h2');
+            if (heading && heading.focus) {
+                heading.focus({ preventScroll: true });
+            }
+        }
         if (this.focusClose) {
             const close = this.template.querySelector('.rr-close');
             if (close) {
@@ -270,8 +326,14 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
             isSeq: b.type === 'seq',
             isRepo: b.type === 'repo',
             isShots: b.type === 'shots',
-            isFiles: b.type === 'files'
+            isFiles: b.type === 'files',
+            isChecklist: b.type === 'checklist',
+            isLinks: b.type === 'links'
         };
+        if (out.isChecklist) {
+            Object.assign(out, this.checklist(b.stages || [], key));
+        }
+        out.links = this.links(b.links, key);
         if (out.isFiles) {
             const rows = this.fileRows;
             const other = rows.filter((r) => !r.mine);
@@ -305,6 +367,34 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
         return out;
     }
 
+    /** The setup stages with their ticks, and how many are done. */
+    checklist(stages, key) {
+        const rows = stages.map((st, i) => {
+            const done = this.setupDone[st.to] === true;
+            return {
+                key: key + 'ck' + i,
+                to: st.to,
+                label: st.label,
+                meta: [st.who, st.time].filter((x) => x).join(' · '),
+                done,
+                cls: done ? 'rr-ck rr-ck-done' : 'rr-ck',
+                openLabel: 'Open ' + st.label
+            };
+        });
+        const count = rows.filter((r) => r.done).length;
+        return {
+            checkRows: rows,
+            checkPct: rows.length ? Math.round((count * 100) / rows.length) : 0,
+            checkText: count + ' of ' + rows.length + ' stages done'
+        };
+    }
+
+    /** Buttons that open another section; a section this user can't see is left out. */
+    links(list, key) {
+        return (list || []).filter((l) => this.visibleSections.some((s) => s.key === l.to))
+            .map((l, i) => ({ key: key + 'l' + i, label: l.label, to: l.to }));
+    }
+
     progressItem(label, num, key) {
         let cls = 'rr-prog-item';
         if (num < this.setupStep) {
@@ -326,6 +416,16 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
             title: s.title,
             who: s.who,
             where: s.where ? plain(s.where, g) : null,
+            goal: s.goal ? rich(s.goal, key + 'g', g) : null,
+            check: s.check ? rich(s.check, key + 'ok', g) : null,
+            problems: (s.problems || []).map((pr, i) => ({
+                key: key + 'pr' + i,
+                see: rich(pr[0], key + 'pr' + i + 's', g),
+                fix: rich(pr[1], key + 'pr' + i + 'f', g)
+            })),
+            hasProblems: Array.isArray(s.problems) && s.problems.length > 0,
+            links: this.links(s.links, key),
+            hasLinks: this.links(s.links, key).length > 0,
             items: (own || []).map((t, i) => rich(t, key + 'i' + i, g)),
             hasItems: Array.isArray(own),
             paras: (s.text || []).map((t, i) => rich(t, key + 'p' + i, g)),
@@ -353,8 +453,10 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
         }));
     }
 
+    /** A screenshot (RLY_Guide_Shots, jpg) or an annotated drawing (RLY_Guide_Setup, svg). */
     shot(s, key) {
-        return { key, name: s.name, cap: s.cap, url: SHOTS + '/' + s.name + '.jpg', label: 'Open larger: ' + s.cap };
+        const url = s.ill ? SETUP_PICS + '/' + s.ill + '.svg' : SHOTS + '/' + s.name + '.jpg';
+        return { key, name: s.ill || s.name, cap: s.cap, alt: s.alt || s.cap, url, label: 'Open larger: ' + s.cap };
     }
 
     // ---------- events ----------
@@ -363,6 +465,50 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
         this.current = event.currentTarget.dataset.name;
         this.zoom = undefined;
         this.loadFilesIfShown();
+    }
+
+    /**
+     * A button that opens a section (the setup checklist's Open, the Next buttons, links inside steps): another section opens
+     * from its top; the section already on screen scrolls to its first step instead, so Open always visibly goes there.
+     */
+    handleLink(event) {
+        if (event.currentTarget.dataset.name === this.section.key) {
+            this.goToFirstStep();
+            return;
+        }
+        this.handleNav(event);
+        this.scrollTop = true;
+    }
+
+    /** The section on screen: scrolls to its first numbered step (or the first part after the checklist), focuses its heading and highlights it. */
+    goToFirstStep() {
+        const main = this.template.querySelector('.rr-main');
+        if (!main) {
+            return;
+        }
+        let target = main.querySelector('.rr-stp');
+        if (!target) {
+            const blocks = Array.from(main.querySelectorAll('.rr-block'));
+            const at = blocks.findIndex((el) => !!el.querySelector('.rr-cklist'));
+            target = blocks[at + 1] || blocks[0] || main;
+        }
+        if (target.scrollIntoView) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        const heading = target.querySelector('.rr-h3') || target;
+        if (heading.focus) {
+            heading.focus({ preventScroll: true });
+        }
+        target.classList.remove('rr-flash');
+        target.addEventListener('animationend', () => target.classList.remove('rr-flash'), { once: true });
+        target.classList.add('rr-flash');
+    }
+
+    /** Ticks or unticks a setup stage (kept in this browser). */
+    handleCheck(event) {
+        const to = event.target.dataset.name;
+        this.setupDone = { ...this.setupDone, [to]: event.target.checked === true };
+        writeDone(this.setupDone);
     }
 
     toggleOtherFiles() {
@@ -384,8 +530,8 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
     }
 
     openShot(event) {
-        const { url, cap } = event.currentTarget.dataset;
-        this.zoom = { url, cap };
+        const { url, cap, alt } = event.currentTarget.dataset;
+        this.zoom = { url, cap, alt: alt || cap };
         this.focusClose = true;
     }
 

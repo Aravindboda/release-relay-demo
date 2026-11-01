@@ -20,6 +20,8 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public Integer deletionCount;
         /** @description Manual steps of its deploy still to do. */
         @AuraEnabled public Integer manualOpen = 0;
+        /** @description It has only manual steps (no metadata, no Git or pipeline steps). */
+        @AuraEnabled public Boolean manualOnly;
     }
 
     /** @description One row of the release list. */
@@ -64,6 +66,8 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public String title;
         /** @description A hotfix. */
         @AuraEnabled public Boolean isHotfix;
+        /** @description It has only manual steps (no merge commit to carry). */
+        @AuraEnabled public Boolean manualOnly;
     }
 
     /** @description How one branch was brought up to date after the merge. */
@@ -78,8 +82,18 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public String kind;
     }
 
+    /** @description What a release page shows about its history, flows and approval rule (RlyReleaseHistory fills it). */
+    public virtual class DetailHistory {
+        /** @description "Needs approval: contains a Flow and a Profile", "Approved automatically: …" or "Always needs approval in …". */
+        @AuraEnabled public String approvalReason;
+        /** @description Flow activation per org and flow (Flow_Results__c), with each flow's After deploy choice. */
+        @AuraEnabled public List<RlyFlowResults.FlowResult> flows = new List<RlyFlowResults.FlowResult>();
+        /** @description The release's history, oldest first. */
+        @AuraEnabled public List<RlyReleaseHistory.EventRow> events = new List<RlyReleaseHistory.EventRow>();
+    }
+
     /** @description What a release page shows about the release's links to others (Detail extends it; RlyReleaseLinks fills it). */
-    public virtual class DetailLinks {
+    public virtual class DetailLinks extends DetailHistory {
         /** @description A hotfix. */
         @AuraEnabled public Boolean isHotfix;
         /** @description Why it's a hotfix, or null. */
@@ -217,7 +231,7 @@ public with sharing class RlyReleasesController {
         try {
             if (RlyStatusReader.isOpen(RlyReleaseStore.release(releaseId))) {
                 RlyStatusReader.advance(releaseId);
-            } else {
+            } else if (RlyHubGuard.isHub()) {
                 RlyBackPromoteRun.catchUp();
             }
             return detail(releaseId);
@@ -341,6 +355,7 @@ public with sharing class RlyReleasesController {
         d.gitProvider = RlyGitName.labelFor(RlyReleaseStore.git());
         d.slackChannel = RlyReleasePhase.slackChannel(d.release);
         RlyReleaseLinks.fill(d);
+        RlyReleaseHistory.fill(d);
         return d;
     }
 

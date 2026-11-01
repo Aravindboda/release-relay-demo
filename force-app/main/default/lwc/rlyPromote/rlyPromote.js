@@ -3,6 +3,7 @@ import { LightningElement } from 'lwc';
 import getPromote from '@salesforce/apex/RlyPromoteController.getPromote';
 import promote from '@salesforce/apex/RlyPromoteController.promote';
 import getSteps from '@salesforce/apex/RlyManualStepController.getSteps';
+import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 
 const TIMING_LABEL = { Before_Deploy: 'Before deploy', After_Deploy: 'After deploy' };
 
@@ -24,6 +25,22 @@ function plural(n, one, many) {
  * release that runs the usual checks and approval into the next stop.
  */
 export default class RlyPromote extends LightningElement {
+    /** RlyHubGuard.getHubStatus: whether this org is a sandbox copy of the hub (then a banner, and the actions are off). */
+    hubStatus;
+    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
+    get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
+
+    /** Reads the hub status once. A failed read shows nothing: the server refuses the actions anyway. */
+    readHubStatus() {
+        getHubStatus()
+            .then((status) => {
+                this.hubStatus = status;
+            })
+            .catch(() => {
+                this.hubStatus = undefined;
+            });
+    }
+
     board;
     loading = false;
     error;
@@ -39,6 +56,7 @@ export default class RlyPromote extends LightningElement {
     stepsByRelease = {};
 
     connectedCallback() {
+        this.readHubStatus();
         this.load();
     }
 
@@ -145,6 +163,8 @@ export default class RlyPromote extends LightningElement {
         const title = this.titles[s.stageId] !== undefined ? this.titles[s.stageId] : this.suggestTitle(s, chosen, onlyHotfixes);
         const others = ready.length - chosen.length;
         const manual = this.manualFor(chosen, s.nextName);
+        const onlyManual = chosen.length > 0 && chosen.every((r) => r.manualOnly === true);
+        const someManualOnly = !onlyManual && chosen.some((r) => r.manualOnly === true);
         return {
             key: 'st-' + s.stageId,
             stageId: s.stageId,
@@ -166,6 +186,7 @@ export default class RlyPromote extends LightningElement {
                     name: r.name,
                     title: r.title,
                     isHotfix: r.isHotfix === true,
+                    manualOnly: r.manualOnly === true,
                     reason: r.isHotfix ? r.hotfixReason : '',
                     stays: !on && chosen.length > 0,
                     checked: on,
@@ -186,6 +207,7 @@ export default class RlyPromote extends LightningElement {
             testsTail: tests.length ? ' (RunSpecifiedTests, 75% each)' : 'deploys run without tests (NoTestRun) unless the target requires them.',
             aloneNote: onlyHotfixes && others > 0
                 ? 'Only the hotfix\'s changes go to ' + s.nextName + '. Other work waiting in ' + s.stageName + ' isn\'t included.' : '',
+            manualOnlyNote: this.manualOnlyNote(s, onlyManual, someManualOnly),
             approvalNote: chosen.some((r) => r.isHotfix)
                 ? ' A hotfix can need a 2nd approver into ' + s.nextName + ', and the person who raised it can\'t approve it.' : '',
             hasManual: manual.count > 0,
@@ -197,8 +219,19 @@ export default class RlyPromote extends LightningElement {
             error: this.errors[s.stageId],
             barText: plural(chosen.length, 'release', 'releases') + ' selected · ' + plural(tests.length, 'test class', 'test classes'),
             buttonLabel: this.buttonLabel(s, chosen, onlyHotfixes, busy),
-            cantPromote: locked || chosen.length === 0 || !(title || '').trim()
+            cantPromote: locked || this.hubCopy || chosen.length === 0 || !(title || '').trim()
         };
+    }
+
+    /** What a promotion with releases that have only manual steps does: no pipeline run, or only the others' merge commits picked. */
+    manualOnlyNote(s, onlyManual, someManualOnly) {
+        if (onlyManual) {
+            return 'Manual steps only: no pipeline run. The promotion goes straight to approval in ' + s.nextName
+                + ' and is deployed when its manual steps there are done.';
+        }
+        return someManualOnly
+            ? 'Releases with only manual steps carry no merge commit: only the others\' merge commits are picked; every release\'s manual steps go along in order.'
+            : '';
     }
 
     /** "Promote hotfix to <next>" when only hotfixes are ticked, otherwise "Promote <n> releases to <next>". */

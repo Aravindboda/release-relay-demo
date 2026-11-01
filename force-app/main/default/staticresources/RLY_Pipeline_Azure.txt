@@ -1,4 +1,6 @@
-# Release Relay pipeline files: version 10
+# Release Relay pipeline files: version 12
+# Release Relay's own metadata (its components by exact name, plus .relay/exclude) is never validated, deployed or deleted;
+# options {"selfUpdate":true} (the hub updating itself, from the release-relay-hub branch) ignores the list.
 # Release Relay for Azure Pipelines. Started only from Salesforce: the Release Relay hub runs this
 # pipeline on the default branch through the Runs API, with the release as template parameters
 # (empty values arrive as '-'). Create the pipeline from this file (Pipelines > New pipeline >

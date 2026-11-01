@@ -6,8 +6,8 @@
 public with sharing class RlyPromoteStore {
 
     /**
-     * @description Releases deployed to these stages and waiting to be promoted: deployed, merged, not carried by a
-     * promotion yet, not back promotes. Hotfixes first, then oldest deploy first.
+     * @description Releases deployed to these stages and waiting to be promoted: deployed, merged (or with manual steps
+     * only: no merge commit), not carried by a promotion yet, not back promotes. Hotfixes first, then oldest deploy first.
      * @param stageIds the stage orgs
      * @return the releases
      */
@@ -136,9 +136,9 @@ public with sharing class RlyPromoteStore {
          */
         public List<RLY_Release__c> queryReady(Set<Id> stageIds) {
             return [SELECT Id, Name, Title__c, Target_Org__c, Is_Hotfix__c, Hotfix_Reason__c, Last_Synced__c, CreatedBy.Name,
-                           Test_Classes__c, Component_Count__c, Merge_Commit__c, Deletion_Count__c
+                           Test_Classes__c, Component_Count__c, Merge_Commit__c, Deletion_Count__c, Manual_Only__c
                     FROM RLY_Release__c
-                    WHERE Target_Org__c IN :stageIds AND Status__c = 'Deployed' AND Merge_Commit__c != null
+                    WHERE Target_Org__c IN :stageIds AND Status__c = 'Deployed' AND (Merge_Commit__c != null OR Manual_Only__c = true)
                         AND Promoted_In__c = null AND Release_Type__c != 'Back_Promote'
                     WITH SYSTEM_MODE ORDER BY Is_Hotfix__c DESC, Last_Synced__c ASC LIMIT 500];
         }
@@ -150,7 +150,8 @@ public with sharing class RlyPromoteStore {
          */
         public List<RLY_Release__c> queryByIds(Set<Id> ids) {
             return [SELECT Id, Name, Title__c, Target_Org__c, Is_Hotfix__c, Hotfix_Reason__c, Last_Synced__c, Test_Classes__c,
-                           Merge_Commit__c, Promoted_In__c, Status__c, Release_Type__c, Deletions__c, Deletion_Count__c
+                           Merge_Commit__c, Promoted_In__c, Status__c, Release_Type__c, Deletions__c, Deletion_Count__c, Flow_Actions__c,
+                           Manual_Only__c
                     FROM RLY_Release__c WHERE Id IN :ids WITH SYSTEM_MODE ORDER BY Last_Synced__c ASC LIMIT 500];
         }
 
@@ -221,7 +222,7 @@ public with sharing class RlyPromoteStore {
          * @return the releases
          */
         public List<RLY_Release__c> queryHubDeployed(Id hubId) {
-            return [SELECT Id, Name, Last_Synced__c, Release_Type__c, Carried_Releases__c FROM RLY_Release__c
+            return [SELECT Id, Name, Last_Synced__c, Release_Type__c, Carried_Releases__c, Flow_Actions__c FROM RLY_Release__c
                     WHERE Target_Org__c = :hubId AND Status__c = 'Deployed' AND Release_Type__c != 'Back_Promote'
                     WITH SYSTEM_MODE ORDER BY Last_Synced__c ASC LIMIT 500];
         }
