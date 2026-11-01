@@ -2,7 +2,8 @@
  * @description The pipeline runs an approval starts: the merge (and deploy), or the checks again when the target
  * branch moved after they passed (the validation's mergedWith isn't the target's latest commit any more). A target
  * org approved in the Git provider starts its merge as soon as its checks pass; the provider's reviewers approve it.
- * Each run gets a new token (RlyPipelineRun.inputs). Callouts only: callers save the release afterwards.
+ * Each run gets a new token (RlyPipelineRun.inputs). A release with only manual steps has no run: its deploy is its
+ * manual steps (RlyManualOnly.startDeploy). Callouts only: callers save the release afterwards.
  */
 public with sharing class RlyApprovalRuns {
 
@@ -24,6 +25,10 @@ public with sharing class RlyApprovalRuns {
      * @param git the Git provider
      */
     public static void dispatchMerge(RLY_Release__c rel, RlyGit git) {
+        if (RlyManualOnly.isManualOnly(rel)) {
+            RlyManualOnly.startDeploy(rel); // nothing to merge: Deploying until its manual steps are done
+            return;
+        }
         if (RlyPromotion.typeOf(rel) == RlyPromotion.TYPE_BACK_PROMOTE) {
             RlyBackPromoteRun.dispatch(rel, git);
         } else {
@@ -106,5 +111,33 @@ public with sharing class RlyApprovalRuns {
      */
     public static Boolean approvedInGit(RLY_Release__c rel) {
         return RlyApprover.gitReview(rel.Target_Org__r);
+    }
+
+    /**
+     * @description Starts the deploy of an approved release when the deployment team finished its manual steps before
+     * deploy (RlyManualStepCheck), as the approval would have: the merge (or the queued sync run, or for a release with
+     * only manual steps its manual steps in the target), or the checks again when the target moved since they passed (the
+     * approval is then cleared: the release is approved again after the checks). A failure to start is kept on the release.
+     * @param rel the release
+     */
+    public static void startAfterSteps(RLY_Release__c rel) {
+        try {
+            RLY_Git_Connection__c conn = RlyReleaseStore.git();
+            RlyGit git = RlyGit.forConnection(conn);
+            if (RlyPromotion.typeOf(rel) == RlyPromotion.TYPE_BACK_PROMOTE && rel.Status__c == RlyPromotion.QUEUED) {
+                RlyBackPromoteRun.dispatch(rel, git);
+            } else if (targetMoved(rel, git)) {
+                startChecks(rel, conn, RlyPipelineRun.RECHECK);
+                rel.Approval_Status__c = 'Pending';
+                rel.Approved_By__c = null;
+                rel.Approved_On__c = null;
+                rel.Second_Approved_By__c = null;
+                rel.Second_Approved_On__c = null;
+            } else {
+                dispatchMerge(rel, git);
+            }
+        } catch (Exception e) {
+            rel.Error_Message__c = ('The manual steps are done, but the deploy couldn\'t start: ' + e.getMessage()).left(2000);
+        }
     }
 }

@@ -245,6 +245,10 @@
 
             <div class={barCls} role="status">
                 <lightning-button label="Back" onclick={backToSource}></lightning-button>
+                <div class="rr-manual-only">
+                    <lightning-input type="toggle" label="No metadata — only manual steps" checked={manualOnly} onchange={handleManualOnly}
+                        message-toggle-active="On" message-toggle-inactive="Off" field-level-help={manualOnlyHelp}></lightning-input>
+                </div>
                 <div class="rr-bar-text">
                     <strong>{barText}</strong>
                     <template lwc:if={ruleBlocked}>
@@ -269,10 +273,16 @@
                 </div>
                 <span class="rr-pill rr-pill-info">{reviewSummary}</span>
             </section>
+            <template lwc:if={needsManualStep}>
+                <div class="rr-msg rr-msg-wait" role="status">Manual steps only: add at least one manual step below to raise it.</div>
+            </template>
 
             <div class="rr-review">
                 <nav class="rr-card rr-files" aria-label="Components in this release">
                     <p class="rr-files-head">In this release</p>
+                    <template lwc:if={manualOnly}>
+                        <p class="rr-files-note rr-small rr-weak"><span class="rr-pill rr-pill-info">Manual steps only</span> No components: only the manual steps below.</p>
+                    </template>
                     <ul class="rr-file-list">
                         <template for:each={reviewRows} for:item="r">
                             <li key={r.key} class="rr-file">

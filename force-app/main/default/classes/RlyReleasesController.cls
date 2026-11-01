@@ -20,6 +20,8 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public Integer deletionCount;
         /** @description Manual steps of its deploy still to do. */
         @AuraEnabled public Integer manualOpen = 0;
+        /** @description It has only manual steps (no metadata, no Git or pipeline steps). */
+        @AuraEnabled public Boolean manualOnly;
     }
 
     /** @description One row of the release list. */
@@ -64,6 +66,8 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public String title;
         /** @description A hotfix. */
         @AuraEnabled public Boolean isHotfix;
+        /** @description It has only manual steps (no merge commit to carry). */
+        @AuraEnabled public Boolean manualOnly;
     }
 
     /** @description How one branch was brought up to date after the merge. */

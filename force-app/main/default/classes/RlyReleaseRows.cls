@@ -32,7 +32,7 @@ public with sharing class RlyReleaseRows {
         row.title = r.Title__c;
         row.status = r.Status__c;
         row.source = r.Source_Org__r.Name;
-        row.target = r.Target_Org__r.Name + ' · ' + r.Target_Branch__c;
+        row.target = RlyManualOnly.isManualOnly(r) ? r.Target_Org__r.Name : r.Target_Org__r.Name + ' · ' + r.Target_Branch__c;
         row.raisedBy = r.CreatedBy.Name;
         row.raisedOn = r.CreatedDate;
         row.components = r.Component_Count__c;
@@ -42,6 +42,7 @@ public with sharing class RlyReleaseRows {
         row.isHotfix = row.hotfix;
         row.hotfixReason = r.Hotfix_Reason__c;
         row.releaseType = RlyPromotion.typeOf(r);
+        row.manualOnly = RlyManualOnly.isManualOnly(r);
         row.deletionCount = r.Deletion_Count__c == null ? 0 : r.Deletion_Count__c.intValue();
         row.raisedById = r.CreatedById;
         row.lastChecked = r.Last_Synced__c;

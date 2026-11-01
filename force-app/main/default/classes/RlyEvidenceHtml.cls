@@ -3,7 +3,8 @@
  * and its route, components and deletions, the pull request, the code scan with its findings, the validation (tests
  * run, coverage warnings, deploy id), approvals (who, when, where, comment, second approver), manual steps per org
  * (done by, when, notes), flow activation, the deploy (quick or full, deploy id), the branches merged back and the full
- * history. Every value is HTML-escaped.
+ * history. A release with only manual steps shows no Git lines (no branch, pull request, checks or merge commit).
+ * Every value is HTML-escaped.
  */
 public with sharing class RlyEvidenceHtml {
 
@@ -42,12 +43,15 @@ public with sharing class RlyEvidenceHtml {
     }
 
     private static String summary(RLY_Release__c rel) {
+        Boolean manualOnly = RlyManualOnly.isManualOnly(rel);
+        String route = RlyEvidenceTables.orgName(rel.Source_Org__r) + ' → ' + RlyEvidenceTables.orgName(rel.Target_Org__r);
         List<List<String>> rows = new List<List<String>>{
-            new List<String>{ 'Route', RlyEvidenceTables.orgName(rel.Source_Org__r) + ' → ' + RlyEvidenceTables.orgName(rel.Target_Org__r) + ' (' + RlyEvidenceText.text(rel.Target_Branch__c) + ')' },
-            new List<String>{ 'Type', RlyPromotion.typeOf(rel) + (RlyHotfix.isHotfix(rel) ? ' · hotfix: ' + RlyEvidenceText.text(rel.Hotfix_Reason__c) : '') },
+            new List<String>{ 'Route', manualOnly ? route : route + ' (' + RlyEvidenceText.text(rel.Target_Branch__c) + ')' },
+            new List<String>{ 'Type', RlyPromotion.typeOf(rel) + (manualOnly ? ' · ' + RlyManualOnly.PILL : '')
+                + (RlyHotfix.isHotfix(rel) ? ' · hotfix: ' + RlyEvidenceText.text(rel.Hotfix_Reason__c) : '') },
             new List<String>{ 'Raised by', (rel.CreatedBy == null ? '' : rel.CreatedBy.Name) + ', ' + RlyEvidenceTables.stamp(rel.CreatedDate) },
             new List<String>{ 'Status', RlyEvidenceText.text(rel.Status__c) },
-            new List<String>{ 'Pull request', RlyEvidenceText.text(rel.PR_URL__c) },
+            new List<String>{ 'Pull request', manualOnly ? RlyManualOnly.NOT_NEEDED : RlyEvidenceText.text(rel.PR_URL__c) },
             new List<String>{ 'Description', RlyEvidenceText.text(rel.Description__c) }
         };
         return '<h2>Release</h2>' + RlyEvidenceTables.table(null, rows);
@@ -62,6 +66,10 @@ public with sharing class RlyEvidenceHtml {
     }
 
     private static String checks(RLY_Release__c rel) {
+        if (RlyManualOnly.isManualOnly(rel)) {
+            return '<h2>Checks</h2>' + RlyEvidenceTables.table(null, new List<List<String>>{
+                new List<String>{ 'Code scan and validation', RlyManualOnly.NOT_NEEDED } });
+        }
         RlyEvidenceText.Validation v = RlyEvidenceText.validationOf(rel.Validation_Result__c);
         List<List<String>> rows = new List<List<String>>{
             new List<String>{ 'Code scan', RlyEvidenceText.text(rel.Scan_Status__c) + RlyEvidenceText.scanCounts(rel)
@@ -103,6 +111,11 @@ public with sharing class RlyEvidenceHtml {
     }
 
     private static String deploy(RLY_Release__c rel) {
+        if (RlyManualOnly.isManualOnly(rel)) {
+            return '<h2>Deploy</h2>' + RlyEvidenceTables.table(null, new List<List<String>>{
+                new List<String>{ 'Deploy to ' + RlyEvidenceTables.orgName(rel.Target_Org__r), RlyEvidenceText.text(rel.Deploy_Status__c)
+                    + ' (manual steps only: deployed when its manual steps are done; no merge commit)' } });
+        }
         RlyEvidenceText.Deploy d = RlyEvidenceText.deployOf(rel.Deploy_Result__c);
         List<List<String>> rows = new List<List<String>>{
             new List<String>{ 'Deploy to ' + RlyEvidenceTables.orgName(rel.Target_Org__r), RlyEvidenceText.text(rel.Deploy_Status__c) + d.suffix() },

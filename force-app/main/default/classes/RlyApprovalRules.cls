@@ -121,6 +121,11 @@ public with sharing class RlyApprovalRules {
         return c;
     }
 
+    // The hub (production) always needs an approver, even if its record says Never.
+    private static Boolean isHub(RLY_Org__c target) {
+        return target != null && target.isSet('Role__c') && target.Role__c == 'Hub';
+    }
+
     /**
      * @description Whether the release needs an approver in its target org, and why.
      * @param rel the release, with Target_Org__r (Name, Approval_Rule__c, Approval_Types__c, Hotfix_Two_Approvers__c)
@@ -143,7 +148,7 @@ public with sharing class RlyApprovalRules {
         String rule = ruleOf(target);
         if (RlyTwoApprovers.needsTwo(rel)) {
             d.reason = 'Needs approval: a hotfix into ' + orgName + ' needs two approvers';
-        } else if (rule == RULE_NEVER) {
+        } else if (rule == RULE_NEVER && !isHub(target)) {
             d.needed = false;
             d.reason = 'Approved automatically: ' + orgName + ' deploys when the checks pass';
         } else if (rule == RULE_SELECTED) {

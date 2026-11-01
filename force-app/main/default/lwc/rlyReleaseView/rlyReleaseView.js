@@ -39,6 +39,10 @@ const STEP_DOT = {
     Waiting: 'rr-dot'
 };
 const TYPE_LABEL = { Promotion: 'Promotion', Back_Promote: 'Back promote' };
+/** A release with only manual steps (RLY_Release__c.Manual_Only__c): no Git or pipeline steps. */
+const MANUAL_ONLY = 'Manual steps only';
+const NOT_NEEDED = 'Not needed: manual steps only';
+const NO_GIT_PATH = ['pr', 'checks'];
 const RELEASES_TAB = 'RLY_My_Releases';
 const BRANCH_OK = 'Synced';
 /** RLY_Release_Event__c.Event_Type__c: the History card's title and icon per event (board HubApprovalFlowsEvidence 3). */
@@ -287,6 +291,12 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     get typeLabel() { return TYPE_LABEL[this.releaseType] || ''; }
     get eyebrow() { return (this.typeLabel || 'Release') + ' · ' + (this.rel.Name || ''); }
     get isHotfix() { return !!(this.detail && this.detail.isHotfix); }
+    /** Manual steps only: no retrieve, Git branch, pull request, pipeline run, scan or validation. */
+    get manualOnly() { return this.rel.Manual_Only__c === true; }
+    get manualOnlyLabel() { return MANUAL_ONLY; }
+    get notNeededText() { return NOT_NEEDED; }
+    /** The route's branch, left out for a release with only manual steps. */
+    get routeBranch() { return this.manualOnly ? '' : this.rel.Target_Branch__c; }
     /** Header pill: Detail.manualOpen, the manual steps still open for this release. */
     get manualOpenText() {
         const n = Number(this.detail && this.detail.manualOpen) || 0;
@@ -312,6 +322,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
 
     get pathSteps() {
         const pos = pathPosition(this.rel);
+        const skip = this.manualOnly ? NO_GIT_PATH : [];
         return PATH.map((p, i) => {
             let state = 'todo';
             if (i < pos.index) {
@@ -326,7 +337,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
                 current: i === pos.index ? 'step' : null,
                 stateText: { done: 'Done', lost: 'Failed', current: 'Current', todo: 'Not yet' }[state]
             };
-        });
+        }).filter((p) => !skip.includes(p.key));
     }
 
     // ---------- highlights ----------
@@ -366,6 +377,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     get targetName() { return this.detail ? this.detail.targetName : ''; }
 
     get steps() {
+        if (this.manualOnly) {
+            return this.manualOnlySteps().map((st, i) => this.decorate(st, i));
+        }
         const r = this.rel;
         const s = r.Status__c;
         const collected = !['Retrieving'].includes(s) && !(s === 'Failed' && !r.Source_Branch__c);
@@ -392,6 +406,36 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             steps.push(backPromote);
         }
         return steps.map((st, i) => this.decorate(st, i));
+    }
+
+    /** Manual steps only: one "Not needed" line for the Git and pipeline steps, the approval, then the manual steps as the deploy. */
+    manualOnlySteps() {
+        const steps = [
+            { key: 'nogit', title: 'Retrieve, Git branch, ' + this.crWord + ', code scan and validation', state: 'Done', badge: '–', label: 'Not needed', pill: STEP_PILL.Waiting, text: NOT_NEEDED },
+            this.approvalStep(),
+            this.manualDeployStep()
+        ];
+        const backPromote = this.backPromoteStep();
+        if (backPromote) {
+            steps.push(backPromote);
+        }
+        return steps;
+    }
+
+    manualDeployStep() {
+        const s = this.rel.Status__c;
+        const open = Number(this.detail && this.detail.manualOpen) || 0;
+        let state = 'Waiting';
+        let text = (this.detail && this.detail.manualSummary) || '';
+        if (s === 'Deployed') {
+            state = 'Done';
+            text = 'Every manual step in ' + this.targetName + ' is done';
+        } else if (s === 'Deploying') {
+            state = 'Running';
+            text = 'The deployment team checks off ' + open + (open === 1 ? ' manual step' : ' manual steps') + ' in ' + this.targetName
+                + ' (Manual steps below). It is deployed when all of them are done.';
+        }
+        return { key: 'deploy', title: 'Manual steps in ' + this.targetName, state, text, sync: [], hasSync: false };
     }
 
     decorate(st, i) {
@@ -763,7 +807,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
 
     get carried() {
         const list = this.detail && Array.isArray(this.detail.carried) ? this.detail.carried : [];
-        return list.map((c) => ({ key: 'c' + c.id, id: c.id, name: c.name, title: c.title, isHotfix: c.isHotfix === true, href: this.releaseHref(c.id) }));
+        return list.map((c) => ({ key: 'c' + c.id, id: c.id, name: c.name, title: c.title, isHotfix: c.isHotfix === true, manualOnly: c.manualOnly === true, href: this.releaseHref(c.id) }));
     }
     get hasCarried() { return this.releaseType === 'Promotion' && this.carried.length > 0; }
     get promotedIn() {
@@ -947,12 +991,16 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         if (this.isHotfix) {
             lines.push('Hotfix: ' + this.hotfixReason);
         }
-        lines.push('Components: ' + this.items.length + this.componentBreakdown);
-        if (this.hasDeletions) {
-            lines.push('Deletes: ' + this.deletions.map((x) => x.name).join(', '));
+        if (this.manualOnly) {
+            lines.push(MANUAL_ONLY + ': no components; Git branch, ' + this.crWord + ', scan and validation not needed');
+        } else {
+            lines.push('Components: ' + this.items.length + this.componentBreakdown);
+            if (this.hasDeletions) {
+                lines.push('Deletes: ' + this.deletions.map((x) => x.name).join(', '));
+            }
+            lines.push('Scan: ' + this.scanLabel.toLowerCase() + (this.scanSummary ? ', ' + this.scanSummary : '') + ' · Tests: ' + this.testsText);
+            lines.push('Validation: ' + this.validationLabel.toLowerCase() + (this.validation.testsRun ? ', ' + this.validation.testsRun + ' tests run' : ''));
         }
-        lines.push('Scan: ' + this.scanLabel.toLowerCase() + (this.scanSummary ? ', ' + this.scanSummary : '') + ' · Tests: ' + this.testsText);
-        lines.push('Validation: ' + this.validationLabel.toLowerCase() + (this.validation.testsRun ? ', ' + this.validation.testsRun + ' tests run' : ''));
         lines.push('Approval: ' + this.approvalSummary);
         lines.push('Status: ' + this.phase + (r.Merge_Commit__c ? ' · merge ' + r.Merge_Commit__c.substring(0, 7) : ''));
         this.flowRows.forEach((f) => lines.push('Flow ' + f.name + ': ' + (f.parts.length ? f.parts.map((p) => p.text).join(' · ') : f.choiceText)));

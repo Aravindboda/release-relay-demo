@@ -5,7 +5,9 @@
  * (RlyManualStepRuns.forPromotion). It is saved queued (Status Submitted) and started on the next
  * read of its page (pipeline mode promote, branch promote/rel-xxxxx), because the run is named after the record and
  * a callout can't follow the insert in one transaction. From there it is checked, approved, merged and deployed like
- * any release.
+ * any release. Releases with only manual steps (RlyManualOnly) have no merge commit: a promotion that carries only them
+ * has only manual steps too (no run; approved, then deployed when its manual steps are done); a mixed one picks only the
+ * merge commits and carries every release's manual steps in order.
  */
 public with sharing class RlyPromotion {
 
@@ -70,6 +72,9 @@ public with sharing class RlyPromotion {
         promotion.Component_Count__c = RlyCarried.addedCount(items);
         promotion.Deletion_Count__c = deletions.size();
         promotion.Deletions__c = deletions.isEmpty() ? null : String.join(deletions, ',').left(RlyDeletions.MAX_LENGTH);
+        if (RlyManualOnly.allManualOnly(carried)) {
+            RlyManualOnly.mark(promotion); // nothing to cherry-pick: no promote run, its page's next read takes it to approval
+        }
         RlyPromoteStore.insertPromotion(promotion, items, new Map<Id, RLY_Release__c>(carried).keySet());
         RlyManualStepRuns.forPromotion(promotion, nextOrg);
         RlyReleaseLog.promoted(promotion, carried, stage.Name + ' to ' + nextOrg.Name);

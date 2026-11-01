@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Manual_Only__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Hub: a release with only manual steps (no metadata): no retrieve, Git branch, pull request, pipeline run, scan or validation. It is approved in its target org and deployed when its manual steps there are done.</description>
+    <label>Manual Steps Only</label>
+    <type>Checkbox</type>
+</CustomField>

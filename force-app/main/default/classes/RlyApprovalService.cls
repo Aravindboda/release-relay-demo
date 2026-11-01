@@ -4,7 +4,8 @@
  * RLY_Approver (or RLY_Admin) custom permission; approveAs and rejectAs act for an approver the caller checked
  * (RlySlackAction checks a linked Slack user's permission sets). A hotfix into an org that needs two approvers waits for
  * a second one (RlyTwoApprovers). A deploy whose manual steps before deploy aren't done yet is approved but waits
- * (RlyManualStepGate); the deployment team's last check starts it (RlyManualStepCheck). Callouts come first (Slack too, when the new status is an event)
+ * (RlyManualStepGate); the deployment team's last check starts it (RlyManualStepCheck). A release with only manual steps
+ * has nothing to merge: approving it starts its manual steps in the target (RlyManualOnly). Callouts come first (Slack too, when the new status is an event)
  * and the saves last.
  */
 public with sharing class RlyApprovalService {
@@ -100,6 +101,9 @@ public with sharing class RlyApprovalService {
             RlyTwoApprovers.keepBoth(rel, prior);
         }
         saveAndNotify(rel, oldStatus);
+        if (rel.Status__c == 'Deployed') {
+            RlyBackPromoteQueue.afterDeploy(rel); // manual steps only, nothing left to do: deployed on approval
+        }
         return rel;
     }
 

@@ -111,6 +111,13 @@ function stepStates(r) {
 }
 
 const STATE_TEXT = { done: 'done', now: 'in progress', fail: 'failed', todo: 'not started' };
+/** A release with only manual steps has no Git or pipeline steps: only these segments show. */
+const MANUAL_ONLY_STEPS = ['Raised', 'Approval', 'Deploy'];
+
+function rowSteps(r) {
+    const steps = stepStates(r);
+    return r.manualOnly === true ? steps.filter((st) => MANUAL_ONLY_STEPS.includes(st.label)) : steps;
+}
 
 /** One line on why it failed, from what the list knows. The release page has the full detail. */
 function failReason(r) {
@@ -515,7 +522,7 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
     // ---------- list ----------
     get cards() {
         return this.shown.map((r) => {
-            const steps = stepStates(r);
+            const steps = rowSteps(r);
             const p = position(r);
             const on = r.id === this.selectedId;
             const count = r.components || 0;
@@ -523,7 +530,8 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
             const carried = Array.isArray(r.carried) ? r.carried : [];
             const deletions = Number(r.deletionCount) || 0;
             const manual = Number(r.manualOpen) || 0;
-            const meta = [count + (count === 1 ? ' component' : ' components')
+            const manualOnly = r.manualOnly === true;
+            const meta = [manualOnly ? '' : count + (count === 1 ? ' component' : ' components')
                 + (deletions ? ' · ' + deletions + (deletions === 1 ? ' deletion' : ' deletions') : ''),
                 this.isMine(r) ? 'You' : r.raisedBy].filter((x) => x);
             return {
@@ -531,6 +539,7 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
                 name: r.name,
                 title: r.title,
                 isHotfix,
+                manualOnly,
                 hotfixReason: isHotfix ? r.hotfixReason : '',
                 deletesText: this.isApprovals && deletions ? 'Deletes ' + deletions : '',
                 manualText: manual ? manual + (manual === 1 ? ' manual step' : ' manual steps') : '',

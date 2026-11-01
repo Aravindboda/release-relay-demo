@@ -6,6 +6,8 @@
  *           → Deploying (after approval) → Deployed | Deploy failed. Rejected, Closed and
  *           Failed end it. A promotion starts Submitted (queued: its first run, mode promote, starts on the next
  *           read) → Workflow running → …; a back promote sync Submitted → Deploying (mode sync) → Deployed | Failed.
+ *           A release with only manual steps (RlyManualOnly) Submitted → Ready for approval → Deploying while its manual
+ *           steps in the target are open → Deployed, with no pipeline run.
  *           Callouts come first (Slack too, for a status that's an event) and the saves last; a deploy to the hub
  *           then queues the back promote syncs (RlyBackPromote.afterDeploy). When the checks pass and the target org's
  *           approval rule needs no approver, the release is approved by rule and its deploy starts (RlyAutoApproval); after a
@@ -63,6 +65,8 @@ public with sharing class RlyStatusReader {
         String relType = RlyPromotion.typeOf(rel);
         if (relType == RlyPromotion.TYPE_BACK_PROMOTE) {
             RlyBackPromoteRun.advanceSync(rel, git);
+        } else if (RlyManualOnly.isManualOnly(rel)) {
+            RlyManualOnly.advance(rel); // no pipeline: to approval, or Deployed when its manual steps are done
         } else if (rel.Status__c == RlyPromotion.QUEUED) {
             if (relType == RlyPromotion.TYPE_PROMOTION) {
                 RlyPromotion.dispatch(rel, git);

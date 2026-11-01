@@ -72,6 +72,9 @@ public with sharing class RlyApprovalWords {
         if (c.deletes) {
             words.add('deletions');
         }
+        if (words.isEmpty() && c.manualSteps) {
+            return 'only manual steps';
+        }
         return words.isEmpty() ? 'nothing that needs an approver' : 'only ' + joined(words);
     }
 

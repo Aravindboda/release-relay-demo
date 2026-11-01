@@ -14,6 +14,7 @@
                     </div>
                     <template lwc:if={isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
                     <template lwc:if={typeLabel}><span class="rr-pill rr-pill-info">{typeLabel}</span></template>
+                    <template lwc:if={manualOnly}><span class="rr-pill rr-pill-info">{manualOnlyLabel}</span></template>
                     <span class={phaseCls}>{phase}</span>
                     <template lwc:if={manualOpenText}><span class="rr-pill rr-pill-wait">{manualOpenText}</span></template>
                     <template lwc:if={detail.slackUrl}>
@@ -38,7 +39,7 @@
                 <div class="rr-hl">
                     <div>
                         <p class="rr-kicker">Route</p>
-                        <p><strong>{detail.sourceName}</strong><span class="rr-arrow" aria-label="to">→</span><strong>{detail.targetName}</strong><span class="rr-small rr-weak rr-sp">{rel.Target_Branch__c}</span></p>
+                        <p><strong>{detail.sourceName}</strong><span class="rr-arrow" aria-label="to">→</span><strong>{detail.targetName}</strong><span class="rr-small rr-weak rr-sp">{routeBranch}</span></p>
                     </div>
                     <div><p class="rr-kicker">Raised by</p><p>{raisedBy}</p></div>
                     <div><p class="rr-kicker">Raised</p><p>{raisedOn}</p></div>
@@ -149,9 +150,15 @@
                     <div class="rr-hd rr-hd-line"><h2 class="rr-h2">Details</h2></div>
                     <dl class="rr-dl">
                         <dt>Status</dt><dd><span class={phaseCls}>{phase}</span></dd>
-                        <dt>Code scan</dt><dd><span class={scanPillCls}>{scanLabel}</span><span class="rr-sp">{scanSummary}</span></dd>
-                        <dt>Validation</dt><dd><span class={validationPillCls}>{validationLabel}</span></dd>
-                        <dt>Branch</dt><dd><span class="rr-small rr-break">{rel.Source_Branch__c}</span></dd>
+                        <template lwc:if={manualOnly}>
+                            <dt>Kind</dt><dd><span class="rr-pill rr-pill-info">{manualOnlyLabel}</span></dd>
+                            <dt>Code scan, validation, branch</dt><dd class="rr-small rr-weak">{notNeededText}</dd>
+                        </template>
+                        <template lwc:else>
+                            <dt>Code scan</dt><dd><span class={scanPillCls}>{scanLabel}</span><span class="rr-sp">{scanSummary}</span></dd>
+                            <dt>Validation</dt><dd><span class={validationPillCls}>{validationLabel}</span></dd>
+                            <dt>Branch</dt><dd><span class="rr-small rr-break">{rel.Source_Branch__c}</span></dd>
+                        </template>
                         <template lwc:if={hotfixReason}>
                             <dt>Why it's a hotfix</dt><dd class="rr-break">{hotfixReason}</dd>
                         </template>
@@ -163,6 +170,7 @@
                                         <li key={c.key}>
                                             <a href={c.href} data-id={c.id} onclick={openRelease}>{c.name}</a>
                                             <template lwc:if={c.isHotfix}><span class="rr-pill rr-pill-bad rr-sp">Hotfix</span></template>
+                                            <template lwc:if={c.manualOnly}><span class="rr-pill rr-pill-info rr-sp">{manualOnlyLabel}</span></template>
                                             <span class="rr-small rr-weak rr-sp">{c.title}</span>
                                         </li>
                                     </template>
@@ -193,6 +201,9 @@
                         <h2 class="rr-h2 rr-grow">Components</h2>
                         <span class="rr-pill rr-pill-none">{itemCount}</span>
                     </div>
+                    <template lwc:if={manualOnly}>
+                        <p class="rr-small rr-weak rr-pad-x">No components: this release has only manual steps.</p>
+                    </template>
                     <dl class="rr-dl rr-items">
                         <template for:each={items} for:item="i">
                             <dt key={i.dtKey}>{i.type}</dt>
