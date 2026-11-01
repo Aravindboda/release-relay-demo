@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Rollback_Result__c</fullName>
+    <description>Hub: the latest rollback as JSON: what was started (request, snapshot, environment, tests) and, when it finished, the pipeline&apos;s results/&lt;request&gt;/rollback.json (status, deployId, restored, removed, message, testLevel, testsRun, componentErrors, testFailures, runUrl, finishedAt).</description>
+    <label>Rollback Result</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

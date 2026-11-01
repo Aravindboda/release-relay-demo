@@ -2,8 +2,9 @@
  * @description Builds a release's evidence document as HTML (RlyEvidenceController turns it into a PDF): the release
  * and its route, components and deletions, the pull request, the code scan with its findings, the validation (tests
  * run, coverage warnings, deploy id), approvals (who, when, where, comment, second approver), manual steps per org
- * (done by, when, notes), flow activation, the deploy (quick or full, deploy id), the branches merged back and the full
- * history. A release with only manual steps shows no Git lines (no branch, pull request, checks or merge commit).
+ * (done by, when, notes), flow activation, the deploy (quick or full, deploy id), the branches merged back, the latest
+ * rollback (org, who, when, why, what was restored and removed) and the full history. Quality gate failures of the scan
+ * and the validation (.relay/gates.json) are listed with the checks. A release with only manual steps shows no Git lines (no branch, pull request, checks or merge commit).
  * Every value is HTML-escaped.
  */
 public with sharing class RlyEvidenceHtml {
@@ -37,7 +38,8 @@ public with sharing class RlyEvidenceHtml {
             '<h1>' + RlyEvidenceTables.esc(rel.Name + ' ' + RlyEvidenceText.text(rel.Title__c)) + '</h1>',
             '<p>Evidence made ' + RlyEvidenceTables.esc(src.madeOn.format('yyyy-MM-dd HH:mm z')) + ' by ' + RlyEvidenceTables.esc(UserInfo.getName()) + '</p>',
             summary(rel), components(src.items), checks(rel), approvals(rel), RlyEvidenceTables.manualSteps(src.runs),
-            RlyEvidenceTables.flows(rel), deploy(rel), RlyEvidenceTables.history(src.events), '</body></html>'
+            RlyEvidenceTables.flows(rel), deploy(rel), RlyEvidenceTables.rollbackTable(RlyRollbackState.rowOf(rel.Id)),
+            RlyEvidenceTables.history(src.events), '</body></html>'
         };
         return String.join(parts, '\n');
     }
@@ -79,6 +81,9 @@ public with sharing class RlyEvidenceHtml {
         };
         for (String w : v.coverageWarnings) {
             rows.add(new List<String>{ 'Coverage warning', w });
+        }
+        for (String g : RlyEvidenceTables.gateFailures(rel)) {
+            rows.add(new List<String>{ 'Quality gate failed', g });
         }
         return '<h2>Checks</h2>' + RlyEvidenceTables.table(null, rows) + findings(rel);
     }

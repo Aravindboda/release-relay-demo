@@ -1,6 +1,6 @@
 /**
  * @description The options a pipeline run starts with (the options input, as JSON): the hub flag, the org label,
- * the test classes, the scan switch, validateMerged (hub, promote, check and resolve: validate the release merged with
+ * the test classes, the scan switch (the target org's code scan choice, RlyScanRule), validateMerged (hub, promote, check and resolve: validate the release merged with
  * the target branch), attempt (the run's token, echoed in every result file) and syncBranches (the branches to update
  * from the target after the merge: every developer branch when the target is the first stage; after a merge into the
  * hub, every stage branch in route order, then every developer branch: the back-merge).
@@ -25,7 +25,7 @@ public with sharing class RlyPipelineOptions {
             options.put('attempt', rel.Check_Token__c);
         }
         RLY_Git_Connection__c conn = RlyReleaseStore.git();
-        if (conn != null && conn.Code_Scan__c != true) {
+        if (conn != null && !RlyScanRule.isOn(conn, RlyScanRule.targetOf(rel))) {
             options.put('scan', 'off');
         }
         if (VALIDATE_MERGED_MODES.contains(mode)) {

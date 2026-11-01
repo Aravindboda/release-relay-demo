@@ -8,7 +8,7 @@
  *           read) → Workflow running → …; a back promote sync Submitted → Deploying (mode sync) → Deployed | Failed.
  *           A release with only manual steps (RlyManualOnly) Submitted → Ready for approval → Deploying while its manual
  *           steps in the target are open → Deployed, with no pipeline run.
- *           Callouts come first (Slack too, for a status that's an event) and the saves last; a deploy to the hub
+ *           Callouts come first (Slack too: the card is edited on every change it shows) and the saves last; a deploy to the hub
  *           then queues the back promote syncs (RlyBackPromote.afterDeploy). When the checks pass and the target org's
  *           approval rule needs no approver, the release is approved by rule and its deploy starts (RlyAutoApproval); after a
  *           deploy the flows chosen Activate are activated (RlyFlowActivation). In a sandbox copy of the hub it only reads.
@@ -35,6 +35,7 @@ public with sharing class RlyStatusReader {
         }
         RlyGit git = RlyGit.forConnection(RlyReleaseStore.git());
         String oldStatus = rel.Status__c;
+        RLY_Release__c prior = rel.clone(true, true, true, true);
         try {
             readLatest(rel, git);
             RlyAutoApproval.afterChecks(rel, git, oldStatus);
@@ -43,7 +44,7 @@ public with sharing class RlyStatusReader {
         }
         RlyFlowActivation.afterRead(rel, oldStatus); // flows chosen Activate, in the org just deployed to (callouts)
         rel.Last_Synced__c = System.now();
-        RlySlack.notifyTransition(rel, oldStatus); // the Slack callout comes before any DML
+        RlySlackCardSync.notifyChange(prior, rel); // the Slack callouts (the card is kept current) come before any DML
         RlyReleaseStore.save(rel);
         RlySlack.saveResults();
         if (oldStatus != 'Deployed' && rel.Status__c == 'Deployed') {
