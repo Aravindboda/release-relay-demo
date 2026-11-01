@@ -40,13 +40,16 @@ public with sharing class RlySlackCard {
      */
     public static Map<String, Object> card(RLY_Release__c rel, String approverName) {
         String title = RlySlackCardText.title(rel);
-        String body = '*' + RlySlackMessage.esc(title) + '*\n' + RlySlackCardText.aboutLines(rel) + statusLine(rel, approverName)
+        String body = RlySlackCardText.aboutLines(rel) + statusLine(rel, approverName)
             + RlyRollbackState.slackLine(rel) + RlySlackCardState.mergedBackLine(rel) + '\n' + stepsLine(rel) + RlyReleaseHistory.slackLine(rel);
+        // Each release stands on its own in the channel: a header with its number and title, the card, and a divider.
         List<Object> blocks = new List<Object>{
+            new Map<String, Object>{ 'type' => 'header', 'text' => plain(title.left(150)) },
             new Map<String, Object>{ 'type' => 'section', 'text' => new Map<String, Object>{ 'type' => 'mrkdwn', 'text' => body.left(2900) } }
         };
         blocks.addAll(RlySlackCardState.decisionBlocks(rel, approverName));
         blocks.add(new Map<String, Object>{ 'type' => 'actions', 'block_id' => 'rly_actions', 'elements' => buttons(rel) });
+        blocks.add(new Map<String, Object>{ 'type' => 'divider' });
         return new Map<String, Object>{ 'text' => (title + ': ' + rel.Status__c).left(300), 'blocks' => blocks };
     }
 

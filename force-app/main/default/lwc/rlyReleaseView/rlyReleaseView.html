@@ -30,6 +30,13 @@
                         <template lwc:if={rel.Run_URL__c}>
                             <a class="slds-button slds-button_neutral" href={rel.Run_URL__c} target="_blank" rel="noopener">Pipeline run</a>
                         </template>
+                        <template lwc:if={hasOrgLinks}>
+                            <lightning-button-menu label="Open org" alternative-text="Open org" menu-alignment="right" onselect={openOrg} title="Log in to an org on this release's route in a new window">
+                                <template for:each={orgLinks} for:item="o">
+                                    <lightning-menu-item key={o.orgId} value={o.orgId} label={o.menuLabel} title={o.menuTitle}></lightning-menu-item>
+                                </template>
+                            </lightning-button-menu>
+                        </template>
                         <template lwc:if={canAppend}>
                             <lightning-button label={appendLabel} icon-name="utility:add" onclick={openAppend} disabled={actBusy}></lightning-button>
                         </template>
@@ -306,10 +313,13 @@
                             </div>
                             <div class="rr-pad-all rr-col">
                                 <template lwc:if={hasEvents}>
-                                    <ul class="rr-tl">
+                                    <ol class="rr-vt" aria-label="History, newest first">
                                         <template for:each={events} for:item="e">
-                                            <li key={e.key} class="rr-tl-item">
+                                            <li key={e.key} class="rr-vt-item">
                                                 <span class={e.cls}><lightning-icon icon-name={e.icon} size="xx-small" variant="inverse" alternative-text=""></lightning-icon></span>
+                                                <template lwc:if={e.hasArrow}>
+                                                    <span class="rr-vt-arrow" aria-hidden="true"><lightning-icon icon-name="utility:chevrondown" size="xx-small" alternative-text=""></lightning-icon></span>
+                                                </template>
                                                 <div class="rr-tlb">
                                                     <p class="rr-tl-l1"><strong>{e.title}</strong><span class="rr-small rr-weak">{e.who}</span><span class="rr-tl-when">{e.whenText}</span></p>
                                                     <template lwc:if={e.detail}><p class="rr-small rr-weak rr-break">{e.detail}</p></template>
@@ -318,17 +328,17 @@
                                                 </div>
                                             </li>
                                         </template>
-                                    </ul>
+                                    </ol>
                                 </template>
                                 <template lwc:else><p class="rr-small rr-weak">Nothing recorded yet.</p></template>
-                                <p class="rr-kicker">Newest last. Recorded by {appName} only; nobody can edit or delete an event. The PDF holds this full list plus components, scan findings, tests, approvals, manual steps, flow results and deploy ids.</p>
+                                <p class="rr-kicker">Newest first. Recorded by {appName} only; nobody can edit or delete an event. The PDF holds this full list (oldest first) plus components, scan findings, tests, approvals, manual steps, flow results and deploy ids.</p>
                             </div>
                         </section>
                     </div>
                 </template>
 
                 <!-- manual steps (board HubManualSteps, 2): per org checklist for the deployment team -->
-                <c-rly-manual-steps release-id={releaseId} release-name={rel.Name} status={rel.Status__c} disabled={hubCopy} onstepschange={handleStepsChange}></c-rly-manual-steps>
+                <c-rly-manual-steps release-id={releaseId} release-name={rel.Name} status={rel.Status__c} disabled={hubCopy} org-links={orgLinks} onstepschange={handleStepsChange}></c-rly-manual-steps>
 
                 <!-- roll back (board HubRollbackValuesGates, panel 1): the confirm dialog -->
                 <template lwc:if={rollbackOpen}>

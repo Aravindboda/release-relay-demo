@@ -96,10 +96,12 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public String approvalReason;
         /** @description Flow activation per org and flow (Flow_Results__c), with each flow's After deploy choice. */
         @AuraEnabled public List<RlyFlowResults.FlowResult> flows = new List<RlyFlowResults.FlowResult>();
-        /** @description The release's history, oldest first. */
+        /** @description The release's history, newest first. */
         @AuraEnabled public List<RlyReleaseHistory.EventRow> events = new List<RlyReleaseHistory.EventRow>();
         /** @description The current user may add changes from the developer org now (RlyAppendRules). */
         @AuraEnabled public Boolean canAppend;
+        /** @description Open org: the orgs on the release's route with their login addresses (admins and the deployment team only, else empty). */
+        @AuraEnabled public List<RlyOrgLinks.OrgLink> orgLinks = new List<RlyOrgLinks.OrgLink>();
     }
 
     /** @description What a release page shows about the release's links to others (Detail extends it; RlyReleaseLinks fills it). */
@@ -368,6 +370,7 @@ public with sharing class RlyReleasesController {
         d.gitProvider = RlyGitName.labelFor(RlyReleaseStore.git());
         d.slackChannel = RlyReleasePhase.slackChannel(d.release);
         d.canAppend = RlyAppendRules.mayAppend(d.release);
+        d.orgLinks = RlyOrgLinks.forRelease(d.release);
         RlyRollbackView.fill(d);
         RlyReleaseLinks.fill(d);
         RlyReleaseHistory.fill(d);
