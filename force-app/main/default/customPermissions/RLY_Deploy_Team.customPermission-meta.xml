@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CustomPermission xmlns="http://soap.sforce.com/2006/04/metadata">
-    <description>Check off a release's manual steps per org (Done or Not needed). A deploy into an org waits for its Before deploy steps.</description>
-    <isLicensed>false</isLicensed>
-    <label>Release Relay Deployment Team</label>
-</CustomPermission>
