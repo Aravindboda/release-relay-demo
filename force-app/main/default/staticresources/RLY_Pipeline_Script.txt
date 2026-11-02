@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 18
+// Release Relay pipeline files: version 19
 // Version 17: a release whose Apex is only deletions and inactive triggers (<status>Inactive</status> in the trigger's
 // -meta.xml), sent with no tests, runs the local tests in production (options.production, set by the hub from its org
 // record) and no tests elsewhere; the tests and coverage gates leave inactive triggers (and the tests gate deleted
@@ -3494,13 +3494,14 @@ async function stepNotify() {
     }
     try {
         login('relay-notify');
-        const org = JSON.parse(run('sf', ['org', 'display', '--target-org', 'relay-notify', '--json'])).result;
-        const res = await http('POST', org.instanceUrl.replace(/\/+$/, '') + '/services/apexrest/release-relay/v1/status',
-            { Authorization: 'Bearer ' + org.accessToken }, { request: requestId });
-        if (!res.ok) {
-            throw apiError('Status update', res);
-        }
-        summary(`Salesforce updated ${requestId}: ${res.json && res.json.status ? res.json.status : 'done'}.`);
+        // The CLI signs the call itself: newer CLIs hide the access token in "sf org display".
+        const bodyFile = path.join(os.tmpdir(), 'relay-notify-body.json');
+        fs.writeFileSync(bodyFile, JSON.stringify({ request: requestId }));
+        const out = run('sf', ['api', 'request', 'rest', '/services/apexrest/release-relay/v1/status', '--method', 'POST',
+            '--body', bodyFile, '--target-org', 'relay-notify']);
+        let json = null;
+        try { json = JSON.parse(out); } catch (ignore) { json = null; }
+        summary(`Salesforce updated ${requestId}: ${json && json.status ? json.status : 'done'}.`);
     } catch (e) {
         // The scheduled sync or an open release page picks the result up anyway.
         summary(`Couldn't tell Salesforce about ${requestId} (${e.message}). It catches up on its next sync.`);

@@ -14,6 +14,7 @@ public with sharing class RlyEvidenceWords {
         'Change|Type|Name' => new List<Integer>{ 15, 25, 60 },
         'Severity|Rule|Where|Message' => new List<Integer>{ 9, 13, 38, 40 },
         'Org|Step|Timing|Status|Done by|Note' => new List<Integer>{ 10, 36, 13, 10, 17, 14 },
+        'Step|File|Size|Attached by|When|Org for proof' => new List<Integer>{ 27, 19, 9, 13, 19, 13 },
         'When|Event|Org|Who|Detail|Reference' => new List<Integer>{ 13, 13, 7, 15, 32, 20 }
     };
 

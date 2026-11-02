@@ -40,13 +40,7 @@
                             <ol class="rr-ms-list">
                                 <template for:each={shownRuns} for:item="r">
                                     <li key={r.key} class="rr-ms">
-                                        <template lwc:if={r.tickable}>
-                                            <lightning-input type="checkbox" label={r.tickLabel} variant="label-hidden" checked={r.isDone} data-id={r.id}
-                                                onchange={handleTick} disabled={actDisabled} class="rr-tick"></lightning-input>
-                                        </template>
-                                        <template lwc:else>
-                                            <span class={r.boxCls} role="img" aria-label={r.boxLabel}>{r.boxGlyph}</span>
-                                        </template>
+                                        <span class={r.boxCls} role="img" aria-label={r.boxLabel}>{r.boxGlyph}</span>
                                         <span class="rr-no" aria-hidden="true">{r.no}</span>
                                         <div class="rr-ms-body">
                                             <p class="rr-row"><strong><template for:each={r.titleParts} for:item="u"><template lwc:if={u.hit}><mark key={u.key}>{u.text}</mark></template><template lwc:else><span key={u.key}>{u.text}</span></template></template></strong><span class={r.timingCls}>{r.timingLabel}</span><span class="rr-pill rr-pill-cat">{r.categoryLabel}</span>
@@ -58,25 +52,37 @@
                                                 </template>
                                                 <span>{r.metaText}</span>
                                             </p>
-                                            <template lwc:if={r.showNotNeeded}>
-                                                <div class="rr-row">
-                                                    <lightning-button label="Not needed" data-id={r.id} onclick={startNote} disabled={actDisabled}></lightning-button>
-                                                </div>
+                                            <!-- board HubStepFiles 2: the step's files (locked after approval) -->
+                                            <template lwc:if={r.showStepFiles}>
+                                                <c-rly-step-files label="Step files" files={r.stepFiles} record-id={r.stepId} can-attach={r.stepCanAttach} locked={r.stepLocked}
+                                                    lock-text={r.stepLockText} release-id={releaseId} org-id={selectedOrgId} disabled={actDisabled} upload-label="Attach files"
+                                                    onuploaded={handleFilesChanged} onremove={handleFileRemove}></c-rly-step-files>
                                             </template>
-                                            <template lwc:if={r.showReopen}>
-                                                <div class="rr-row">
-                                                    <lightning-button label="Reopen" data-id={r.id} onclick={reopen} disabled={actDisabled}></lightning-button>
-                                                </div>
-                                            </template>
-                                            <template lwc:if={r.noting}>
-                                                <div class="rr-note">
-                                                    <lightning-input label="Why it isn't needed in this org" value={noteText} max-length="255" required onchange={handleNote}></lightning-input>
-                                                    <div class="rr-row rr-end">
-                                                        <lightning-button label="Cancel" onclick={cancelNote}></lightning-button>
-                                                        <lightning-button variant="brand" label="Mark not needed" onclick={saveNote} disabled={noteMissing}></lightning-button>
+                                            <!-- this org's run: To do | Done | Not needed, and its proof -->
+                                            <div class="rr-run">
+                                                <div class="rr-run-hd">
+                                                    <span class="rr-run-org">{r.inOrgLabel}</span>
+                                                    <div class="rr-seg" role="radiogroup" aria-label={r.segLabel}>
+                                                        <template for:each={r.segments} for:item="g">
+                                                            <button key={g.value} type="button" role="radio" class={g.cls} aria-checked={g.pressed} title={g.label}
+                                                                data-id={r.id} data-status={g.value} onclick={pickStatus} disabled={g.off}><span class="rr-seg-full">{g.label}</span><span class="rr-seg-short">{g.short}</span></button>
+                                                        </template>
                                                     </div>
+                                                    <span class="rr-small rr-weak rr-run-who">{r.whoText}</span>
                                                 </div>
-                                            </template>
+                                                <template lwc:if={r.noting}>
+                                                    <div class="rr-note">
+                                                        <lightning-input label="Why it isn't needed in this org" value={noteText} max-length="255" required onchange={handleNote}></lightning-input>
+                                                        <div class="rr-row rr-end">
+                                                            <lightning-button label="Cancel" onclick={cancelNote}></lightning-button>
+                                                            <lightning-button variant="brand" label="Mark not needed" onclick={saveNote} disabled={noteMissing}></lightning-button>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                                <c-rly-step-files label={r.proofLabel} files={r.proof} record-id={r.id} can-attach={r.canAddProof} release-id={releaseId}
+                                                    org-id={selectedOrgId} disabled={actDisabled} upload-label="Add proof" empty-text={r.proofEmpty} compact
+                                                    onuploaded={handleFilesChanged} onremove={handleFileRemove}></c-rly-step-files>
+                                            </div>
                                         </div>
                                     </li>
                                 </template>
@@ -103,6 +109,11 @@
                                         <div class="rr-ms-body">
                                             <p class="rr-row"><strong>{s.title}</strong><span class={s.timingCls}>{s.timingLabel}</span><span class="rr-pill rr-pill-cat">{s.categoryLabel}</span></p>
                                             <p class="rr-small rr-weak">{s.whereText}</p>
+                                            <template lwc:if={s.showFiles}>
+                                                <c-rly-step-files label={s.filesLabel} files={s.fileRows} record-id={s.fileRecordId} can-attach={s.fileCanAttach}
+                                                    locked={s.fileLocked} lock-text={s.fileLockText} release-id={releaseId} disabled={addDisabled} upload-label="Attach files"
+                                                    data-key={s.key} onuploaded={handleDefinitionFiles} onremove={handleDefinitionRemove}></c-rly-step-files>
+                                            </template>
                                         </div>
                                         <template lwc:if={s.canEdit}>
                                             <lightning-button-group>
@@ -147,6 +158,7 @@
                             </div>
                         </template>
 
+                        <template lwc:if={showDraftFilesNote}><p class="rr-msg rr-msg-info">{draftFilesNote}</p></template>
                         <template lwc:if={canAdd}>
                             <div><lightning-button label="Add a manual step" icon-name="utility:add" onclick={openForm} disabled={addDisabled}></lightning-button></div>
                         </template>
