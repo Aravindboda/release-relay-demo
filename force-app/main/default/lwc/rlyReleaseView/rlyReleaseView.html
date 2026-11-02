@@ -361,6 +361,13 @@
                                 <div class="rr-toolbar">
                                     <c-rly-search-box data-list="history" label="Search history" placeholder="Search by event, person or detail"
                                         shown={shownEvents.length} total={events.length} onsearch={handleHistorySearch}></c-rly-search-box>
+                                    <template lwc:if={hasFileEvents}>
+                                        <div class="rr-hchips" role="group" aria-label="Show events">
+                                            <template for:each={historyChips} for:item="c">
+                                                <button key={c.value} type="button" class={c.cls} aria-pressed={c.pressed} data-value={c.value} onclick={pickHistoryKind}>{c.label}<span class="rr-hchip-n">{c.count}</span></button>
+                                            </template>
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
                             <div class="rr-pad-all rr-col">
@@ -388,7 +395,7 @@
                                     </div>
                                 </template>
                                 <template lwc:else><p class="rr-small rr-weak">Nothing recorded yet.</p></template>
-                                <p class="rr-kicker">Newest first. Recorded by {appName} only; nobody can edit or delete an event. The PDF holds this full list (oldest first) plus components, scan findings, tests, approvals, manual steps, flow results and deploy ids.</p>
+                                <p class="rr-kicker">Newest first. Recorded by {appName} only; nobody can edit or delete an event. The PDF holds this full list (oldest first) plus components, scan findings, tests, approvals, manual steps, files on manual steps, flow results and deploy ids. Downloaded counts the Download button on the Manual steps card only, not downloads from Files home.</p>
                             </div>
                         </section>
                     </div>

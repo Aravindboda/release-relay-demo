@@ -319,12 +319,13 @@ public with sharing class RlyHomeStats {
         }
 
         /**
-         * @description The newest events of every release.
+         * @description The newest events of every release (downloads of manual step files left out).
          * @return up to 50 events, newest first
          */
         public List<RLY_Release_Event__c> newestEvents() {
             return [SELECT Id, Event_Type__c, Release__c, Release__r.Name, Org__r.Name, Actor__r.Name, Via__c, Detail__c, Occurred_On__c
-                    FROM RLY_Release_Event__c WITH SYSTEM_MODE ORDER BY Occurred_On__c DESC NULLS LAST, CreatedDate DESC
+                    FROM RLY_Release_Event__c WHERE Event_Type__c != 'File_Downloaded'
+                    WITH SYSTEM_MODE ORDER BY Occurred_On__c DESC NULLS LAST, CreatedDate DESC
                     LIMIT :ACTIVITY_SIZE];
         }
     }

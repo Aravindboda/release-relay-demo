@@ -268,7 +268,7 @@ private class RlyRollbackTest {
             System.assertEquals(0, counts.get('deployed'), 'Not under Deployed');
             System.assertEquals(1, counts.get('all'), 'All');
             List<String> lines = csv.split('\r\n');
-            System.assert(lines[0].endsWith('"Rolled back in","Rolled back on"'), lines[0]);
+            System.assert(lines[0].contains('"Rolled back in","Rolled back on"'), lines[0]);
             System.assert(lines[1].contains('"Rolled back"') && lines[1].contains('"SIT"'), lines[1]);
         }
     }

@@ -3,14 +3,15 @@
  * (RlyEvidenceHtml), turns it into a PDF and saves it to the release's Files (ContentVersion linked to the release,
  * visible to all users), returning its download address. exportCsv returns the Releases tab's filtered list (the same
  * filter as RlyReleasesController.listReleasesFor) as CSV text with the approval, deploy and rollback details (a release
- * rolled back in an org has Status "Rolled back" and the org and time in their own columns). Both only read
+ * rolled back in an org has Status "Rolled back" and the org and time in their own columns) and, last, the files on its
+ * manual steps (Files: name, size, step or "proof in <org>"; listed, not embedded). Both only read
  * releases, so they work in a sandbox copy of the hub too. Files are created in system mode: every Release Relay user
  * may save evidence of a release they can open.
  */
 public with sharing class RlyEvidenceController {
 
     private static final List<String> CSV_HEADER = new List<String>{ 'REL', 'Title', 'Route', 'Raised by', 'Raised on', 'Status',
-        'Approved by', 'Approved on', 'Via', 'Comment', 'Second approver', 'Deployed to', 'Deploy ids', 'PR url', 'Rolled back in', 'Rolled back on' };
+        'Approved by', 'Approved on', 'Via', 'Comment', 'Second approver', 'Deployed to', 'Deploy ids', 'PR url', 'Rolled back in', 'Rolled back on', 'Files' };
 
     /** @description The saved evidence file. */
     public class EvidenceFile {
@@ -39,6 +40,7 @@ public with sharing class RlyEvidenceController {
             src.items = RlyReleaseStore.items(releaseId);
             src.runs = access.runs(releaseId);
             src.events = RlyReleaseLog.eventsOf(new Set<Id>{ releaseId });
+            src.files = RlyStepFileEvidence.evidenceRows(src.rel, src.events);
             EvidenceFile f = new EvidenceFile();
             f.title = src.rel.Name + ' evidence ' + src.madeOn.format('yyyy-MM-dd HH:mm');
             f.contentDocumentId = access.saveFile(releaseId, f.title, Blob.toPdf(RlyEvidenceHtml.build(src)));
@@ -59,9 +61,12 @@ public with sharing class RlyEvidenceController {
         try {
             List<RLY_Release__c> listed = RlyReleaseQuery.releasesFor(RlyReleaseQuery.parse(filterJson));
             Map<Id, RLY_Release__c> details = new SystemAccess().details(new Map<Id, RLY_Release__c>(listed).keySet());
+            Map<Id, String> files = RlyStepFileEvidence.csvFiles(details.values());
             List<String> lines = new List<String>{ csvLine(CSV_HEADER) };
             for (RLY_Release__c r : listed) {
-                lines.add(csvLine(columns(details.get(r.Id))));
+                List<String> cells = columns(details.get(r.Id));
+                cells.add(files.get(r.Id));
+                lines.add(csvLine(cells));
             }
             return String.join(lines, '\r\n');
         } catch (Exception e) {
@@ -148,7 +153,7 @@ public with sharing class RlyEvidenceController {
             return new Map<Id, RLY_Release__c>([SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Target_Org__r.Name,
                     CreatedBy.Name, CreatedDate, Approved_By__r.Name, Approved_On__c, Approved_Via__c, Approval_Comment__c,
                     Second_Approved_By__r.Name, Validation_Result__c, Deploy_Result__c, PR_URL__c, Rollback_Status__c,
-                    Rollback_Org__r.Name, Rollback_On__c
+                    Rollback_Org__r.Name, Rollback_On__c, Carried_Releases__c
                 FROM RLY_Release__c WHERE Id IN :ids WITH SYSTEM_MODE]);
         }
 

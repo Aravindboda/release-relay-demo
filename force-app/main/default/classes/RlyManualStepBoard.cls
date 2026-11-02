@@ -1,7 +1,8 @@
 /**
  * @description Builds the release page's Manual steps card (RlyManualSteps.StepBoard): the release's steps (for a
  * promotion, those of the releases it carries first, in order; for a back promote sync, the steps it took), and per org
- * the steps are done in (route order: stages, the hub, then back promote orgs) the runs in deploy order.
+ * the steps are done in (route order: stages, the hub, then back promote orgs) the runs in deploy order; each step with
+ * its files and lock, each run with its proof (RlyStepFiles).
  */
 public with sharing class RlyManualStepBoard {
 
@@ -36,6 +37,7 @@ public with sharing class RlyManualStepBoard {
         List<RLY_Manual_Step_Run__c> runs = RlyManualStepStore.runsFor(stepIds, rel.Id);
         addTakenSteps(b, runs, stepIds);
         b.orgs = byOrg(runs);
+        RlyStepFileActions.fill(b);
         return b;
     }
 

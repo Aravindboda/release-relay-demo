@@ -1,0 +1,49 @@
+:host {
+    display: block;
+    --rr-line: #e5e5e5;
+    --rr-muted: #5c5c5c;
+}
+
+.rr-sf { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: 12px; }
+.rr-sf-hd { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.rr-sf-label { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--rr-muted); }
+.rr-hint { margin: 0; font-size: 12px; color: var(--rr-muted); }
+
+.rr-pill {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px;
+    font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.rr-pill-none { background: #f3f3f3; color: #444; }
+.rr-pill-lock { background: #fef1cd; color: #5e3600; cursor: help; }
+.rr-pill-lock:focus-visible { outline: 2px solid #0176d3; outline-offset: 2px; }
+
+/* fixed columns: badge | name (truncates, full name on hover) | size | who | actions */
+.rr-sf-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--rr-line); border-radius: 4px; }
+.rr-sf-row {
+    display: grid; grid-template-columns: 34px minmax(0, 1fr) 64px minmax(0, 120px) auto; align-items: center;
+    gap: 8px; padding: 4px 8px; border-top: 1px solid #f3f3f3; min-height: 36px;
+}
+.rr-sf-row:first-child { border-top: 0; }
+.rr-sf-badge {
+    display: inline-flex; align-items: center; justify-content: center; height: 20px; border-radius: 3px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.02em; color: #fff; background: #706e6b;
+}
+.rr-sf-badge-ok { background: #2e844a; }
+.rr-sf-badge-bad { background: #ba0517; }
+.rr-sf-badge-info { background: #0176d3; }
+.rr-sf-name, .rr-sf-who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rr-sf-size { text-align: right; color: var(--rr-muted); white-space: nowrap; }
+.rr-sf-who { color: var(--rr-muted); }
+.rr-sf-act { display: inline-flex; align-items: center; gap: 4px; justify-content: flex-end; }
+.rr-narrow { display: none; }
+.rr-sf-up { display: flex; flex-direction: column; gap: 2px; }
+.rr-sf-compact .rr-sf-row { min-height: 32px; }
+
+/* board HubStepFiles 6: under 480px the who column drops, Download and Preview become icon buttons */
+@media (max-width: 480px) {
+    .rr-sf-row { grid-template-columns: 34px minmax(0, 1fr) 56px auto; gap: 6px; padding: 4px 6px; }
+    .rr-sf-who { display: none; }
+    .rr-wide { display: none; }
+    .rr-narrow { display: inline-block; }
+    .rr-sf-up lightning-file-upload { display: block; width: 100%; }
+}
