@@ -18,6 +18,7 @@
   "force-app/main/default/classes/RlyManualStepEdit.cls",
   "force-app/main/default/classes/RlyManualSteps.cls",
   "force-app/main/default/classes/RlyRaiseService.cls",
+  "force-app/main/default/classes/RlyRollbackTest.cls",
   "force-app/main/default/classes/RlyStepFileActions.cls",
   "force-app/main/default/classes/RlyStepFileDrafts.cls",
   "force-app/main/default/classes/RlyStepFileEvidence.cls",
@@ -44,6 +45,6 @@
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41485571229",
- "finishedAt": "2026-11-02T16:53:19.292Z"
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41489481040",
+ "finishedAt": "2026-11-02T17:16:40.549Z"
 }
