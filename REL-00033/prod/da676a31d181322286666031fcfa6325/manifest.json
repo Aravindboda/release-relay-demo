@@ -1,0 +1,13 @@
+{
+ "request": "REL-00033",
+ "environment": "prod",
+ "takenAt": "2026-11-02T13:48:08.041Z",
+ "sha": "314fb96438f3e1b6d9435d3d864fd77bd47f6efc",
+ "existing": [],
+ "added": [
+  "ApexClass:RlyDemoTerms",
+  "ApexClass:RlyDemoTermsTest"
+ ],
+ "deleted": [],
+ "unresolved": []
+}
