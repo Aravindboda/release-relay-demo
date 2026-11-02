@@ -70,13 +70,13 @@
                                         <!-- table -->
                                         <template lwc:if={b.isTable}>
                                             <div class="rr-pad rr-scroll">
-                                                <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table">
+                                                <table class={b.tableCls}>
                                                     <thead><tr><template for:each={b.cols} for:item="col"><th key={col.key} scope="col">{col.c}</th></template></tr></thead>
                                                     <tbody>
                                                         <template for:each={b.rows} for:item="row">
                                                             <tr key={row.key}>
                                                                 <template for:each={row.cells} for:item="cell">
-                                                                    <td key={cell.key}><template for:each={cell.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></td>
+                                                                    <td key={cell.key}><span class="rr-cell-label">{cell.label}</span><template for:each={cell.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></td>
                                                                 </template>
                                                             </tr>
                                                         </template>
@@ -116,6 +116,54 @@
                                                     </template>
                                                 </ol>
                                             </div>
+                                        </template>
+
+                                        <!-- a route or the hotfix path: stops and hops (How a change moves) -->
+                                        <template lwc:if={b.isRoute}>
+                                            <div class="rr-pad">
+                                                <ol class={b.routeCls} aria-label={b.routeLabel}>
+                                                    <template for:each={b.routeItems} for:item="it">
+                                                        <template lwc:if={it.isStop}>
+                                                            <li key={it.key} class={it.cls}>
+                                                                <div class="rr-stop-h"><span class="rr-strong">{it.name}</span><span class="rr-mono rr-weak">{it.branch}</span></div>
+                                                                <template lwc:if={it.role}><p class="rr-stop-role">{it.role}</p></template>
+                                                                <template lwc:if={it.apLabel}>
+                                                                    <p class="rr-stop-ap">{it.apLabel}</p>
+                                                                    <p class="rr-stop-apv">{it.apValue}</p>
+                                                                </template>
+                                                                <template lwc:if={it.apText}><p class="rr-stop-t"><template for:each={it.apText.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></p></template>
+                                                                <template lwc:if={it.text}><p class="rr-stop-t"><template for:each={it.text.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></p></template>
+                                                            </li>
+                                                        </template>
+                                                        <template lwc:else>
+                                                            <li key={it.key} class="rr-hop">
+                                                                <span class="rr-hop-where">{it.where}</span>
+                                                                <span class="rr-hop-arrow" aria-hidden="true"></span>
+                                                                <span class="rr-hop-what"><template for:each={it.what.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></span>
+                                                                <template lwc:if={it.who}><span class="rr-hop-who">{it.who}</span></template>
+                                                            </li>
+                                                        </template>
+                                                    </template>
+                                                </ol>
+                                                <template lwc:if={b.hasEvery}>
+                                                    <div class="rr-every"><span class="rr-every-l">At every hop</span>
+                                                        <template for:each={b.every} for:item="e"><span key={e.key} class="rr-every-i">{e.t}</span></template>
+                                                    </div>
+                                                </template>
+                                                <template lwc:if={b.back}>
+                                                    <div class="rr-back"><span class="rr-back-arrow" aria-hidden="true">↩</span><p class="rr-small"><template for:each={b.back.segs} for:item="s"><span key={s.key} class={s.cls}>{s.t}</span></template></p></div>
+                                                </template>
+                                            </div>
+                                        </template>
+
+                                        <!-- the four promotion rules, drawn (rlyPromoteRules) -->
+                                        <template lwc:if={b.isRules}>
+                                            <div class="rr-pad"><c-rly-promote-rules variant="rules" stage-name={b.stageName} next-name={b.nextName}></c-rly-promote-rules></div>
+                                        </template>
+
+                                        <!-- the Promote card as an annotated example (rlyPromoteRules) -->
+                                        <template lwc:if={b.isPromoteCard}>
+                                            <div class="rr-pad"><c-rly-promote-rules variant="card" stage-name={b.stageName} next-name={b.nextName}></c-rly-promote-rules></div>
                                         </template>
 
                                         <!-- buttons to other sections -->

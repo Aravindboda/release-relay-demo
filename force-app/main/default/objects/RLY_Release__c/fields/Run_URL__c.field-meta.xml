@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Run_URL__c</fullName>
+    <description>Link to that pipeline run at the Git provider, shown on the release page.</description>
+    <label>Workflow Run</label>
+    <required>false</required>
+    <type>Url</type>
+</CustomField>

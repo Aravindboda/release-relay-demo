@@ -2,7 +2,9 @@
  * @description Handles Slack's button clicks and form submissions (RlySlackActions): checks the signature, maps the
  * Slack user to a Release Relay approver (User.RLY_Slack_Member_Id__c, holding RLY_Approver or RLY_Admin), and only
  * for releases into an org approved in Slack. Approve approves for that user; Reject opens a form asking why, and its
- * submission rejects for that user. Refusals go back to the user only (ephemeral). Slack is optional: with Slack off,
+ * submission rejects for that user. An unlinked person is matched on the spot (RlySlackPresser: users.info,
+ * their Slack email, one approver with that Federation ID) and linked after the other callouts; when that fails they get
+ * a private "Link my account" button (RlySlackLink), or, when they aren't an approver, a private refusal. Refusals go back to the user only (ephemeral). Slack is optional: with Slack off,
  * no signing secret, or a bad signature, the request is refused.
  */
 public with sharing class RlySlackAction {
@@ -49,30 +51,31 @@ public with sharing class RlySlackAction {
     }
 
     private static void onButton(Map<String, Object> p) {
-        List<Object> actions = (List<Object>) p.get('actions');
-        Map<String, Object> action = actions == null || actions.isEmpty() ? new Map<String, Object>() : (Map<String, Object>) actions[0];
-        String actionId = RlySlackPayload.text(action, 'action_id');
-        if (actionId != RlySlackCard.APPROVE_ACTION && actionId != RlySlackCard.REJECT_ACTION) {
+        RlySlackPress press = new RlySlackPress(p);
+        if (!press.isCardButton()) {
             return;
         }
-        String memberId = RlySlackPayload.text(RlySlackPayload.child(p, 'user'), 'id');
-        String channelId = RlySlackPayload.text(RlySlackPayload.child(p, 'channel'), 'id');
-        RLY_Release__c rel = RlySlackPayload.release(RlySlackPayload.text(action, 'value'));
-        User u = allowedUser(rel, memberId);
-        if (u == null) {
-            whisper(channelId, memberId, refusal(rel));
-        } else if (actionId == RlySlackCard.APPROVE_ACTION) {
-            approve(rel, u, channelId);
-        } else {
-            openRejectForm(RlySlackPayload.text(p, 'trigger_id'), rel);
+        User u = allowedUser(press.rel, press.memberId);
+        RlySlackPresser found = null;
+        if (u == null && press.releaseInSlack()) {
+            found = RlySlackPresser.find(press.memberId);
+            u = found.approver;
         }
+        if (u == null) {
+            press.refuse(found);
+        } else if (press.actionId == RlySlackCard.APPROVE_ACTION) {
+            approve(press, u);
+        } else {
+            openRejectForm(press.triggerId, press.rel);
+        }
+        RlySlackPresser.saveFound(found); // the link is saved last: no callout may follow it
     }
 
-    private static void approve(RLY_Release__c rel, User u, String channelId) {
+    private static void approve(RlySlackPress press, User u) {
         try {
-            RlyApprovalService.approveAs(rel.Id, RlyApprover.slackUser(u, null));
+            RlyApprovalService.approveAs(press.rel.Id, RlyApprover.slackUser(u, null));
         } catch (Exception e) {
-            whisper(channelId, u.RLY_Slack_Member_Id__c, rel.Name + ': ' + e.getMessage());
+            press.whisper(press.rel.Name + ': ' + e.getMessage(), null);
         }
     }
 
@@ -115,18 +118,6 @@ public with sharing class RlySlackAction {
             'blocks' => new List<Object>{ input } };
         try {
             RlySlackApi.call('views.open', new Map<String, Object>{ 'trigger_id' => triggerId, 'view' => view });
-        } catch (Exception e) {
-            return;
-        }
-    }
-
-    // A message only that Slack user sees.
-    private static void whisper(String channelId, String memberId, String message) {
-        if (String.isBlank(channelId) || String.isBlank(memberId)) {
-            return;
-        }
-        try {
-            RlySlackApi.call('chat.postEphemeral', new Map<String, Object>{ 'channel' => channelId, 'user' => memberId, 'text' => message });
         } catch (Exception e) {
             return;
         }

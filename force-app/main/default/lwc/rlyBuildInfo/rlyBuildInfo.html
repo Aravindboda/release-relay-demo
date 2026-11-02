@@ -1,419 +1,758 @@
 <template>
-    <div class="rr-page slds-is-relative">
-        <!-- header -->
-        <section class="rr-card rr-head">
-            <span class="rr-head-icon"><lightning-icon icon-name="utility:info" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
+    <div class="rr-page" data-tick={renderTick}>
+        <!-- page header -->
+        <section class="rr-card rr-head" data-anchor="top">
+            <span class="rr-head-icon"><lightning-icon icon-name="utility:knowledge_base" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
             <div class="rr-head-text">
-                <p class="rr-kicker">{kicker}</p>
-                <h1 class="rr-title">{title}</h1>
+                <p class="rr-kicker">{appName}</p>
+                <h1 class="rr-title">What's built</h1>
+                <p class="rr-sub">{subtitle}</p>
             </div>
-            <span class="rr-pill rr-pill-info">{buildText}</span>
-            <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Read again" title="Read again"
-                onclick={reload} disabled={loading}></lightning-button-icon>
-            <ul class="rr-facts">
-                <template for:each={headFacts} for:item="f">
-                    <li key={f.key} class="rr-fact">{f.text}</li>
-                </template>
-            </ul>
+            <div class="rr-head-search rr-noprint">
+                <c-rly-search-box label="Search the document" placeholder="Search fields, classes, permissions…" shown={searchShown} total={searchTotal}
+                    onsearch={handleSearch}></c-rly-search-box>
+            </div>
+            <div class="rr-head-actions rr-noprint">
+                <button type="button" class="slds-button slds-button_neutral" onclick={expandAll}>Expand all</button>
+                <button type="button" class="slds-button slds-button_neutral" onclick={collapseAll}>Collapse all</button>
+                <button type="button" class="slds-button slds-button_neutral" onclick={printPdf}>
+                    <lightning-icon icon-name="utility:print" size="xx-small" class="rr-btn-icon" alternative-text=""></lightning-icon>Print / PDF
+                </button>
+                <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Read again" title="Read again"
+                    onclick={reload} disabled={loading}></lightning-button-icon>
+            </div>
         </section>
 
         <template lwc:if={error}><div class="rr-msg rr-msg-warn" role="status">{error}</div></template>
 
-        <!-- 1 · What it does -->
-        <section class="rr-sec" aria-label="What it does">
-            <div class={folds.what.headCls}>
-                <button type="button" class="rr-fold" aria-expanded={folds.what.expanded} aria-controls="rr-sec-what" data-key="what" onclick={handleFold}>
-                    <span class={folds.what.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
-                    <span class="rr-h2 rr-fold-title">{folds.what.title}</span>
-                    <span class="rr-sum">{folds.what.summary}</span>
-                </button>
-            </div>
-            <template lwc:if={folds.what.open}>
-                <div id="rr-sec-what" class="rr-sec-body rr-pad">
-                    <ul class="rr-features">
-                        <template for:each={features} for:item="f">
-                            <li key={f.key} class="rr-feature">
-                                <span class="rr-feature-icon"><lightning-icon icon-name={f.icon} size="x-small" alternative-text=""></lightning-icon></span>
-                                <div class="rr-feature-text">
-                                    <h3 class="rr-h3">{f.title}</h3>
-                                    <p class="rr-small rr-weak">{f.text}</p>
-                                </div>
-                            </li>
-                        </template>
-                    </ul>
-                    <p class="rr-cap">How it's built</p>
-                    <ul class="rr-rules">
-                        <template for:each={principles} for:item="p">
-                            <li key={p.key} class="rr-rule-item">
-                                <lightning-icon icon-name="utility:success" size="xx-small" alternative-text="" class="rr-ok-icon"></lightning-icon>
-                                <span><strong>{p.title}.</strong> <span class="rr-weak">{p.text}</span></span>
-                            </li>
-                        </template>
-                    </ul>
-                </div>
-            </template>
-        </section>
+        <!-- narrow (480px and below): Contents as a dropdown -->
+        <div class="rr-secpick rr-noprint">
+            <label class="rr-secpick-label" for="rr-secpick">Section:</label>
+            <select id="rr-secpick" class="rr-secpick-select" onchange={handlePick}>
+                <template for:each={pickOptions} for:item="o">
+                    <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                </template>
+            </select>
+        </div>
 
-        <!-- 2 · Apex by area -->
-        <section class="rr-sec" aria-label="Apex by area">
-            <div class={folds.apex.headCls}>
-                <button type="button" class="rr-fold" aria-expanded={folds.apex.expanded} aria-controls="rr-sec-apex" data-key="apex" onclick={handleFold}>
-                    <span class={folds.apex.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
-                    <span class="rr-h2 rr-fold-title">{folds.apex.title}</span>
-                    <span class="rr-sum">{folds.apex.summary}</span>
-                </button>
-            </div>
-            <template lwc:if={folds.apex.open}>
-                <div id="rr-sec-apex" class="rr-sec-body rr-pad">
-                    <div class="rr-row rr-small">
-                        <span class="rr-key"><span class="rr-swatch rr-swatch-non"></span>Code</span>
-                        <span class="rr-key"><span class="rr-swatch rr-swatch-test"></span>Tests</span>
-                        <span class="rr-weak">{scaleText}. Click a bar to see its classes.</span>
-                    </div>
-                    <div class="rr-apex-grid">
-                        <ul class="rr-chart" aria-label="Lines of Apex per area">
-                            <template for:each={areaRows} for:item="a">
-                                <li key={a.name}>
-                                    <button type="button" class={a.cls} aria-pressed={a.pressed} aria-label={a.label} data-area={a.name} onclick={pickArea}>
-                                        <span class="rr-bar-name"><strong>{a.name}</strong><span class="rr-weak rr-small">{a.countText}</span></span>
-                                        <svg class="rr-bar-svg" width="100%" height="16" aria-hidden="true">
-                                            <rect class="rr-bar-track" x="0" y="2" width="100%" height="12" rx="2"></rect>
-                                            <rect class="rr-bar-non" x="0" y="2" width={a.nonW} height="12"></rect>
-                                            <rect class="rr-bar-test" x={a.nonW} y="2" width={a.testW} height="12"></rect>
-                                        </svg>
-                                        <span class="rr-bar-num rr-small">{a.linesText}</span>
-                                    </button>
-                                </li>
+        <!-- breadcrumb -->
+        <nav class="rr-card rr-crumb rr-noprint" aria-label="Breadcrumb">
+            <ol class="rr-crumb-list">
+                <template for:each={crumbs} for:item="c">
+                    <li key={c.key} class="rr-crumb-item">
+                        <template lwc:if={c.notFirst}><span class="rr-crumb-sep" aria-hidden="true">›</span></template>
+                        <template lwc:if={c.isLink}>
+                            <button type="button" class="rr-linkbtn rr-crumb-link" data-target={c.target} onclick={handleCrumb}>{c.label}</button>
+                        </template>
+                        <template lwc:else><span class="rr-crumb-cur" aria-current="location">{c.label}</span></template>
+                    </li>
+                </template>
+            </ol>
+            <span class="rr-crumb-pos">{positionText}</span>
+            <button type="button" class="slds-button slds-button_neutral rr-btn-s" onclick={handlePrev} disabled={prevDisabled}>‹ Prev</button>
+            <button type="button" class="slds-button slds-button_neutral rr-btn-s" onclick={handleNext} disabled={nextDisabled}>Next ›</button>
+        </nav>
+
+        <div class="rr-doc">
+            <!-- Contents (sticky) -->
+            <nav class="rr-toc rr-noprint" aria-label="Contents" onkeydown={handleTocKey}>
+                <h2 class="rr-toc-title">{tocTitle}</h2>
+                <ul class="rr-toc-list">
+                    <template for:each={tocRows} for:item="r">
+                        <li key={r.key}>
+                            <button type="button" class={r.cls} data-key={r.key} aria-current={r.current} onclick={handleToc}>
+                                <span class="rr-tn">{r.num}</span><span class="rr-tt">{r.title}</span><span class={r.countCls}>{r.count}</span>
+                            </button>
+                            <template lwc:if={r.hasSubs}>
+                                <ul class="rr-toc-subs">
+                                    <template for:each={r.subs} for:item="x">
+                                        <li key={x.key}>
+                                            <button type="button" class={x.cls} data-key={r.key} data-sub={x.key} data-object={x.object} data-area={x.area} onclick={handleTocSub}>
+                                                <span class="rr-tn">{x.key}</span><span class={x.ttCls}>{x.title}</span>
+                                                <template lwc:if={x.hasCount}><span class="rr-tc">{x.count}</span></template>
+                                            </button>
+                                        </li>
+                                    </template>
+                                </ul>
                             </template>
-                        </ul>
-                        <div class="rr-card rr-area-card">
-                            <div class="rr-card-head"><h3 class="rr-h3">{areaTitle}</h3></div>
-                            <div class="rr-toolbar">
-                                <c-rly-search-box data-list="classes" label="Search classes" placeholder="Search by class, kind or test"
-                                    shown={classesShown} total={classesTotal} onsearch={handleListSearch}></c-rly-search-box>
+                        </li>
+                    </template>
+                </ul>
+                <p class="rr-toc-foot">{readText}</p>
+            </nav>
+
+            <div class="rr-secs">
+                <template lwc:if={noHits}>
+                    <div class="rr-card rr-empty" role="status">
+                        <p>Nothing in the document matches your search.</p>
+                        <button type="button" class="rr-linkbtn" onclick={clearSearch}>Clear search</button>
+                    </div>
+                </template>
+
+                <!-- 1 · Overview -->
+                <section class={sec.overview.cls} data-anchor="s-overview" aria-label="Overview">
+                    <div class="rr-sh">
+                        <button type="button" class="rr-fold" data-key="overview" aria-expanded={sec.overview.expanded} onclick={handleHeader}>
+                            <span class={sec.overview.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                            <span class={sec.overview.numCls}>{sec.overview.num}</span>
+                            <span class="rr-h2">{sec.overview.title}</span>
+                            <span class="rr-sum">{sec.overview.summary}</span>
+                        </button>
+                    </div>
+                    <template lwc:if={sec.overview.open}>
+                        <div class="rr-sbd">
+                            <div class="rr-h3r" data-anchor="n-1.1"><span class="rr-h3n">1.1</span><h3 class="rr-h3">Counts</h3><span class="rr-weak rr-small rr-push">{readText}</span></div>
+                            <ul class="rr-kpis">
+                                <template for:each={tiles} for:item="t">
+                                    <li key={t.key} class={t.cls} title={t.title}>
+                                        <span class="rr-tl">{t.label}</span>
+                                        <span class="rr-tv">{t.value}<template lwc:if={t.hasHint}><small class="rr-hint">{t.hint}</small></template></span>
+                                        <span class="rr-ts">{t.sub}</span>
+                                    </li>
+                                </template>
+                            </ul>
+                            <dl class="rr-kv">
+                                <template for:each={overviewFacts} for:item="f">
+                                    <div key={f.key} class="rr-kv-row"><dt>{f.label}</dt><dd>{f.text}</dd></div>
+                                </template>
+                            </dl>
+                            <div class="rr-h3r" data-anchor="n-1.2"><span class="rr-h3n">1.2</span><h3 class="rr-h3">What it does</h3></div>
+                            <ul class="rr-features">
+                                <template for:each={features} for:item="f">
+                                    <li key={f.key} class="rr-feature"><strong>{f.title}</strong><span class="rr-small rr-weak">{f.text}</span></li>
+                                </template>
+                            </ul>
+                            <div class="rr-h3r" data-anchor="n-1.3"><span class="rr-h3n">1.3</span><h3 class="rr-h3">Design rules</h3></div>
+                            <ul class="rr-rules">
+                                <template for:each={principles} for:item="p">
+                                    <li key={p.key} class="rr-rule-item"><span class="rr-ok" aria-hidden="true">✓</span><span><strong>{p.title}.</strong> <span class="rr-weak">{p.text}</span></span></li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
+                </section>
+
+                <!-- 2 · Architecture -->
+                <section class={sec.architecture.cls} data-anchor="s-architecture" aria-label="Architecture">
+                    <div class="rr-sh">
+                        <button type="button" class="rr-fold" data-key="architecture" aria-expanded={sec.architecture.expanded} onclick={handleHeader}>
+                            <span class={sec.architecture.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                            <span class={sec.architecture.numCls}>{sec.architecture.num}</span>
+                            <span class="rr-h2">{sec.architecture.title}</span>
+                            <span class="rr-sum">{sec.architecture.summary}</span>
+                        </button>
+                    </div>
+                    <template lwc:if={sec.architecture.open}>
+                        <div class="rr-sbd">
+                            <div class="rr-h3r" data-anchor="n-2.1"><span class="rr-h3n">2.1</span><h3 class="rr-h3">System</h3></div>
+                            <div class="rr-diagram">
+                                <svg class="rr-arch-svg" viewBox="0 0 900 260" role="img" aria-label="Developer orgs, the production hub org, the Git provider, Slack and the route">
+                                    <path class="rr-ar" d="M232 46 C300 46 320 90 352 118"></path>
+                                    <text class="rr-ar-t" x="268" y="62">SOAP retrieve</text>
+                                    <path class="rr-ar" d="M600 118 L660 66"></path>
+                                    <text class="rr-ar-t" x="612" y="86">REST</text>
+                                    <path class="rr-ar rr-ar-dash" d="M600 148 L690 148"></path>
+                                    <text class="rr-ar-t" x="606" y="140">cards · approve</text>
+                                    <path class="rr-ar" d="M440 196 L440 214"></path>
+                                    <text class="rr-ar-t" x="448" y="208">sign-in checks</text>
+                                    <path class="rr-ar" d="M842 104 L842 214"></path>
+                                    <text class="rr-ar-t" x="786" y="206">deploy</text>
+                                    <g class="rr-ab"><rect x="20" y="20" width="212" height="52" rx="4"></rect><text class="rr-ab-t" x="32" y="40">Developer orgs</text><text class="rr-ab-s" x="32" y="58">raise: retrieve changes</text></g>
+                                    <g class="rr-ab rr-ab-main"><rect x="352" y="96" width="248" height="100" rx="4"></rect><text class="rr-ab-t" x="364" y="116">Production hub org</text><text class="rr-ab-s" x="364" y="136">Release Relay package · tabs</text><text class="rr-ab-s" x="364" y="152">RLY_Release__c and children</text><text class="rr-ab-s" x="364" y="168">JWT sign-in to every org</text><text class="rr-ab-s" x="364" y="184">Named / External Credentials</text></g>
+                                    <g class="rr-ab"><rect x="660" y="12" width="220" height="92" rx="4"></rect><text class="rr-ab-t" x="672" y="32">Git provider</text><text class="rr-ab-s" x="672" y="50">branches, pull requests</text><text class="rr-ab-s" x="672" y="66">pipeline: scan, validate, tests,</text><text class="rr-ab-s" x="672" y="82">merge, deploy, rollback</text><text class="rr-ab-s" x="672" y="98">nightly archive job</text></g>
+                                    <g class="rr-ab rr-ab-slack"><rect x="690" y="122" width="160" height="56" rx="4"></rect><text class="rr-ab-t" x="702" y="142">Slack</text><text class="rr-ab-s" x="702" y="160">release cards</text><text class="rr-ab-s" x="702" y="174">Approve / Reject</text></g>
+                                    <g class="rr-ab"><rect x="20" y="214" width="860" height="40" rx="4"></rect><text class="rr-ab-t" x="32" y="232">Route (Stage_Order__c on RLY_Org__c)</text><text class="rr-ab-s" x="32" y="248">developer branch → stages → production → back promote orgs</text></g>
+                                </svg>
                             </div>
-                            <div class="rr-scroll">
-                                <table class="slds-table slds-table_cell-buffer rr-table rr-ft">
-                                    <colgroup><col /><col class="rr-w-kind" /><col class="rr-w-lines" /><col class="rr-w-tested" /></colgroup>
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">Class</th>
-                                            <th scope="col">Kind</th>
-                                            <th scope="col" class="rr-num">Lines</th>
-                                            <th scope="col">Tested by</th>
-                                        </tr>
-                                    </thead>
+                            <div class="rr-h3r" data-anchor="n-2.2"><span class="rr-h3n">2.2</span><h3 class="rr-h3">Flow of one release</h3><span class="rr-weak rr-small rr-push">objects written at each step</span></div>
+                            <ol class="rr-flow">
+                                <template for:each={flowRows} for:item="f">
+                                    <li key={f.key} class="rr-flow-step"><strong><span class="rr-flow-n">{f.num}</span> {f.title}</strong><span class="rr-small">{f.objects}</span><span class="rr-small rr-weak">{f.text}</span></li>
+                                </template>
+                            </ol>
+                        </div>
+                    </template>
+                </section>
+
+                <!-- 3 · Data model -->
+                <section class={sec.model.cls} data-anchor="s-model" aria-label="Data model">
+                    <div class="rr-sh">
+                        <button type="button" class="rr-fold" data-key="model" aria-expanded={sec.model.expanded} onclick={handleHeader}>
+                            <span class={sec.model.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                            <span class={sec.model.numCls}>{sec.model.num}</span>
+                            <span class="rr-h2">{sec.model.title}</span>
+                            <span class="rr-sum">{sec.model.summary}</span>
+                        </button>
+                    </div>
+                    <template lwc:if={sec.model.open}>
+                        <div class="rr-sbd">
+                            <div class="rr-h3r" data-anchor="n-3.1"><span class="rr-h3n">3.1</span><h3 class="rr-h3">Diagram</h3><span class="rr-weak rr-small rr-push">Boxes open their card below · lines point from child to parent</span></div>
+                            <div class="rr-diagram rr-er">
+                                <svg class="rr-er-svg" viewBox="0 0 940 540" role="group" aria-label="Release Relay data model: Release in the middle with its children, Org and User">
+                                <path class="rr-er-md" d="M246 72 C300 72 300 210 355 210"></path><path class="rr-er-end" d="M258.0 72.0L246.0 78.0M258.0 72.0L246.0 72.0M258.0 72.0L246.0 66.0M347.0 204.0L347.0 216.0"></path><text class="rr-er-el" x="254" y="64" text-anchor="start">master-detail</text>
+                                <path class="rr-er-lk" d="M246 202 L355 234"></path><path class="rr-er-end" d="M257.5 205.4L244.3 207.8M257.5 205.4L246.0 202.0M257.5 205.4L247.7 196.2M349.0 226.0L345.6 237.5"></path><text class="rr-er-el" x="262" y="200" text-anchor="start">Release__c</text>
+                                <path class="rr-er-lk" d="M246 330 C300 330 300 272 355 272"></path><path class="rr-er-end" d="M258.0 330.0L246.0 336.0M258.0 330.0L246.0 330.0M258.0 330.0L246.0 324.0M347.0 266.0L347.0 278.0"></path><text class="rr-er-el" x="262" y="320" text-anchor="start">Release__c</text>
+                                <path class="rr-er-lk" d="M470 360 L470 300"></path><path class="rr-er-end" d="M470.0 348.0L476.0 360.0M470.0 348.0L470.0 360.0M470.0 348.0L464.0 360.0M464.0 308.0L476.0 308.0"></path><text class="rr-er-el" x="476" y="336" text-anchor="start">Release__c</text>
+                                <path class="rr-er-lk" d="M355 396 L246 352"></path><path class="rr-er-end" d="M343.9 391.5L357.2 390.4M343.9 391.5L355.0 396.0M343.9 391.5L352.8 401.6M251.2 360.6L255.7 349.4"></path><text class="rr-er-el" x="282" y="398" text-anchor="start">Step__c</text>
+                                <path class="rr-er-lk" d="M585 392 C660 392 660 262 740 262"></path><path class="rr-er-end" d="M597.0 392.0L585.0 398.0M597.0 392.0L585.0 392.0M597.0 392.0L585.0 386.0M732.0 256.0L732.0 268.0"></path><text class="rr-er-el" x="668" y="330" text-anchor="start">Org__c</text>
+                                <path class="rr-er-lk" d="M585 238 L740 238"></path><path class="rr-er-end" d="M597.0 238.0L585.0 244.0M597.0 238.0L585.0 238.0M597.0 238.0L585.0 232.0M732.0 232.0L732.0 244.0"></path><text class="rr-er-el" x="592" y="230" text-anchor="start">Source · Target · Rollback</text>
+                                <path class="rr-er-lk" d="M560 190 C580 120 660 54 740 54"></path><path class="rr-er-end" d="M563.3 178.5L565.8 191.6M563.3 178.5L560.0 190.0M563.3 178.5L554.2 188.4M732.0 48.0L732.0 60.0"></path><text class="rr-er-el" x="734" y="36" text-anchor="end">Approved_By · Second_Approved_By · Rollback_By · Scan_Bypassed_By</text>
+                                <path class="rr-er-lk" d="M385 190 C385 140 435 140 435 190"></path><path class="rr-er-end" d="M385.0 178.0L391.0 190.0M385.0 178.0L385.0 190.0M385.0 178.0L379.0 190.0M441.0 182.0L429.0 182.0"></path><text class="rr-er-el" x="410" y="134" text-anchor="middle">Promoted_In__c · Promoted_From__c (self)</text>
+                                <rect class="rr-er-band" x="8" y="446" width="924" height="86" rx="6"></rect><text class="rr-er-bl" x="20" y="465">SETTINGS AND LOGS · NO RELATIONSHIP TO RELEASES</text>
+                                <g class="rr-er-box rr-er-std" data-object="User" role="button" tabindex="0" aria-label="Open User" onclick={handleDiagramClick} onkeydown={handleDiagramKey}><rect class="rr-er-body" x="740" y="20" width="184" height="70" rx="4"></rect><rect class="rr-er-hdr" x="740" y="20" width="184" height="24" rx="4"></rect><rect class="rr-er-hdr" x="740" y="36" width="184" height="8"></rect><text class="rr-er-en" x="750" y="36">User</text><text class="rr-er-es" x="750" y="60">{erText.user}</text><text class="rr-er-ex" x="750" y="76">+ Slack link fields (build 30)</text></g>
+                                <g class="rr-er-box" data-object="RLY_Release_Item__c" role="button" tabindex="0" aria-label="Open RLY_Release_Item__c" onclick={handleDiagramClick} onkeydown={handleDiagramKey}><rect class="rr-er-body" x="16" y="40" width="230" height="64" rx="4"></rect><rect class="rr-er-hdr" x="16" y="40" width="230" height="24" rx="4"></rect><rect class="rr-er-hdr" x="16" y="56" width="230" height="8"></rect><text class="rr-er-en" x="26" y="56">RLY_Release_Item__c</text><text class="rr-er-es" x="26" y="80">{erText.item}</text><text class="rr-er-ex" x="26" y="96">OWD controlled by parent</text></g>
+                                <g class="rr-er-box" data-object="RLY_Release_Event__c" role="button" tabindex="0" aria-label="Open RLY_Release_Event__c" onclick={handleDiagramClick} onkeydown={handleDiagramKey}><rect class="rr-er-body" x="16" y="170" width="230" height="64" rx="4"></rect><rect class="rr-er-hdr" x="16" y="170" width="230" height="24" rx="4"></rect><rect class="rr-er-hdr" x="16" y="186" width="230" height="8"></rect><text class="rr-er-en" x="26" y="186">RLY_Release_Event__c</text><text class="rr-er-es" x="26" y="210">{erText.event}</text><text class="rr-er-ex" x="26" y="226">also Org__c → Org · Actor__c → User</text></g>
+                                <g class="rr-er-box" data-object="RLY_Manual_Step__c" role="button" tabindex="0" aria-label="Open RLY_Manual_Step__c" onclick={handleDiagramClick} onkeydown={handleDiagramKey}><rect class="rr-er-body" x="16" y="298" width="230" height="64" rx="4"></rect><rect class="rr-er-hdr" x="16" y="298" width="230" height="24" rx="4"></rect><rect class="rr-er-hdr" x="16" y="314" width="230" height="8"></rect><text class="rr-er-en" x="26" y="314">RLY_Manual_Step__c</text><text class="rr-er-es" x="26" y="338">{erText.step}</text><text class="rr-er-ex" x="26" y="354">Sequence, Timing, Org_Scope</text></g>
+                                <g class="rr-er-box rr-er-main" data-object="RLY_Release__c" role="button" tabindex="0" aria-label="Open RLY_Release__c" onclick={handleDiagramClick} onkeydown={handleDiagramKey}><rect class="rr-er-body" x="355" y="190" width="230" height="110" rx="4"></rect><rect class="rr-er-hdr" x="355" y="190" width="230" height="24" rx="4"></rect><rect class="rr-er-hdr" x="355" y="206" width="230" height="8"></rect><text class="rr-er-en" x="365" y="206">RLY_Release__c</text><text class="rr-er-es" x="365" y="230">{erText.release}</text><text class="rr-er-ex" x="365" y="246">{erText.releaseFmt}</text><text class="rr-er-ex" x="365" y="266">release · promotion · back promote</text><text class="rr-er-ex" x="365" y="282">{erText.releaseSub}</text></g>
+                                <g class="rr-er-box" data-object="RLY_Manual_Step_Run__c" role="button" tabindex="0" aria-label="Open RLY_Manual_Step_Run__c" onclick={handleDiagramClick} onkeydown={handleDiagramKey}><rect class="rr-er-body" x="355" y="360" width="230" height="64" rx="4"></rect><rect class="rr-er-hdr" x="355" y="360" width="230" height="24" rx="4"></rect><rect class="rr-er-hdr" x="355" y="376" width="230" height="8"></rect><text class="rr-er-en" x="365" y="376">RLY_Manual_Step_Run__c</text><text class="rr-er-es" x="365" y="400">{erText.run}</text><text class="rr-er-ex" x="365" y="416">Done_By__c → User</text></g>
+                                <g class="rr-er-box" data-object="RLY_Org__c" role="button" tabindex="0" aria-label="Open RLY_Org__c" onclick={handleDiagramClick} onkeydown={handleDiagramKey}><rect class="rr-er-body" x="740" y="206" width="184" height="70" rx="4"></rect><rect class="rr-er-hdr" x="740" y="206" width="184" height="24" rx="4"></rect><rect class="rr-er-hdr" x="740" y="222" width="184" height="8"></rect><text class="rr-er-en" x="750" y="222">RLY_Org__c</text><text class="rr-er-es" x="750" y="246">{erText.org}</text><text class="rr-er-ex" x="750" y="262">dev / stage / hub / back promote</text></g>
+                                <g class="rr-er-box rr-er-set" data-object="RLY_Git_Connection__c" role="button" tabindex="0" aria-label="Open RLY_Git_Connection__c" onclick={handleDiagramClick} onkeydown={handleDiagramKey}><rect class="rr-er-body" x="20" y="474" width="290" height="50" rx="4"></rect><rect class="rr-er-hdr" x="20" y="474" width="290" height="24" rx="4"></rect><rect class="rr-er-hdr" x="20" y="490" width="290" height="8"></rect><text class="rr-er-en" x="30" y="490">RLY_Git_Connection__c</text><text class="rr-er-es" x="30" y="514">{erText.git}</text></g>
+                                <g class="rr-er-box rr-er-set" data-object="RLY_Notification__c" role="button" tabindex="0" aria-label="Open RLY_Notification__c" onclick={handleDiagramClick} onkeydown={handleDiagramKey}><rect class="rr-er-body" x="325" y="474" width="290" height="50" rx="4"></rect><rect class="rr-er-hdr" x="325" y="474" width="290" height="24" rx="4"></rect><rect class="rr-er-hdr" x="325" y="490" width="290" height="8"></rect><text class="rr-er-en" x="335" y="490">RLY_Notification__c</text><text class="rr-er-es" x="335" y="514">{erText.notif}</text></g>
+                                <g class="rr-er-box rr-er-set rr-er-new" data-object="RLY_Archive_Run__c" role="button" tabindex="0" aria-label="Open RLY_Archive_Run__c" onclick={handleDiagramClick} onkeydown={handleDiagramKey}><rect class="rr-er-body" x="630" y="474" width="290" height="50" rx="4"></rect><rect class="rr-er-hdr" x="630" y="474" width="290" height="24" rx="4"></rect><rect class="rr-er-hdr" x="630" y="490" width="290" height="8"></rect><text class="rr-er-en" x="640" y="490">RLY_Archive_Run__c</text><text class="rr-er-es" x="640" y="514">{erText.archive}</text></g>
+                                </svg>
+                            </div>
+                            <p class="rr-legend rr-small rr-weak"><span class="rr-lg-md"></span> master-detail <span class="rr-lg-lk"></span> lookup (crow's foot = many) <span class="rr-lg-new"></span> new in build 29 · User lookups on other objects are listed in their field tables.</p>
+
+                            <div class="rr-h3r"><span class="rr-h3n">3.2–3.11</span><h3 class="rr-h3">Objects</h3><span class="rr-weak rr-small rr-push">one object open at a time · fixed columns</span></div>
+                            <template for:each={objectCards} for:item="o">
+                                <div key={o.name} class={o.cls} data-anchor={o.anchor}>
+                                    <button type="button" class="rr-oh" data-object={o.name} aria-expanded={o.expanded} onclick={toggleObject}>
+                                        <span class={o.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                                        <span class="rr-onum">{o.num}</span>
+                                        <span class="rr-mono rr-oname">{o.name}</span>
+                                        <span class="rr-olab">{o.label}</span>
+                                        <span class="rr-osum">{o.summary}</span>
+                                        <template lwc:if={o.isNew}><span class="rr-pill rr-pill-info">{o.newText}</span></template>
+                                    </button>
+                                    <template lwc:if={o.open}>
+                                        <div class="rr-obd">
+                                            <dl class="rr-ometa">
+                                                <div><dt>API name</dt><dd class="rr-mono">{o.name}</dd></div>
+                                                <div><dt>Label / plural</dt><dd>{o.objLabel}</dd></div>
+                                                <div><dt>Record name</dt><dd>{o.recordName}</dd></div>
+                                                <div><dt>Sharing (OWD)</dt><dd>{o.sharing}</dd></div>
+                                                <div><dt>Records</dt><dd>{o.records}</dd></div>
+                                                <div class="rr-ometa-w"><dt>Purpose</dt><dd>{o.purpose}</dd></div>
+                                                <template lwc:if={o.hasSetupDescription}>
+                                                    <div class="rr-ometa-w"><dt>Description in Setup</dt><dd class="rr-weak">{o.setupDescription}</dd></div>
+                                                </template>
+                                            </dl>
+                                            <div class="rr-tbar">
+                                                <span class="rr-small">{o.statsText}</span>
+                                                <div class="rr-chips" role="group" aria-label="Show fields">
+                                                    <template for:each={o.chips} for:item="c">
+                                                        <button key={c.key} type="button" class={c.cls} aria-pressed={c.pressed} data-filter={c.key} onclick={pickFieldFilter}>{c.label}</button>
+                                                    </template>
+                                                </div>
+                                                <span class="rr-push rr-weak rr-small">{o.standardNote}</span>
+                                            </div>
+                                            <div class="rr-scroll rr-scroll-tall">
+                                                <table class="rr-ft rr-fields">
+                                                    <colgroup>
+                                                        <col class="rr-c-api"><col class="rr-c-label"><col class="rr-c-type"><col class="rr-c-len"><col class="rr-c-req"><col class="rr-c-vals"><col>
+                                                    </colgroup>
+                                                    <thead>
+                                                        <tr><th scope="col">API name</th><th scope="col">Label</th><th scope="col">Type</th><th scope="col" class="rr-num">Length</th><th scope="col" class="rr-c">Req</th><th scope="col">Lookup / picklist values</th><th scope="col">Description</th></tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <template for:each={o.fields} for:item="f">
+                                                            <template lwc:if={f.isGroup}>
+                                                                <tr key={f.key} class="rr-grp"><td colspan="7">{f.group} <span class="rr-weak">{f.size}</span></td></tr>
+                                                            </template>
+                                                            <template lwc:else>
+                                                                <tr key={f.key}>
+                                                                    <td class="rr-an" data-label="API name"><template for:each={f.nameParts} for:item="p"><template lwc:if={p.hit}><mark key={p.key}>{p.text}</mark></template><template lwc:else><span key={p.key}>{p.text}</span></template></template><template lwc:if={f.isNew}> <span class="rr-pill rr-pill-info rr-pill-xs">{f.newText}</span></template></td>
+                                                                    <td class="rr-wrap" data-label="Label">{f.label}</td>
+                                                                    <td data-label="Type"><span class={f.typeCls}>{f.type}</span></td>
+                                                                    <td class="rr-num" data-label="Length">{f.length}</td>
+                                                                    <td class="rr-c rr-req" data-label="Required">{f.req}</td>
+                                                                    <td class="rr-wrap" data-label="Values" title={f.allValues}>{f.values}<template lwc:if={f.hasMore}> <span class="rr-more">{f.moreText}</span></template><template lwc:if={f.hasFlags}><span class="rr-flags">{f.flags}</span></template></td>
+                                                                    <td class="rr-desc" data-label="Description" title={f.description}>
+                                                                        <template lwc:if={f.hasDesc}><span class="rr-clamp"><template for:each={f.descParts} for:item="p"><template lwc:if={p.hit}><mark key={p.key}>{p.text}</mark></template><template lwc:else><span key={p.key}>{p.text}</span></template></template></span></template>
+                                                                        <template lwc:else><span class="rr-nodesc">no description</span></template>
+                                                                    </td>
+                                                                </tr>
+                                                            </template>
+                                                        </template>
+                                                        <template lwc:if={o.noFields}>
+                                                            <tr><td colspan="7" class="rr-nomatch">No fields match.</td></tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </section>
+
+                <!-- 4 · Security & access -->
+                <section class={sec.security.cls} data-anchor="s-security" aria-label="Security and access">
+                    <div class="rr-sh">
+                        <button type="button" class="rr-fold" data-key="security" aria-expanded={sec.security.expanded} onclick={handleHeader}>
+                            <span class={sec.security.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                            <span class={sec.security.numCls}>{sec.security.num}</span>
+                            <span class="rr-h2">{sec.security.title}</span>
+                            <span class="rr-sum">{sec.security.summary}</span>
+                        </button>
+                    </div>
+                    <template lwc:if={sec.security.open}>
+                        <div class="rr-sbd">
+                            <div class="rr-h3r" data-anchor="n-4.1"><span class="rr-h3n">4.1</span><h3 class="rr-h3">Permission sets</h3><span class="rr-weak rr-small rr-push">counts read from PermissionSet, SetupEntityAccess, ObjectPermissions, FieldPermissions</span></div>
+                            <div class="rr-scroll-x">
+                                <table class="rr-ft rr-pst">
+                                    <colgroup><col class="rr-c-chev"><col class="rr-c-ps"><col class="rr-c-psl"><col><col class="rr-c-n"><col class="rr-c-n"><col class="rr-c-n"><col class="rr-c-n"><col class="rr-c-ext"></colgroup>
+                                    <thead><tr><th scope="col"><span class="slds-assistive-text">Open</span></th><th scope="col">Permission set</th><th scope="col">Label · for</th><th scope="col">Custom permissions</th><th scope="col" class="rr-num">Classes</th><th scope="col" class="rr-num">Tabs</th><th scope="col" class="rr-num">Objects</th><th scope="col" class="rr-num">Fields</th><th scope="col">Ext. credential</th></tr></thead>
                                     <tbody>
-                                        <template for:each={areaClasses} for:item="c">
+                                        <template for:each={permissionSetRows} for:item="p">
+                                            <tr key={p.name} class="rr-ps-row">
+                                                <td><button type="button" class="rr-iconbtn" data-ps={p.name} aria-expanded={p.expanded} aria-label="Show what it grants" onclick={togglePs}><span class={p.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span></button></td>
+                                                <td class="rr-an"><template for:each={p.nameParts} for:item="x"><template lwc:if={x.hit}><mark key={x.key}>{x.text}</mark></template><template lwc:else><span key={x.key}>{x.text}</span></template></template></td>
+                                                <td class="rr-wrap" title={p.description}>{p.label}<span class="rr-hint-line">{p.forWho}</span></td>
+                                                <td class="rr-wrap"><template lwc:if={p.hasCps}><template for:each={p.cps} for:item="c"><span key={c.key} class="rr-cpt">{c.name}</span></template></template><template lwc:else><span class="rr-weak">none</span></template></td>
+                                                <td class="rr-num" title={p.countTitle}>{p.classes}</td>
+                                                <td class="rr-num" title={p.countTitle}>{p.tabs}</td>
+                                                <td class="rr-num" title={p.countTitle}>{p.objects}</td>
+                                                <td class="rr-num" title={p.countTitle}>{p.fields}</td>
+                                                <td class="rr-mono rr-small">{p.ext}</td>
+                                            </tr>
+                                            <template lwc:if={p.open}>
+                                                <tr key={p.xkey} class="rr-xrow">
+                                                    <td></td>
+                                                    <td colspan="8">
+                                                        <div class="rr-xgrid">
+                                                            <div>
+                                                                <p class="rr-cap">{p.objectsTitle}</p>
+                                                                <template lwc:if={p.hasAccess}>
+                                                                    <table class="rr-ft rr-mt">
+                                                                        <colgroup><col><col class="rr-c-x"><col class="rr-c-x"><col class="rr-c-x"><col class="rr-c-x"><col class="rr-c-va"><col class="rr-c-va"></colgroup>
+                                                                        <thead><tr><th scope="col">Object</th><th scope="col" class="rr-c">C</th><th scope="col" class="rr-c">R</th><th scope="col" class="rr-c">E</th><th scope="col" class="rr-c">D</th><th scope="col" class="rr-c">View all</th><th scope="col" class="rr-c">Modify all</th></tr></thead>
+                                                                        <tbody>
+                                                                            <template for:each={p.access} for:item="a">
+                                                                                <tr key={a.key}><td class="rr-mono rr-small">{a.object}</td><td class="rr-c">{a.c}</td><td class="rr-c">{a.r}</td><td class="rr-c">{a.e}</td><td class="rr-c">{a.d}</td><td class="rr-c">{a.va}</td><td class="rr-c">{a.ma}</td></tr>
+                                                                            </template>
+                                                                        </tbody>
+                                                                    </table>
+                                                                </template>
+                                                                <template lwc:else><p class="rr-small rr-weak">No object access.</p></template>
+                                                                <p class="rr-small rr-weak">Release, Item and Event are read only for users: Apex writes them in inner without sharing classes.</p>
+                                                            </div>
+                                                            <div>
+                                                                <p class="rr-cap">{p.tabsTitle}</p>
+                                                                <div class="rr-tabchips">
+                                                                    <template for:each={p.tabChips} for:item="t"><span key={t.key} class="rr-tabv">{t.label}</span></template>
+                                                                </div>
+                                                                <p class="rr-cap rr-gap-top">{p.classesTitle}</p>
+                                                                <p class="rr-mono rr-small rr-break">{p.classList}</p>
+                                                                <p class="rr-cap rr-gap-top">{p.fieldsTitle}</p>
+                                                                <p class="rr-small rr-weak">{p.description}</p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="rr-h3r" data-anchor="n-4.2"><span class="rr-h3n">4.2</span><h3 class="rr-h3">Object and tab access</h3></div>
+                            <div class="rr-grid2">
+                                <div class="rr-scroll">
+                                    <p class="rr-cap">4.2a · Object access by permission set (C R E D · VA = View all)</p>
+                                    <table class="rr-ft rr-mx">
+                                        <colgroup><col class="rr-c-obj"><col><col><col><col></colgroup>
+                                        <thead><tr><th scope="col">Object</th><th scope="col" class="rr-c">Admin</th><th scope="col" class="rr-c">Approver</th><th scope="col" class="rr-c">Deploy</th><th scope="col" class="rr-c">Dev</th></tr></thead>
+                                        <tbody>
+                                            <template for:each={accessMatrix} for:item="r">
+                                                <tr key={r.key}><td class="rr-mono rr-small">{r.object}</td><template for:each={r.cells} for:item="c"><td key={c.key} class="rr-c"><span class={c.cls}>{c.text}</span></td></template></tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="rr-scroll">
+                                    <p class="rr-cap">4.2b · Tab visibility by permission set</p>
+                                    <table class="rr-ft rr-mx">
+                                        <colgroup><col class="rr-c-obj"><col><col><col><col></colgroup>
+                                        <thead><tr><th scope="col">Tab</th><th scope="col" class="rr-c">Admin</th><th scope="col" class="rr-c">Approver</th><th scope="col" class="rr-c">Deploy</th><th scope="col" class="rr-c">Dev</th></tr></thead>
+                                        <tbody>
+                                            <template for:each={tabMatrix} for:item="r">
+                                                <tr key={r.key}><td>{r.label} <span class="rr-mono rr-weak rr-xs">{r.name}</span></td><template for:each={r.cells} for:item="c"><td key={c.key} class="rr-c"><span class={c.cls}>{c.text}</span></td></template></tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                    <p class="rr-small rr-weak">RLY_Slack_Site has no tabs or objects: one class (RlySlackActions) and the Slack bot principal.</p>
+                                </div>
+                            </div>
+
+                            <div class="rr-h3r" data-anchor="n-4.3"><span class="rr-h3n">4.3</span><h3 class="rr-h3">Custom permissions</h3></div>
+                            <div class="rr-scroll">
+                                <table class="rr-ft">
+                                    <colgroup><col class="rr-c-ps"><col class="rr-c-psl"><col><col class="rr-c-grant"><col class="rr-c-apex"></colgroup>
+                                    <thead><tr><th scope="col">Custom permission</th><th scope="col">Label</th><th scope="col">What it unlocks</th><th scope="col">Granted by</th><th scope="col">Checked in Apex (FeatureManagement)</th></tr></thead>
+                                    <tbody>
+                                        <template for:each={cpRows} for:item="c">
                                             <tr key={c.name}>
-                                                <td class="rr-mono" title={c.name}><template for:each={c.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></td>
-                                                <td><span class={c.kindCls}>{c.kind}</span></td>
-                                                <td class="rr-num">{c.linesText}</td>
-                                                <td class="rr-small" title={c.testedBy}>{c.testedBy}</td>
+                                                <td class="rr-an"><template for:each={c.nameParts} for:item="x"><template lwc:if={x.hit}><mark key={x.key}>{x.text}</mark></template><template lwc:else><span key={x.key}>{x.text}</span></template></template></td>
+                                                <td class="rr-wrap">{c.label}</td>
+                                                <td class="rr-wrap" title={c.description}>{c.unlocks}</td>
+                                                <td class="rr-wrap rr-mono rr-small">{c.grantedBy}</td>
+                                                <td class="rr-wrap rr-mono rr-small">{c.checkedIn}</td>
                                             </tr>
                                         </template>
-                                        <template lwc:if={classesNoMatch}>
-                                            <tr><td colspan="4" class="rr-nomatch">{classesNoMatchText} <button type="button" class="rr-linkbtn" data-list="classes" onclick={clearListSearch}>Clear search</button></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="rr-h3r" data-anchor="n-4.4"><span class="rr-h3n">4.4</span><h3 class="rr-h3">Who can do what</h3><span class="rr-weak rr-small rr-push">by permission set as shipped · custom permissions can also be assigned on their own</span></div>
+                            <div class="rr-scroll">
+                                <table class="rr-ft rr-mx">
+                                    <colgroup><col class="rr-c-act"><col class="rr-c-who"><col class="rr-c-who"><col class="rr-c-who"><col class="rr-c-who"><col></colgroup>
+                                    <thead><tr><th scope="col">Action</th><th scope="col" class="rr-c">Admin</th><th scope="col" class="rr-c">Approver</th><th scope="col" class="rr-c">Deploy_Team</th><th scope="col" class="rr-c">Developer</th><th scope="col">Enforced by</th></tr></thead>
+                                    <tbody>
+                                        <template for:each={whoRows} for:item="w">
+                                            <tr key={w.key}><td>{w.action}</td><template for:each={w.cells} for:item="c"><td key={c.key} class="rr-c"><span class={c.cls}>{c.text}</span></td></template><td class="rr-mono rr-small">{w.enforced}</td></tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="rr-h3r" data-anchor="n-4.5"><span class="rr-h3n">4.5</span><h3 class="rr-h3">Named and External Credentials</h3></div>
+                            <div class="rr-scroll">
+                                <table class="rr-ft">
+                                    <colgroup><col class="rr-c-ps"><col class="rr-c-kind"><col><col class="rr-c-apex"></colgroup>
+                                    <thead><tr><th scope="col">Name</th><th scope="col">Kind</th><th scope="col">What it does</th><th scope="col">Who gets the principal</th></tr></thead>
+                                    <tbody>
+                                        <template for:each={credentials} for:item="c">
+                                            <tr key={c.key}><td class="rr-an rr-wrap">{c.name}</td><td>{c.kind}</td><td class="rr-wrap">{c.text}</td><td class="rr-wrap rr-small">{c.principal}</td></tr>
                                         </template>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </template>
-        </section>
-
-        <!-- 3 · Lightning components -->
-        <section class="rr-sec" aria-label="Lightning components">
-            <div class={folds.lwc.headCls}>
-                <button type="button" class="rr-fold" aria-expanded={folds.lwc.expanded} aria-controls="rr-sec-lwc" data-key="lwc" onclick={handleFold}>
-                    <span class={folds.lwc.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
-                    <span class="rr-h2 rr-fold-title">{folds.lwc.title}</span>
-                    <span class="rr-sum">{folds.lwc.summary}</span>
-                </button>
-            </div>
-            <template lwc:if={folds.lwc.open}>
-                <div id="rr-sec-lwc" class="rr-sec-body">
-                    <div class="rr-toolbar">
-                        <c-rly-search-box data-list="lwc" label="Search components" placeholder="Search by component, purpose or where it's used"
-                            shown={lwcShown} total={lwcTotal} onsearch={handleListSearch}></c-rly-search-box>
-                    </div>
-                    <div class="rr-scroll">
-                    <table class="slds-table slds-table_cell-buffer rr-table rr-ft">
-                        <colgroup><col class="rr-w-comp" /><col /><col class="rr-w-used" /><col class="rr-w-lines" /></colgroup>
-                        <thead>
-                            <tr>
-                                <th scope="col">Component</th>
-                                <th scope="col">What it does</th>
-                                <th scope="col">Used by</th>
-                                <th scope="col" class="rr-num">Lines</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template for:each={components} for:item="b">
-                                <tr key={b.name}>
-                                    <td title={b.name}><span class="rr-mono rr-line"><template for:each={b.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></span><span class="rr-reason rr-line" title={b.label}>{b.label}</span></td>
-                                    <td title={b.purpose}>{b.purpose}</td>
-                                    <td class="rr-small" title={b.usedBy}>{b.usedBy}</td>
-                                    <td class="rr-num">{b.linesText}</td>
-                                </tr>
-                            </template>
-                            <template lwc:if={lwcNoMatch}>
-                                <tr><td colspan="4" class="rr-nomatch">{lwcNoMatchText} <button type="button" class="rr-linkbtn" data-list="lwc" onclick={clearListSearch}>Clear search</button></td></tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    </div>
-                </div>
-            </template>
-        </section>
-
-        <!-- 4 · Tests -->
-        <section class="rr-sec" aria-label="Tests">
-            <div class={folds.tests.headCls}>
-                <button type="button" class="rr-fold" aria-expanded={folds.tests.expanded} aria-controls="rr-sec-tests" data-key="tests" onclick={handleFold}>
-                    <span class={folds.tests.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
-                    <span class="rr-h2 rr-fold-title">{folds.tests.title}</span>
-                    <span class="rr-sum">{folds.tests.summary}</span>
-                </button>
-            </div>
-            <template lwc:if={folds.tests.open}>
-                <div id="rr-sec-tests" class="rr-sec-body rr-pad">
-                    <ul class="rr-tiles">
-                        <li class="rr-tile"><span class="rr-tile-label">Test classes</span><span class="rr-tile-value">{testCount}</span></li>
-                        <li class="rr-tile"><span class="rr-tile-label">Test methods</span><span class="rr-tile-value">{methodCount}</span></li>
-                        <li class="rr-tile"><span class="rr-tile-label">Test helpers (no methods)</span><span class="rr-tile-value">{helperCount}</span></li>
-                    </ul>
-                    <div class="rr-row">
-                        <p class="rr-cap rr-grow">Tests to run (RunSpecifiedTests)</p>
-                        <lightning-button label="Copy" icon-name="utility:copy" onclick={copyTests}></lightning-button>
-                    </div>
-                    <pre class="rr-mono rr-codebox" aria-label="Test classes to run">{runTests}</pre>
-                    <p class="rr-small rr-weak">Helpers, run through the tests above: {helperText}</p>
-                    <c-rly-search-box data-list="tests" label="Search test classes" placeholder="Search by test class or area"
-                        shown={testsShown} total={testsTotal} onsearch={handleListSearch}></c-rly-search-box>
-                    <div class="rr-scroll">
-                    <ul class="rr-test-list" aria-label="Test classes">
-                        <template for:each={testRows} for:item="t">
-                            <li key={t.name} class="rr-test-item">
-                                <span class="rr-mono rr-ell" title={t.name}><template for:each={t.nameParts} for:item="u"><template lwc:if={u.hit}><mark key={u.key}>{u.text}</mark></template><template lwc:else><span key={u.key}>{u.text}</span></template></template></span>
-                                <span class="rr-weak rr-small">{t.area}</span>
-                                <span class="rr-pill rr-pill-none">{t.methodsText}</span>
-                            </li>
-                        </template>
-                    </ul>
-                    <template lwc:if={testsNoMatch}>
-                        <p class="rr-nomatch-p">{testsNoMatchText} <button type="button" class="rr-linkbtn" data-list="tests" onclick={clearListSearch}>Clear search</button></p>
                     </template>
-                    </div>
-                </div>
-            </template>
-        </section>
+                </section>
 
-        <!-- 5 · Resources -->
-        <section class="rr-sec" aria-label="Resources">
-            <div class={folds.resources.headCls}>
-                <button type="button" class="rr-fold" aria-expanded={folds.resources.expanded} aria-controls="rr-sec-resources" data-key="resources" onclick={handleFold}>
-                    <span class={folds.resources.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
-                    <span class="rr-h2 rr-fold-title">{folds.resources.title}</span>
-                    <span class="rr-sum">{folds.resources.summary}</span>
-                </button>
-            </div>
-            <template lwc:if={folds.resources.open}>
-                <div id="rr-sec-resources" class="rr-sec-body rr-pad slds-is-relative">
-                    <template lwc:if={loading}><lightning-spinner alternative-text="Reading this org" size="small"></lightning-spinner></template>
-                    <div class="rr-row rr-small">
-                        <span class="rr-pill rr-pill-info">{sourceText}</span>
-                        <span class="rr-weak">{codeChangedText}</span>
+                <!-- 5 · Apex -->
+                <section class={sec.apex.cls} data-anchor="s-apex" aria-label="Apex">
+                    <div class="rr-sh">
+                        <button type="button" class="rr-fold" data-key="apex" aria-expanded={sec.apex.expanded} onclick={handleHeader}>
+                            <span class={sec.apex.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                            <span class={sec.apex.numCls}>{sec.apex.num}</span>
+                            <span class="rr-h2">{sec.apex.title}</span>
+                            <span class="rr-sum">{sec.apex.summary}</span>
+                        </button>
                     </div>
-                    <ul class="rr-tiles">
-                        <li class="rr-tile">
-                            <span class="rr-tile-label">Apex code used</span>
-                            <span class="rr-tile-value">{apexMeter.value}</span>
-                            <span class="rr-small rr-weak">{apexMeter.of} · {apexMeter.pctText}</span>
-                            <svg class="rr-meter" width="100%" height="6" aria-hidden="true">
-                                <rect class="rr-meter-track" x="0" y="0" width="100%" height="6" rx="3"></rect>
-                                <rect class={apexMeter.fillCls} x="0" y="0" width={apexMeter.w} height="6" rx="3"></rect>
-                            </svg>
-                            <span class="rr-small rr-weak">{apexMeter.note}</span>
-                        </li>
-                        <li class="rr-tile">
-                            <span class="rr-tile-label">Release Relay records</span>
-                            <span class="rr-tile-value">{recordsTotalText}</span>
-                            <span class="rr-small rr-weak">{storageText} of data storage (about 2 KB a record)</span>
-                            <template lwc:if={storageMeter.known}>
-                                <svg class="rr-meter" width="100%" height="6" aria-hidden="true">
-                                    <rect class="rr-meter-track" x="0" y="0" width="100%" height="6" rx="3"></rect>
-                                    <rect class={storageMeter.fillCls} x="0" y="0" width={storageMeter.w} height="6" rx="3"></rect>
-                                </svg>
+                    <template lwc:if={sec.apex.open}>
+                        <div class="rr-sbd">
+                            <p class="rr-small rr-weak">{apexSub}</p>
+                            <div class="rr-chips rr-noprint" role="group" aria-label="Areas">
+                                <template for:each={areaChips} for:item="c">
+                                    <button key={c.key} type="button" class={c.cls} aria-pressed={c.pressed} data-area={c.key} onclick={pickArea}>{c.label} <span class="rr-chip-n">{c.count}</span></button>
+                                </template>
+                            </div>
+                            <template for:each={areaCards} for:item="a">
+                                <div key={a.key} class={a.cls} data-anchor={a.anchor}>
+                                    <button type="button" class="rr-oh" data-area={a.key} aria-expanded={a.expanded} onclick={toggleArea}>
+                                        <span class={a.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                                        <span class="rr-onum">{a.num}</span>
+                                        <span class="rr-olab rr-strong">{a.name}</span>
+                                        <span class="rr-osum">{a.summary}</span>
+                                    </button>
+                                    <template lwc:if={a.open}>
+                                        <div class="rr-obd">
+                                            <p class="rr-small rr-weak">{a.text}</p>
+                                            <div class="rr-scroll rr-scroll-tall">
+                                                <table class="rr-ft rr-apx">
+                                                    <colgroup><col class="rr-c-api"><col class="rr-c-sh"><col class="rr-c-len"><col><col class="rr-c-ep"><col class="rr-c-tb"></colgroup>
+                                                    <thead><tr><th scope="col">Class</th><th scope="col">Sharing</th><th scope="col" class="rr-num">Lines</th><th scope="col">Purpose</th><th scope="col">Entry points</th><th scope="col">Test class</th></tr></thead>
+                                                    <tbody>
+                                                        <template for:each={a.rows} for:item="c">
+                                                            <tr key={c.key}>
+                                                                <td class="rr-an" data-label="Class"><template for:each={c.nameParts} for:item="x"><template lwc:if={x.hit}><mark key={x.key}>{x.text}</mark></template><template lwc:else><span key={x.key}>{x.text}</span></template></template></td>
+                                                                <td class="rr-sh-cell" data-label="Sharing"><span class="rr-pill rr-pill-ok">with sharing</span><template lwc:if={c.inner}><span class="rr-pill rr-pill-none" title="private inner without sharing class">+ inner without</span></template></td>
+                                                                <td class="rr-num" data-label="Lines">{c.lines}</td>
+                                                                <td class="rr-desc" data-label="Purpose" title={c.purpose}><span class="rr-clamp"><template for:each={c.purposeParts} for:item="x"><template lwc:if={x.hit}><mark key={x.key}>{x.text}</mark></template><template lwc:else><span key={x.key}>{x.text}</span></template></template></span></td>
+                                                                <td class="rr-wrap rr-small" data-label="Entry points">
+                                                                    <template lwc:if={c.hasRest}><span class="rr-ep rr-ep-rest">@RestResource {c.rest}</span></template>
+                                                                    <template lwc:if={c.hasAura}><span class="rr-ep rr-ep-aura">@AuraEnabled</span> <span class="rr-mono">{c.aura}</span></template>
+                                                                    <template lwc:if={c.isInternal}><span class="rr-mono rr-weak">internal</span></template>
+                                                                </td>
+                                                                <td class="rr-wrap rr-mono rr-small" data-label="Test class" title={c.testedByAll}>{c.testedBy}</td>
+                                                            </tr>
+                                                        </template>
+                                                        <template lwc:if={a.noRows}><tr><td colspan="6" class="rr-nomatch">No classes match.</td></tr></template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
                             </template>
-                            <span class="rr-small rr-weak">{storageMeter.note}</span>
-                        </li>
-                        <li class="rr-tile">
-                            <span class="rr-tile-label">API requests today</span>
-                            <span class="rr-tile-value">{apiMeter.value}</span>
-                            <span class="rr-small rr-weak">{apiMeter.of} <template lwc:if={apiMeter.known}>· {apiMeter.pctText}</template></span>
-                            <template lwc:if={apiMeter.known}>
-                                <svg class="rr-meter" width="100%" height="6" aria-hidden="true">
-                                    <rect class="rr-meter-track" x="0" y="0" width="100%" height="6" rx="3"></rect>
-                                    <rect class={apiMeter.fillCls} x="0" y="0" width={apiMeter.w} height="6" rx="3"></rect>
-                                </svg>
-                            </template>
-                            <span class="rr-small rr-weak">Release Relay's own calls are callouts out of the hub, not API requests into it.</span>
-                        </li>
-                        <li class="rr-tile">
-                            <span class="rr-tile-label">Async Apex</span>
-                            <span class="rr-tile-value">{asyncText}</span>
-                            <span class="rr-small rr-weak">{asyncNote}</span>
-                        </li>
-                        <li class="rr-tile">
-                            <span class="rr-tile-label">Static resources</span>
-                            <span class="rr-tile-value">{resourceText}</span>
-                            <span class="rr-small rr-weak">{resourceNote}</span>
-                        </li>
-                    </ul>
+                        </div>
+                    </template>
+                </section>
 
-                    <template lwc:if={hasRecords}>
-                        <p class="rr-cap">Records by object</p>
-                        <ul class="rr-counts">
-                            <template for:each={recordRows} for:item="r">
-                                <li key={r.key} class="rr-count">
-                                    <span>{r.label}</span>
-                                    <strong>{r.totalText}</strong>
-                                    <span class="rr-weak rr-small">≈ {r.sizeText}</span>
+                <!-- 6 · Lightning components & tabs -->
+                <section class={sec.lwc.cls} data-anchor="s-lwc" aria-label="Lightning components and tabs">
+                    <div class="rr-sh">
+                        <button type="button" class="rr-fold" data-key="lwc" aria-expanded={sec.lwc.expanded} onclick={handleHeader}>
+                            <span class={sec.lwc.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                            <span class={sec.lwc.numCls}>{sec.lwc.num}</span>
+                            <span class="rr-h2">{sec.lwc.title}</span>
+                            <span class="rr-sum">{sec.lwc.summary}</span>
+                        </button>
+                    </div>
+                    <template lwc:if={sec.lwc.open}>
+                        <div class="rr-sbd">
+                            <div class="rr-h3r" data-anchor="n-6.1"><span class="rr-h3n">6.1</span><h3 class="rr-h3">Components</h3></div>
+                            <div class="rr-scroll rr-scroll-tall">
+                                <table class="rr-ft">
+                                    <colgroup><col class="rr-c-api"><col class="rr-c-psl"><col class="rr-c-tab"><col><col class="rr-c-apex"><col class="rr-c-len"></colgroup>
+                                    <thead><tr><th scope="col">Bundle</th><th scope="col">Label</th><th scope="col">Tab</th><th scope="col">Purpose</th><th scope="col">Apex used</th><th scope="col" class="rr-num">Lines</th></tr></thead>
+                                    <tbody>
+                                        <template for:each={lwcRows} for:item="b">
+                                            <tr key={b.name}>
+                                                <td class="rr-an"><template for:each={b.nameParts} for:item="x"><template lwc:if={x.hit}><mark key={x.key}>{x.text}</mark></template><template lwc:else><span key={x.key}>{x.text}</span></template></template></td>
+                                                <td class="rr-wrap">{b.label}</td>
+                                                <td class="rr-wrap rr-small">{b.tabText}</td>
+                                                <td class="rr-desc" title={b.purpose}><span class="rr-clamp">{b.purpose}</span></td>
+                                                <td class="rr-wrap rr-mono rr-small" title={b.apexText}><span class="rr-clamp">{b.apexText}</span></td>
+                                                <td class="rr-num">{b.linesText}</td>
+                                            </tr>
+                                        </template>
+                                        <template lwc:if={lwcNoMatch}><tr><td colspan="6" class="rr-nomatch">No components match.</td></tr></template>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="rr-h3r" data-anchor="n-6.2"><span class="rr-h3n">6.2</span><h3 class="rr-h3">Tabs</h3><span class="rr-weak rr-small rr-push">1 app: Release_Relay</span></div>
+                            <div class="rr-scroll">
+                                <table class="rr-ft">
+                                    <colgroup><col class="rr-c-api"><col class="rr-c-psl"><col class="rr-c-api"><col></colgroup>
+                                    <thead><tr><th scope="col">Tab</th><th scope="col">Label</th><th scope="col">Component</th><th scope="col">Description</th></tr></thead>
+                                    <tbody>
+                                        <template for:each={tabRows} for:item="t">
+                                            <tr key={t.name}>
+                                                <td class="rr-an"><template for:each={t.nameParts} for:item="x"><template lwc:if={x.hit}><mark key={x.key}>{x.text}</mark></template><template lwc:else><span key={x.key}>{x.text}</span></template></template></td>
+                                                <td>{t.label}</td>
+                                                <td class="rr-mono rr-small">{t.component}</td>
+                                                <td class="rr-desc" title={t.description}><span class="rr-clamp">{t.description}</span></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </template>
+                </section>
+
+                <!-- 7 · Pipeline files -->
+                <section class={sec.pipeline.cls} data-anchor="s-pipeline" aria-label="Pipeline files">
+                    <div class="rr-sh">
+                        <button type="button" class="rr-fold" data-key="pipeline" aria-expanded={sec.pipeline.expanded} onclick={handleHeader}>
+                            <span class={sec.pipeline.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                            <span class={sec.pipeline.numCls}>{sec.pipeline.num}</span>
+                            <span class="rr-h2">{sec.pipeline.title}</span>
+                            <span class="rr-sum">{sec.pipeline.summary}</span>
+                        </button>
+                    </div>
+                    <template lwc:if={sec.pipeline.open}>
+                        <div class="rr-sbd">
+                            <p class="rr-small rr-weak">Static resources in the package: the Pipeline tab opens a pull request that commits the pipeline files to the repository; the Guide shows the pictures.</p>
+                            <div class="rr-scroll">
+                                <table class="rr-ft">
+                                    <colgroup><col class="rr-c-api"><col class="rr-c-kind"><col class="rr-c-n"><col class="rr-c-file"><col></colgroup>
+                                    <thead><tr><th scope="col">Static resource</th><th scope="col">Kind</th><th scope="col" class="rr-num">Size</th><th scope="col">File</th><th scope="col">What it does</th></tr></thead>
+                                    <tbody>
+                                        <template for:each={pipelineRows} for:item="r">
+                                            <tr key={r.name}>
+                                                <td class="rr-an"><template for:each={r.nameParts} for:item="x"><template lwc:if={x.hit}><mark key={x.key}>{x.text}</mark></template><template lwc:else><span key={x.key}>{x.text}</span></template></template></td>
+                                                <td>{r.kind}</td>
+                                                <td class="rr-num">{r.sizeText}</td>
+                                                <td class="rr-wrap rr-small">{r.file}</td>
+                                                <td class="rr-wrap rr-small">{r.text}</td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </template>
+                </section>
+
+                <!-- 8 · Limits & resources -->
+                <section class={sec.limits.cls} data-anchor="s-limits" aria-label="Limits and resources">
+                    <div class="rr-sh">
+                        <button type="button" class="rr-fold" data-key="limits" aria-expanded={sec.limits.expanded} onclick={handleHeader}>
+                            <span class={sec.limits.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                            <span class={sec.limits.numCls}>{sec.limits.num}</span>
+                            <span class="rr-h2">{sec.limits.title}</span>
+                            <span class="rr-sum">{sec.limits.summary}</span>
+                        </button>
+                    </div>
+                    <template lwc:if={sec.limits.open}>
+                        <div class="rr-sbd slds-is-relative">
+                            <template lwc:if={loading}><lightning-spinner alternative-text="Reading this org" size="small"></lightning-spinner></template>
+                            <div class="rr-h3r" data-anchor="n-8.1"><span class="rr-h3n">8.1</span><h3 class="rr-h3">Use in this org</h3><span class="rr-pill rr-pill-info">{sourceText}</span><span class="rr-weak rr-small rr-push">{codeChangedText}</span></div>
+                            <ul class="rr-tiles">
+                                <li class="rr-tile2">
+                                    <span class="rr-tl">Apex code used</span>
+                                    <span class="rr-tv2">{apexMeter.value}</span>
+                                    <span class="rr-small rr-weak">{apexMeter.of} · {apexMeter.pctText}</span>
+                                    <svg class="rr-meter" width="100%" height="6" aria-hidden="true">
+                                        <rect class="rr-meter-track" x="0" y="0" width="100%" height="6" rx="3"></rect>
+                                        <rect class={apexMeter.fillCls} x="0" y="0" width={apexMeter.w} height="6" rx="3"></rect>
+                                    </svg>
+                                    <span class="rr-small rr-weak">{apexMeter.note}</span>
                                 </li>
+                                <li class="rr-tile2">
+                                    <span class="rr-tl">Release Relay records</span>
+                                    <span class="rr-tv2">{recordsTotalText}</span>
+                                    <span class="rr-small rr-weak">{storageText} of data storage (about 2 KB a record)</span>
+                                    <template lwc:if={storageMeter.known}>
+                                        <svg class="rr-meter" width="100%" height="6" aria-hidden="true">
+                                            <rect class="rr-meter-track" x="0" y="0" width="100%" height="6" rx="3"></rect>
+                                            <rect class={storageMeter.fillCls} x="0" y="0" width={storageMeter.w} height="6" rx="3"></rect>
+                                        </svg>
+                                    </template>
+                                    <span class="rr-small rr-weak">{storageMeter.note}</span>
+                                </li>
+                                <li class="rr-tile2">
+                                    <span class="rr-tl">API requests today</span>
+                                    <span class="rr-tv2">{apiMeter.value}</span>
+                                    <span class="rr-small rr-weak">{apiMeter.of} <template lwc:if={apiMeter.known}>· {apiMeter.pctText}</template></span>
+                                    <template lwc:if={apiMeter.known}>
+                                        <svg class="rr-meter" width="100%" height="6" aria-hidden="true">
+                                            <rect class="rr-meter-track" x="0" y="0" width="100%" height="6" rx="3"></rect>
+                                            <rect class={apiMeter.fillCls} x="0" y="0" width={apiMeter.w} height="6" rx="3"></rect>
+                                        </svg>
+                                    </template>
+                                    <span class="rr-small rr-weak">Release Relay's own calls are callouts out of the hub, not API requests into it.</span>
+                                </li>
+                                <li class="rr-tile2">
+                                    <span class="rr-tl">Async Apex</span>
+                                    <span class="rr-tv2">{asyncText}</span>
+                                    <span class="rr-small rr-weak">{asyncNote}</span>
+                                </li>
+                                <li class="rr-tile2">
+                                    <span class="rr-tl">Static resources</span>
+                                    <span class="rr-tv2">{resourceText}</span>
+                                    <span class="rr-small rr-weak">{resourceNote}</span>
+                                </li>
+                            </ul>
+                            <template lwc:if={hasRecords}>
+                                <p class="rr-cap">Records by object</p>
+                                <ul class="rr-counts">
+                                    <template for:each={recordRows} for:item="r">
+                                        <li key={r.key} class="rr-count"><span>{r.label}</span><strong>{r.totalText}</strong><span class="rr-weak rr-small">≈ {r.sizeText}</span></li>
+                                    </template>
+                                </ul>
                             </template>
-                        </ul>
+                            <div class="rr-grid2">
+                                <div class="rr-card">
+                                    <div class="rr-card-head" data-anchor="n-8.2"><h3 class="rr-h3"><span class="rr-h3n">8.2</span> Callouts per step (estimates)</h3></div>
+                                    <ul class="rr-est-list">
+                                        <template for:each={callouts} for:item="c">
+                                            <li key={c.key} class="rr-est"><strong>{c.label}</strong><span class="rr-small rr-weak">{c.text}</span></li>
+                                        </template>
+                                    </ul>
+                                    <p class="rr-small rr-weak rr-est-note">{calloutNote}</p>
+                                </div>
+                                <div class="rr-card">
+                                    <div class="rr-card-head" data-anchor="n-8.3"><h3 class="rr-h3"><span class="rr-h3n">8.3</span> Records per release (estimates)</h3></div>
+                                    <ul class="rr-est-list">
+                                        <template for:each={storageRows} for:item="s">
+                                            <li key={s.key} class="rr-est"><strong>{s.label}</strong><span class="rr-small rr-weak">{s.text}</span></li>
+                                        </template>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
                     </template>
+                </section>
 
-                    <div class="rr-est-grid">
-                        <div class="rr-card">
-                            <div class="rr-card-head"><h3 class="rr-h3">Callouts per step (estimates)</h3></div>
-                            <ul class="rr-est-list">
-                                <template for:each={callouts} for:item="c">
-                                    <li key={c.key} class="rr-est"><strong>{c.label}</strong><span class="rr-small rr-weak">{c.text}</span></li>
-                                </template>
-                            </ul>
-                            <p class="rr-small rr-weak rr-est-note">{calloutNote}</p>
-                        </div>
-                        <div class="rr-card">
-                            <div class="rr-card-head"><h3 class="rr-h3">Records per release (estimates)</h3></div>
-                            <ul class="rr-est-list">
-                                <template for:each={storageRows} for:item="s">
-                                    <li key={s.key} class="rr-est"><strong>{s.label}</strong><span class="rr-small rr-weak">{s.text}</span></li>
-                                </template>
-                            </ul>
-                        </div>
+                <!-- 9 · Tests to run -->
+                <section class={sec.tests.cls} data-anchor="s-tests" aria-label="Tests to run">
+                    <div class="rr-sh">
+                        <button type="button" class="rr-fold" data-key="tests" aria-expanded={sec.tests.expanded} onclick={handleHeader}>
+                            <span class={sec.tests.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                            <span class={sec.tests.numCls}>{sec.tests.num}</span>
+                            <span class="rr-h2">{sec.tests.title}</span>
+                            <span class="rr-sum">{sec.tests.summary}</span>
+                        </button>
                     </div>
-                </div>
-            </template>
-        </section>
+                    <template lwc:if={sec.tests.open}>
+                        <div class="rr-sbd">
+                            <div class="rr-row">
+                                <p class="rr-small rr-grow">{testCount} test classes with {methodCount} test methods, every one through System.runAs. {helperCount} test helpers: {helperText}.</p>
+                                <button type="button" class="slds-button slds-button_neutral rr-noprint" onclick={copyTests}>Copy RunSpecifiedTests</button>
+                            </div>
+                            <pre class="rr-codebox">{runTests}</pre>
+                            <div class="rr-scroll">
+                                <table class="rr-ft">
+                                    <colgroup><col><col class="rr-c-psl"><col class="rr-c-len"></colgroup>
+                                    <thead><tr><th scope="col">Test class</th><th scope="col">Area</th><th scope="col" class="rr-num">Methods</th></tr></thead>
+                                    <tbody>
+                                        <template for:each={testRows} for:item="t">
+                                            <tr key={t.name}>
+                                                <td class="rr-mono"><template for:each={t.nameParts} for:item="x"><template lwc:if={x.hit}><mark key={x.key}>{x.text}</mark></template><template lwc:else><span key={x.key}>{x.text}</span></template></template></td>
+                                                <td>{t.area}</td>
+                                                <td class="rr-num">{t.methodsText}</td>
+                                            </tr>
+                                        </template>
+                                        <template lwc:if={testsNoMatch}><tr><td colspan="3" class="rr-nomatch">No test classes match.</td></tr></template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </template>
+                </section>
 
-        <!-- 6 · Data model and access -->
-        <section class="rr-sec" aria-label="Data model and access">
-            <div class={folds.model.headCls}>
-                <button type="button" class="rr-fold" aria-expanded={folds.model.expanded} aria-controls="rr-sec-model" data-key="model" onclick={handleFold}>
-                    <span class={folds.model.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
-                    <span class="rr-h2 rr-fold-title">{folds.model.title}</span>
-                    <span class="rr-sum">{folds.model.summary}</span>
-                </button>
+                <!-- 10 · Not in the package -->
+                <section class={sec.manual.cls} data-anchor="s-manual" aria-label="Not in the package">
+                    <div class="rr-sh">
+                        <button type="button" class="rr-fold" data-key="manual" aria-expanded={sec.manual.expanded} onclick={handleHeader}>
+                            <span class={sec.manual.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                            <span class={sec.manual.numCls}>{sec.manual.num}</span>
+                            <span class="rr-h2">{sec.manual.title}</span>
+                            <span class="rr-sum">{sec.manual.summary}</span>
+                        </button>
+                    </div>
+                    <template lwc:if={sec.manual.open}>
+                        <div class="rr-sbd">
+                            <p class="rr-small rr-weak">Set up by hand in the hub, in each registered org, in the Git repository and in Slack. The Guide tab walks through each one.</p>
+                            <ol class="rr-ms-list">
+                                <template for:each={manualSetup} for:item="m">
+                                    <li key={m.key} class="rr-ms"><span class="rr-no">{m.no}</span><span class="rr-ms-body"><template for:each={m.parts} for:item="x"><template lwc:if={x.hit}><mark key={x.key}>{x.text}</mark></template><template lwc:else><span key={x.key}>{x.text}</span></template></template></span></li>
+                                </template>
+                            </ol>
+                        </div>
+                    </template>
+                </section>
+
+                <!-- 11 · Build history -->
+                <section class={sec.history.cls} data-anchor="s-history" aria-label="Build history">
+                    <div class="rr-sh">
+                        <button type="button" class="rr-fold" data-key="history" aria-expanded={sec.history.expanded} onclick={handleHeader}>
+                            <span class={sec.history.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                            <span class={sec.history.numCls}>{sec.history.num}</span>
+                            <span class="rr-h2">{sec.history.title}</span>
+                            <span class="rr-sum">{sec.history.summary}</span>
+                        </button>
+                    </div>
+                    <template lwc:if={sec.history.open}>
+                        <div class="rr-sbd">
+                            <ol class="rr-hist-list">
+                                <template for:each={historyRows} for:item="h">
+                                    <li key={h.key} class={h.cls}><span class="rr-hist-b">Build {h.build}</span><span class="rr-hist-t"><template for:each={h.parts} for:item="x"><template lwc:if={x.hit}><mark key={x.key}>{x.text}</mark></template><template lwc:else><span key={x.key}>{x.text}</span></template></template></span></li>
+                                </template>
+                            </ol>
+                        </div>
+                    </template>
+                </section>
             </div>
-            <template lwc:if={folds.model.open}>
-                <div id="rr-sec-model" class="rr-sec-body rr-pad">
-                    <p class="rr-cap">Objects</p>
-                    <div class="rr-scroll">
-                        <table class="slds-table slds-table_cell-buffer rr-table">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Object</th>
-                                    <th scope="col" class="rr-num">Fields</th>
-                                    <th scope="col">What it holds</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template for:each={objects} for:item="o">
-                                    <tr key={o.name}>
-                                        <td><span class="rr-mono">{o.name}</span><span class="rr-reason">{o.label}</span><span class="rr-reason">{o.inPackageAs}</span></td>
-                                        <td class="rr-num">{o.fieldsText}</td>
-                                        <td class="rr-wide">{o.purpose}<span class="rr-reason rr-mono">{o.fieldNames}</span></td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
-                    <p class="rr-small rr-weak">Already in the hub before this package (Phase 1): {phase1Text}</p>
-
-                    <p class="rr-cap">Permission sets</p>
-                    <div class="rr-scroll">
-                        <table class="slds-table slds-table_cell-buffer rr-table">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Permission set</th>
-                                    <th scope="col">Who gets it</th>
-                                    <th scope="col" class="rr-num">Classes</th>
-                                    <th scope="col" class="rr-num">Objects</th>
-                                    <th scope="col" class="rr-num">Fields</th>
-                                    <th scope="col" class="rr-num">Tabs</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template for:each={permissionSets} for:item="p">
-                                    <tr key={p.name}>
-                                        <td><span class="rr-mono">{p.name}</span><span class="rr-reason">{p.label}</span></td>
-                                        <td class="rr-wide rr-small">{p.description}</td>
-                                        <td class="rr-num">{p.classes}</td>
-                                        <td class="rr-num">{p.objects}</td>
-                                        <td class="rr-num">{p.fields}</td>
-                                        <td class="rr-num">{p.tabs}</td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
-                    <p class="rr-small rr-weak">Custom permissions: {customPermissions}</p>
-
-                    <div class="rr-est-grid">
-                        <div class="rr-card">
-                            <div class="rr-card-head"><h3 class="rr-h3">Credentials</h3></div>
-                            <ul class="rr-est-list">
-                                <template for:each={credentials} for:item="c">
-                                    <li key={c.key} class="rr-est"><strong><span class="rr-mono">{c.name}</span> · {c.kind}</strong><span class="rr-small rr-weak rr-break">{c.text}</span></li>
-                                </template>
-                            </ul>
-                        </div>
-                        <div class="rr-card">
-                            <div class="rr-card-head"><h3 class="rr-h3">Static resources</h3></div>
-                            <ul class="rr-est-list">
-                                <template for:each={staticResources} for:item="s">
-                                    <li key={s.name} class="rr-est"><strong><span class="rr-mono">{s.name}</span> · {s.sizeText}</strong><span class="rr-small rr-weak">{s.description}</span></li>
-                                </template>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </template>
-        </section>
-
-        <!-- 7 · Not in the package -->
-        <section class="rr-sec" aria-label="Not in the package">
-            <div class={folds.manual.headCls}>
-                <button type="button" class="rr-fold" aria-expanded={folds.manual.expanded} aria-controls="rr-sec-manual" data-key="manual" onclick={handleFold}>
-                    <span class={folds.manual.chevCls} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
-                    <span class="rr-h2 rr-fold-title">{folds.manual.title}</span>
-                    <span class="rr-sum">{folds.manual.summary}</span>
-                </button>
-            </div>
-            <template lwc:if={folds.manual.open}>
-                <div id="rr-sec-manual" class="rr-sec-body rr-pad">
-                    <p class="rr-small rr-weak">Set up by hand in the hub, each org, the Git repository and Slack. The Guide tab's Set up walks through each one.</p>
-                    <ol class="rr-ms-list">
-                        <template for:each={manualSetup} for:item="m">
-                            <li key={m.key} class="rr-ms"><span class="rr-no">{m.no}</span><span class="rr-ms-body rr-small">{m.text}</span></li>
-                        </template>
-                    </ol>
-                </div>
-            </template>
-        </section>
+        </div>
     </div>
 </template>
