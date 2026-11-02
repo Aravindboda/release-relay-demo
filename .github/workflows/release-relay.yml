@@ -571,8 +571,9 @@ jobs:
           sf org login jwt --client-id "$SF_CLIENT_ID" --username "$SF_USERNAME" --jwt-key-file "$key" \
             --instance-url "$SF_INSTANCE_URL" --alias relay-hub > /dev/null
           rm -f "$key"
-          org="$(sf org display --target-org relay-hub --json)"
-          token="$(printf '%s' "$org" | jq -r '.result.accessToken')"
+          org="$(sf org display --target-org relay-hub --verbose --json)"
+          token="$(printf '%s' "$org" | jq -r '.result.accessToken // empty')"
+          echo "token length: ${#token}"
           echo "::add-mask::$token"
           base="$(printf '%s' "$org" | jq -r '.result.instanceUrl' | sed 's:/*$::')"
           run_id=""
