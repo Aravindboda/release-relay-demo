@@ -1,0 +1,20 @@
+{
+ "request": "REL-00034",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rel-00034",
+ "target": "sit",
+ "sha": "bfa49a0373643e9ebd5fc4ba599a15aa176bc0c2",
+ "pr": 168,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/168",
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "appended": false,
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41495529187",
+ "finishedAt": "2026-11-02T17:54:42.436Z",
+ "attempt": "b90766d3efe847f7cc06b8c550c7f070"
+}
