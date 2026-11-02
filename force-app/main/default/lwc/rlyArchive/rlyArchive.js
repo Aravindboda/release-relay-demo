@@ -492,7 +492,8 @@ export default class RlyArchive extends NavigationMixin(LightningElement) {
             const current = m.year === now.getFullYear() && m.month === now.getMonth() + 1;
             const isCut = cut && v === top;
             const pct = isCut ? 100 : Math.min(100, (v * 100) / scale);
-            const dash = before && v === 0;
+            // Retention is set now: the current month counts even before the first run.
+            const dash = before && v === 0 && !(current && this.hasArchive && this.archive.days);
             const label = m.label || '';
             let cls = 'rr-bar';
             cls += current ? ' rr-bar-now' : '';
