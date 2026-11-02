@@ -20,6 +20,8 @@ public with sharing class RlyRaiseService {
         public Boolean deleted;
         /** @description A standard object, field or picklist. */
         public Boolean standard;
+        /** @description An Apex trigger whose Status is Inactive in the developer org: it deploys switched off and needs no test class. */
+        public Boolean inactive;
     }
 
     /** @description What the New Release page sends. */
@@ -74,6 +76,7 @@ public with sharing class RlyRaiseService {
         rel.Deletion_Count__c = deletions.size();
         rel.Deletions__c = deletions.isEmpty() ? null : String.join(deletions, ',');
         rel.Flow_Actions__c = RlyFlowChoices.toField(flowChoices);
+        rel.Inactive_Triggers__c = RlyTestRule.inactiveField(added, null);
         if (RlyRaiseRules.isManualOnly(req)) {
             RlyManualOnly.mark(rel); // no retrieve, branch or pipeline: its page's next read takes it to approval
         }

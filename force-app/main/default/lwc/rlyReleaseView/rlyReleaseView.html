@@ -231,6 +231,10 @@
                                     </ul>
                                 </dd>
                             </template>
+                            <template lwc:if={hasSwitchesOff}>
+                                <dt>Switches off</dt>
+                                <dd><span class="rr-mono rr-break">{switchesOffText}</span><span class="rr-small rr-weak rr-sp" title={switchesOffHint}>inactive triggers</span></dd>
+                            </template>
                             <template lwc:if={detail.manualSummary}>
                                 <dt>Manual steps</dt><dd class="rr-break">{detail.manualSummary}</dd>
                             </template>

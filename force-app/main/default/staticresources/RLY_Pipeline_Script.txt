@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 15
+// Release Relay pipeline files: version 17
+// Version 17: a release whose Apex is only deletions and inactive triggers (<status>Inactive</status> in the trigger's
+// -meta.xml), sent with no tests, runs the local tests in production (options.production, set by the hub from its org
+// record) and no tests elsewhere; the tests and coverage gates leave inactive triggers (and the tests gate deleted
+// Apex) out.
 // Version 15: no change to this script; it moves with the GitHub pipeline file (nightly archive job), since the lowest
 // version among a hub's files counts.
 /*
@@ -1260,8 +1264,13 @@ function evaluateScanGate(violations, gates) {
     return { failures: [`${hits.length} finding${hits.length === 1 ? '' : 's'} at priority ${p} or higher: ${list}`], gate };
 }
 
-/** tests.requireForApex: a deployment with Apex that would run no tests fails before it's sent. */
-function evaluateTestsGate(apex, testLevel, gates) {
+/**
+ * tests.requireForApex: a deployment with Apex that would run no tests fails before it's sent. skip: Apex that needs
+ * no tests (deleted classes and triggers, triggers sent inactive), left out.
+ */
+function evaluateTestsGate(apexAll, testLevel, gates, skip = []) {
+    const skipped = new Set(skip.map((n) => String(n).toLowerCase()));
+    const apex = apexAll.filter((n) => !skipped.has(String(n).toLowerCase()));
     if (!gates.tests || !gates.tests.requireForApex || !apex.length || testLevel !== 'NoTestRun') {
         return [];
     }
@@ -1275,10 +1284,13 @@ function evaluateTestsGate(apex, testLevel, gates) {
  * test (RunLocalTests, RunAllTestsInOrg), the only case where the coverage covers the org. Returns
  * { failures, coverage: { minimumPerClass, minimumOrgWide, perClass: [{ name, percent }], orgWide } }.
  */
-function evaluateCoverageGate(codeCoverage, apex, testLevel, gates) {
+function evaluateCoverageGate(codeCoverage, apexAll, testLevel, gates, inactive = []) {
     if (!gates.coverage) {
         return { failures: [], coverage: null };
     }
+    // Inactive triggers get no coverage and Salesforce doesn't hold them to it: no 0% failure for them.
+    const off = new Set(inactive.map((n) => String(n).toLowerCase()));
+    const apex = apexAll.filter((n) => !off.has(String(n).toLowerCase()));
     const { minimumPerClass, minimumOrgWide } = gates.coverage;
     const rows = asList(codeCoverage).map((c) => {
         const total = Number(c && c.numLocations) || 0;
@@ -1402,8 +1414,33 @@ function buildDeployment(base, head) {
     // The Apex classes and triggers the deployment sends or deletes, for the quality gates.
     const apex = [...new Set(existing.map((d) => componentFor(d)).concat([...deletions.values()])
         .filter((c) => c && APEX_TYPES.has(c.type)).map((c) => c.name))].sort();
+    // Deleted Apex, and triggers sent switched off (<status>Inactive</status>): neither needs a test class.
+    const apexDeleted = [...deletions.values()].filter((c) => APEX_TYPES.has(c.type)).map((c) => c.name).sort();
+    const sentTriggers = [...new Set(existing.map((d) => componentFor(d)).filter((c) => c && c.type === 'ApexTrigger').map((c) => c.name))];
+    const inactiveTriggers = sentTriggers.filter((n) => triggerIsInactive(n)).sort();
     return { pkg, destructive, changed: existing.length, deleted: deletions.size,
-        deletedList: [...deletions.keys()], sources: existing, apex };
+        deletedList: [...deletions.keys()], sources: existing, apex, apexDeleted, inactiveTriggers };
+}
+
+/** Whether a trigger's -meta.xml in the release files says <status>Inactive</status>. */
+function triggerIsInactive(name) {
+    const meta = path.join(sourcePath(), 'triggers', `${name}.trigger-meta.xml`);
+    try {
+        return /<status>\s*Inactive\s*<\/status>/i.test(fs.readFileSync(meta, 'utf8'));
+    } catch (e) {
+        return false;
+    }
+}
+
+/**
+ * Whether the release's Apex is only deletions and triggers sent inactive (nothing that runs and needs coverage).
+ * Such a release without tests runs the org's local tests in production (Salesforce refuses NoTestRun there for
+ * Apex, deleted or inactive included) and no tests elsewhere.
+ */
+function apexNeedsNoTests(plan) {
+    const apex = plan.apex || [];
+    const skip = new Set([...(plan.apexDeleted || []), ...(plan.inactiveTriggers || [])].map((n) => n.toLowerCase()));
+    return apex.length > 0 && skip.size > 0 && apex.every((n) => skip.has(n.toLowerCase()));
 }
 
 function asList(value) {
@@ -1449,6 +1486,11 @@ function deployTo(alias, plan, checkOnly) {
 /** The test level a deployment of plan uses, and the release's tests (null when it sent none). */
 function testLevelFor(plan) {
     const tests = plan.ownTests === false ? null : releaseTests();
+    if (tests && !tests.length && apexNeedsNoTests(plan)) {
+        // Only deleted Apex and inactive triggers, no tests: production (the hub says so: options.production) runs
+        // the local tests, sandboxes and other orgs none.
+        return { tests: [], testLevel: options.production === true ? 'RunLocalTests' : 'NoTestRun' };
+    }
     const testLevel = tests ? (tests.length ? 'RunSpecifiedTests' : 'NoTestRun')
         : TEST_LEVELS.includes(v('DEPLOY_TEST_LEVEL')) ? v('DEPLOY_TEST_LEVEL') : (plan.defaultTestLevel || 'RunLocalTests');
     return { tests, testLevel };
@@ -2538,7 +2580,8 @@ async function stepValidate() {
             return;
         }
         // Gates that need no org: a broken gates file, Apex without tests. They fail before anything is sent.
-        const early = gatesResult(relayGates, evaluateTestsGate(plan.apex, testLevelFor(plan).testLevel, relayGates));
+        const early = gatesResult(relayGates, evaluateTestsGate(plan.apex, testLevelFor(plan).testLevel, relayGates,
+            [...plan.apexDeleted, ...plan.inactiveTriggers]));
         if (!early.passed) {
             gatesSummary('validate', early);
             writeResult('validate', { status: 'Failed', changed: plan.changed, deleted: plan.deletedList, mergedWith, validatedTree,
@@ -2555,7 +2598,7 @@ async function stepValidate() {
     // The coverage gate reads the coverage of a validation that passed and ran tests.
     let coverageCheck = { failures: [], coverage: null };
     if (r.ok && TESTED_LEVELS.includes(r.testLevel) && r.testsRun > 0) {
-        coverageCheck = evaluateCoverageGate(r.codeCoverage, plan.apex, r.testLevel, relayGates);
+        coverageCheck = evaluateCoverageGate(r.codeCoverage, plan.apex, r.testLevel, relayGates, plan.inactiveTriggers);
     }
     const gates = gatesResult(relayGates, coverageCheck.failures);
     gatesSummary('validate', gates);
@@ -2587,6 +2630,33 @@ function conflictedFiles() {
 }
 
 /**
+ * After a failed merge: files that are new on one side only (not in the merge base, missing on the other side) are not
+ * real conflicts. Git can still flag them when it pairs a new file with one the other side deleted (a "rename"
+ * guessed from identical -meta.xml files). Takes the side that has the file. Returns true when no conflict is left.
+ */
+function resolveAddedFiles() {
+    const files = conflictedFiles();
+    if (!files.length) {
+        return false;
+    }
+    const mergeBase = gitQuiet(['merge-base', 'HEAD', 'MERGE_HEAD']);
+    for (const file of files) {
+        const inBase = mergeBase && gitQuiet(['cat-file', '-e', `${mergeBase.trim()}:${file}`]) !== null;
+        const ours = gitQuiet(['cat-file', '-e', `HEAD:${file}`]) !== null;
+        const theirs = gitQuiet(['cat-file', '-e', `MERGE_HEAD:${file}`]) !== null;
+        if (inBase || (ours && theirs)) {
+            return false;
+        }
+    }
+    for (const file of files) {
+        const ours = gitQuiet(['cat-file', '-e', `HEAD:${file}`]) !== null;
+        git(['checkout', ours ? '--ours' : '--theirs', '--', file]);
+        git(['add', '--', file]);
+    }
+    return conflictedFiles().length === 0;
+}
+
+/**
  * Checks out TARGET and merges BRANCH into it locally (nothing is pushed), so validation deploys what
  * the target will really get. Returns { base } (the target commit) or { conflicts } (a result to write).
  */
@@ -2598,10 +2668,13 @@ function mergeForValidation() {
     try {
         run('git', ['merge', '--no-ff', '--no-commit', `refs/remotes/origin/${branch}`], { stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) {
-        const files = conflictedFiles();
-        if (!files.length) {
+        const files = resolveAddedFiles() ? [] : conflictedFiles();
+        if (!files.length && !gitQuiet(['rev-parse', '-q', '--verify', 'MERGE_HEAD'])) {
             throw new Error('Merging ' + branch + ' into ' + target + ' failed: ' + String(e.stderr || e.message).slice(0, 500));
         }
+    }
+    if (conflictedFiles().length) {
+        const files = conflictedFiles();
         const conflicts = files.slice(0, CONFLICT_FILES_LIMIT).map((file) => {
             const merged = clip(fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null);
             const mine = clip(textAt(`refs/remotes/origin/${branch}`, file));
@@ -2644,6 +2717,9 @@ function resolveConflicts() {
         run('git', ['merge', '--no-ff', '--no-commit', `refs/remotes/origin/${target}`], { stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) {
         // conflicts expected: resolved below
+    }
+    if (conflictedFiles().length) {
+        resolveAddedFiles();
     }
     const conflicted = new Set(conflictedFiles());
     const byFile = new Map(resolutions.map((r) => [String(r.file), r]));
@@ -2717,6 +2793,12 @@ function syncDeveloperBranches() {
             out.push({ branch: b, status: 'Synced', message: wins
                 ? `${b} now includes ${target} (${target}'s lines win where they differ).` : `${b} now includes ${target}.` });
         } catch (e) {
+            if (resolveAddedFiles()) {
+                git(['commit', '-q', '--no-edit']);
+                git(['push', '-q', 'origin', `HEAD:refs/heads/${b}`]);
+                out.push({ branch: b, status: 'Synced', message: `${b} now includes ${target}.` });
+                continue;
+            }
             const files = conflictedFiles();
             gitQuiet(['merge', '--abort']);
             out.push({ branch: b, status: 'Conflict', message: files.length
@@ -2978,15 +3060,19 @@ async function stepSync() {
                 run('git', ['merge', '--no-edit', '-m', `Release Relay ${requestId}: back promote ${branch} into ${target}`,
                     `refs/remotes/origin/${branch}`], { stdio: ['ignore', 'pipe', 'pipe'] });
             } catch (e) {
-                const files = conflictedFiles();
-                gitQuiet(['merge', '--abort']);
-                if (!files.length) {
-                    throw new Error(`Merging ${branch} into ${target} failed: ${String(e.stderr || e.message).slice(0, 500)}`);
+                if (resolveAddedFiles()) {
+                    git(['commit', '-q', '--no-edit']);
+                } else {
+                    const files = conflictedFiles();
+                    gitQuiet(['merge', '--abort']);
+                    if (!files.length) {
+                        throw new Error(`Merging ${branch} into ${target} failed: ${String(e.stderr || e.message).slice(0, 500)}`);
+                    }
+                    result('Conflict', { sha: git(['rev-parse', `refs/remotes/origin/${branch}`]), conflicts: files.slice(0, 200),
+                        message: `${files.length} file(s) in ${target} conflict with ${branch}. Nothing was deployed or pushed. `
+                            + `Bring ${branch} into ${target} by hand (keep ${branch}'s lines), then sync again.` });
+                    process.exit(1);
                 }
-                result('Conflict', { sha: git(['rev-parse', `refs/remotes/origin/${branch}`]), conflicts: files.slice(0, 200),
-                    message: `${files.length} file(s) in ${target} conflict with ${branch}. Nothing was deployed or pushed. `
-                        + `Bring ${branch} into ${target} by hand (keep ${branch}'s lines), then sync again.` });
-                process.exit(1);
             }
         } else {
             git(['checkout', '-q', '-B', target, `refs/remotes/origin/${branch}`]);

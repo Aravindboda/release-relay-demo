@@ -14,6 +14,7 @@
  * not to activating an already deployed version afterwards, and don't say either way for this call, so production can
  * still refuse it (the org's reason is shown). Setting Metadata replaces the definition's metadata: its description is
  * not sent, so an admin-set definition description can be cleared.
+ * Triggers deploy with their status too: inactiveTriggers reads which are switched off (ApexTrigger Status Inactive).
  */
 public with sharing class RlyFlowVersions {
 
@@ -57,6 +58,33 @@ public with sharing class RlyFlowVersions {
                 f.name = n;
             }
             out.add(f);
+        }
+        return out;
+    }
+
+    /**
+     * @description Which of these Apex triggers are switched off (Status Inactive) in an org: they deploy inactive and
+     * need no test class (RlyTestRule). One Tooling query (the page sends up to 100 names per call).
+     * @param org the registered org, with its sign-in fields
+     * @param triggerNames Apex trigger names
+     * @return the names that are inactive
+     */
+    public static List<String> inactiveTriggers(RLY_Org__c org, List<String> triggerNames) {
+        List<String> out = new List<String>();
+        if (triggerNames == null || triggerNames.isEmpty()) {
+            return out;
+        }
+        List<String> quoted = new List<String>();
+        for (String n : triggerNames) {
+            quoted.add('\'' + String.escapeSingleQuotes(n) + '\'');
+        }
+        String soql = 'SELECT Name, Status FROM ApexTrigger WHERE NamespacePrefix = null AND Name IN (' + String.join(quoted, ',') + ')';
+        Map<String, Object> body = (Map<String, Object>) RlyOrgSession.getJson(org, RlyOrgSession.toolingQueryPath(soql));
+        for (Object o : body.get('records') instanceof List<Object> ? (List<Object>) body.get('records') : new List<Object>()) {
+            Map<String, Object> rec = asMap(o);
+            if (String.valueOf(rec.get('Status')) == 'Inactive') {
+                out.add(String.valueOf(rec.get('Name')));
+            }
         }
         return out;
     }

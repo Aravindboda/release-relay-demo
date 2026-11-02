@@ -97,6 +97,7 @@ public with sharing class RlyAppendService {
         st.deletions = deletions;
         st.tests = new List<String>(tests);
         RlyAppendRun.writeState(rel, st);
+        rel.Inactive_Triggers__c = RlyTestRule.inactiveField(added, String.join(RlyTestRule.inactiveTriggers(rel), ','));
         reopen(rel, retrieveId);
         RlySlackCardSync.notifyChange(prior, rel); // the Slack callouts come before the saves
         RlyReleaseStore.save(rel);

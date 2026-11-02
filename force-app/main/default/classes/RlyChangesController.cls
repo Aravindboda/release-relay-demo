@@ -7,6 +7,7 @@
  *   listTracked       changes from source tracking (one call, when the org has it)
  *   detectTests       which of these Apex classes are tests
  *   findDeletions     components on the org's branch that the org doesn't have (orgs without source tracking)
+ *   inactiveTriggers  which selected Apex triggers are switched off (Status Inactive)
  *   flowVersions      the latest and active version of selected flows (Tooling API FlowDefinition)
  * Calls are short, so the page runs several at once and keeps the results per org.
  * Raising the release is RlyReleasesController.raiseRelease.
@@ -97,11 +98,24 @@ public with sharing class RlyChangesController {
      */
     @AuraEnabled
     public static List<String> detectTests(Id orgId, List<String> classNames) {
-        if (classNames == null || classNames.isEmpty()) {
-            return new List<String>();
-        }
         try {
             return RlyChangeFinder.testClasses(source(orgId), classNames);
+        } catch (Exception e) {
+            throw handled(e);
+        }
+    }
+
+    /**
+     * @description Which of these Apex triggers are switched off (Status Inactive) in the developer org: they deploy
+     * inactive and need no test class (RlyTestRule).
+     * @param orgId the developer org
+     * @param triggerNames Apex trigger names (1 to 100)
+     * @return the names that are inactive
+     */
+    @AuraEnabled
+    public static List<String> inactiveTriggers(Id orgId, List<String> triggerNames) {
+        try {
+            return RlyFlowVersions.inactiveTriggers(source(orgId), triggerNames);
         } catch (Exception e) {
             throw handled(e);
         }
@@ -157,14 +171,12 @@ public with sharing class RlyChangesController {
         try {
             return (Datetime) JSON.deserialize('"' + sinceIso + '"', Datetime.class);
         } catch (Exception e) {
-            throw new AuraHandledException('That date isn\'t valid.');
+            throw new RlyReleaseException('That date isn\'t valid.');
         }
     }
 
+    // Every caller's exceptions are Apex ones (RlyReleaseException and callout errors), never AuraHandledException.
     private static AuraHandledException handled(Exception e) {
-        if (e instanceof AuraHandledException) {
-            return (AuraHandledException) e;
-        }
         AuraHandledException ex = new AuraHandledException(e.getMessage());
         ex.setMessage(e.getMessage());
         return ex;
