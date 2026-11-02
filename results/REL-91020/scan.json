@@ -2,14 +2,12 @@
  "request": "REL-91020",
  "step": "scan",
  "status": "Passed",
- "total": 5,
+ "total": 0,
  "blocking": 0,
  "threshold": 2,
  "thresholdLabel": "High",
  "rules": "Recommended",
- "counts": {
-  "Moderate": 5
- },
+ "counts": {},
  "files": [
   "force-app/main/default/classes/RlyEvidenceController.cls",
   "force-app/main/default/classes/RlyEvidenceHtml.cls",
@@ -27,7 +25,6 @@
   "force-app/main/default/classes/RlyStepFileStore.cls",
   "force-app/main/default/classes/RlyStepFiles.cls",
   "force-app/main/default/classes/RlyStepFilesTest.cls",
-  "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
   "force-app/main/default/lwc/rlyHome/rlyHome.js",
   "force-app/main/default/lwc/rlyManualSteps/rlyManualSteps.html",
   "force-app/main/default/lwc/rlyManualSteps/rlyManualSteps.js",
@@ -39,58 +36,7 @@
   "force-app/main/default/triggers/RlyContentDocumentLink.trigger",
   "force-app/main/default/triggers/RlyContentVersion.trigger"
  ],
- "violations": [
-  {
-   "severity": 3,
-   "severityLabel": "Moderate",
-   "rule": "@lwc/lwc-platform/no-inline-disable",
-   "engine": "eslint",
-   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
-   "line": 788,
-   "message": "Inline rule disablement not allowed: no-await-in-loop",
-   "url": null
-  },
-  {
-   "severity": 3,
-   "severityLabel": "Moderate",
-   "rule": "@lwc/lwc-platform/no-inline-disable",
-   "engine": "eslint",
-   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
-   "line": 792,
-   "message": "Inline rule disablement not allowed: no-await-in-loop",
-   "url": null
-  },
-  {
-   "severity": 3,
-   "severityLabel": "Moderate",
-   "rule": "@lwc/lwc-platform/no-inline-disable",
-   "engine": "eslint",
-   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
-   "line": 798,
-   "message": "Inline rule disablement not allowed: no-await-in-loop",
-   "url": null
-  },
-  {
-   "severity": 3,
-   "severityLabel": "Moderate",
-   "rule": "@lwc/lwc-platform/no-inline-disable",
-   "engine": "eslint",
-   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
-   "line": 808,
-   "message": "Inline rule disablement not allowed: no-await-in-loop",
-   "url": null
-  },
-  {
-   "severity": 3,
-   "severityLabel": "Moderate",
-   "rule": "@lwc/lwc-platform/no-inline-disable",
-   "engine": "eslint",
-   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
-   "line": 813,
-   "message": "Inline rule disablement not allowed: no-await-in-loop",
-   "url": null
-  }
- ],
+ "violations": [],
  "message": "",
  "gate": null,
  "gates": {
@@ -98,6 +44,6 @@
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41484770930",
- "finishedAt": "2026-11-02T16:47:47.602Z"
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41485068431",
+ "finishedAt": "2026-11-02T16:49:30.952Z"
 }
