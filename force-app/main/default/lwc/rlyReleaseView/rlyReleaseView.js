@@ -487,8 +487,22 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     get raisedOn() { return when(this.rel.CreatedDate); }
     get testsText() {
         const tests = this.detail && Array.isArray(this.detail.tests) ? this.detail.tests : [];
-        return tests.length ? tests.join(', ') : 'None (no Apex)';
+        if (tests.length) {
+            return tests.join(', ');
+        }
+        return this.localTestsInProduction ? 'None: production runs the local tests (RunLocalTests), sandboxes none' : 'None (no Apex)';
     }
+    /** No tests of its own, but deleted Apex or inactive triggers: production runs the local tests (Salesforce requires it). */
+    get localTestsInProduction() {
+        return this.switchesOff.length > 0 || this.deletions.some((d) => d.rawType === 'ApexClass' || d.rawType === 'ApexTrigger');
+    }
+    /** The triggers the release deploys switched off (RLY_Release__c.Inactive_Triggers__c). */
+    get switchesOff() {
+        return String(this.rel.Inactive_Triggers__c || '').split(',').map((n) => n.trim()).filter(Boolean);
+    }
+    get hasSwitchesOff() { return this.switchesOff.length > 0; }
+    get switchesOffText() { return this.switchesOff.join(', '); }
+    get switchesOffHint() { return 'Inactive triggers: deployed switched off, no coverage needed. Switch one on by raising it active.'; }
     /** Where releases into the target org are approved, as Detail.approvedIn gives it (for example "Salesforce or Slack"). */
     get approvedInText() { return (this.detail && this.detail.approvedIn) || 'Salesforce'; }
     /** False when this release can't be approved in Salesforce (its target org approves from the Slack card). */
@@ -795,7 +809,10 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
 
     get testLevelText() {
         const t = this.rel.Test_Classes__c;
-        return t ? 'RunSpecifiedTests (' + t.split(',').join(', ') + ')' : 'NoTestRun';
+        if (t) {
+            return 'RunSpecifiedTests (' + t.split(',').join(', ') + ')';
+        }
+        return this.localTestsInProduction ? 'no tests of its own (RunLocalTests in production, NoTestRun in sandboxes)' : 'NoTestRun';
     }
 
     // ---------- details ----------
@@ -930,7 +947,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         return list.map((d, i) => {
             const at = String(d).indexOf(':');
             const type = at > 0 ? String(d).slice(0, at) : '';
-            return { key: 'd' + i, dtKey: 'd' + i + 't', type: type ? typeLabel(type, false) : '', name: at > 0 ? String(d).slice(at + 1) : String(d) };
+            return { key: 'd' + i, dtKey: 'd' + i + 't', rawType: type, type: type ? typeLabel(type, false) : '', name: at > 0 ? String(d).slice(at + 1) : String(d) };
         });
     }
     get hasDeletions() { return this.deletions.length > 0; }
@@ -1325,6 +1342,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             lines.push('Components: ' + this.items.length + this.componentBreakdown);
             if (this.hasDeletions) {
                 lines.push('Deletes: ' + this.deletions.map((x) => x.name).join(', '));
+            }
+            if (this.hasSwitchesOff) {
+                lines.push('Switches off: ' + this.switchesOffText);
             }
             lines.push('Scan: ' + this.scanLabel.toLowerCase() + (this.scanSummary ? ', ' + this.scanSummary : '') + ' · Tests: ' + this.testsText);
             lines.push('Validation: ' + this.validationLabel.toLowerCase() + (this.validation.testsRun ? ', ' + this.validation.testsRun + ' tests run' : ''));
