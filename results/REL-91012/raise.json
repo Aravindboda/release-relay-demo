@@ -1,0 +1,19 @@
+{
+ "request": "REL-91012",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rly-b30c-sit",
+ "target": "rly-sit-install",
+ "sha": "811bbff17fbfe4683bbea15909817978a117f7a8",
+ "pr": 145,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/145",
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "appended": false,
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41366088808",
+ "finishedAt": "2026-11-02T00:15:02.664Z"
+}
