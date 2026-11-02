@@ -1,4 +1,6 @@
-# Release Relay pipeline files: version 18
+# Release Relay pipeline files: version 19
+# Version 19: the archive job calls the hub with "sf api request rest" (newer Salesforce CLIs hide the access token in
+# "sf org display", so the old curl call was sent without a sign-in and got INVALID_AUTH_HEADER).
 # Version 18: the nightly archive can also be started by hand: Actions → Release Relay → Run workflow → mode "archive"
 # (the other fields can stay blank); same job as the 2:00 AM schedule.
 # Version 17: a release whose Apex is only deletions and inactive triggers (status Inactive in the trigger's -meta.xml)
@@ -571,16 +573,14 @@ jobs:
           sf org login jwt --client-id "$SF_CLIENT_ID" --username "$SF_USERNAME" --jwt-key-file "$key" \
             --instance-url "$SF_INSTANCE_URL" --alias relay-hub > /dev/null
           rm -f "$key"
-          org="$(sf org display --target-org relay-hub --json)"
-          token="$(printf '%s' "$org" | jq -r '.result.accessToken')"
-          echo "::add-mask::$token"
-          base="$(printf '%s' "$org" | jq -r '.result.instanceUrl' | sed 's:/*$::')"
           run_id=""
           for call in $(seq 1 25); do
             body="$(jq -n --arg runUrl "$RUN_URL" --arg runId "$run_id" \
               '{runUrl: $runUrl} + (if $runId == "" then {} else {runId: $runId} end)')"
-            answer="$(curl -sS --fail-with-body -X POST "$base/services/apexrest/rly/archive" \
-              -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d "$body")"
+            # The CLI signs the call itself (sf org display hides the access token since CLI 2.15x).
+            printf '%s' "$body" > "$RUNNER_TEMP/archive-body.json"
+            answer="$(sf api request rest /services/apexrest/rly/archive --method POST \
+              --body "$RUNNER_TEMP/archive-body.json" --target-org relay-hub)"
             if [ "$(printf '%s' "$answer" | jq -r '.skipped')" = "true" ]; then
               echo "Call $call: $(printf '%s' "$answer" | jq -r '.reason')"
               echo "Nightly archive: $(printf '%s' "$answer" | jq -r '.reason')" >> "$GITHUB_STEP_SUMMARY"
