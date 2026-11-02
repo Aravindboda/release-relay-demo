@@ -1388,6 +1388,27 @@ const USE_SECTIONS = [
         ]
     },
     {
+        key: 'built',
+        group: 'daily',
+        label: 'What\'s built',
+        cards: [
+            {
+                key: 'built-main',
+                title: 'What\'s built and its lock',
+                blocks: [
+                    { type: 'text', paras: [
+                        '**What\'s built** is Release Relay\'s technical document: objects and fields, security and access, Apex by area, components, pipeline files, limits and tests to run. Its counts are read live and count only Release Relay\'s own components (the build\'s package list); other Rly classes in the org are listed apart as demo classes or leftovers.',
+                        'An admin can lock the tab with a password (Pipeline → What\'s built lock). While it is locked the tab shows only a password field: type it and press **Unlock**. It stays open for you for up to 8 hours; **Lock again** in the header locks it at once.'
+                    ] },
+                    { type: 'list', items: [
+                        'Five wrong tries lock you out for 15 minutes ("Too many tries. Try again at …"), in any browser.',
+                        'Forgot the password? Ask a Release Relay admin to set a new one. Admins can see the stored hash, never the password.'
+                    ] }
+                ]
+            }
+        ]
+    },
+    {
         key: 'raise',
         group: 'daily',
         label: 'Raise a release',
@@ -2520,6 +2541,18 @@ const USE_SECTIONS = [
                                 ],
                                 problems: [['"The token needs Workflows: Read and write to change files in .github/workflows."', 'Edit the Git token: Workflows → Read and write.']],
                                 shot: { name: 'pipeline', cap: 'Example: Git connection shows Connected and lists what it checked.' }
+                            },
+                            {
+                                title: 'What\'s built lock',
+                                who: 'Admin',
+                                where: 'Pipeline → What\'s built lock (after Retention) → Edit',
+                                goal: 'Put a password in front of the What\'s built tab (optional; off until an admin turns it on).',
+                                items: [
+                                    'Read mode shows **Locked** or **Off**, when it was last changed and by whom; admins also see whether a password is set and who is locked out now. Others see "Only Release Relay admins can change this."',
+                                    '**Edit**: turn **Lock What\'s built** on, type the **New password** (at least 8 characters) and **Confirm** it; Save stays off until both match. With a password already set, leave both blank to keep it. Turning the lock off removes the password.',
+                                    'Everyone, admins too, then types the password once on What\'s built; it stays open for that user for up to 8 hours or until **Lock again**. Every Save ends everyone\'s current unlock.',
+                                    'Forgotten password: an admin sets a new one here. Only a salted hash is kept (custom setting RLY_Lock__c): admins can see the hash in Setup, never the password.'
+                                ]
                             }
                         ]
                     }
