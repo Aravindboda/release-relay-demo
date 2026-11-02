@@ -1,6 +1,6 @@
 /**
  * @description Checks the Slack values admins save: the events (only known ones), the signing secret, a channel
- * (#channel-name or a channel ID) and a Slack member ID (U… or W…).
+ * (#channel-name or a channel ID), a Slack member ID (U… or W…) and how approvers are matched to Slack.
  */
 public with sharing class RlySlackRules {
 
@@ -61,6 +61,19 @@ public with sharing class RlySlackRules {
         String value = memberId.trim().toUpperCase();
         if (!MEMBER_ID.matcher(value).matches()) {
             throw RlySlackController.auraError('A Slack member ID looks like U012AB3CD (Slack profile > ⋮ > Copy member ID).');
+        }
+        return value;
+    }
+
+    /**
+     * @description How approvers are matched to Slack, checked.
+     * @param value SSO, Email or Manual
+     * @return the value
+     */
+    public static String matchBy(String value) {
+        Set<String> known = new Set<String>{ RlySlackDirectory.BY_SSO, RlySlackDirectory.BY_EMAIL, RlySlackMatch.MANUAL };
+        if (!known.contains(value)) {
+            throw RlySlackController.auraError('Match approvers by SSO Federation ID, Email or Manual only.');
         }
         return value;
     }

@@ -371,8 +371,18 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
             isShots: b.type === 'shots',
             isFiles: b.type === 'files',
             isChecklist: b.type === 'checklist',
-            isLinks: b.type === 'links'
+            isLinks: b.type === 'links',
+            isRoute: b.type === 'route' || b.type === 'hotfixpath',
+            isRules: b.type === 'rules',
+            isPromoteCard: b.type === 'promotecard'
         };
+        if (out.isRoute) {
+            Object.assign(out, this.route(b, key));
+        }
+        if (out.isRules || out.isPromoteCard) {
+            out.stageName = b.stageName || 'SIT';
+            out.nextName = b.nextName || 'UAT';
+        }
         if (out.isChecklist) {
             Object.assign(out, this.checklist(b.stages || [], key));
         }
@@ -396,7 +406,11 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
         out.items = (b.items || []).map((t, i) => rich(t, key + 'i' + i, g));
         out.note = b.text ? rich(b.text, key + 'n', g) : null;
         out.cols = (b.cols || []).map((c, i) => ({ key: key + 'c' + i, c }));
-        out.rows = (b.rows || []).map((r, i) => ({ key: key + 'r' + i, cells: r.map((c, j) => rich(c, key + 'r' + i + 'c' + j, g)) }));
+        out.rows = (b.rows || []).map((r, i) => ({
+            key: key + 'r' + i,
+            cells: r.map((c, j) => ({ ...rich(c, key + 'r' + i + 'c' + j, g), label: (b.cols || [])[j] || '' }))
+        }));
+        out.tableCls = 'slds-table slds-table_cell-buffer slds-table_bordered rr-table' + (b.stack ? ' rr-table-stack' : '');
         out.progress = (b.labels || []).map((label, i) => this.progressItem(label, i + 1, key));
         out.steps = (b.steps || []).map((s, i) => this.step(s, i + 1, key + 's' + i));
         out.stops = (b.stops || []).map((s, i) => ({
@@ -408,6 +422,49 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
         out.repoOne = b.type === 'repo' && this.providerKnown ? out.tabs.find((t) => t.value === this.provider) : null;
         out.repoTabs = b.type === 'repo' && !out.repoOne;
         return out;
+    }
+
+    /**
+     * A route (or the hotfix path) drawn as stops and hops: each stop with its branch, role, approval rule or text; each hop
+     * with where it happens, what it is and who does it. Horizontal on wide screens, one column on narrow ones.
+     */
+    route(b, key) {
+        const g = this.gitlab;
+        const stops = b.stops || [];
+        const hops = b.hops || [];
+        const items = [];
+        stops.forEach((st, i) => {
+            items.push({
+                key: key + 'rs' + i,
+                isStop: true,
+                cls: 'rr-stop' + (st.kind ? ' rr-stop-' + st.kind : ''),
+                name: st.name,
+                branch: st.branch || '',
+                role: st.role || '',
+                apLabel: st.approval ? st.approval[0] : '',
+                apValue: st.approval ? st.approval[1] : '',
+                apText: st.approval && st.approval[2] ? rich(st.approval[2], key + 'ra' + i, g) : null,
+                text: st.text ? rich(st.text, key + 'rt' + i, g) : null
+            });
+            const hop = hops[i];
+            if (hop && i < stops.length - 1) {
+                items.push({
+                    key: key + 'rh' + i,
+                    isStop: false,
+                    where: hop.where || '',
+                    what: rich(hop.what || '', key + 'rw' + i, g),
+                    who: hop.who || ''
+                });
+            }
+        });
+        return {
+            routeItems: items,
+            routeCls: 'rr-route' + (b.type === 'hotfixpath' ? ' rr-route-hf' : ''),
+            routeLabel: b.label || '',
+            every: (b.every || []).map((t, i) => ({ key: key + 'ev' + i, t })),
+            hasEvery: Array.isArray(b.every) && b.every.length > 0,
+            back: b.back ? rich(b.back, key + 'bk', g) : null
+        };
     }
 
     /** The setup stages with their ticks, and how many are done. */

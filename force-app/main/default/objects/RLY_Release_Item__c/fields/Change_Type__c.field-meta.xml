@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Change_Type__c</fullName>
+    <description>New, Modified or Deleted. Release Relay sets Modified for retrieved components; deletions are flagged by Is_Deletion__c.</description>
+    <label>Change Type</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>New</fullName>
+                <default>false</default>
+                <label>New</label>
+            </value>
+            <value>
+                <fullName>Modified</fullName>
+                <default>true</default>
+                <label>Modified</label>
+            </value>
+            <value>
+                <fullName>Deleted</fullName>
+                <default>false</default>
+                <label>Deleted</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
