@@ -1,0 +1,25 @@
+{
+ "request": "REL-00033",
+ "step": "scan",
+ "status": "Passed",
+ "total": 0,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {},
+ "files": [
+  "force-app/main/default/classes/RlyDemoTerms.cls",
+  "force-app/main/default/classes/RlyDemoTermsTest.cls"
+ ],
+ "violations": [],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41455690329",
+ "finishedAt": "2026-11-02T13:46:03.998Z"
+}
