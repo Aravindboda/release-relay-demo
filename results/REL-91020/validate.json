@@ -5,12 +5,12 @@
  "changed": 40,
  "deleted": [],
  "mergedWith": "87c1c76ac4bca37e2afd7776d7bb99a0afa1e9c0",
- "validatedTree": "58c11019e2f45079c64936a6a736984c9a4df877",
+ "validatedTree": "625d8de000c7196cf47b2fc597b1a07ed66d9bf7",
  "environment": "sit",
  "ok": false,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000cQxh0SAC",
- "testsRun": 0,
+ "deployId": "0AfgL00000cR3WzSAK",
+ "testsRun": 360,
  "tests": [
   "RlyAppendTest",
   "RlyApprovalRulesTest",
@@ -66,23 +66,22 @@
   "RlyTwoApproversTest"
  ],
  "coverageWarnings": [],
- "componentErrors": [
+ "componentErrors": [],
+ "testFailures": [
   {
-   "type": "ApexClass",
-   "name": "RlyStepFilesTest",
-   "problem": "Identifier name is reserved: export",
-   "line": 255
+   "name": "RlyRollbackTest",
+   "method": "releasesTabListsRolledBack",
+   "message": "System.AssertException: Assertion Failed: \"REL\",\"Title\",\"Route\",\"Raised by\",\"Raised on\",\"Status\",\"Approved by\",\"Approved on\",\"Via\",\"Comment\",\"Second approver\",\"Deployed to\",\"Deploy ids\",\"PR url\",\"Rolled back in\",\"Rolled back on\",\"Files\""
   }
  ],
- "testFailures": [],
- "message": "1 component error(s)",
+ "message": "1 test failure(s)",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41485068431",
- "finishedAt": "2026-11-02T16:49:53.607Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41485566995",
+ "finishedAt": "2026-11-02T17:15:04.714Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
