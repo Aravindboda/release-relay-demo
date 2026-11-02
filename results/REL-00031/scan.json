@@ -1,0 +1,25 @@
+{
+ "request": "REL-00031",
+ "step": "scan",
+ "status": "Passed",
+ "total": 0,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {},
+ "files": [
+  "force-app/main/default/classes/InvoiceTotals.cls",
+  "force-app/main/default/classes/InvoiceTotalsTest.cls"
+ ],
+ "violations": [],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41380642176",
+ "finishedAt": "2026-11-02T03:00:43.879Z"
+}
