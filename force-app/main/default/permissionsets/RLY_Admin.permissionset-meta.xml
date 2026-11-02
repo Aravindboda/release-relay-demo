@@ -583,6 +583,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
+        <field>RLY_Release__c.Inactive_Triggers__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>RLY_Release__c.Flow_Results__c</field>
         <readable>true</readable>
     </fieldPermissions>

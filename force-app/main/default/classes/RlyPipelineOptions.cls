@@ -1,5 +1,6 @@
 /**
  * @description The options a pipeline run starts with (the options input, as JSON): the hub flag, the org label,
+ * production (the target is production by its org record: isProduction),
  * the test classes, the scan switch (the target org's code scan choice, RlyScanRule), validateMerged (hub, promote, check and resolve: validate the release merged with
  * the target branch), stageBranch (promote: the stage's branch, whose files the next stop gets), append and appendZip
  * (hub, adding changes to an open release: RlyAppendInputs), attempt (the run's token, echoed in every result file) and syncBranches (the branches to update
@@ -19,7 +20,7 @@ public with sharing class RlyPipelineOptions {
     public static Map<String, Object> forMode(RLY_Release__c rel, String mode) {
         List<String> tests = RlyDeletions.withoutDeletedTests(
             String.isBlank(rel.Test_Classes__c) ? new List<String>() : rel.Test_Classes__c.split(','), rel);
-        Map<String, Object> options = new Map<String, Object>{ 'hub' => true, 'label' => rel.Org_Label__c };
+        Map<String, Object> options = new Map<String, Object>{ 'hub' => true, 'label' => rel.Org_Label__c, 'production' => isProduction(rel) };
         if (!runsLocalTests(rel, tests)) {
             options.put('tests', tests);
         }
@@ -65,10 +66,27 @@ public with sharing class RlyPipelineOptions {
         return stage == null ? null : stage.Branch__c;
     }
 
-    // Deleting Apex in production needs tests: without tests of its own, a release into the hub that deletes Apex sends
-    // no tests list, so the pipeline runs the local tests (RunLocalTests). Sandboxes keep NoTestRun.
+    // Deleting Apex or deploying triggers switched off in production needs tests: without tests of its own, such a
+    // release into production sends no tests list, so the pipeline runs the local tests (RunLocalTests). Elsewhere it
+    // sends an empty list (NoTestRun); pipeline version 17 decides the same from options.production and the files.
     private static Boolean runsLocalTests(RLY_Release__c rel, List<String> tests) {
-        return tests.isEmpty() && isHub(rel) && RlyDeletions.deletesApex(rel);
+        return tests.isEmpty() && isProduction(rel)
+            && (RlyDeletions.deletesApex(rel) || !RlyTestRule.inactiveTriggers(rel).isEmpty());
+    }
+
+    /**
+     * @description Whether the release's target org is production, from its Release Relay org record: the hub (role
+     * Hub), or an org whose Environment is Production. Not the org's IsSandbox: a Developer Edition org reports as
+     * production but takes deploys without tests.
+     * @param rel the release, with Target_Org__r.Role__c (and Target_Org__r.Environment__c when read)
+     * @return true when the target is production
+     */
+    public static Boolean isProduction(RLY_Release__c rel) {
+        if (isHub(rel)) {
+            return true;
+        }
+        Object env = rel.Target_Org__r == null ? null : rel.Target_Org__r.getPopulatedFieldsAsMap().get('Environment__c');
+        return env != null && String.valueOf(env) == RlyOrgRoleCheck.ENV_PRODUCTION;
     }
 
     // A merge into the first stage brings the developer branches up to date; a merge into the hub every stage branch

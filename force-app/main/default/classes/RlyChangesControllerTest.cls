@@ -156,6 +156,31 @@ private class RlyChangesControllerTest {
     }
 
     @IsTest
+    static void readsInactiveTriggers() {
+        System.runAs(RlyTestData.admin()) {
+            Id devId = insertRoute();
+            RlyOrgSession.testToken = RlyTestData.TOKEN;
+            RlyHttpMock mock = new RlyHttpMock()
+                .match('GET', 'FROM ApexTrigger').reply(200, '{"records":[{"Name":"OrderTrigger","Status":"Inactive"},{"Name":"CaseTrigger","Status":"Active"}]}');
+            Test.setMock(HttpCalloutMock.class, mock);
+            Test.startTest();
+            List<String> off = RlyChangesController.inactiveTriggers(devId, new List<String>{ 'OrderTrigger', 'CaseTrigger' });
+            List<String> none = RlyChangesController.inactiveTriggers(devId, new List<String>());
+            String refused;
+            try {
+                RlyChangesController.inactiveTriggers([SELECT Id FROM RLY_Org__c WHERE Name = 'PROD' LIMIT 1].Id, new List<String>{ 'OrderTrigger' });
+            } catch (AuraHandledException e) {
+                refused = e.getMessage();
+            }
+            Test.stopTest();
+            System.assertEquals(new List<String>{ 'OrderTrigger' }, off, 'Only the inactive trigger');
+            System.assert(none.isEmpty(), 'Nothing to check, no callout');
+            System.assert(mock.callLog().contains('Status FROM ApexTrigger'), 'Tooling query of the trigger status');
+            System.assertEquals('Pick a registered developer org.', refused, 'Only developer orgs are read');
+        }
+    }
+
+    @IsTest
     static void refusesBadInput() {
         System.runAs(RlyTestData.admin()) {
             insertRoute();

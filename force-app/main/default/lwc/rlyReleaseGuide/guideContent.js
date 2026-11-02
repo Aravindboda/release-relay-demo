@@ -1740,7 +1740,7 @@ const USE_SECTIONS = [
                                 where: 'New Release → Review',
                                 text: [
                                     'Deletions are listed in red under **Deleted from** the target. A component can\'t be both added and deleted in one release.',
-                                    'Deleting Apex needs no test class unless Apex is also added. Into production, Salesforce runs the local tests when Apex is deleted.'
+                                    'Deleting Apex needs no test class unless Apex is also added. Delete its test class too (Review warns when `<Name>Test` still refers to it). Into production the org\'s local tests run (RunLocalTests), as Salesforce requires, unless you pick test classes; sandboxes skip tests.'
                                 ],
                                 problems: [['"<Type> <Name> isn\'t in <branch>, so there\'s nothing to delete."', 'The component isn\'t in the target\'s branch: untick it.']]
                             }
@@ -2021,6 +2021,44 @@ const USE_SECTIONS = [
                         text: 'Production: with **Deploy processes and flows as active** on (Setup → Process Automation Settings), an active flow version deploys active, and Salesforce then requires the Apex tests that run in the deploy to cover it (flow test coverage). With it off, flows arrive in production inactive and Activate in each org activates them after the deploy.'
                     },
                     { type: 'links', links: [{ label: 'Set up: Process Automation Settings', to: 'setup-settings' }] }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'triggers',
+        group: 'daily',
+        label: 'Switch a trigger off or on',
+        cards: [
+            {
+                key: 'trg-main',
+                title: 'Switch a trigger off or on',
+                blocks: [
+                    { type: 'text', paras: ['A trigger deploys with the status it has in your developer org. Switched off (inactive), it needs no test class and no coverage.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Untick Is Active in your developer org',
+                                who: 'Developer',
+                                where: 'Developer org → Setup → Apex Triggers → Edit',
+                                text: ['To switch it on again later, tick **Is Active** and raise it the same way (it then needs its test class).']
+                            },
+                            {
+                                title: 'Raise the trigger',
+                                where: 'New Release → Select → Review',
+                                text: [
+                                    'Tick the trigger. Review shows its status, for example `OrderTrigger · Inactive: deploys switched off in SIT and PROD` (an example only). No test class is needed for it.',
+                                    'The release page and the Slack card say **Switches off: OrderTrigger**.'
+                                ]
+                            },
+                            {
+                                title: 'It deploys inactive',
+                                text: ['Sandboxes deploy it without tests. Production runs the org\'s local tests (RunLocalTests), as Salesforce requires for any Apex, unless the release has test classes. The coverage gate leaves inactive triggers out.']
+                            }
+                        ]
+                    },
+                    { type: 'links', links: [{ label: 'Deleting components', to: 'deletions' }] }
                 ]
             }
         ]

@@ -364,6 +364,17 @@
                             </div>
                             <div class="rr-pad rr-stack">
                                 <div class={testRunCls}>{testRunText}</div>
+                                <template lwc:if={hasApexDeletionNote}><div class="rr-msg rr-msg-info" role="status">{apexDeletionNote}</div></template>
+                                <template for:each={testClassWarnings} for:item="w">
+                                    <div key={w.key} class="rr-msg rr-msg-wait" role="status">{w.text}</div>
+                                </template>
+                                <template lwc:if={hasTriggerRows}>
+                                    <div class="rr-stack" role="group" aria-label="Apex triggers">
+                                        <template for:each={triggerRows} for:item="t">
+                                            <p key={t.key} class={t.cls}>{t.text}</p>
+                                        </template>
+                                    </div>
+                                </template>
                                 <template lwc:if={showRaiseFields}>
                                 <lightning-input label="Title" value={title} max-length="200" required onchange={handleTitle}
                                     placeholder="What this release does, for example: Account region field and layout"></lightning-input>

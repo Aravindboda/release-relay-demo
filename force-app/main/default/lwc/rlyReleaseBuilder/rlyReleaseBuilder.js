@@ -9,6 +9,7 @@ import listFolderChanges from '@salesforce/apex/RlyChangesController.listFolderC
 import listTracked from '@salesforce/apex/RlyChangesController.listTracked';
 import detectTests from '@salesforce/apex/RlyChangesController.detectTests';
 import findDeletions from '@salesforce/apex/RlyChangesController.findDeletions';
+import inactiveTriggers from '@salesforce/apex/RlyChangesController.inactiveTriggers';
 import raiseRelease from '@salesforce/apex/RlyReleasesController.raiseRelease';
 import flowVersions from '@salesforce/apex/RlyChangesController.flowVersions';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
@@ -279,6 +280,8 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     cache = {};
     changes = [];
     tests = new Set();
+    /** Apex triggers switched off (Status Inactive) in the source org: they deploy inactive and need no test class. */
+    inactive = new Set();
 
     // select
     typeFilter = 'all';
@@ -542,6 +545,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         if (!force && this.cache[key]) {
             this.changes = this.cache[key].changes;
             this.tests = this.cache[key].tests;
+            this.inactive = this.cache[key].inactive || new Set();
             return;
         }
         this.scanning = true;
@@ -567,7 +571,8 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
             }
             this.changes = found.map(marked);
             this.tests = new Set(await this.findTests(found.filter((c) => c.type === 'ApexClass' && !c.deleted).map((c) => c.name)));
-            this.cache[key] = { changes: this.changes, tests: this.tests };
+            this.inactive = new Set(await this.findInactive(found.filter((c) => c.type === 'ApexTrigger' && !c.deleted).map((c) => c.name)));
+            this.cache[key] = { changes: this.changes, tests: this.tests, inactive: this.inactive };
         } catch (e) {
             this.scanErrors = [...this.scanErrors, errorText(e)];
         } finally {
@@ -611,6 +616,22 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
                     out.push(...found);
                 }), Promise.resolve())
             .then(() => out);
+    }
+
+    /** Which of these triggers are inactive in the source org, 100 names per call; a failed read counts them as active. */
+    findInactive(triggerNames) {
+        const out = [];
+        return chunks(triggerNames, 100)
+            .reduce((previous, c) => previous
+                .then(() => inactiveTriggers({ orgId: this.orgId, triggerNames: c }))
+                .then((found) => {
+                    out.push(...found);
+                }), Promise.resolve())
+            .then(() => out)
+            .catch((e) => {
+                this.scanErrors = [...this.scanErrors, 'Trigger status: ' + errorText(e)];
+                return out;
+            });
     }
 
     get scanPercent() { return this.scanTotal ? Math.round((this.scanDone / this.scanTotal) * 100) : 0; }
@@ -844,9 +865,17 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         return [...this.selected].filter((k) => !locked.has(k)).map((k) => byKey.get(k)).filter(Boolean);
     }
 
+    /** Apex that needs a test class: classes that aren't tests, and triggers that aren't switched off. */
     get apexItems() {
-        return this.selectedItems.filter((c) => !c.deleted && (c.type === 'ApexTrigger' || (c.type === 'ApexClass' && !this.tests.has(c.name))));
+        return this.selectedItems.filter((c) => !c.deleted && ((c.type === 'ApexTrigger' && !this.inactive.has(c.name))
+            || (c.type === 'ApexClass' && !this.tests.has(c.name))));
     }
+
+    /** The selected triggers, each with its status in the source org. */
+    get triggerItems() {
+        return this.addedItems.filter((c) => c.type === 'ApexTrigger');
+    }
+    get inactiveItems() { return this.triggerItems.filter((c) => this.inactive.has(c.name)); }
 
     get testItems() {
         return this.selectedItems.filter((c) => !c.deleted && c.type === 'ApexClass' && this.tests.has(c.name));
@@ -1019,12 +1048,61 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
                     kind: c.standard ? 'Standard' : 'Custom', kindCls: 'rr-pill ' + (c.standard ? 'rr-pill-std' : 'rr-pill-custom'),
                     removeLabel: 'Remove ' + c.name, compareLabel: 'Compare ' + c.name,
                     subText: (isTest ? 'Apex test class' : words(c.type)) + ' · ' + (c.standard ? 'Standard' : 'Custom')
+                        + (c.type === 'ApexTrigger' ? ' · ' + this.triggerStatus(c.name) : '')
                 };
             })
             .sort((a, b) => (a.typeLabel + a.name).localeCompare(b.typeLabel + b.name));
     }
 
     get hasAdded() { return this.addedItems.length > 0; }
+
+    // ---------- Apex triggers and deleted Apex: what the deploys do about tests ----------
+
+    triggerStatus(name) { return this.inactive.has(name) ? 'Inactive' : 'Active'; }
+    /** The hub (production) by name, for the test notes. */
+    get productionName() {
+        const hub = ((this.start && this.start.routeStops) || []).find((o) => o.Role__c === 'Hub');
+        return hub ? hub.Name : 'production';
+    }
+    /** Each selected trigger's status in the source org: "OrderTrigger · Inactive: deploys switched off in SIT and PROD." */
+    get triggerRows() {
+        return this.triggerItems.map((c) => {
+            const off = this.inactive.has(c.name);
+            return {
+                key: 'trg-' + c.name,
+                text: c.name + ' · ' + (off ? 'Inactive: deploys switched off in ' + this.routeTargetsText + '.' : 'Active'),
+                cls: off ? 'rr-msg rr-msg-wait' : 'rr-small rr-weak'
+            };
+        }).sort((a, b) => a.key.localeCompare(b.key));
+    }
+    get hasTriggerRows() { return !this.manualOnly && this.triggerItems.length > 0; }
+    get deletedApex() {
+        return this.deletionItems.filter((c) => c.type === 'ApexClass' || c.type === 'ApexTrigger');
+    }
+    get hasApexDeletionNote() { return !this.manualOnly && this.deletedApex.length > 0; }
+    get apexDeletionNote() {
+        return 'Deleting Apex: in ' + this.productionName + ' the org\'s local tests run (RunLocalTests) unless you pick test classes. Sandboxes skip tests.';
+    }
+    /** A deleted class whose test class (<Name>Test or <Name>_Test, in the list read from the org) isn't deleted too. */
+    get testClassWarnings() {
+        if (this.manualOnly) {
+            return [];
+        }
+        const deleting = new Set(this.deletionItems.filter((c) => c.type === 'ApexClass').map((c) => c.name.toLowerCase()));
+        const known = new Map();
+        this.changes.filter((c) => c.type === 'ApexClass').forEach((c) => known.set(c.name.toLowerCase(), c.name));
+        this.tests.forEach((n) => known.set(n.toLowerCase(), n));
+        const out = [];
+        this.deletionItems.filter((c) => c.type === 'ApexClass').forEach((c) => {
+            [c.name + 'Test', c.name + '_Test'].forEach((t) => {
+                const found = known.get(t.toLowerCase());
+                if (found && !deleting.has(t.toLowerCase())) {
+                    out.push({ key: 'tw-' + found, text: found + ' still refers to ' + c.name + ': delete it in this release too.' });
+                }
+            });
+        });
+        return out;
+    }
     get reviewDeletions() {
         return this.deletionItems
             .map((c) => ({ key: c.key, name: c.name, subText: words(c.type) + ' · ' + this.deleteFromText, removeLabel: 'Don\'t delete ' + c.name, compareLabel: 'Compare ' + c.name }))
@@ -1164,7 +1242,10 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
             return 'Tests: ' + [...new Set([...this.appendTests, ...this.testItems.map((t) => t.name)])].join(', ') + ' (RunSpecifiedTests) in every org it deploys to.';
         }
         if (!this.apexItems.length) {
-            const apexGone = this.deletionItems.some((c) => c.type === 'ApexClass' || c.type === 'ApexTrigger');
+            const apexGone = this.deletedApex.length > 0;
+            if (this.inactiveItems.length && !this.testItems.length) {
+                return 'Only inactive triggers: no test class needed. ' + this.productionName + ' runs the local tests (RunLocalTests), as Salesforce requires; sandboxes run none (NoTestRun).';
+            }
             return apexGone
                 ? 'No Apex added: deploys run without tests (NoTestRun). Deleting Apex from production runs the local tests (RunLocalTests), as Salesforce requires.'
                 : 'No Apex in this release: deploys run without tests (NoTestRun).';
@@ -1383,7 +1464,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         try {
             const request = {
                 releaseId: this.appendInfo.releaseId,
-                items: this.addedItems.map((c) => ({ type: c.type, name: c.name, deleted: false, standard: !!c.standard })),
+                items: this.addedItems.map((c) => this.itemOf(c)),
                 deletions: this.deletionItems.map((c) => ({ type: c.type, name: c.name })),
                 testClasses: this.testItems.map((t) => t.name)
             };
@@ -1396,12 +1477,17 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         }
     }
 
+    /** RaiseRequest.Item: inactive marks a trigger switched off in the source org (no test class needed). */
+    itemOf(c) {
+        return { type: c.type, name: c.name, deleted: false, standard: !!c.standard, inactive: c.type === 'ApexTrigger' && this.inactive.has(c.name) };
+    }
+
     async raise() {
         this.raising = true;
         this.raiseError = undefined;
         try {
             const only = this.manualOnly;
-            const items = only ? [] : this.addedItems.map((c) => ({ type: c.type, name: c.name, deleted: false, standard: !!c.standard }));
+            const items = only ? [] : this.addedItems.map((c) => this.itemOf(c));
             const deletions = only ? [] : this.deletionItems.map((c) => ({ type: c.type, name: c.name }));
             const request = {
                 sourceOrgId: this.orgId,
