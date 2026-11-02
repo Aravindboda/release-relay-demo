@@ -1,0 +1,667 @@
+{
+ "request": "REL-91009",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 90,
+ "deleted": [],
+ "mergedWith": "ef1057770db54523939441210199b592d037474e",
+ "validatedTree": "488ea9727f820004dca06aa03c3c296a7f414a1d",
+ "environment": "sit",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cMLJFSA4",
+ "testsRun": 0,
+ "tests": [
+  "RlyAppendTest",
+  "RlyApprovalRulesTest",
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyArchiveRestTest",
+  "RlyArchiveRunsTest",
+  "RlyArchiveTest",
+  "RlyBackPromoteTest",
+  "RlyBuildInfoTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyCompareTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyDeletionFinderTest",
+  "RlyDeployReaderTest",
+  "RlyEvidenceTest",
+  "RlyFlowActivationTest",
+  "RlyGitAdviceTest",
+  "RlyGitProvidersTest",
+  "RlyHomeControllerTest",
+  "RlyHotfixTest",
+  "RlyHubGuardTest",
+  "RlyManualOnlyTest",
+  "RlyManualStepGateTest",
+  "RlyManualStepsTest",
+  "RlyOrgControllerTest",
+  "RlyOrgLinksTest",
+  "RlyOrgSessionTest",
+  "RlyPipelineFilesTest",
+  "RlyPromoteOverlapTest",
+  "RlyPromoteTest",
+  "RlyPullRequestCloseTest",
+  "RlyPullRequestFilesTest",
+  "RlyRaiseServiceTest",
+  "RlyReleasesFilterTest",
+  "RlyRepoSettingsTest",
+  "RlyRollbackTest",
+  "RlyRouteControllerTest",
+  "RlyScanRuleTest",
+  "RlySetupStatusTest",
+  "RlySharedReadTest",
+  "RlySlackActionsTest",
+  "RlySlackApproversTest",
+  "RlySlackCardTest",
+  "RlySlackLinkTest",
+  "RlySlackSiteCheckTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest",
+  "RlyTwoApproversTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [
+  {
+   "type": "CustomField",
+   "name": "User.RLY_Slack_Linked_By_User__c",
+   "problem": "Can not specify 'referenceTo' for a CustomField of type Hierarchy",
+   "line": 36
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyBuildInfoTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleaseTestData : Dependent class is invalid and needs recompilation:\n Class RlyRaiseService : Dependent class is invalid and needs recompilation:\n Class RlyPromotion : Dependent class is invalid and needs recompilation:\n Class RlyPipelineRun : Dependent class is invalid and needs recompilation:\n Class RlyAppendInputs : Dependent class is invalid and needs recompilation:\n Class RlyAppendRun : Dependent class is invalid and needs recompilation:\n Class RlyStatusReader : Dependent class is invalid and needs recompilation:\n Class RlyAutoApproval : Dependent class is invalid and needs recompilation:\n Class RlyApprover : Dependent class is invalid and needs recompilation:\n Class RlySla",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyPromoteController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlySlackApproverRows : Variable does not exist: RLY_Slack_Linked_By_User__r",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyPromoteTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyPromoteController : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlySlackApproverRows : Variable does not exist: RLY_Slack_Linked_By_User__r",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlack",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackDelivery : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyOrgLinks : Dependent class is invalid and needs recompilation:\n Class RlyManualSteps : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class RlySlackRules : Dependent class is invalid and needs recompilation:\n Clas",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackAction",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackPress : Dependent class is invalid and needs recompilation:\n Class RlySlackLink : Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlySlackApproverRows : Variable does not exist: RLY_Slack_Linked_By_User__r",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackActionsTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackAction : Dependent class is invalid and needs recompilation:\n Class RlySlackPress : Dependent class is invalid and needs recompilation:\n Class RlySlackLink : Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlySlackApproverRows : Variable does not exist: RLY_Slack_Linked_By_User__r",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproverAdd",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlySlackApproverRows : Variable does not exist: RLY_Slack_Linked_By_User__r",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproverRows",
+   "problem": "Variable does not exist: RLY_Slack_Linked_By_User__r",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproverRows",
+   "problem": "Variable does not exist: RLY_Slack_Linked_By_User__r",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApprovers",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackApproverRows : Variable does not exist: RLY_Slack_Linked_By_User__r",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 38
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 38
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Missing ';' at 'status'",
+   "line": 38
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Unexpected token ','.",
+   "line": 38
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Unexpected token ','.",
+   "line": 38
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Unexpected token 'body'.",
+   "line": 38
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Unexpected token 'body'.",
+   "line": 38
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Unexpected token ')'.",
+   "line": 38
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 147
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ')' but was: ','",
+   "line": 147
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ','",
+   "line": 147
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Extra ';', at ')'.",
+   "line": 147
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 179
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ')' but was: ','",
+   "line": 179
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ','",
+   "line": 179
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ')'",
+   "line": 179
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Extra ';', at ')'.",
+   "line": 179
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 196
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ')' but was: ','",
+   "line": 196
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ','",
+   "line": 196
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ')'",
+   "line": 196
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ')' but was: ','",
+   "line": 197
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ','",
+   "line": 197
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ')'",
+   "line": 197
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Extra ';', at ')'.",
+   "line": 197
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 226
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ')' but was: ','",
+   "line": 226
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ','",
+   "line": 226
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ')'",
+   "line": 226
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ')' but was: ','",
+   "line": 227
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ','",
+   "line": 227
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ')'",
+   "line": 227
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 254
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ')' but was: ','",
+   "line": 254
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ','",
+   "line": 254
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ')'",
+   "line": 254
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 280
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ')' but was: ','",
+   "line": 280
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ','",
+   "line": 280
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ')'",
+   "line": 280
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ')' but was: ','",
+   "line": 281
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ','",
+   "line": 281
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ')'",
+   "line": 281
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ')' but was: ','",
+   "line": 282
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ','",
+   "line": 282
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ')'",
+   "line": 282
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 330
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ')' but was: ','",
+   "line": 330
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ','",
+   "line": 330
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Expecting ';' but was: ')'",
+   "line": 330
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Identifier name is reserved: Integer",
+   "line": 38
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Variable does not exist: status",
+   "line": 41
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Variable does not exist: body",
+   "line": 42
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Return must be called from a method",
+   "line": 44
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "RLY_Slack_Linked_On__c, RLY_Slack_Match_Note__c,\n                                                 ^\nERROR at Row:1:Column:105\nNo such column 'RLY_Slack_Linked_By_User__c' on entity 'User'. If you are attempting to use a custom field, be sure to append the '__c' after the custom field name. Please reference your WSDL or the describe call for the appropriate names.",
+   "line": 115
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Method does not exist or incorrect signature: void header(String, String) from the type RlySlackApproversTest",
+   "line": 179
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Method does not exist or incorrect signature: void header(String, String) from the type RlySlackApproversTest",
+   "line": 197
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackApproversTest",
+   "problem": "Variable does not exist: RLY_Slack_Linked_By_User__c",
+   "line": 300
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackApproverRows : Variable does not exist: RLY_Slack_Linked_By_User__r",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackDirectory",
+   "problem": "RLY_Slack_Linked_By__c,\n                                                ^\nERROR at Row:1:Column:129\nNo such column 'RLY_Slack_Linked_By_User__c' on entity 'User'. If you are attempting to use a custom field, be sure to append the '__c' after the custom field name. Please reference your WSDL or the describe call for the appropriate names.",
+   "line": 229
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackDirectory",
+   "problem": "Field does not exist: RLY_Slack_Linked_By_User__c on User",
+   "line": 122
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackFix",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlySlackApproverRows : Variable does not exist: RLY_Slack_Linked_By_User__r",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackLink",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlySlackApproverRows : Variable does not exist: RLY_Slack_Linked_By_User__r",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackLinkTest",
+   "problem": "RLY_Slack_Member_Id__c, RLY_Slack_Linked_By__c, RLY_Slack_Linked_By_User__c FROM\n                                                ^\nERROR at Row:1:Column:56\nNo such column 'RLY_Slack_Linked_By_User__c' on entity 'User'. If you are attempting to use a custom field, be sure to append the '__c' after the custom field name. Please reference your WSDL or the describe call for the appropriate names.",
+   "line": 135
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackLinkTest",
+   "problem": "Variable does not exist: RLY_Slack_Linked_By_User__c",
+   "line": 139
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackLookup",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackMatch : Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackDelivery : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyOrgLinks : Dependent class is invalid and needs recompilation:\n Class RlyManualSteps : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOr",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackMatch",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackDelivery : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyOrgLinks : Dependent class is invalid and needs recompilation:\n Class RlyManualSteps : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOrgValidator : Dependent class is invalid and needs recompilation:\n Class Rly",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackMatchPlan",
+   "problem": "Unexpected token 'by'.",
+   "line": 63
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackMatchPlan",
+   "problem": "Unexpected token 'by'.",
+   "line": 66
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackMatchPlan",
+   "problem": "Unexpected token 'by'.",
+   "line": 66
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackPeople",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackPayload : Dependent class is invalid and needs recompilation:\n Class RlyReleaseStore : Dependent class is invalid and needs recompilation:\n Class RlyReleaseEffects : Dependent class is invalid and needs recompilation:\n Class RlyBackPromoteRun : Dependent class is invalid and needs recompilation:\n Class RlyFlowActivation : Dependent class is invalid and needs recompilation:\n Class RlyFlowResults : Dependent class is invalid and needs recompilation:\n Class RlyEvidenceText : Dependent class is invalid and needs recompilation:\n Class RlyReleaseLinks : Dependent class is invalid and needs recompilation:\n Class RlyHotfix : Dependent class is invalid and needs recompilation:\n Class",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackPress",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackLink : Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlySlackApproverRows : Variable does not exist: RLY_Slack_Linked_By_User__r",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackPresser",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackMatch : Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackDelivery : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyOrgLinks : Dependent class is invalid and needs recompilation:\n Class RlyManualSteps : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyOr",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackReason",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackLookup : Dependent class is invalid and needs recompilation:\n Class RlySlackMatch : Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackDelivery : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyOrgLinks : Dependent class is invalid and needs recompilation:\n Class RlyManualSteps : Dependent class is invalid and needs recompilation:\n Class RlyOrgC",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackRules",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlySlackApproverRows : Variable does not exist: RLY_Slack_Linked_By_User__r",
+   "line": 113
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackScopes",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackLookup : Dependent class is invalid and needs recompilation:\n Class RlySlackMatch : Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackDelivery : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyOrgLinks : Dependent class is invalid and needs recompilation:\n Class RlyManualSteps : Dependent class is invalid and needs recompilation:\n Class RlyOrgC",
+   "line": 113
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Admin",
+   "problem": "In field: field - no CustomField named User.RLY_Slack_Linked_By_User__c found"
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlySlackApprovers",
+   "problem": "Unable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlySlackApprovers",
+   "problem": "Unable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlySlackApprovers",
+   "problem": "Unable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlySlackApprovers",
+   "problem": "Unable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlySlackApprovers",
+   "problem": "Unable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlySlackApprovers",
+   "problem": "Unable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlySlackApprovers",
+   "problem": "Unable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlySlackApprovers",
+   "problem": "Unable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlySlackApprovers",
+   "problem": "Unable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlySlackApprovers",
+   "problem": "Unable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'.\nUnable to find Apex action class referenced as 'RlySlackApprovers'."
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Approver",
+   "problem": "In field: apexClass - no ApexClass named RlySlackLink found"
+  }
+ ],
+ "testFailures": [],
+ "message": "99 component error(s)",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41365307868",
+ "finishedAt": "2026-11-02T00:07:08.135Z",
+ "excluded": [],
+ "selfUpdate": true,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
+}
