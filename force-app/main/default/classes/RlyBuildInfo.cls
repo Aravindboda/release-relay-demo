@@ -1,9 +1,13 @@
 /**
  * @description "What's built" tab (a technical document of the package): what Release Relay uses in this org right now.
+ * Build 31: every method first calls RlyBuildLock.requireUnlocked() (the tab can be locked with a password); the
+ * generated document data is no longer in the page bundle but in the Document RLY_BuildData in the hidden folder
+ * RLY_Private, returned by buildData(); and every Rly / RLY component read here comes back with its name (and last
+ * change), so the tab counts only the ones in the package list carried in that data and lists the rest as extras.
  * read(): Apex size per class (the tab splits test from non-test with its own list), Release Relay record counts, the
- * org limits the hub draws on (data storage, API requests today), the hub's async Apex today (none by design), static
- * resource sizes and when the Release Relay code last changed. counts() (cacheable): the document's counts read live from
- * setup objects (Apex classes, permission sets with what each grants, custom permissions, tabs, custom fields per object,
+ * org limits the hub draws on (whole org: data storage, API requests today), the hub's async Apex today (none by
+ * design), static resource sizes and when the code last changed. counts(): the document's counts read live from setup
+ * objects (Apex classes, permission sets with what each grants, custom permissions, tabs, custom fields per object,
  * static resources); the tab falls back to its generated figures for anything not read. Read only, no callouts, no DML.
  */
 public with sharing class RlyBuildInfo {
@@ -15,11 +19,15 @@ public with sharing class RlyBuildInfo {
     private static final List<String> LIMIT_NAMES = new List<String>{ 'DataStorageMB', 'DailyApiRequests' };
     private static final String SETUP_PATTERN = 'RLY%';
     private static final Integer SETUP_ROW_CAP = 5000;
+    private static final String MISSING_DATA = 'The What\'s built data (Document RLY_BuildData in the folder RLY_Private) is not in this org. Deploy the package again.';
+    /** @description The Document (hidden folder RLY_Private) that holds the generated data. */
+    @TestVisible
+    private static String dataName = 'RLY_BuildData';
     /** @description The objects the Data model section documents (User: only its Release Relay fields count). */
     @TestVisible
     private static final List<String> DOCUMENTED_OBJECTS = new List<String>{
         'RLY_Release__c', 'RLY_Release_Item__c', 'RLY_Release_Event__c', 'RLY_Manual_Step__c', 'RLY_Manual_Step_Run__c',
-        'RLY_Org__c', 'RLY_Git_Connection__c', 'RLY_Notification__c', 'RLY_Archive_Run__c', 'User'
+        'RLY_Org__c', 'RLY_Git_Connection__c', 'RLY_Notification__c', 'RLY_Archive_Run__c', 'RLY_Lock__c', 'User'
     };
 
     /** @description The document's counts read live from setup objects; null where a count couldn't be read. */
@@ -34,6 +42,14 @@ public with sharing class RlyBuildInfo {
         @AuraEnabled public Integer tabs;
         /** @description Release Relay static resources. */
         @AuraEnabled public Integer staticResources;
+        /** @description The Rly classes found (the tab keeps the ones in the package list). */
+        @AuraEnabled public List<String> classNames = new List<String>();
+        /** @description The RLY custom permissions found. */
+        @AuraEnabled public List<String> customPermissionNames = new List<String>();
+        /** @description The RLY tabs found (null when tab definitions can't be read). */
+        @AuraEnabled public List<String> tabNames;
+        /** @description The RLY static resources found, with their size. */
+        @AuraEnabled public List<ResourceSize> resourceSizes = new List<ResourceSize>();
         /** @description Their size in bytes. */
         @AuraEnabled public Long staticResourceBytes = 0;
         /** @description Custom fields of the documented objects (on User only the RLY_ ones); null when not described. */
@@ -88,6 +104,8 @@ public with sharing class RlyBuildInfo {
         @AuraEnabled public String name;
         /** @description Characters without comments. */
         @AuraEnabled public Integer chars;
+        /** @description When it last changed (the tab lists Rly classes not in the package with it). */
+        @AuraEnabled public Datetime lastModified;
     }
 
     /** @description How many records of one Release Relay object exist. */
@@ -118,6 +136,8 @@ public with sharing class RlyBuildInfo {
         @AuraEnabled public String name;
         /** @description Size in bytes. */
         @AuraEnabled public Integer bytes;
+        /** @description When it last changed. */
+        @AuraEnabled public Datetime lastModified;
     }
 
     /**
@@ -126,12 +146,14 @@ public with sharing class RlyBuildInfo {
      */
     @AuraEnabled(cacheable=false)
     public static BuildInfo read() {
+        RlyBuildLock.requireUnlocked();
         Data data = new Data();
         BuildInfo info = new BuildInfo();
         for (ApexClass c : data.classes()) {
             ClassSize s = new ClassSize();
             s.name = c.Name;
             s.chars = c.LengthWithoutComments == null ? 0 : c.LengthWithoutComments;
+            s.lastModified = c.LastModifiedDate;
             info.apexChars += s.chars;
             info.classes.add(s);
             if (info.codeChangedOn == null || c.LastModifiedDate > info.codeChangedOn) {
@@ -146,22 +168,45 @@ public with sharing class RlyBuildInfo {
     }
 
     /**
-     * @description The document's counts, read live from setup objects (cached by the browser; Read again refreshes the
-     * rest of the tab). Anything that can't be read stays null and the tab shows its generated figure.
+     * @description The document's generated data (JSON, the shape buildData.js had, plus the package list), read from the
+     * hidden Document RLY_BuildData once this user may see the tab.
+     * @return the JSON
+     */
+    @AuraEnabled(cacheable=false)
+    public static String buildData() {
+        RlyBuildLock.requireUnlocked();
+        String body = new Data().document(dataName);
+        if (String.isBlank(body)) {
+            AuraHandledException e = new AuraHandledException(MISSING_DATA);
+            e.setMessage(MISSING_DATA);
+            throw e;
+        }
+        return body;
+    }
+
+    /**
+     * @description The document's counts, read live from setup objects (not cached: the lock is checked on every call),
+     * with the names found so the tab counts only the ones in the package list. Anything that can't be read stays null
+     * and the tab shows its generated figure.
      * @return the counts
      */
-    @AuraEnabled(cacheable=true)
+    @AuraEnabled(cacheable=false)
     public static Counts counts() {
+        RlyBuildLock.requireUnlocked();
         Setup setup = new Setup();
         Counts c = new Counts();
         c.readOn = System.now();
-        c.apexClasses = setup.apexClasses();
-        c.customPermissions = setup.customPermissions();
-        c.tabs = setup.tabs();
-        for (StaticResource r : setup.resources()) {
-            c.staticResourceBytes += r.BodyLength == null ? 0 : r.BodyLength;
+        c.classNames = setup.apexClassNames();
+        c.apexClasses = c.classNames.size();
+        c.customPermissionNames = setup.customPermissionNames();
+        c.customPermissions = c.customPermissionNames.size();
+        c.tabNames = setup.tabNames();
+        c.tabs = c.tabNames == null ? null : c.tabNames.size();
+        c.resourceSizes = new Data().resources();
+        for (ResourceSize r : c.resourceSizes) {
+            c.staticResourceBytes += r.bytes == null ? 0 : r.bytes;
         }
-        c.staticResources = setup.resources().size();
+        c.staticResources = c.resourceSizes.size();
         Map<Id, PermissionSetCount> byId = new Map<Id, PermissionSetCount>();
         for (PermissionSet p : setup.permissionSets()) {
             PermissionSetCount pc = new PermissionSetCount();
@@ -286,47 +331,46 @@ public with sharing class RlyBuildInfo {
     /** @description Setup objects (classes, permission sets and what they grant, custom permissions, tabs) are org-wide: read in system mode. */
     private without sharing class Setup {
 
-        private List<StaticResource> resourceRows;
-
         /**
-         * @description Release Relay Apex classes, tests included.
-         * @return the count
+         * @description Apex classes named Rly, tests included (the tab keeps the ones in the package list).
+         * @return their names
          */
-        public Integer apexClasses() {
-            return [SELECT COUNT() FROM ApexClass WHERE Name LIKE :CLASS_PATTERN AND NamespacePrefix = null WITH SYSTEM_MODE LIMIT :SETUP_ROW_CAP];
+        public List<String> apexClassNames() {
+            List<String> out = new List<String>();
+            for (ApexClass c : [SELECT Name FROM ApexClass WHERE Name LIKE :CLASS_PATTERN AND NamespacePrefix = null
+                                WITH SYSTEM_MODE LIMIT :SETUP_ROW_CAP]) {
+                out.add(c.Name);
+            }
+            return out;
         }
 
         /**
-         * @description Release Relay custom permissions.
-         * @return the count
+         * @description Custom permissions named RLY.
+         * @return their names
          */
-        public Integer customPermissions() {
-            return [SELECT COUNT() FROM CustomPermission WHERE DeveloperName LIKE :SETUP_PATTERN AND NamespacePrefix = null
-                    WITH SYSTEM_MODE LIMIT :SETUP_ROW_CAP];
+        public List<String> customPermissionNames() {
+            List<String> out = new List<String>();
+            for (CustomPermission p : [SELECT DeveloperName FROM CustomPermission WHERE DeveloperName LIKE :SETUP_PATTERN
+                                       AND NamespacePrefix = null WITH SYSTEM_MODE LIMIT :SETUP_ROW_CAP]) {
+                out.add(p.DeveloperName);
+            }
+            return out;
         }
 
         /**
-         * @description Release Relay tabs.
-         * @return the count, or null when tab definitions can't be read here
+         * @description Tabs named RLY.
+         * @return their names, or null when tab definitions can't be read here
          */
-        public Integer tabs() {
+        public List<String> tabNames() {
             try {
-                return [SELECT Name FROM TabDefinition WHERE Name LIKE :SETUP_PATTERN WITH SYSTEM_MODE LIMIT 200].size();
+                List<String> out = new List<String>();
+                for (TabDefinition t : [SELECT Name FROM TabDefinition WHERE Name LIKE :SETUP_PATTERN WITH SYSTEM_MODE LIMIT 200]) {
+                    out.add(t.Name);
+                }
+                return out;
             } catch (QueryException e) {
                 return null;
             }
-        }
-
-        /**
-         * @description Release Relay static resources (read once per call).
-         * @return the resources with their size
-         */
-        public List<StaticResource> resources() {
-            if (resourceRows == null) {
-                resourceRows = [SELECT Name, BodyLength FROM StaticResource WHERE Name LIKE :RESOURCE_PATTERN AND NamespacePrefix = null
-                                WITH SYSTEM_MODE ORDER BY Name LIMIT 100];
-            }
-            return resourceRows;
         }
 
         /**
@@ -363,11 +407,21 @@ public with sharing class RlyBuildInfo {
         }
     }
 
-    /** @description Apex classes, static resources, async jobs and Release Relay records are org-wide: read in system mode. */
+    /** @description Apex classes, static resources, async jobs, Release Relay records and the hidden Document are org-wide: read in system mode. */
     private without sharing class Data {
 
         /**
-         * @description The Release Relay classes with their size.
+         * @description The generated data: the body of the Document in the hidden folder (users can't open it by URL).
+         * @param developerName the Document's API name
+         * @return its text, or null when it isn't in this org
+         */
+        public String document(String developerName) {
+            List<Document> docs = [SELECT Body FROM Document WHERE DeveloperName = :developerName WITH SYSTEM_MODE LIMIT 1];
+            return docs.isEmpty() ? null : docs[0].Body.toString();
+        }
+
+        /**
+         * @description The Rly classes with their size (the tab keeps the ones in the package list).
          * @return the classes
          */
         public List<ApexClass> classes() {
@@ -397,17 +451,18 @@ public with sharing class RlyBuildInfo {
         }
 
         /**
-         * @description The Release Relay static resources with their size.
+         * @description The RLY static resources with their size and last change (the tab keeps the ones in the package list).
          * @return the resources
          */
         public List<ResourceSize> resources() {
             List<ResourceSize> out = new List<ResourceSize>();
-            for (StaticResource r : [SELECT Name, BodyLength FROM StaticResource
+            for (StaticResource r : [SELECT Name, BodyLength, LastModifiedDate FROM StaticResource
                                      WHERE Name LIKE :RESOURCE_PATTERN AND NamespacePrefix = null
                                      WITH SYSTEM_MODE ORDER BY Name LIMIT 100]) {
                 ResourceSize s = new ResourceSize();
                 s.name = r.Name;
                 s.bytes = r.BodyLength;
+                s.lastModified = r.LastModifiedDate;
                 out.add(s);
             }
             return out;

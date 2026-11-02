@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Hash__c</fullName>
+    <description>Org default row: hex SHA-256 of the salted password, fed back through SHA-256 4,096 times. Blank while the lock is off. The password itself is never stored.</description>
+    <label>Hash</label>
+    <length>64</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>
