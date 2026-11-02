@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Release__c</fullName>
+    <description>The release (or promotion) the item belongs to. Master-detail: the item follows the release&apos;s sharing and is removed with it.</description>
+    <label>Release</label>
+    <referenceTo>RLY_Release__c</referenceTo>
+    <relationshipLabel>Release Items</relationshipLabel>
+    <relationshipName>Release_Items</relationshipName>
+    <relationshipOrder>0</relationshipOrder>
+    <reparentableMasterDetail>false</reparentableMasterDetail>
+    <type>MasterDetail</type>
+    <writeRequiresMasterRead>false</writeRequiresMasterRead>
+</CustomField>

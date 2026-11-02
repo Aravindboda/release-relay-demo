@@ -17,7 +17,7 @@ import readSiteCheck from '@salesforce/apex/RlySlackSiteCheck.read';
 import saveSlack from '@salesforce/apex/RlySlackController.saveSlack';
 import sendSlackTest from '@salesforce/apex/RlySlackController.sendSlackTest';
 import testSlack from '@salesforce/apex/RlySlackController.testSlack';
-import saveSlackMember from '@salesforce/apex/RlySlackController.saveSlackMember';
+import checkSlackScopes from '@salesforce/apex/RlySlackApprovers.checkScopes';
 import getBackPromote from '@salesforce/apex/RlyRouteController.getBackPromote';
 import setBackPromote from '@salesforce/apex/RlyRouteController.setBackPromote';
 import saveBackPromoteOrg from '@salesforce/apex/RlyRouteController.saveBackPromoteOrg';
@@ -135,6 +135,15 @@ const TAB_STORE = 'rly.pipeline.orgTab';
 const BOT_TOKEN_PREFIX = 'xoxb-';
 /** Where an admin puts the Slack bot token when this org can't save it from the page. */
 const TOKEN_SETUP_URL = '/lightning/setup/NamedCredential/home';
+/** How approvers are matched to Slack (RLY_Notification__c.Slack_Match_By__c), with the grey hint under each choice. */
+const MATCH_OPTIONS = [
+    { value: 'SSO', label: 'SSO Federation ID', short: 'SSO',
+        hint: 'Recommended. Looks up each approver\'s Federation ID (their SSO sign-in, usually their work email) in Slack and saves the Slack member ID. Runs when you add approvers or press Match now.' },
+    { value: 'Email', label: 'Email', short: 'Email',
+        hint: 'Uses each approver\'s Salesforce email. Links only when exactly one approver has that email; two with the same email need you to pick.' },
+    { value: 'Manual', label: 'Manual only', short: 'Manual only',
+        hint: 'Nothing is matched automatically. Set IDs by hand, or approvers link themselves from Slack.' }
+];
 const TOKEN_SETUP_TEXT = 'Put the bot token in Setup → Named Credentials → External Credentials → RLY_Slack → Principals → Bot → Token.';
 
 function errorText(e) {
@@ -430,10 +439,14 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     editingRoute = false;
     slackAvailable = false;
     gitProviderName;
-    slack = { isAdmin: false, events: [], allEvents: [], approvers: [] };
+    slack = { isAdmin: false, events: [], allEvents: [], approverInfo: {} };
     slackBusy = false;
     slackTesting = false;
-    showApprovers = false;
+    /** The Slack approvers window (c-rly-slack-approvers) is open. */
+    approversOpen = false;
+    /** The Slack app's scopes, checked when Slack Edit opens (RlySlackApprovers.checkScopes). */
+    slackScopes;
+    slackScopesChecking = false;
     orgSlackBusyId;
     /** RlyRouteController.getPipelineFiles: the pipeline files' versions in the repository and packaged. */
     pipeFiles;
@@ -466,11 +479,10 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     ruleError;
     bpForm = { whenValue: 'Manual', approval: false };
     gitForm = blankGit();
-    slackForm = { enabled: false, signingSecret: '', botToken: '', events: [] };
+    slackForm = { enabled: false, signingSecret: '', botToken: '', events: [], matchBy: 'SSO' };
     /** What the Site's guest user still needs for Approve in Slack (RlySlackSiteCheck.read). */
     siteProblemList = [];
     slackAdvanced = false;
-    memberEdits = {};
     bpSwitch = false;
     /** saveBotToken said this org can't keep the token from the page: show the Setup path instead of the field. */
     tokenNote;
@@ -504,15 +516,12 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
 
     disconnectedCallback() {
         this.clearRetentionEdit();
+        this.retScrollTimers.forEach((t) => clearTimeout(t));
     }
 
     renderedCallback() {
-        if (this.scrollToRetention && this.showRetention) {
-            const sec = this.template.querySelector('[data-section="retention"]');
-            if (sec && sec.scrollIntoView) {
-                sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-            this.scrollToRetention = false;
+        if (this.scrollToRetention && this.retentionSettled) {
+            this.scrollRetentionSoon();
         }
         if (this.focusFiles) {
             const close = this.template.querySelector('.rr-files-close');
@@ -820,12 +829,11 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
         return [set.length + ' of ' + gates.length + ' set', ...set.map((g) => g.text), this.gatesReadText].filter((v) => !!v).join(' · ');
     }
 
+    /** Closed: "Slack on · bot token saved"; the approver part is its own link (approverLinkText) that opens the window. */
     get slackSummary() {
         return [
             'Slack ' + (this.slack.enabled ? 'on' : 'off'),
-            this.tokenSaved ? 'bot token saved' : 'no bot token yet',
-            this.approveInSlackReady ? 'Approve in Slack set up' : 'Approve in Slack not set up',
-            this.approversText + ' approvers linked'
+            this.missingScopeText || (this.tokenSaved ? 'bot token saved' : 'no bot token yet')
         ].join(' · ');
     }
 
@@ -931,8 +939,8 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
 
     // ---------- search in the long lists (build 27) ----------
 
-    /** Search text per list (values, gates, orgs, approvers), normalised. */
-    terms = { values: '', gates: '', orgs: '', approvers: '' };
+    /** Search text per list (values, gates, orgs), normalised. */
+    terms = { values: '', gates: '', orgs: '' };
 
     /** rlySearchBox above a list; data-list names the list. */
     handleListSearch(event) {
@@ -995,17 +1003,6 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     get gatesNoMatch() { return !!this.terms.gates && this.shownGateRows.length === 0; }
     get gatesNoMatchText() { return 'No gates match \u2018' + this.terms.gates + '\u2019.'; }
 
-    /** Approvers after the search (name or Slack member ID). */
-    get shownApprovers() {
-        const q = this.terms.approvers;
-        return this.approverRows.filter((a) => matchesSearch([a.name, a.memberText], q))
-            .map((a) => ({ ...a, nameParts: highlightParts(a.name, q) }));
-    }
-    get showApproverSearch() { return this.approverRows.length >= SEARCH_FROM || !!this.terms.approvers; }
-    get approversShown() { return this.shownApprovers.length; }
-    get approversTotal() { return this.approverRows.length; }
-    get approversNoMatch() { return !!this.terms.approvers && this.shownApprovers.length === 0; }
-    get approversNoMatchText() { return 'No approvers match \u2018' + this.terms.approvers + '\u2019.'; }
     get activeTabEmptyText() { return 'No orgs in ' + this.activeGroup.name + ' yet.'; }
     get activeTabId() { return this.activeGroup.tabId; }
     /** Production holds the hub alone: once it's registered, its tab has no Register tile. */
@@ -2009,7 +2006,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     // ---------- Slack connection (read-only card) ----------
 
     applySlack(sl) {
-        this.slack = sl || { isAdmin: false, events: [], allEvents: [], approvers: [] };
+        this.slack = sl || { isAdmin: false, events: [], allEvents: [], approverInfo: {} };
         this.siteProblemList = [];
         if (this.slack.actionsUrl) {
             readSiteCheck()
@@ -2028,8 +2025,14 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     /** Until Slack answers (Test), the card shows the checklist of what's done and what's next. */
     get slackNotSetUp() { return !this.slack.connected; }
     get slackConnectedView() { return !!this.slack.connected; }
-    get slackStatus() { return this.slack.status || 'Not set up'; }
+    get slackStatus() {
+        const status = this.slack.status || 'Not set up';
+        return status === 'Connected' && this.missingScopes.length ? 'Needs scope' : status;
+    }
     get slackStatusCls() {
+        if (this.slackStatus === 'Needs scope') {
+            return 'rr-pill rr-pill-wait';
+        }
         if (this.slackStatus === 'Connected') {
             return 'rr-pill rr-pill-ok';
         }
@@ -2043,7 +2046,19 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     }
     get slackSecretPlaceholder() { return this.slack.signingSecretHint ? this.slack.signingSecretHint + '. Leave blank to keep it.' : 'From Slack → Basic Information → Signing Secret'; }
     get approversText() { return (this.slack.approversLinked || 0) + ' of ' + (this.slack.approversTotal || 0); }
-    get approversToggleLabel() { return this.showApprovers ? 'Hide approvers' : 'Show approvers'; }
+    get approverInfo() { return this.slack.approverInfo || {}; }
+    get matchByValue() { return this.approverInfo.matchBy || 'SSO'; }
+    get missingScopes() { return this.approverInfo.missingScopes || []; }
+    get missingScopeText() { return this.missingScopes.length ? 'Slack app is missing ' + this.missingScopes.join(', ') : ''; }
+    /** "Approvers 57 of 60 linked (SSO) · 3 need attention ›" (board HubSlackApprovers 1). */
+    get approverLinkText() {
+        const opt = MATCH_OPTIONS.find((o) => o.value === this.matchByValue);
+        const how = this.missingScopes.length ? '' : ' (' + (opt ? opt.short : this.matchByValue) + ')';
+        const attention = this.approverInfo.attention || 0;
+        return 'Approvers ' + this.approversText + ' linked' + how
+            + (attention && !this.missingScopes.length ? ' · ' + attention + (attention === 1 ? ' needs' : ' need') + ' attention' : '') + ' \u203a';
+    }
+    get showApproverLink() { return this.showSlack && !!this.slack.connected; }
 
     /** What the Slack connection card shows, as text. */
     get slackFacts() {
@@ -2054,7 +2069,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
             fact('tok', 'Bot token', this.tokenSaved ? 'Saved · kept by Salesforce, never shown' : '', { empty: 'Not saved yet', hint: this.tokenSavedText }),
             fact('ev', 'Send a message when a release is', events.join(' · '), { empty: 'No events', wide: true }),
             fact('site', 'Approve in Slack', this.approveInSlackReady ? 'Set up' : '', { empty: this.siteProblemText ? 'Not ready' : 'Not set up (optional)', hint: this.siteProblemText || this.slackSecretText }),
-            fact('ap', 'Approvers linked', this.approversText)
+            fact('ap', 'Approvers', this.approverLinkText.replace(' \u203a', ''), { hint: 'Add, remove and link approvers in the Approvers window.' })
         ];
     }
 
@@ -2088,21 +2103,6 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
         });
     }
 
-    get approverRows() {
-        return (this.slack.approvers || []).map((a) => {
-            const edited = this.memberEdits[a.userId];
-            const memberId = edited !== undefined ? edited : (a.slackMemberId || '');
-            return {
-                ...a,
-                memberId,
-                memberText: a.slackMemberId || 'Not linked',
-                linked: !!a.slackMemberId,
-                inputLabel: 'Slack member ID for ' + a.name
-            };
-        });
-    }
-    get hasApprovers() { return this.approverRows.length > 0; }
-    get noApprovers() { return this.approverRows.length === 0; }
     get slackEventOptions() { return (this.slack.allEvents || []).map((e) => ({ label: e, value: e })); }
     get slackLastText() {
         if (!this.slack.lastResult) {
@@ -2114,8 +2114,23 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     }
     get slackLastCls() { return (this.slack.lastResult || '').startsWith('Failed') ? 'rr-msg rr-msg-bad rr-pad' : 'rr-msg rr-msg-info rr-pad'; }
 
-    toggleApprovers() {
-        this.showApprovers = !this.showApprovers;
+    /** Opens the Slack approvers window (from the summary line, the card, or Edit). */
+    openApprovers(event) {
+        if (event) {
+            event.stopPropagation();
+        }
+        this.approversOpen = true;
+    }
+
+    closeApprovers() {
+        this.approversOpen = false;
+    }
+
+    /** Something was saved in the window: the line's counts are read again. */
+    handleApproversChanged() {
+        getSlack()
+            .then((sl) => this.applySlack(sl))
+            .catch(() => null);
     }
 
     handleSlackConnTest() {
@@ -2265,7 +2280,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
         this.editOrg = undefined;
         this.flowOrgId = undefined;
         this.slackAdvanced = false;
-        this.showApprovers = false;
+        this.slackScopes = undefined;
     }
 
     /** Cancel (and Escape): in the org window, asks first when something typed would be lost. */
@@ -2719,11 +2734,66 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
         if (this.editLocked) {
             return;
         }
-        this.slackForm = { enabled: !!this.slack.enabled, signingSecret: '', botToken: '', events: [...(this.slack.events || [])] };
-        this.memberEdits = {};
+        this.slackForm = { enabled: !!this.slack.enabled, signingSecret: '', botToken: '', events: [...(this.slack.events || [])], matchBy: this.matchByValue };
         this.slackAdvanced = false;
-        this.showApprovers = false;
         this.startEdit('slack');
+        this.runScopeCheck();
+    }
+
+    /** One auth.test call: Slack sends the bot token's scopes in x-oauth-scopes. */
+    runScopeCheck() {
+        if (!this.slack.connected) {
+            this.slackScopes = undefined;
+            return Promise.resolve();
+        }
+        this.slackScopesChecking = true;
+        return checkSlackScopes()
+            .then((sc) => {
+                this.slackScopes = sc;
+            })
+            .catch(() => {
+                this.slackScopes = undefined;
+            })
+            .finally(() => {
+                this.slackScopesChecking = false;
+            });
+    }
+
+    // ----- Approvers block of Slack Edit (board HubSlackApprovers 2) -----
+
+    get matchOptions() { return MATCH_OPTIONS.map((o) => ({ value: o.value, label: o.label })); }
+    get matchHint() {
+        const opt = MATCH_OPTIONS.find((o) => o.value === this.slackForm.matchBy) || MATCH_OPTIONS[0];
+        return opt.hint;
+    }
+    get scopeItems() {
+        const items = (this.slackScopes && this.slackScopes.items) || [];
+        return items.map((i) => ({ key: i.name, name: i.name, ok: i.ok, cls: i.ok ? 'rr-scope rr-scope-ok' : 'rr-scope rr-scope-bad', mark: i.ok ? '\u2713' : '\u2715' }));
+    }
+    get hasScopeItems() { return this.scopeItems.length > 0; }
+    get scopeMissingText() { return this.slackScopes ? this.slackScopes.missingText || '' : ''; }
+    get scopeProblemText() { return this.slackScopes ? this.slackScopes.problem || '' : ''; }
+    get scopeCheckedText() {
+        if (this.slackScopesChecking) {
+            return 'Checking the bot token\'s scopes…';
+        }
+        const at = this.slackScopes && this.slackScopes.checkedOn;
+        return at ? 'Checked ' + new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' from the bot token\'s scopes' : '';
+    }
+    get scopeHowText() {
+        return 'api.slack.com/apps → your app → OAuth & Permissions → Bot Token Scopes → Add users:read and users:read.email → Reinstall to Workspace. If Slack shows a new bot token, paste it above.';
+    }
+    get matchChangedNote() {
+        return this.slackForm.matchBy !== this.matchByValue ? 'Changing the match method doesn\'t change saved links. Press Match now to apply it.' : '';
+    }
+    get editApproversText() { return 'Approvers ' + this.approversText + ' linked'; }
+
+    handleMatchBy(event) {
+        this.slackForm = { ...this.slackForm, matchBy: event.detail.value };
+    }
+
+    handleScopeRecheck() {
+        this.runScopeCheck();
     }
 
     /** The bot token field's grey hint: the saved token's masked end, or an example. */
@@ -2745,7 +2815,6 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     get tokenSetupUrl() { return TOKEN_SETUP_URL; }
     get slackAdvancedIcon() { return this.slackAdvanced ? 'utility:chevrondown' : 'utility:chevronright'; }
     get slackAdvancedExpanded() { return this.slackAdvanced ? 'true' : 'false'; }
-    get linkApproversLabel() { return this.showApprovers ? 'Hide Slack member IDs' : 'Link Slack member IDs'; }
     get hasActionsUrl() { return !!this.slack.actionsUrl; }
 
     toggleSlackAdvanced() {
@@ -2772,10 +2841,6 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
 
     handleSlackEvents(event) {
         this.slackForm = { ...this.slackForm, events: event.detail.value };
-    }
-
-    handleMemberInput(event) {
-        this.memberEdits = { ...this.memberEdits, [event.target.dataset.id]: event.target.value };
     }
 
     handleCopyUrl() {
@@ -2809,7 +2874,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
             });
     }
 
-    /** Saves the bot token (when one was pasted), the Slack settings, each changed approver member ID; then tests Slack. */
+    /** Saves the bot token (when one was pasted) and the Slack settings (match setting included); then tests Slack. */
     saveSlackEdit() {
         const secret = (this.slackForm.signingSecret || '').trim();
         const token = (this.slackForm.botToken || '').trim();
@@ -2821,10 +2886,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
             this.editError = 'A bot token starts with xoxb- and has no spaces: copy the Bot User OAuth Token again (Slack app → OAuth & Permissions).';
             return;
         }
-        const settings = { enabled: this.slackForm.enabled, events: this.slackForm.events, signingSecret: secret };
-        const members = (this.slack.approvers || [])
-            .filter((a) => this.memberEdits[a.userId] !== undefined && this.memberEdits[a.userId].trim() !== (a.slackMemberId || ''))
-            .map((a) => ({ userId: a.userId, memberId: this.memberEdits[a.userId].trim() }));
+        const settings = { enabled: this.slackForm.enabled, events: this.slackForm.events, signingSecret: secret, matchBy: this.slackForm.matchBy };
         const enabled = this.slackForm.enabled;
         let tokenKept = true;
         this.saving = true;
@@ -2836,11 +2898,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
             })
             .then((sl) => {
                 this.applySlack(sl);
-                return members.reduce((p, m) => p.then(() => saveSlackMember(m)).then((s2) => this.applySlack(s2)), Promise.resolve());
-            })
-            .then(() => {
                 this.saving = false;
-                this.memberEdits = {};
                 this.endEdit();
                 if (tokenKept) {
                     this.toast('Slack settings saved', 'success');
@@ -2902,17 +2960,47 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     retNightlyError;
     retTimer;
     retSeq = 0;
-    /** Opened from the Archive tab's "Open Pipeline › Retention": scroll to the section once it shows. */
+    /** Opened from the Archive tab's "Open Pipeline › Retention": scroll to the section once the page has loaded. */
     scrollToRetention = false;
+    /** readRetention answered (or failed) at least once. */
+    retentionRead = false;
+    retScrollTimers = [];
 
-    /** ?c__section=retention (Archive tab links) opens the Retention section and scrolls to it. */
+    /**
+     * ?c__section=retention (Archive tab links) opens the Retention section and scrolls to it once the page data and
+     * Retention are loaded (scrolling earlier lands at the top: the sections above it fill in afterwards). When the tab
+     * was already open (Lightning keeps it), nothing re-renders, so the scroll is started here.
+     */
     @wire(CurrentPageReference)
     setPageRef(ref) {
         const sec = ref && ref.state ? ref.state.c__section : undefined;
         if (sec === RETENTION) {
             this.folds = { ...this.folds, [RETENTION]: true };
             this.scrollToRetention = true;
+            if (this.retentionSettled) {
+                this.scrollRetentionSoon();
+            }
         }
+    }
+
+    /** The page's data and Retention are both in: the layout above Retention won't jump any more. */
+    get retentionSettled() { return this.pageLoaded && !this.loading && this.retentionRead; }
+
+    /** Scrolls to Retention after this render, and once more after late parts (repository settings) have drawn. */
+    scrollRetentionSoon() {
+        this.scrollToRetention = false;
+        if (!this.showRetention) {
+            return;
+        }
+        this.retScrollTimers.forEach((t) => clearTimeout(t));
+        this.retScrollTimers = [300, 1200].map((ms) =>
+            // eslint-disable-next-line @lwc/lwc/no-async-operation
+            setTimeout(() => {
+                const sec = this.template.querySelector('[data-section="retention"]');
+                if (sec && sec.scrollIntoView) {
+                    sec.scrollIntoView({ behavior: ms === 300 ? 'smooth' : 'auto', block: 'start' });
+                }
+            }, ms));
     }
 
     loadRetention() {
@@ -2924,6 +3012,9 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
             .catch((e) => {
                 this.retention = undefined;
                 this.retentionError = errorText(e);
+            })
+            .finally(() => {
+                this.retentionRead = true;
             });
     }
 

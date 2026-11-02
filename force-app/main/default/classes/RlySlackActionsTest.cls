@@ -120,8 +120,8 @@ private class RlySlackActionsTest {
             send(button(RlySlackCard.APPROVE_ACTION, rel.Id, 'U0OTHER9'), 0, 'body');
             Test.stopTest();
             String whisper = mock.bodyFor('chat.postEphemeral');
-            System.assert(whisper != null && whisper.contains('You can\'t approve ' + rel.Name), 'Ephemeral: ' + mock.callLog());
-            System.assert(whisper.contains('link your Slack account in ' + System.Label.RLY_App_Name + ' → Pipeline'), whisper);
+            System.assert(whisper != null && whisper.contains(RlySlackPress.notLinkedText('Approve')), 'Ephemeral: ' + mock.callLog());
+            System.assert(whisper.contains('Link my account') && whisper.contains('RLY_Slack_Link') && whisper.contains('c__t=U0OTHER9.'), whisper);
             System.assertEquals('Ready for approval', RlyReleaseTestData.reload(rel.Id).Status__c, 'Not approved');
         }
     }
