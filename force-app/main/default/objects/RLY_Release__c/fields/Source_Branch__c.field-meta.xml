@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Source_Branch__c</fullName>
+    <description>The Git branch the release raises from: the release branch made by the pipeline, or for a promotion or back promote sync the branch of the stage it starts from.</description>
+    <label>Source Branch</label>
+    <length>120</length>
+    <required>false</required>
+    <type>Text</type>
+</CustomField>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Description__c</fullName>
+    <description>What the release changes, in the developer&apos;s words (promotions and back promote syncs fill it themselves). Goes into the pull request and the evidence.</description>
+    <label>Description</label>
+    <length>5000</length>
+    <type>LongTextArea</type>
+    <visibleLines>6</visibleLines>
+</CustomField>

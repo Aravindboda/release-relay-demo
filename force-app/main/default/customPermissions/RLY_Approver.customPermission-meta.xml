@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomPermission xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Approve or reject releases (in Salesforce, Slack or the Git provider), bypass a blocking code scan, promote, and view the Archive tab. Approving merges the pull request and deploys to the target org.</description>
+    <isLicensed>false</isLicensed>
+    <label>Release Relay Approver</label>
+</CustomPermission>

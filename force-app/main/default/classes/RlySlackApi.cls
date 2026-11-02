@@ -4,6 +4,8 @@
  * SlackException with Slack's error code; NOT_SET_UP means the credential isn't usable yet. When Slack says it is busy
  * (HTTP 429, or the error ratelimited) the call throws RATE_LIMITED and every later call in the same transaction throws it
  * too, without calling Slack: nothing is retried until the next change, which edits the card to its full current state.
+ * Read methods (users.lookupByEmail, users.info) go as GET with query parameters (Slack takes no JSON body for them).
+ * Every answer keeps the bot token's scopes (x-oauth-scopes header) and a 429's Retry-After for the caller.
  */
 public with sharing class RlySlackApi {
 
@@ -17,8 +19,14 @@ public with sharing class RlySlackApi {
     /** @description The result kept for Last_Result__c when Slack is busy. */
     public static final String BUSY_RESULT = 'Slack is busy; the card catches up on the next change.';
 
+    /** @description Seconds to wait when Slack is busy and gives no Retry-After. */
+    public static final Integer DEFAULT_RETRY_SECONDS = 30;
+
     private static final Integer TIMEOUT_MS = 10000;
     private static final Integer TOO_MANY_REQUESTS = 429;
+    // The bot token's scopes (x-oauth-scopes) from the last answer, and Slack's Retry-After from the last 429.
+    @TestVisible private static String lastScopes;
+    @TestVisible private static Integer lastRetryAfter;
 
     // Slack said it is busy in this transaction: no more calls until the next one.
     @TestVisible private static Boolean busy = false;
@@ -43,6 +51,47 @@ public with sharing class RlySlackApi {
         req.setTimeout(TIMEOUT_MS);
         req.setHeader('Content-Type', 'application/json; charset=utf-8');
         req.setBody(JSON.serialize(body));
+        return send(req, method);
+    }
+
+    /**
+     * @description Calls a read method (GET with query parameters), for example users.lookupByEmail.
+     * @param method the Web API method
+     * @param params the arguments
+     * @return Slack's answer (ok is true)
+     */
+    public static Map<String, Object> read(String method, Map<String, String> params) {
+        if (busy) {
+            throw new SlackException(RATE_LIMITED + ' (' + method + ': not sent, Slack is busy)');
+        }
+        List<String> query = new List<String>();
+        for (String key : params.keySet()) {
+            query.add(key + '=' + EncodingUtil.urlEncode(params.get(key) == null ? '' : params.get(key), 'UTF-8'));
+        }
+        HttpRequest req = new HttpRequest();
+        req.setMethod('GET');
+        req.setEndpoint('callout:' + NAMED_CREDENTIAL + '/' + method + (query.isEmpty() ? '' : '?' + String.join(query, '&')));
+        req.setTimeout(TIMEOUT_MS);
+        return send(req, method);
+    }
+
+    /**
+     * @description The bot token's scopes as Slack sent them on the last answer (x-oauth-scopes), or null.
+     * @return the scopes, comma separated
+     */
+    public static String scopes() {
+        return lastScopes;
+    }
+
+    /**
+     * @description How long Slack asked to wait after the last 429 (Retry-After), in seconds.
+     * @return the seconds (DEFAULT_RETRY_SECONDS when Slack gave none)
+     */
+    public static Integer retryAfterSeconds() {
+        return lastRetryAfter == null || lastRetryAfter < 1 ? DEFAULT_RETRY_SECONDS : lastRetryAfter;
+    }
+
+    private static Map<String, Object> send(HttpRequest req, String method) {
         HttpResponse res;
         try {
             res = new Http().send(req);
@@ -53,9 +102,10 @@ public with sharing class RlySlackApi {
     }
 
     private static Map<String, Object> answer(HttpResponse res, String method) {
+        String scopeHeader = header(res, 'x-oauth-scopes');
+        lastScopes = scopeHeader == null ? lastScopes : scopeHeader;
         if (res.getStatusCode() == TOO_MANY_REQUESTS) {
-            busy = true;
-            throw new SlackException(RATE_LIMITED + ' (' + method + ')');
+            tooMany(res, method);
         }
         Map<String, Object> parsed;
         try {
@@ -68,6 +118,34 @@ public with sharing class RlySlackApi {
             throw new SlackException(String.valueOf(parsed.get('error')) + ' (' + method + ')');
         }
         return parsed;
+    }
+
+    // HTTP 429: no more calls in this transaction; keep Slack's Retry-After for the page.
+    private static void tooMany(HttpResponse res, String method) {
+        busy = true;
+        String wait = header(res, 'Retry-After');
+        lastRetryAfter = wait != null && wait.trim().isNumeric() ? Integer.valueOf(wait.trim()) : null;
+        throw new SlackException(RATE_LIMITED + ' (' + method + ')');
+    }
+
+    // A response header, whatever its case.
+    private static String header(HttpResponse res, String name) {
+        for (String key : res.getHeaderKeys() == null ? new List<String>() : res.getHeaderKeys()) {
+            if (key != null && key.equalsIgnoreCase(name)) {
+                return res.getHeader(key);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @description Slack's error code of a failure (the first word of its message), lower case.
+     * @param e the failure
+     * @return the code, or an empty string
+     */
+    public static String code(Exception e) {
+        String m = e == null || e.getMessage() == null ? '' : e.getMessage();
+        return m.substringBefore(' ').removeEnd(':').toLowerCase();
     }
 
     /**

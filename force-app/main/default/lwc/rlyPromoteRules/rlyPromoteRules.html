@@ -1,0 +1,194 @@
+<template>
+    <!-- Promote tab: the "How promoting works" side panel for one card (board HubPromoteRules, 2) -->
+    <template lwc:if={isPanel}>
+        <section class="rp-panel" aria-labelledby="rp-panel-head" onkeydown={handleKey}>
+            <div class="rp-pnh">
+                <div class="rp-grow">
+                    <p class="rp-k">{routeText}</p>
+                    <h2 class="rp-h2" id="rp-panel-head" tabindex="-1">How promoting works</h2>
+                </div>
+                <lightning-button-icon icon-name="utility:close" variant="bare" size="medium" alternative-text="Close" title="Close" onclick={close}></lightning-button-icon>
+            </div>
+            <div class="rp-pnb">
+                <ol class="rp-rmini" aria-label="The route">
+                    <template for:each={routeItems} for:item="it">
+                        <li key={it.key} class={it.cls}>
+                            <template lwc:if={it.isHop}><span class="rp-rma-lab">{it.label}</span><span aria-hidden="true">→</span></template>
+                            <template lwc:else><span>{it.label}</span></template>
+                        </li>
+                    </template>
+                </ol>
+                <p class="rp-big"><strong>{bigLead}</strong>{bigTail}</p>
+                <p class="rp-exn">Example: REL-00018 and REL-00019 both change <span class="rp-mono">AccountService</span>.</p>
+                <ol class="rp-prl">
+                    <li class="rp-pr">
+                        <div class="rp-prh"><span class="rp-ic rp-ic-r" aria-hidden="true">!</span><strong>Hotfix first</strong></div>
+                        <p class="rp-k2">Hotfixes are listed first and can be promoted alone.</p>
+                        <div class="rp-ba">
+                            <div class="rp-bcol"><p class="rp-bl">You tick</p><span class="rp-mc rp-mc-on"><span class="rp-cb rp-cb-on" aria-hidden="true"></span><b>REL-00021</b></span><span class="rp-pill rp-pill-bad">Hotfix</span></div>
+                            <span class="rp-barr" aria-hidden="true">→</span>
+                            <div class="rp-bcol"><p class="rp-bl">{goesLabel}</p><span class="rp-mc rp-mc-go"><b>REL-00021</b></span><span class="rp-k3">{hotfixButton}</span></div>
+                        </div>
+                    </li>
+                    <li class="rp-pr">
+                        <div class="rp-prh"><span class="rp-ic rp-ic-b" aria-hidden="true">+</span><strong>Goes too</strong></div>
+                        <p class="rp-k2">An older release that changed the same component goes too.</p>
+                        <div class="rp-ba">
+                            <div class="rp-bcol"><p class="rp-bl">You tick</p><span class="rp-mc rp-mc-on"><span class="rp-cb rp-cb-on" aria-hidden="true"></span><b>REL-00019</b><i>AccountService</i></span></div>
+                            <span class="rp-barr" aria-hidden="true">→</span>
+                            <div class="rp-bcol"><p class="rp-bl">{goesLabel}</p><span class="rp-mc rp-mc-go"><b>REL-00019</b></span><span class="rp-mc rp-mc-car"><span class="rp-cb rp-cb-car" aria-hidden="true"></span><b>REL-00018</b><i>older · same component</i></span></div>
+                        </div>
+                    </li>
+                    <li class="rp-pr">
+                        <div class="rp-prh"><span class="rp-ic rp-ic-r" aria-hidden="true">×</span><strong>Must add</strong></div>
+                        <p class="rp-k2">A newer release that changed the same component must be added, or Promote stays grey.</p>
+                        <div class="rp-ba">
+                            <div class="rp-bcol"><p class="rp-bl">You tick</p><span class="rp-mc rp-mc-on"><span class="rp-cb rp-cb-on" aria-hidden="true"></span><b>REL-00018</b><i>AccountService</i></span></div>
+                            <span class="rp-barr" aria-hidden="true">→</span>
+                            <div class="rp-bcol"><p class="rp-bl">Blocked until</p><span class="rp-mc rp-mc-blk"><b>REL-00019</b><i>newer · same component</i></span><span class="rp-chip">+ Add REL-00019</span></div>
+                        </div>
+                    </li>
+                    <li class="rp-pr">
+                        <div class="rp-prh"><span class="rp-ic rp-ic-n" aria-hidden="true">–</span><strong>{staysTitle}</strong></div>
+                        <p class="rp-k2">Releases you don't tick that share nothing stay for later.</p>
+                        <div class="rp-ba">
+                            <div class="rp-bcol"><p class="rp-bl">You tick</p><span class="rp-mc rp-mc-on"><span class="rp-cb rp-cb-on" aria-hidden="true"></span><b>REL-00019</b><i>AccountService</i></span></div>
+                            <span class="rp-barr" aria-hidden="true">→</span>
+                            <div class="rp-bcol"><p class="rp-bl">{goesLabel}</p><span class="rp-mc rp-mc-go"><b>REL-00019</b></span><span class="rp-mc rp-mc-stay"><b>REL-00020</b><i>CaseListView · stays</i></span></div>
+                        </div>
+                    </li>
+                </ol>
+                <p class="rp-k2 rp-pfoot">Ticking creates <strong>one promotion</strong>{footTail}</p>
+            </div>
+            <div class="rp-pnf">
+                <button type="button" class="rp-linkbtn" onclick={openGuide}>Full guide ›</button>
+            </div>
+        </section>
+    </template>
+
+    <!-- Guide › How a change moves: the four rules, each drawn with two releases on the same component -->
+    <template lwc:if={isRules}>
+        <div class="rp-tiles">
+            <div class="rp-tile">
+                <div class="rp-prh"><span class="rp-ic rp-ic-r" aria-hidden="true">!</span><strong>Hotfix first</strong></div>
+                <p class="rp-k2"><strong>Hotfixes are listed first and can be promoted alone.</strong></p>
+                        <svg class="rp-svg" viewBox="0 0 340 142" role="img" aria-label={hotAria}>
+                        <text x="8" y="14" font-size="11" fill="#5C5C5C">Order on the card: hotfixes first</text>
+                        <text x="294" y="14" font-size="11" fill="#5C5C5C" text-anchor="middle">next stop</text>
+                        <rect x="8" y="30" width="112" height="78" rx="4" fill="#F2F7FE" stroke="#0176D3" stroke-width="1.5"></rect><rect x="17" y="40" width="13" height="13" rx="2" fill="#0176D3"></rect><path d="M20 46.5 l2.6 2.6 l4.6 -5" fill="none" stroke="#FFFFFF" stroke-width="1.8"></path><text x="37" y="51" font-size="12" font-weight="700" fill="#181818">REL-00021</text><rect x="17" y="60" width="40" height="14" rx="7" fill="#FEDED8"></rect><text x="37" y="70.5" font-size="9.5" font-weight="700" fill="#8E030F" text-anchor="middle">Hotfix</text><text x="62" y="71" font-size="10.5" fill="#5C5C5C">Oct 30</text><rect x="16" y="80" width="96" height="19" rx="9.5" fill="#F3F3F3"></rect><text x="64" y="93" font-size="10.5" fill="#444444" text-anchor="middle">LoginController</text>
+                        <rect x="128" y="30" width="112" height="78" rx="4" fill="#FFFFFF" stroke="#C9C9C9" stroke-width="1.5"></rect><rect x="137" y="40" width="13" height="13" rx="2" fill="#FFFFFF" stroke="#AEAEAE"></rect><text x="157" y="51" font-size="12" font-weight="700" fill="#5C5C5C">REL-00018</text><text x="137" y="71" font-size="10.5" fill="#5C5C5C">{fromName} · Oct 27</text><rect x="136" y="80" width="96" height="19" rx="9.5" fill="#F3F3F3"></rect><text x="184" y="93" font-size="10.5" fill="#444444" text-anchor="middle">AccountService</text>
+                        <path d="M64 108V118H294V115" fill="none" stroke="#0176D3" stroke-width="1.5"></path><path d="M294 108.5L290.5 115.5H297.5Z" fill="#0176D3"></path>
+                        <text x="64" y="134" font-size="11.5" font-weight="700" fill="#0176D3" text-anchor="middle">✓ Ticked alone</text>
+                        <text x="184" y="134" font-size="11.5" font-weight="700" fill="#5C5C5C" text-anchor="middle">{staysTitle}</text>
+                        <rect x="254" y="30" width="80" height="78" rx="4" fill="#EBF7E6" stroke="#2E844A" stroke-width="1.5"></rect><text x="294" y="49" font-size="12" font-weight="700" fill="#181818" text-anchor="middle">{toName}</text><text x="294" y="67" font-size="10.5" fill="#2E844A" text-anchor="middle" font-weight="700">REL-00021</text><text x="294" y="81" font-size="10.5" fill="#2E844A" text-anchor="middle" font-weight="700">alone</text>
+                        </svg>
+                <p class="rp-k2">Tick only <strong>REL-00021</strong>: the button reads <strong>{hotfixButton}</strong>. Other work waiting in {fromName} isn't included. An older release that changed the same component still goes with it.</p>
+            </div>
+            <div class="rp-tile">
+                <div class="rp-prh"><span class="rp-ic rp-ic-b" aria-hidden="true">+</span><strong>Goes too</strong></div>
+                <p class="rp-k2"><strong>An older release that changed the same component goes too.</strong></p>
+                        <svg class="rp-svg" viewBox="0 0 340 142" role="img" aria-label={goesAria}>
+                        <text x="8" y="14" font-size="11" fill="#5C5C5C">Deployed to {fromName}: older  →  newer</text>
+                        <text x="294" y="14" font-size="11" fill="#5C5C5C" text-anchor="middle">next stop</text>
+                        <rect x="8" y="30" width="112" height="78" rx="4" fill="#F7FBFF" stroke="#0176D3" stroke-width="1.5" stroke-dasharray="4 3"></rect><rect x="17" y="40" width="13" height="13" rx="2" fill="#FFFFFF" stroke="#0176D3" stroke-dasharray="2.5 2"></rect><text x="37" y="51" font-size="12" font-weight="700" fill="#181818">REL-00018</text><text x="17" y="71" font-size="10.5" fill="#5C5C5C">{fromName} · Oct 27</text><rect x="16" y="80" width="96" height="19" rx="9.5" fill="#F3F3F3"></rect><text x="64" y="93" font-size="10.5" fill="#444444" text-anchor="middle">AccountService</text>
+                        <rect x="128" y="30" width="112" height="78" rx="4" fill="#F2F7FE" stroke="#0176D3" stroke-width="1.5"></rect><rect x="137" y="40" width="13" height="13" rx="2" fill="#0176D3"></rect><path d="M140 46.5 l2.6 2.6 l4.6 -5" fill="none" stroke="#FFFFFF" stroke-width="1.8"></path><text x="157" y="51" font-size="12" font-weight="700" fill="#181818">REL-00019</text><text x="137" y="71" font-size="10.5" fill="#5C5C5C">{fromName} · Oct 28</text><rect x="136" y="80" width="96" height="19" rx="9.5" fill="#F3F3F3"></rect><text x="184" y="93" font-size="10.5" fill="#444444" text-anchor="middle">AccountService</text>
+                        <path d="M64 108V118H294V115" fill="none" stroke="#0176D3" stroke-width="1.5" stroke-dasharray="4 3"></path><path d="M294 108.5L290.5 115.5H297.5Z" fill="#0176D3"></path>
+                        <path d="M240 69H247" fill="none" stroke="#0176D3" stroke-width="1.5"></path><path d="M253.5 69L246.5 65.5V72.5Z" fill="#0176D3"></path>
+                        <text x="64" y="134" font-size="11.5" font-weight="700" fill="#0B5CAB" text-anchor="middle">Goes too</text>
+                        <text x="184" y="134" font-size="11.5" font-weight="700" fill="#0176D3" text-anchor="middle">✓ Ticked</text>
+                        <rect x="254" y="30" width="80" height="78" rx="4" fill="#EBF7E6" stroke="#2E844A" stroke-width="1.5"></rect><text x="294" y="49" font-size="12" font-weight="700" fill="#181818" text-anchor="middle">{toName}</text><text x="294" y="67" font-size="10.5" fill="#2E844A" text-anchor="middle" font-weight="700">REL-00019</text><text x="294" y="81" font-size="10.5" fill="#2E844A" text-anchor="middle" font-weight="700">+ REL-00018</text>
+                        </svg>
+                <p class="rp-k2"><strong>REL-00018</strong> and <strong>REL-00019</strong> both change <span class="rp-mono">AccountService</span>. Tick REL-00019: {toName} gets {fromName}'s AccountService, which already has REL-00018's change, so <strong>REL-00018 goes too</strong> (dashed box, "Goes with REL-00019").</p>
+            </div>
+            <div class="rp-tile">
+                <div class="rp-prh"><span class="rp-ic rp-ic-r" aria-hidden="true">×</span><strong>Must add</strong></div>
+                <p class="rp-k2"><strong>A newer release that changed the same component must be added.</strong></p>
+                        <svg class="rp-svg" viewBox="0 0 340 142" role="img" aria-label={mustAria}>
+                        <text x="8" y="14" font-size="11" fill="#5C5C5C">Deployed to {fromName}: older  →  newer</text>
+                        <text x="294" y="14" font-size="11" fill="#5C5C5C" text-anchor="middle">next stop</text>
+                        <rect x="8" y="30" width="112" height="78" rx="4" fill="#F2F7FE" stroke="#0176D3" stroke-width="1.5"></rect><rect x="17" y="40" width="13" height="13" rx="2" fill="#0176D3"></rect><path d="M20 46.5 l2.6 2.6 l4.6 -5" fill="none" stroke="#FFFFFF" stroke-width="1.8"></path><text x="37" y="51" font-size="12" font-weight="700" fill="#181818">REL-00018</text><text x="17" y="71" font-size="10.5" fill="#5C5C5C">{fromName} · Oct 27</text><rect x="16" y="80" width="96" height="19" rx="9.5" fill="#F3F3F3"></rect><text x="64" y="93" font-size="10.5" fill="#444444" text-anchor="middle">AccountService</text>
+                        <rect x="128" y="30" width="112" height="78" rx="4" fill="#FEF1EE" stroke="#BA0517" stroke-width="1.5"></rect><rect x="137" y="40" width="13" height="13" rx="2" fill="#FFFFFF" stroke="#BA0517"></rect><text x="157" y="51" font-size="12" font-weight="700" fill="#181818">REL-00019</text><text x="137" y="71" font-size="10.5" fill="#5C5C5C">{fromName} · Oct 28</text><rect x="136" y="80" width="96" height="19" rx="9.5" fill="#F3F3F3"></rect><text x="184" y="93" font-size="10.5" fill="#444444" text-anchor="middle">AccountService</text>
+                        <path d="M64 108V118H282" fill="none" stroke="#BA0517" stroke-width="1.5"></path>
+                        <path d="M285 113l9 10M294 113l-9 10" stroke="#BA0517" stroke-width="2"></path>
+                        <text x="64" y="134" font-size="11.5" font-weight="700" fill="#0176D3" text-anchor="middle">✓ Ticked</text>
+                        <text x="184" y="134" font-size="11.5" font-weight="700" fill="#BA0517" text-anchor="middle">Must add</text>
+                        <rect x="254" y="30" width="80" height="78" rx="4" fill="#F3F3F3" stroke="#AEAEAE" stroke-width="1.5" stroke-dasharray="4 3"></rect><text x="294" y="49" font-size="12" font-weight="700" fill="#181818" text-anchor="middle">{toName}</text><text x="294" y="67" font-size="10.5" fill="#5C5C5C" text-anchor="middle">Promote</text><text x="294" y="81" font-size="10.5" fill="#5C5C5C" text-anchor="middle">stays grey</text>
+                        </svg>
+                <p class="rp-k2">Tick only <strong>REL-00018</strong>: {fromName}'s AccountService already has REL-00019's later change, so it can't go without it. The row turns red, <strong>+ Add REL-00019</strong> ticks it, and Promote stays grey until then.</p>
+            </div>
+            <div class="rp-tile">
+                <div class="rp-prh"><span class="rp-ic rp-ic-n" aria-hidden="true">–</span><strong>{staysTitle}</strong></div>
+                <p class="rp-k2"><strong>Releases you don't tick stay for later.</strong></p>
+                        <svg class="rp-svg" viewBox="0 0 340 142" role="img" aria-label={stayAria}>
+                        <text x="8" y="14" font-size="11" fill="#5C5C5C">Deployed to {fromName}: older  →  newer</text>
+                        <text x="294" y="14" font-size="11" fill="#5C5C5C" text-anchor="middle">next stop</text>
+                        <rect x="8" y="30" width="112" height="78" rx="4" fill="#F2F7FE" stroke="#0176D3" stroke-width="1.5"></rect><rect x="17" y="40" width="13" height="13" rx="2" fill="#0176D3"></rect><path d="M20 46.5 l2.6 2.6 l4.6 -5" fill="none" stroke="#FFFFFF" stroke-width="1.8"></path><text x="37" y="51" font-size="12" font-weight="700" fill="#181818">REL-00019</text><text x="17" y="71" font-size="10.5" fill="#5C5C5C">{fromName} · Oct 28</text><rect x="16" y="80" width="96" height="19" rx="9.5" fill="#F3F3F3"></rect><text x="64" y="93" font-size="10.5" fill="#444444" text-anchor="middle">AccountService</text>
+                        <rect x="128" y="30" width="112" height="78" rx="4" fill="#FFFFFF" stroke="#C9C9C9" stroke-width="1.5"></rect><rect x="137" y="40" width="13" height="13" rx="2" fill="#FFFFFF" stroke="#AEAEAE"></rect><text x="157" y="51" font-size="12" font-weight="700" fill="#5C5C5C">REL-00020</text><text x="137" y="71" font-size="10.5" fill="#5C5C5C">{fromName} · Oct 29</text><rect x="136" y="80" width="96" height="19" rx="9.5" fill="#F3F3F3"></rect><text x="184" y="93" font-size="10.5" fill="#444444" text-anchor="middle">CaseListView</text>
+                        <path d="M64 108V118H294V115" fill="none" stroke="#0176D3" stroke-width="1.5"></path><path d="M294 108.5L290.5 115.5H297.5Z" fill="#0176D3"></path>
+                        <text x="64" y="134" font-size="11.5" font-weight="700" fill="#0176D3" text-anchor="middle">✓ Ticked</text>
+                        <text x="184" y="134" font-size="11.5" font-weight="700" fill="#5C5C5C" text-anchor="middle">{staysTitle}</text>
+                        <rect x="254" y="30" width="80" height="78" rx="4" fill="#EBF7E6" stroke="#2E844A" stroke-width="1.5"></rect><text x="294" y="49" font-size="12" font-weight="700" fill="#181818" text-anchor="middle">{toName}</text><text x="294" y="67" font-size="10.5" fill="#2E844A" text-anchor="middle" font-weight="700">REL-00019</text><text x="294" y="81" font-size="10.5" fill="#2E844A" text-anchor="middle" font-weight="700">only</text>
+                        </svg>
+                <p class="rp-k2"><strong>REL-00020</strong> changes <span class="rp-mono">CaseListView</span>, which nothing ticked touches. It shows <strong>{staysTitle}</strong> and waits on this card for a later promotion.</p>
+            </div>
+        </div>
+    </template>
+
+    <!-- Guide › How a change moves: the Promote card as an annotated example, callouts 1 to 4 -->
+    <template lwc:if={isCard}>
+        <div class="rp-mockwrap">
+            <div class="rp-mock" role="img" aria-label={cardAria}>
+                <div class="rp-mockh"><strong>{routeText}</strong><span class="rp-lnk">ⓘ How promoting works</span></div>
+                <div class="rp-mgrid">
+                    <ul class="rp-mlist">
+                        <li class="rp-mr rp-mr-hot">
+                            <span class="rp-cb" aria-hidden="true"></span>
+                            <div class="rp-grow">
+                                <span class="rp-rl"><span class="rp-co">1</span><span class="rp-pill rp-pill-bad">Hotfix</span><b>REL-00021</b></span>
+                                <span class="rp-rt">Partner sign-in fails</span>
+                                <span class="rp-rs">{staysTitle}</span>
+                            </div>
+                        </li>
+                        <li class="rp-mr rp-mr-car">
+                            <span class="rp-cb rp-cb-car" aria-hidden="true"></span>
+                            <div class="rp-grow">
+                                <span class="rp-rl"><span class="rp-co">2</span><b>REL-00018</b></span>
+                                <span class="rp-rt">Account rating rules</span>
+                                <span class="rp-rs rp-rs-go">Goes with REL-00019 (AccountService)</span>
+                            </div>
+                        </li>
+                        <li class="rp-mr rp-mr-on">
+                            <span class="rp-cb rp-cb-on" aria-hidden="true"></span>
+                            <div class="rp-grow"><span class="rp-rl"><b>REL-00019</b></span><span class="rp-rt">Account rating uses region</span></div>
+                        </li>
+                        <li class="rp-mr rp-mr-on">
+                            <span class="rp-cb rp-cb-on" aria-hidden="true"></span>
+                            <div class="rp-grow"><span class="rp-rl"><b>REL-00020</b></span><span class="rp-rt">Case list view for agents</span></div>
+                        </li>
+                        <li class="rp-mr rp-mr-blk">
+                            <span class="rp-cb" aria-hidden="true"></span>
+                            <div class="rp-grow">
+                                <span class="rp-rl"><span class="rp-co">3</span><b>REL-00022</b></span>
+                                <span class="rp-rt">Case list view adds owner</span>
+                                <span class="rp-rs rp-rs-bad">Changed CaseListView after REL-00020</span>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="rp-mside">
+                        <p class="rp-mside-h">{bundleTitle}</p>
+                        <p class="rp-k2"><strong>2 releases</strong> · 7 components</p>
+                        <p class="rp-note"><strong>Also goes: REL-00018</strong> (older change to AccountService — {toName} gets {fromName}'s version, which includes it)</p>
+                        <p class="rp-warn">REL-00022 changed CaseListView after REL-00020: add it, or wait and promote them together. <span class="rp-chip">+ Add REL-00022</span></p>
+                    </div>
+                </div>
+                <div class="rp-mbar"><span class="rp-co">4</span><strong class="rp-grow">2 releases selected · 1 test class</strong><span class="rp-btn">{promoteButton}</span></div>
+            </div>
+            <ol class="rp-leg">
+                <li><span class="rp-co">1</span><div><strong>Hotfix first</strong><p class="rp-k2"><strong>Hotfix</strong> pill, top of the list. Tick it alone for <strong>{hotfixButton}</strong>. Unticked, it shows <strong>{staysTitle}</strong>.</p></div></li>
+                <li><span class="rp-co">2</span><div><strong>Goes too</strong><p class="rp-k2">Dashed box and <strong>Goes with REL-00019 (AccountService)</strong>. The panel lists it under <strong>Also goes</strong>.</p></div></li>
+                <li><span class="rp-co">3</span><div><strong>Must add</strong><p class="rp-k2">Red row: <strong>Changed CaseListView after REL-00020</strong>. <strong>+ Add REL-00022</strong> ticks it.</p></div></li>
+                <li><span class="rp-co">4</span><div><strong>Promote</strong><p class="rp-k2">Grey while something must be added or the title is empty. Approvers and admins only.</p></div></li>
+            </ol>
+        </div>
+    </template>
+</template>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>RLY_Slack_Linked_By__c</fullName>
+    <description>Release Relay: how the Slack member ID was linked. SSO: the Federation ID found in Slack. Email: the Salesforce email found in Slack. Self: the approver linked from Slack. Admin: set by hand. Matching never overwrites a Self or Admin link.</description>
+    <label>Slack Linked By</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>SSO</fullName>
+                <default>false</default>
+                <label>SSO</label>
+            </value>
+            <value>
+                <fullName>Email</fullName>
+                <default>false</default>
+                <label>Email</label>
+            </value>
+            <value>
+                <fullName>Self</fullName>
+                <default>false</default>
+                <label>Self</label>
+            </value>
+            <value>
+                <fullName>Admin</fullName>
+                <default>false</default>
+                <label>Admin</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
