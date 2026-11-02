@@ -252,7 +252,7 @@ private class RlyStepFilesTest {
             List<List<String>> rows = RlyStepFileEvidence.evidenceRows(rel, RlyReleaseLog.eventsOf(new Set<Id>{ rel.Id }));
             String html = RlyStepFileEvidence.html(rows);
             Map<Id, String> csv = RlyStepFileEvidence.csvFiles(new List<RLY_Release__c>{ rel });
-            String export = RlyEvidenceController.exportCsv('{"state":"all"}');
+            String csvExport = RlyEvidenceController.exportCsv('{"state":"all"}');
             Test.stopTest();
             System.assert(pdf.contentDocumentId != null, 'Evidence saved');
             System.assertEquals(3, rows.size(), 'Step file, proof, removed: ' + rows);
@@ -261,7 +261,7 @@ private class RlyStepFilesTest {
             System.assert(html.contains('<h2>Files</h2>') && html.contains('mapping.sdl'), 'Files table');
             System.assertEquals('', RlyStepFileEvidence.html(new List<List<String>>()), 'No files, no table');
             System.assert(csv.get(rel.Id).contains('success-sit.csv (') && csv.get(rel.Id).contains('proof in SIT'), 'CSV column: ' + csv);
-            System.assert(export.split('\r\n')[0].endsWith('"Files"'), 'CSV header ends with Files');
+            System.assert(csvExport.split('\r\n')[0].endsWith('"Files"'), 'CSV header ends with Files');
         }
     }
 
