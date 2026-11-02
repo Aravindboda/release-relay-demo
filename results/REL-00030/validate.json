@@ -1,38 +1,42 @@
 {
  "request": "REL-00030",
  "step": "validate",
- "status": "Conflict",
- "conflicts": [
+ "status": "Failed",
+ "changed": 4,
+ "deleted": [],
+ "mergedWith": "f5b8fe32ec3aab44a317a0f40698f01ce278f2b4",
+ "validatedTree": "72cdf665cef5dd8ce762e2ec241e2667d57687d4",
+ "environment": "sit",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cMfeZSAS",
+ "testsRun": 1,
+ "tests": [
+  "LabelFormatterTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [
   {
-   "file": "force-app/main/default/classes/LabelFormatter.cls-meta.xml",
-   "merged": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ApexClass xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <apiVersion>65.0</apiVersion>\n    <status>Active</status>\n</ApexClass>\n",
-   "mine": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ApexClass xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <apiVersion>65.0</apiVersion>\n    <status>Active</status>\n</ApexClass>",
-   "theirs": null,
-   "truncated": false
-  },
-  {
-   "file": "force-app/main/default/classes/LabelFormatterTest.cls-meta.xml",
-   "merged": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ApexClass xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <apiVersion>65.0</apiVersion>\n    <status>Active</status>\n</ApexClass>\n",
-   "mine": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ApexClass xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <apiVersion>65.0</apiVersion>\n    <status>Active</status>\n</ApexClass>",
-   "theirs": null,
-   "truncated": false
+   "name": "LabelFormatterTest",
+   "method": "formatsLine",
+   "message": "System.AssertException: Assertion Failed: Label line: Expected: ANA RUIZ Plano TX, Actual: ANA RUIZ, Plano TX"
   }
  ],
- "conflictCount": 2,
- "message": "2 file(s) conflict with sit. Choose what to keep in Release Relay, then check again.",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41374382633",
- "finishedAt": "2026-11-02T01:49:03.810Z",
- "attempt": "9ef258bf30bb1a4856515a0798541401",
+ "message": "1 test failure(s)",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41379077746",
+ "finishedAt": "2026-11-02T02:41:59.829Z",
+ "attempt": "3c6d5cf2dd4fb4176ede7039128e103a",
  "excluded": [],
  "selfUpdate": false,
  "values": {
   "replaced": 0,
   "files": [],
   "hash": ""
- },
- "gates": {
-  "file": ".relay/gates.json",
-  "passed": true,
-  "failures": []
  }
 }
