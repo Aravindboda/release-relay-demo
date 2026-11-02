@@ -54,9 +54,8 @@
     width: 22px; height: 22px; border-radius: 50%; background: #f3f3f3; color: #444; font-size: 12px; font-weight: 700;
     display: flex; align-items: center; justify-content: center; flex: none;
 }
-.rr-tick { flex: none; padding-top: 2px; }
 .rr-box {
-    width: 16px; height: 16px; margin-top: 3px; border-radius: 3px; border: 1px solid #939393; background: #fff; flex: none;
+    width: 18px; height: 18px; margin-top: 2px; border-radius: 50%; border: 1px solid #939393; background: #fff; flex: none;
     display: inline-flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1;
 }
 .rr-box-done { background: var(--rr-blue); border-color: var(--rr-blue); color: #fff; }
@@ -99,3 +98,37 @@
 @media (max-width: 900px) { .rr-ft { min-width: var(--rr-ft-min, 640px); } }
 @media (max-width: 600px) { .rr-scroll { max-height: 60vh; } }
 .rr-nomatch-p { margin: 0; padding: 16px; text-align: center; font-size: 13px; color: #5c5c5c; }
+
+/* ---- build 34 (board HubStepFiles): the run in this org, To do | Done | Not needed, proof ---- */
+.rr-msg-info { background: #eef4ff; color: #014486; }
+.rr-run {
+    display: flex; flex-direction: column; gap: 8px; margin-top: 4px; padding: 8px 10px;
+    background: #fafaf9; border: 1px solid var(--rr-line); border-radius: 4px; min-width: 0;
+}
+.rr-run-hd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.rr-run-org { font-size: 12px; font-weight: 700; }
+.rr-run-who { margin-left: auto; }
+.rr-seg { display: inline-flex; border: 1px solid var(--rr-field); border-radius: 4px; overflow: hidden; background: #fff; }
+.rr-seg-btn {
+    border: 0; border-left: 1px solid var(--rr-field); background: #fff; color: var(--rr-ink); font: inherit; font-size: 12px;
+    padding: 0 12px; min-height: 28px; cursor: pointer; white-space: nowrap;
+}
+.rr-seg-btn:first-child { border-left: 0; }
+.rr-seg-btn:hover:not([disabled]) { background: #f3f3f3; }
+.rr-seg-btn:focus-visible { outline: 2px solid var(--rr-blue); outline-offset: -2px; }
+.rr-seg-btn.rr-seg-on { background: var(--rr-blue); color: #fff; font-weight: 700; }
+.rr-seg-btn[disabled] { cursor: default; color: var(--rr-muted); }
+.rr-seg-btn.rr-seg-on[disabled] { background: #5c5c5c; color: #fff; }
+.rr-seg-short { display: none; }
+
+/* board HubStepFiles 6: under 480px pills wrap under the title, Not needed reads N/A, proof uploads go full width */
+@media (max-width: 480px) {
+    .rr-ms { gap: 6px; }
+    .rr-run { padding: 6px 8px; }
+    .rr-run-who { margin-left: 0; flex-basis: 100%; }
+    .rr-seg { display: flex; width: 100%; }
+    .rr-seg-btn { flex: 1; padding: 0 6px; }
+    .rr-seg-full { display: none; }
+    .rr-seg-short { display: inline; }
+    .rr-login { width: 100%; text-align: center; }
+}

@@ -204,3 +204,14 @@
 .rr-scroll-vt { max-height: 32rem; padding-top: 2px; }
 .rr-problems.rr-scroll { max-height: 18rem; }
 .rr-nomatch-p { margin: 0; padding: 16px; text-align: center; font-size: 13px; color: var(--rr-muted); }
+
+/* build 34: History chips All | Files (board HubStepFiles 5) */
+.rr-hchips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.rr-hchip {
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 14px;
+    border: 1px solid #c9c9c9; background: #fff; color: #181818; font: inherit; font-size: 12px; cursor: pointer;
+}
+.rr-hchip:focus-visible { outline: 2px solid #0176d3; outline-offset: 2px; }
+.rr-hchip-on { background: #0176d3; border-color: #0176d3; color: #fff; font-weight: 700; }
+.rr-hchip-n { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: rgba(0, 0, 0, 0.08); font-size: 11px; }
+.rr-hchip-on .rr-hchip-n { background: rgba(255, 255, 255, 0.25); }

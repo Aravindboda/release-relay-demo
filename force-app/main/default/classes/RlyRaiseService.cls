@@ -4,7 +4,8 @@
  * a reason (RlyHotfix.reason). The retrieve callout comes before any DML. Deletions (Type:Name, in Deletions__c and as items
  * with Is_Deletion__c) need no retrieve: a release with only deletions is saved Retrieving without a retrieve id, and
  * the next read commits its marker file instead of a zip (RlyStatusReader). Manual steps sent with it are checked
- * before the callout and saved with their runs in the first stage after the release (RlyManualStepRuns.addToRaised).
+ * before the callout and saved with their runs in the first stage after the release (RlyManualStepRuns.addToRaised); the
+ * files each step carried from New Release are linked to it in the same transaction (RlyStepFileDrafts.linkDrafts).
  * A release with only manual steps (no components, no deletions) needs no retrieve either: it is saved queued with
  * Manual_Only__c (RlyManualOnly) and its page's next read takes it to the approval point of its target org.
  */
@@ -84,6 +85,7 @@ public with sharing class RlyRaiseService {
         items.addAll(deletionItems(deletions));
         RlyReleaseStore.insertRelease(rel, items);
         RlyManualStepRuns.addToRaised(rel, steps, route.target);
+        RlyStepFileDrafts.linkDrafts(steps, req.manualSteps); // the New Release draft files, linked to the saved steps
         RlyReleaseLog.add(rel, 'Raised', 'Raised from ' + route.source.Name + ' into ' + route.target.Name + ': ' + contentWords(rel, deletions, steps))
             .inOrg(route.source.Id).byActor(UserInfo.getUserId(), RlyReleaseLog.VIA_SALESFORCE);
         RlyReleaseLog.flush();

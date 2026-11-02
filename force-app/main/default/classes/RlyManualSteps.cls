@@ -46,6 +46,8 @@ public with sharing class RlyManualSteps {
         public Boolean backPromote;
         /** @description Blank for every org on the route, otherwise org names, comma separated. */
         public String orgScope;
+        /** @description New Release: files uploaded to the raiser's own library for this step (ContentDocument Ids); Raise links them to the saved step (RlyStepFileDrafts.linkDrafts). */
+        public List<Id> files;
     }
 
     /** @description The release page's Manual steps card. */
@@ -80,6 +82,14 @@ public with sharing class RlyManualSteps {
         @AuraEnabled public String orgScope;
         /** @description The number of the release that defined it. */
         @AuraEnabled public String fromRelease;
+        /** @description Its files (RlyStepFiles), oldest first. */
+        @AuraEnabled public List<RlyStepFiles.FileRow> files = new List<RlyStepFiles.FileRow>();
+        /** @description Its release is approved or later: its files are read only. */
+        @AuraEnabled public Boolean locked = false;
+        /** @description The lock's tooltip (who approved the files, when), or null. */
+        @AuraEnabled public String lockText;
+        /** @description The current user may add and remove its files (the raiser or an admin, before approval). */
+        @AuraEnabled public Boolean canAttach = false;
     }
 
     /** @description The steps of one org's deploy. */
@@ -120,6 +130,10 @@ public with sharing class RlyManualSteps {
         @AuraEnabled public Integer orderNo;
         /** @description The number of the release that defined the step. */
         @AuraEnabled public String fromRelease;
+        /** @description The proof added in this org (RlyStepFiles), oldest first. */
+        @AuraEnabled public List<RlyStepFiles.FileRow> proof = new List<RlyStepFiles.FileRow>();
+        /** @description The current user may add proof (the deployment team or an admin). */
+        @AuraEnabled public Boolean canAddProof = false;
     }
 
     /** @description How many runs one deploy has, and how many are still to do. */

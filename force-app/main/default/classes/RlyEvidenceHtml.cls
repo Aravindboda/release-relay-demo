@@ -2,7 +2,8 @@
  * @description Builds a release's evidence document as HTML (RlyEvidenceController turns it into a PDF): the release
  * and its route, components and deletions, the pull request, the code scan with its findings, the validation (tests
  * run, coverage warnings, deploy id), approvals (who, when, where, comment, second approver), manual steps per org
- * (done by, when, notes), flow activation, the deploy (quick or full, deploy id), the branches merged back, the latest
+ * (done by, when, notes), the files on manual steps (listed, not embedded: step files, then proof by org), flow
+ * activation, the deploy (quick or full, deploy id), the branches merged back, the latest
  * rollback (org, who, when, why, what was restored and removed) and the full history (oldest first). Each section is
  * wrapped so short ones stay on one page; print CSS (RlyEvidenceTables.PRINT_CSS) keeps rows whole and repeats headers. Quality gate failures of the scan
  * and the validation (.relay/gates.json) are listed with the checks. A release with only manual steps shows no Git lines (no branch, pull request, checks or merge commit).
@@ -22,6 +23,8 @@ public with sharing class RlyEvidenceHtml {
         public List<RLY_Manual_Step_Run__c> runs = new List<RLY_Manual_Step_Run__c>();
         /** @description Its history, oldest first. */
         public List<RLY_Release_Event__c> events = new List<RLY_Release_Event__c>();
+        /** @description Its files on manual steps (RlyStepFileEvidence.evidenceRows): step files, proof by org, files removed. */
+        public List<List<String>> files = new List<List<String>>();
         /** @description When the document is made. */
         public Datetime madeOn = System.now();
     }
@@ -39,7 +42,7 @@ public with sharing class RlyEvidenceHtml {
             '<h1>' + RlyEvidenceTables.esc(rel.Name + ' ' + RlyEvidenceText.text(rel.Title__c)) + '</h1>',
             '<p>Evidence made ' + RlyEvidenceTables.esc(src.madeOn.format('yyyy-MM-dd HH:mm z')) + ' by ' + RlyEvidenceTables.esc(UserInfo.getName()) + '</p>',
             summary(rel), components(src.items), checks(rel), approvals(rel), RlyEvidenceTables.manualSteps(src.runs),
-            RlyEvidenceTables.flows(rel), deploy(rel), RlyEvidenceTables.rollbackTable(RlyRollbackState.rowOf(rel.Id)),
+            RlyStepFileEvidence.html(src.files), RlyEvidenceTables.flows(rel), deploy(rel), RlyEvidenceTables.rollbackTable(RlyRollbackState.rowOf(rel.Id)),
             RlyEvidenceTables.history(src.events), '</body></html>'
         };
         return String.join(parts, '\n');

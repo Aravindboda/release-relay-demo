@@ -1929,7 +1929,7 @@ const USE_SECTIONS = [
                 key: 'ms-main',
                 title: 'Manual steps',
                 blocks: [
-                    { type: 'text', paras: ['Some changes can\'t be deployed as metadata: profile or permission access, data loads, setup settings, a connected app setting, a scheduled job to start. Add them to the release as **manual steps**. They travel with the release through every org on the route and to back promote orgs, in order, and the **deployment team** checks each one off per org.'] },
+                    { type: 'text', paras: ['Some changes can\'t be deployed as metadata: profile or permission access, data loads, setup settings, a connected app setting, a scheduled job to start. Add them to the release as **manual steps**. They travel with the release through every org on the route and to back promote orgs, in order, and the **deployment team** marks each one **To do**, **Done** or **Not needed** per org. A step can carry **files** (the instructions: a CSV to load, a PDF of steps) and each org\'s run can carry **proof** (a success file, a screenshot). They are standard Salesforce Files: nothing is copied.'] },
                     {
                         type: 'steps',
                         steps: [
@@ -1942,7 +1942,8 @@ const USE_SECTIONS = [
                                     '**Also in back promote orgs** is on by default. **Orgs**: all orgs on the route, or pick the orgs it applies to.',
                                     'Order them with the up and down arrows: the deployment team does them in that order. Up to 50 steps.',
                                     'A flow set to **Leave inactive** adds the step **Activate flow <name>** (Setup, After deploy, every org) for you.',
-                                    'Until the release is first deployed, the person who raised it (or an admin) can add, edit, reorder and delete steps on the release page.',
+                                    '**Attach files** under a step: press **Upload Files** or drop files on it. Any type, up to the Salesforce file size limit. They upload straight to Salesforce Files and wait in your own files until you raise; **Raise pull request** links them to the saved steps. **×** removes a file.',
+                                    'Until the release is first deployed, the person who raised it (or an admin) can add, edit, reorder and delete steps on the release page, and attach or remove step files until it is approved.',
                                     'Nothing to deploy, only steps? On Select switch on **No metadata — only manual steps** and raise **manual steps only**: no Git or pipeline, approval then the steps (see Raise a release, step 6). Such a release keeps at least one step.'
                                 ],
                                 links: [{ label: 'Raise a release', to: 'raise' }]
@@ -1955,12 +1956,14 @@ const USE_SECTIONS = [
                                 items: [
                                     'Pick the org\'s tab: each shows how many steps are open there.',
                                     'Press **Log in to <org> ↗** on the tab to open that org\'s login page in a new window and do the step there (not on the production tab: you are already in it).',
-                                    'Do the step, then tick it: the page records who did it and when.',
-                                    '**Not needed** asks why (for example: already set in this org). **Reopen** puts a step back to do.',
+                                    'Under each step, **Step files** lists its files: **Download** for every file, **Preview** for PDFs and images (the standard Salesforce preview).',
+                                    'Do the step, then press **Done** in the **In <org>** row (To do | Done | Not needed): the page records who did it and when.',
+                                    '**Not needed** asks why (for example: already set in this org). **To do** puts a step back to do.',
+                                    '**Proof in <org>** → **Add proof**: upload the evidence for that org, for example the Data Loader success file. Proof belongs to that org\'s run only: each org has its own, and it stays open after approval. Whoever added it (or an admin) can remove it.',
                                     '**Show instructions** opens what exactly to do.',
                                     '**Add a manual step** adds one (until the first deploy).'
                                 ],
-                                text: ['Only users with `RLY_Deploy_Team` (Release Relay Deployment Team) or `RLY_Admin` tick steps and see **Log in to <org> ↗** and **Open org ▾**. Only the login address is shown, never a password or other sign-in detail.'],
+                                text: ['Only users with `RLY_Deploy_Team` (Release Relay Deployment Team) or `RLY_Admin` mark steps, add proof and see **Log in to <org> ↗** and **Open org ▾**. Only the login address is shown, never a password or other sign-in detail. On a phone (480px and narrower) Download and Preview become icon buttons and Not needed reads **N/A**.'],
                                 check: 'The tab shows no open steps; the release no longer shows "n manual steps".',
                                 shot: { ill: 'manual-steps', cap: 'Manual steps: a tab per org, tick, Not needed, instructions.', alt: 'Drawing of the Manual steps card with callouts 1 one tab per org with open counts, 2 tick a done step, 3 Not needed, 4 Show instructions, 5 Add a manual step.' }
                             },
@@ -1979,7 +1982,27 @@ const USE_SECTIONS = [
                                 items: [
                                     'A promotion carries the manual steps of every release it carries, in deploy order. The Promote tab lists them under the bundle.',
                                     'A back promote sync carries the steps with **Also in back promote orgs** of every release the org is behind.',
-                                    'Steps scoped to some orgs only show up in those orgs.'
+                                    'Steps scoped to some orgs only show up in those orgs.',
+                                    'Carried steps show the original step\'s files (from REL-…), not copies; each org gets its own proof. A file that should stay out of an org: mark the step **Not needed** there.'
+                                ]
+                            },
+                            {
+                                title: 'Files lock when the release is approved',
+                                where: 'The release page → Manual steps → Step files',
+                                goal: 'Approvers see exactly the files they approve, and those files can\'t change afterwards.',
+                                items: [
+                                    'From approval on, step files show **🔒 Locked: approved files** (hover it: who approved them and when). No upload, no **×**. To change them, reject the release or raise a new one.',
+                                    'The lock is a server check, not only the screen: adding or removing a file on the step, or uploading a new version of a locked file, is refused with **Files on this step are locked: the release is approved.** A step with locked files can\'t be deleted either.',
+                                    'Proof on the runs stays open after approval.',
+                                    'Deleting the whole file from Files home (its owner can) is not stopped by the lock: History still shows it was attached, but the card and the evidence no longer list it.'
+                                ]
+                            },
+                            {
+                                title: 'Files in History and evidence',
+                                where: 'The release page → History; Download evidence (PDF); Releases → CSV',
+                                items: [
+                                    'History records **Attached**, **Removed**, **Proof added** and **Downloaded** (the card\'s Download button only, not Files home). The **Files** chip shows only these.',
+                                    'The evidence PDF has a **Files** table after Manual steps: step, file, size, attached by, when, org for proof; files removed show **Removed**. The Releases CSV has a **Files** column. Files are listed, not embedded.'
                                 ]
                             }
                         ]
