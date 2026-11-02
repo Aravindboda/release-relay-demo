@@ -3,7 +3,7 @@
     <apiVersion>63.0</apiVersion>
     <isExposed>true</isExposed>
     <masterLabel>Release Relay: What's built</masterLabel>
-    <description>What the Release Relay package holds and uses: features, Apex by area, tests to run, components, data model and live resource use.</description>
+    <description>What's built as a technical document: numbered contents, overview counts (live), architecture, data model with field tables, security and access, Apex by area, components and tabs, pipeline files, limits, tests to run, manual set-up and build history.</description>
     <targets>
         <target>lightning__Tab</target>
     </targets>

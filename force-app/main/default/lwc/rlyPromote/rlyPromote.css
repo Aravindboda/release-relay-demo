@@ -119,3 +119,37 @@
 .rr-w-person { width: 140px; }
 .rr-w-when { width: 140px; }
 .rr-w-tests { width: 180px; }
+
+/* ---- build 30 (board HubPromoteRules): How promoting works, row tooltips, Rolled back pill ---- */
+.rr-howlink {
+    display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; border-radius: 4px; background: none;
+    padding: 4px 8px; font: inherit; font-size: 13px; color: #0b5cab; cursor: pointer; white-space: nowrap;
+}
+.rr-howlink:hover { text-decoration: underline; }
+.rr-howlink[aria-expanded="true"] { background: #eef4ff; border-color: #0176d3; text-decoration: none; }
+.rr-howlink:focus-visible { outline: 2px solid #0176d3; outline-offset: 2px; }
+.rr-howicon { --slds-c-icon-color-foreground-default: #0b5cab; --sds-c-icon-color-foreground-default: #0b5cab; }
+/* the panel beside the list and above the bundle; under the card heading on narrow screens */
+.rr-grid-rules { grid-template-areas: 'list rules' 'list bundle'; }
+.rr-grid-rules .rr-ga-list { grid-area: list; }
+.rr-grid-rules .rr-ga-rules { grid-area: rules; }
+.rr-grid-rules .rr-ga-bundle { grid-area: bundle; }
+.rr-rules-slot { min-width: 0; }
+@media (max-width: 900px) {
+    .rr-grid-rules { grid-template-areas: 'rules' 'list' 'bundle'; }
+}
+/* labels that explain themselves: dotted underline, tooltip on hover or focus */
+.rr-tipped { cursor: help; text-decoration: underline dotted; text-underline-offset: 2px; }
+.rr-tipped:focus { outline: none; }
+.rr-tipped:focus-visible { outline: 2px solid #0176d3; outline-offset: 1px; border-radius: 2px; }
+.rr-tip { display: none; }
+.rr-tip-on {
+    display: flex; flex-direction: column; gap: 2px; position: fixed; z-index: 9000; max-width: 320px; padding: 8px 10px;
+    border-radius: 4px; background: #032d60; color: #fff; font-size: 12px; line-height: 1.45; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    white-space: normal; pointer-events: none;
+}
+.rr-pill-roll { background: #fef1cd; color: #8c4b02; }
+@media (max-width: 480px) {
+    .rr-howlink { padding: 4px 0; }
+    .rr-tip-on { max-width: calc(100vw - 16px); }
+}

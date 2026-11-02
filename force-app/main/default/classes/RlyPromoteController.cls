@@ -60,6 +60,16 @@ public with sharing class RlyPromoteController {
         @AuraEnabled public Boolean manualOnly;
         /** @description Its components and deletions as Type:Name (the page finds overlaps with them, RlyPromoteOverlap). */
         @AuraEnabled public List<String> components = new List<String>();
+        /** @description Set when its latest rollback put this stage back the way it was before it (it stays listed and can be picked); otherwise null. */
+        @AuraEnabled public RolledBack rolledBack;
+    }
+
+    /** @description A rollback of a waiting release in its stage (the Promote tab's "Rolled back in" pill). */
+    public class RolledBack {
+        /** @description When the rollback was started (or finished), or null. */
+        @AuraEnabled public Datetime rolledOn;
+        /** @description Why it was rolled back, or null. */
+        @AuraEnabled public String why;
     }
 
     /**
@@ -143,6 +153,11 @@ public with sharing class RlyPromoteController {
         x.componentCount = r.Component_Count__c == null ? 0 : r.Component_Count__c.intValue();
         x.deletionCount = r.Deletion_Count__c == null ? 0 : r.Deletion_Count__c.intValue();
         x.manualOnly = RlyManualOnly.isManualOnly(r);
+        if (r.Rollback_Status__c == 'Rolled_Back' && r.Rollback_Org__c != null && r.Rollback_Org__c == r.Target_Org__c) {
+            x.rolledBack = new RolledBack();
+            x.rolledBack.rolledOn = r.Rollback_On__c;
+            x.rolledBack.why = r.Rollback_Reason__c;
+        }
         return x;
     }
 

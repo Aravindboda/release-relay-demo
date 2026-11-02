@@ -2,7 +2,8 @@
  * @description Pipeline tab, Slack connection card (admins): whether Slack is on and which events post, the Slack app's
  * connection (auth.test through the Named Credential RLY_Slack; the bot token stays in the External Credential), the
  * signing secret for Approve and Reject from Slack (encrypted; only a masked hint goes to the browser), the Site URL
- * to give Slack, and which approvers are linked to their Slack member IDs. Callouts come before any save.
+ * to give Slack, how approvers are matched to Slack (Slack_Match_By__c) and how many are linked; the approver list itself
+ * is on the Approvers window (RlySlackApprovers). Callouts come before any save.
  * The bot token can be saved from the card (saveBotToken, through RlyBotToken into the External Credential); it is
  * never stored in a record, returned or logged: only its last four characters are kept for the hint.
  */
@@ -37,22 +38,22 @@ public with sharing class RlySlackController {
         @AuraEnabled public Integer approversLinked = 0;
         /** @description Every approver. */
         @AuraEnabled public Integer approversTotal = 0;
-        /** @description Every approver and their Slack member ID. */
-        @AuraEnabled public List<ApproverLink> approvers = new List<ApproverLink>();
+        /** @description How approvers are matched to Slack and what needs attention (the Slack connection line). */
+        @AuraEnabled public ApproverInfo approverInfo = new ApproverInfo();
         /** @description When the last message was sent. */
         @AuraEnabled public Datetime lastSent;
         /** @description What happened to it. */
         @AuraEnabled public String lastResult;
     }
 
-    /** @description An approver and their Slack member ID. */
-    public class ApproverLink {
-        /** @description The user. */
-        @AuraEnabled public Id userId;
-        /** @description The user's name. */
-        @AuraEnabled public String name;
-        /** @description The Slack member ID, or null. */
-        @AuraEnabled public String slackMemberId;
+    /** @description The approver part of the Slack connection line. */
+    public class ApproverInfo {
+        /** @description Approvers needing attention (not linked, or changed in Slack). */
+        @AuraEnabled public Integer attention = 0;
+        /** @description How approvers are matched to Slack: SSO, Email or Manual. */
+        @AuraEnabled public String matchBy = RlySlackDirectory.BY_SSO;
+        /** @description Needed scopes the bot token lacked at the last scope check. */
+        @AuraEnabled public List<String> missingScopes = new List<String>();
     }
 
     /** @description What the card saves. */
@@ -63,6 +64,8 @@ public with sharing class RlySlackController {
         public List<String> events;
         /** @description A new signing secret, or blank to keep the saved one. */
         public String signingSecret;
+        /** @description How approvers are matched: SSO, Email or Manual; blank keeps the saved one. */
+        public String matchBy;
     }
 
     /**
@@ -96,6 +99,9 @@ public with sharing class RlySlackController {
         String secret = RlySlackRules.signingSecret(input.signingSecret);
         if (secret != null) {
             row.Signing_Secret__c = secret;
+        }
+        if (String.isNotBlank(input.matchBy)) {
+            row.Slack_Match_By__c = RlySlackRules.matchBy(input.matchBy);
         }
         SlackSettings out = connection();
         RlySlack.saveSettings(row);
@@ -144,7 +150,8 @@ public with sharing class RlySlackController {
     }
 
     /**
-     * @description Links an approver to their Slack member ID (admins only). Blank clears it.
+     * @description Links an approver to their Slack member ID (admins only; Linked by Admin). Blank clears it. Kept for
+     * older pages: the Approvers window uses RlySlackApprovers.setMember.
      * @param userId the user
      * @param memberId the Slack member ID (U…), or blank
      * @return the settings
@@ -157,7 +164,7 @@ public with sharing class RlySlackController {
         }
         String value = RlySlackRules.memberId(memberId);
         SlackSettings out = connection();
-        RlySlackDirectory.link(userId, value);
+        RlySlackFix.link(userId, value);
         return fill(out);
     }
 
@@ -210,18 +217,15 @@ public with sharing class RlySlackController {
             out.signingSecretHint = String.isBlank(s.Signing_Secret__c) ? null : 'Saved (ends ••••' + s.Signing_Secret__c.right(4) + ')';
             out.lastSent = s.Last_Sent__c;
             out.lastResult = s.Last_Result__c;
+            out.approverInfo.matchBy = String.isBlank(s.Slack_Match_By__c) ? RlySlackDirectory.BY_SSO : s.Slack_Match_By__c;
+            out.approverInfo.missingScopes = RlySlackPeople.missing(RlySlackPeople.parseScopes(s.Slack_Scopes__c));
         }
         out.botTokenHint = RlyBotToken.hint(s == null ? null : s.Bot_Token_Hint__c, out.status);
         out.actionsUrl = RlySlackDirectory.actionsUrl();
-        for (User u : RlySlackDirectory.approvers()) {
-            ApproverLink link = new ApproverLink();
-            link.userId = u.Id;
-            link.name = u.Name;
-            link.slackMemberId = u.RLY_Slack_Member_Id__c;
-            out.approvers.add(link);
-            out.approversLinked += String.isBlank(u.RLY_Slack_Member_Id__c) ? 0 : 1;
-        }
-        out.approversTotal = out.approvers.size();
+        Map<String, Integer> counts = RlySlackApproverRows.counts();
+        out.approversLinked = counts.get('linked');
+        out.approverInfo.attention = counts.get('attention');
+        out.approversTotal = counts.get('total');
         return out;
     }
 
