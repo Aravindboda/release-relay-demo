@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 16
+// Release Relay pipeline files: version 17
+// Version 17: a release whose Apex is only deletions and inactive triggers (<status>Inactive</status> in the trigger's
+// -meta.xml), sent with no tests, runs the local tests in production (options.production, set by the hub from its org
+// record) and no tests elsewhere; the tests and coverage gates leave inactive triggers (and the tests gate deleted
+// Apex) out.
 // Version 15: no change to this script; it moves with the GitHub pipeline file (nightly archive job), since the lowest
 // version among a hub's files counts.
 /*
@@ -1260,8 +1264,13 @@ function evaluateScanGate(violations, gates) {
     return { failures: [`${hits.length} finding${hits.length === 1 ? '' : 's'} at priority ${p} or higher: ${list}`], gate };
 }
 
-/** tests.requireForApex: a deployment with Apex that would run no tests fails before it's sent. */
-function evaluateTestsGate(apex, testLevel, gates) {
+/**
+ * tests.requireForApex: a deployment with Apex that would run no tests fails before it's sent. skip: Apex that needs
+ * no tests (deleted classes and triggers, triggers sent inactive), left out.
+ */
+function evaluateTestsGate(apexAll, testLevel, gates, skip = []) {
+    const skipped = new Set(skip.map((n) => String(n).toLowerCase()));
+    const apex = apexAll.filter((n) => !skipped.has(String(n).toLowerCase()));
     if (!gates.tests || !gates.tests.requireForApex || !apex.length || testLevel !== 'NoTestRun') {
         return [];
     }
@@ -1275,10 +1284,13 @@ function evaluateTestsGate(apex, testLevel, gates) {
  * test (RunLocalTests, RunAllTestsInOrg), the only case where the coverage covers the org. Returns
  * { failures, coverage: { minimumPerClass, minimumOrgWide, perClass: [{ name, percent }], orgWide } }.
  */
-function evaluateCoverageGate(codeCoverage, apex, testLevel, gates) {
+function evaluateCoverageGate(codeCoverage, apexAll, testLevel, gates, inactive = []) {
     if (!gates.coverage) {
         return { failures: [], coverage: null };
     }
+    // Inactive triggers get no coverage and Salesforce doesn't hold them to it: no 0% failure for them.
+    const off = new Set(inactive.map((n) => String(n).toLowerCase()));
+    const apex = apexAll.filter((n) => !off.has(String(n).toLowerCase()));
     const { minimumPerClass, minimumOrgWide } = gates.coverage;
     const rows = asList(codeCoverage).map((c) => {
         const total = Number(c && c.numLocations) || 0;
@@ -1402,8 +1414,33 @@ function buildDeployment(base, head) {
     // The Apex classes and triggers the deployment sends or deletes, for the quality gates.
     const apex = [...new Set(existing.map((d) => componentFor(d)).concat([...deletions.values()])
         .filter((c) => c && APEX_TYPES.has(c.type)).map((c) => c.name))].sort();
+    // Deleted Apex, and triggers sent switched off (<status>Inactive</status>): neither needs a test class.
+    const apexDeleted = [...deletions.values()].filter((c) => APEX_TYPES.has(c.type)).map((c) => c.name).sort();
+    const sentTriggers = [...new Set(existing.map((d) => componentFor(d)).filter((c) => c && c.type === 'ApexTrigger').map((c) => c.name))];
+    const inactiveTriggers = sentTriggers.filter((n) => triggerIsInactive(n)).sort();
     return { pkg, destructive, changed: existing.length, deleted: deletions.size,
-        deletedList: [...deletions.keys()], sources: existing, apex };
+        deletedList: [...deletions.keys()], sources: existing, apex, apexDeleted, inactiveTriggers };
+}
+
+/** Whether a trigger's -meta.xml in the release files says <status>Inactive</status>. */
+function triggerIsInactive(name) {
+    const meta = path.join(sourcePath(), 'triggers', `${name}.trigger-meta.xml`);
+    try {
+        return /<status>\s*Inactive\s*<\/status>/i.test(fs.readFileSync(meta, 'utf8'));
+    } catch (e) {
+        return false;
+    }
+}
+
+/**
+ * Whether the release's Apex is only deletions and triggers sent inactive (nothing that runs and needs coverage).
+ * Such a release without tests runs the org's local tests in production (Salesforce refuses NoTestRun there for
+ * Apex, deleted or inactive included) and no tests elsewhere.
+ */
+function apexNeedsNoTests(plan) {
+    const apex = plan.apex || [];
+    const skip = new Set([...(plan.apexDeleted || []), ...(plan.inactiveTriggers || [])].map((n) => n.toLowerCase()));
+    return apex.length > 0 && skip.size > 0 && apex.every((n) => skip.has(n.toLowerCase()));
 }
 
 function asList(value) {
@@ -1449,6 +1486,11 @@ function deployTo(alias, plan, checkOnly) {
 /** The test level a deployment of plan uses, and the release's tests (null when it sent none). */
 function testLevelFor(plan) {
     const tests = plan.ownTests === false ? null : releaseTests();
+    if (tests && !tests.length && apexNeedsNoTests(plan)) {
+        // Only deleted Apex and inactive triggers, no tests: production (the hub says so: options.production) runs
+        // the local tests, sandboxes and other orgs none.
+        return { tests: [], testLevel: options.production === true ? 'RunLocalTests' : 'NoTestRun' };
+    }
     const testLevel = tests ? (tests.length ? 'RunSpecifiedTests' : 'NoTestRun')
         : TEST_LEVELS.includes(v('DEPLOY_TEST_LEVEL')) ? v('DEPLOY_TEST_LEVEL') : (plan.defaultTestLevel || 'RunLocalTests');
     return { tests, testLevel };
@@ -2538,7 +2580,8 @@ async function stepValidate() {
             return;
         }
         // Gates that need no org: a broken gates file, Apex without tests. They fail before anything is sent.
-        const early = gatesResult(relayGates, evaluateTestsGate(plan.apex, testLevelFor(plan).testLevel, relayGates));
+        const early = gatesResult(relayGates, evaluateTestsGate(plan.apex, testLevelFor(plan).testLevel, relayGates,
+            [...plan.apexDeleted, ...plan.inactiveTriggers]));
         if (!early.passed) {
             gatesSummary('validate', early);
             writeResult('validate', { status: 'Failed', changed: plan.changed, deleted: plan.deletedList, mergedWith, validatedTree,
@@ -2555,7 +2598,7 @@ async function stepValidate() {
     // The coverage gate reads the coverage of a validation that passed and ran tests.
     let coverageCheck = { failures: [], coverage: null };
     if (r.ok && TESTED_LEVELS.includes(r.testLevel) && r.testsRun > 0) {
-        coverageCheck = evaluateCoverageGate(r.codeCoverage, plan.apex, r.testLevel, relayGates);
+        coverageCheck = evaluateCoverageGate(r.codeCoverage, plan.apex, r.testLevel, relayGates, plan.inactiveTriggers);
     }
     const gates = gatesResult(relayGates, coverageCheck.failures);
     gatesSummary('validate', gates);
