@@ -1,0 +1,31 @@
+{
+ "request": "REL-00034",
+ "step": "validate",
+ "status": "Conflict",
+ "conflicts": [
+  {
+   "file": "force-app/main/default/classes/InvoiceTotals.cls",
+   "merged": "/**\n * @description Adds up invoice lines: subtotal, discount and total, rounded to cents.\n */\npublic with sharing class InvoiceTotals {\n    /**\n     * @description The invoice total after a percentage discount.\n     * @param amounts the line amounts\n     * @param discountPercent the discount, 0 to 100\n     * @return the total, rounded to 2 decimals\n     */\n    public static Decimal total(List<Decimal> amounts, Decimal discountPercent) {\n        Decimal subtotal = 0;\n        for (Decimal a : amounts) {\n            subtotal += a == null ? 0 : a;\n        }\n<<<<<<< HEAD\n        Decimal pct = discountPercent == null ? 0 : Math.min(Math.max(discountPercent, 0), 50); // SIT hotfix: discounts capped at 50%\n=======\n        Decimal pct = discountPercent == null ? 0 : Math.min(Math.max(discountPercent, 0), 90); // Max discount 90%\n>>>>>>> refs/remotes/origin/feature/rel-00034\n        return (subtotal * (100 - pct) / 100).setScale(2, RoundingMode.HALF_UP);\n    }\n}",
+   "mine": "/**\n * @description Adds up invoice lines: subtotal, discount and total, rounded to cents.\n */\npublic with sharing class InvoiceTotals {\n    /**\n     * @description The invoice total after a percentage discount.\n     * @param amounts the line amounts\n     * @param discountPercent the discount, 0 to 100\n     * @return the total, rounded to 2 decimals\n     */\n    public static Decimal total(List<Decimal> amounts, Decimal discountPercent) {\n        Decimal subtotal = 0;\n        for (Decimal a : amounts) {\n            subtotal += a == null ? 0 : a;\n        }\n        Decimal pct = discountPercent == null ? 0 : Math.min(Math.max(discountPercent, 0), 90); // Max discount 90%\n        return (subtotal * (100 - pct) / 100).setScale(2, RoundingMode.HALF_UP);\n    }\n}",
+   "theirs": "/**\n * @description Adds up invoice lines: subtotal, discount and total, rounded to cents.\n */\npublic with sharing class InvoiceTotals {\n    /**\n     * @description The invoice total after a percentage discount.\n     * @param amounts the line amounts\n     * @param discountPercent the discount, 0 to 100\n     * @return the total, rounded to 2 decimals\n     */\n    public static Decimal total(List<Decimal> amounts, Decimal discountPercent) {\n        Decimal subtotal = 0;\n        for (Decimal a : amounts) {\n            subtotal += a == null ? 0 : a;\n        }\n        Decimal pct = discountPercent == null ? 0 : Math.min(Math.max(discountPercent, 0), 50); // SIT hotfix: discounts capped at 50%\n        return (subtotal * (100 - pct) / 100).setScale(2, RoundingMode.HALF_UP);\n    }\n}",
+   "truncated": false
+  }
+ ],
+ "conflictCount": 1,
+ "message": "1 file(s) conflict with sit. Choose what to keep in Release Relay, then check again.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41495529187",
+ "finishedAt": "2026-11-02T17:54:59.331Z",
+ "attempt": "b90766d3efe847f7cc06b8c550c7f070",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ }
+}
