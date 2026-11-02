@@ -1,0 +1,38 @@
+{
+ "request": "REL-00028",
+ "step": "validate",
+ "status": "Conflict",
+ "conflicts": [
+  {
+   "file": "force-app/main/default/classes/TaxCalculator.cls-meta.xml",
+   "merged": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ApexClass xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <apiVersion>65.0</apiVersion>\n    <status>Active</status>\n</ApexClass>\n",
+   "mine": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ApexClass xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <apiVersion>65.0</apiVersion>\n    <status>Active</status>\n</ApexClass>",
+   "theirs": null,
+   "truncated": false
+  },
+  {
+   "file": "force-app/main/default/classes/TaxCalculatorTest.cls-meta.xml",
+   "merged": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ApexClass xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <apiVersion>65.0</apiVersion>\n    <status>Active</status>\n</ApexClass>\n",
+   "mine": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ApexClass xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <apiVersion>65.0</apiVersion>\n    <status>Active</status>\n</ApexClass>",
+   "theirs": null,
+   "truncated": false
+  }
+ ],
+ "conflictCount": 2,
+ "message": "2 file(s) conflict with sit. Choose what to keep in Release Relay, then check again.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41376804822",
+ "finishedAt": "2026-11-02T02:16:42.669Z",
+ "attempt": "d95cb5fcb6e8ac2b698dd1c57f68ee1c",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ }
+}
