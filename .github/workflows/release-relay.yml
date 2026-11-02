@@ -1,4 +1,8 @@
-# Release Relay pipeline files: version 14
+# Release Relay pipeline files: version 15
+# Version 15: a nightly schedule (on.schedule, 08:00 UTC = 2:00 AM Central in winter) runs the archive job: it signs in
+# to the hub and calls POST /services/apexrest/rly/archive once per pass (at most 25) until the hub says done. The hub
+# removes finished releases older than its Retention days only when "Archive every night" is on; every other job skips
+# on the schedule. Hub environment: vars.RELAY_HUB_ENVIRONMENT (default prod).
 # Version 14: a promotion can take each changed file as it is in the previous stage (options.stageBranch) and stops on
 # a hotfix the stage doesn't have (raise.json "clash"); changes can be added to an open release (mode hub with
 # options.append and options.appendZip; raise.json "appended").
@@ -8,7 +12,9 @@
 # branch) and mode=rollback, and a cached Salesforce CLI.
 # Release Relay's own metadata (its components by exact name, plus .relay/exclude) is never validated, deployed or deleted;
 # options {"selfUpdate":true} (the hub updating itself, from the release-relay-hub branch) ignores the list.
-# Release Relay: started only from Salesforce (workflow_dispatch).
+# Release Relay: started from Salesforce (workflow_dispatch), and every night by the schedule (archive job only).
+#   archive      (schedule only) ask the hub to archive finished releases older than its Retention days, one
+#                pass per call, logging each pass; the hub skips when "Archive every night" is off.
 #   mode=org     retrieve the selected components from the source org, apply deletions, commit to a
 #                new branch, open a pull request into the target branch, then scan and validate it.
 #   mode=branch  open a pull request from a branch that already exists, then scan and validate it.
@@ -44,9 +50,13 @@
 # {"snapshot":false} skips the rollback snapshot before a deploy; {"snapshotPath":"REL-00042/prod/<id>"} picks
 # the snapshot for mode=rollback.
 name: Release Relay
-run-name: "Release Relay ${{ inputs.request_id }} (${{ inputs.mode }})"
+run-name: "${{ github.event_name == 'schedule' && 'Release Relay nightly archive' || format('Release Relay {0} ({1})', inputs.request_id, inputs.mode) }}"
 
 on:
+  # Nightly archive. Cron is UTC: 0 8 * * * is 2:00 AM Central in winter (CST), 3:00 AM in summer (CDT); change the
+  # hour to your quiet time. GitHub may start it a few minutes late.
+  schedule:
+    - cron: "0 8 * * *"
   workflow_dispatch:
     inputs:
       request_id:
@@ -100,9 +110,9 @@ permissions:
   pull-requests: write
 
 # One run at a time per release branch; back promotes, one at a time per back-promote branch; rollbacks, one at
-# a time per org.
+# a time per org; the nightly archive, one at a time.
 concurrency:
-  group: release-relay-${{ inputs.mode == 'rollback' && format('rollback-{0}', inputs.target_environment) || (inputs.mode == 'sync' && inputs.target || inputs.branch) }}
+  group: release-relay-${{ github.event_name == 'schedule' && 'archive' || (inputs.mode == 'rollback' && format('rollback-{0}', inputs.target_environment) || (inputs.mode == 'sync' && inputs.target || inputs.branch)) }}
   cancel-in-progress: false
 
 env:
@@ -482,3 +492,100 @@ jobs:
           SF_JKS_PASSWORD: ${{ secrets.SF_JKS_PASSWORD }}
           SF_JKS_ALIAS: ${{ vars.SF_JKS_ALIAS }}
         run: node scripts/release-relay.js
+
+  # Nightly archive (schedule only): signs in to the hub with its environment's login (as the other jobs do) and
+  # calls the archive endpoint once per pass until it answers done (at most 25 calls). Each call's answer is logged.
+  # The hub decides: it skips (and says why) unless it is the production hub, the user has Release Relay Admin,
+  # "Archive every night" is on and Retention days are set. No script from the repository is needed.
+  archive:
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    environment: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      - name: Salesforce CLI cache key
+        id: sfkey
+        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+      - name: Cache Salesforce CLI
+        uses: actions/cache@v4
+        with:
+          path: ~/.relay-sf
+          key: ${{ steps.sfkey.outputs.key }}
+      - name: Install Salesforce CLI
+        run: |
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
+      - name: Archive finished releases in the hub
+        env:
+          SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+          SF_USERNAME: ${{ secrets.SF_USERNAME }}
+          SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+          SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+          SF_JKS: ${{ secrets.SF_JKS }}
+          SF_JKS_PASSWORD: ${{ secrets.SF_JKS_PASSWORD }}
+          SF_JKS_ALIAS: ${{ vars.SF_JKS_ALIAS }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # Secrets reach the shell only as environment variables. The key is written like the script does it:
+        # SF_JKS (keystore, base64) with SF_JKS_PASSWORD and SF_JKS_ALIAS, or SF_JWT_KEY (base64 PEM private key).
+        run: |
+          set -euo pipefail
+          for name in SF_USERNAME SF_CLIENT_ID SF_INSTANCE_URL; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name isn't set for the hub's environment."
+              exit 1
+            fi
+          done
+          key="$RUNNER_TEMP/relay.key"
+          if [ -n "${SF_JKS:-}" ]; then
+            if [ -z "${SF_JKS_PASSWORD:-}" ] || [ -z "${SF_JKS_ALIAS:-}" ]; then
+              echo "::error::SF_JKS is set, so SF_JKS_PASSWORD (secret) and SF_JKS_ALIAS (variable) are needed too."
+              exit 1
+            fi
+            dir="$(mktemp -d)"
+            printf '%s' "$SF_JKS" | base64 -d > "$dir/store.jks"
+            export RELAY_PW="$SF_JKS_PASSWORD"
+            keytool -importkeystore -noprompt -srckeystore "$dir/store.jks" -srcstoretype JKS -srcstorepass:env RELAY_PW \
+              -srckeypass:env RELAY_PW -srcalias "$SF_JKS_ALIAS" -destkeystore "$dir/store.p12" -deststoretype PKCS12 \
+              -deststorepass:env RELAY_PW -destkeypass:env RELAY_PW > /dev/null
+            openssl pkcs12 -in "$dir/store.p12" -nocerts -nodes -passin env:RELAY_PW -out "$key" 2> /dev/null
+            rm -rf "$dir"
+          elif [ -n "${SF_JWT_KEY:-}" ]; then
+            printf '%s' "$SF_JWT_KEY" | base64 -d > "$key"
+          else
+            echo "::error::Set SF_JKS (keystore from Salesforce) or SF_JWT_KEY (private key) for the hub's environment."
+            exit 1
+          fi
+          chmod 600 "$key"
+          sf org login jwt --client-id "$SF_CLIENT_ID" --username "$SF_USERNAME" --jwt-key-file "$key" \
+            --instance-url "$SF_INSTANCE_URL" --alias relay-hub > /dev/null
+          rm -f "$key"
+          org="$(sf org display --target-org relay-hub --json)"
+          token="$(printf '%s' "$org" | jq -r '.result.accessToken')"
+          echo "::add-mask::$token"
+          base="$(printf '%s' "$org" | jq -r '.result.instanceUrl' | sed 's:/*$::')"
+          run_id=""
+          for call in $(seq 1 25); do
+            body="$(jq -n --arg runUrl "$RUN_URL" --arg runId "$run_id" \
+              '{runUrl: $runUrl} + (if $runId == "" then {} else {runId: $runId} end)')"
+            answer="$(curl -sS --fail-with-body -X POST "$base/services/apexrest/rly/archive" \
+              -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d "$body")"
+            if [ "$(printf '%s' "$answer" | jq -r '.skipped')" = "true" ]; then
+              echo "Call $call: $(printf '%s' "$answer" | jq -r '.reason')"
+              echo "Nightly archive: $(printf '%s' "$answer" | jq -r '.reason')" >> "$GITHUB_STEP_SUMMARY"
+              break
+            fi
+            line="$(printf '%s' "$answer" | jq -r '"Pass \(.pass): \(.removed) releases, \(.records) records removed, \(.remaining // "?") eligible left. \(.reason // "")"')"
+            echo "$line"
+            echo "- $line" >> "$GITHUB_STEP_SUMMARY"
+            run_id="$(printf '%s' "$answer" | jq -r '.runId // ""')"
+            if [ "$(printf '%s' "$answer" | jq -r '.done')" = "true" ]; then
+              case "$line" in
+                *" failed: "*) echo "::warning::The archive pass failed; the hub's Archive tab has the details. The next night carries on." ;;
+              esac
+              break
+            fi
+          done
