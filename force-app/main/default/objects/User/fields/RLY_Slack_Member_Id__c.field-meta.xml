@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>RLY_Slack_Member_Id__c</fullName>
-    <description>Release Relay: the user&apos;s Slack member ID (U0...). Approve and Reject from Slack act as this user. Admins link it on the Pipeline tab.</description>
-    <externalId>false</externalId>
+    <caseSensitive>false</caseSensitive>
+    <description>Release Relay: the user&apos;s Slack member ID (U0... or W...). Approve and Reject from Slack act as this user. Unique: one Slack account per user. Set by matching (SSO Federation ID or email), by the approver from Slack (Self) or by an admin on the Pipeline tab&apos;s Approvers window.</description>
+    <externalId>true</externalId>
     <label>Slack Member Id</label>
     <length>20</length>
     <required>false</required>
     <type>Text</type>
-    <unique>false</unique>
+    <unique>true</unique>
 </CustomField>

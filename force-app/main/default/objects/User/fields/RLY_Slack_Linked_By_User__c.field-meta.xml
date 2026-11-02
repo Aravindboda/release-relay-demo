@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>RLY_Slack_Linked_By_User__c</fullName>
+    <description>Release Relay: who linked the Slack member ID for Admin links (the admin) and Self links (the approver); empty for SSO and Email matches. A hierarchy field: on User, a lookup to User is a hierarchical relationship.</description>
+    <label>Slack Linked By User</label>
+    <relationshipLabel>Slack Links Set</relationshipLabel>
+    <relationshipName>RLY_Slack_Links_Set</relationshipName>
+    <required>false</required>
+    <type>Hierarchy</type>
+</CustomField>

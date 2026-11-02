@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Status__c</fullName>
+    <description>Where the release is overall (Submitted, Retrieving, Validating, PR open, Ready for approval, Approved, Deploying, Deployed, Failed and so on). Set only by Release Relay&apos;s Apex as the pipeline reports back.</description>
+    <label>Status</label>
+    <required>false</required>
+    <trackHistory>true</trackHistory>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Submitted</fullName>
+                <default>true</default>
+                <label>Submitted</label>
+            </value>
+            <value>
+                <fullName>Workflow running</fullName>
+                <default>false</default>
+                <label>Workflow running</label>
+            </value>
+            <value>
+                <fullName>Retrieving</fullName>
+                <default>false</default>
+                <label>Retrieving</label>
+            </value>
+            <value>
+                <fullName>Validating</fullName>
+                <default>false</default>
+                <label>Validating</label>
+            </value>
+            <value>
+                <fullName>PR open</fullName>
+                <default>false</default>
+                <label>PR open</label>
+            </value>
+            <value>
+                <fullName>Checks failed</fullName>
+                <default>false</default>
+                <label>Checks failed</label>
+            </value>
+            <value>
+                <fullName>Ready for approval</fullName>
+                <default>false</default>
+                <label>Ready for approval</label>
+            </value>
+            <value>
+                <fullName>Approved</fullName>
+                <default>false</default>
+                <label>Approved</label>
+            </value>
+            <value>
+                <fullName>Rejected</fullName>
+                <default>false</default>
+                <label>Rejected</label>
+            </value>
+            <value>
+                <fullName>Merging</fullName>
+                <default>false</default>
+                <label>Merging</label>
+            </value>
+            <value>
+                <fullName>Merged</fullName>
+                <default>false</default>
+                <label>Merged</label>
+            </value>
+            <value>
+                <fullName>Deploying</fullName>
+                <default>false</default>
+                <label>Deploying</label>
+            </value>
+            <value>
+                <fullName>Deployed</fullName>
+                <default>false</default>
+                <label>Deployed</label>
+            </value>
+            <value>
+                <fullName>Deploy failed</fullName>
+                <default>false</default>
+                <label>Deploy failed</label>
+            </value>
+            <value>
+                <fullName>Closed</fullName>
+                <default>false</default>
+                <label>Closed</label>
+            </value>
+            <value>
+                <fullName>Failed</fullName>
+                <default>false</default>
+                <label>Failed</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

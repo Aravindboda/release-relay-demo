@@ -151,6 +151,13 @@ export default class RlyPromote extends LightningElement {
     promotedId;
     /** releaseId → its manual steps (StepRow, in sequence), read for releases with Ready.manualSteps. */
     stepsByRelease = {};
+    /** The stage whose "How promoting works" panel is open (one at a time), or undefined. */
+    openRulesFor;
+    /** After the next render: focus the open panel's heading (opened) or this stage's link (closed). */
+    focusRulesFor;
+    focusLinkFor;
+    /** The tooltip on screen: { title, text, top, left }, or undefined. */
+    tip;
 
     connectedCallback() {
         this.readHubStatus();
@@ -242,7 +249,18 @@ export default class RlyPromote extends LightningElement {
     get noStages() { return !!this.board && this.stages.length === 0; }
     get cantPromoteNote() {
         return this.board && !this.canPromote && this.stages.length
-            ? 'You can see what is waiting. Approvers and admins promote it.' : '';
+            ? 'Only approvers and admins can promote. You can see what\'s waiting.' : '';
+    }
+
+    /** The route for the panel's small picture: developer orgs, then each stage in order, then the last next stop. */
+    get routeStops() {
+        const stages = this.stages;
+        if (!stages.length) {
+            return [];
+        }
+        return [{ name: 'Developer org', dev: true }]
+            .concat(stages.map((s) => ({ name: s.stageName, dev: false })))
+            .concat([{ name: stages[stages.length - 1].nextName, dev: false }]);
     }
 
     get stageViews() {
@@ -279,6 +297,10 @@ export default class RlyPromote extends LightningElement {
             nextBranch: s.nextBranch,
             nextText: s.nextName + (s.nextBranch ? ' · ' + s.nextBranch : ''),
             routeLabel: s.stageName + ' to ' + s.nextName,
+            rulesOpen: this.openRulesFor === s.stageId,
+            rulesExpanded: this.openRulesFor === s.stageId ? 'true' : 'false',
+            rulesId: 'rr-rules-' + s.stageId,
+            gridCls: this.openRulesFor === s.stageId ? 'rr-grid rr-grid-rules' : 'rr-grid',
             listLabel: 'Releases deployed to ' + s.stageName,
             subText: 'Releases deployed to ' + s.stageName + ' and not yet in ' + s.nextName,
             empty: ready.length === 0,
@@ -305,9 +327,17 @@ export default class RlyPromote extends LightningElement {
                     manualOnly: r.manualOnly === true,
                     reason: r.isHotfix ? r.hotfixReason : '',
                     stays: !on && !carry && !blocks && chosen.length > 0,
+                    staysText: 'Stays in ' + s.stageName,
+                    staysTip: 'Not ticked, and shares no component with what goes. It waits in ' + s.stageName + ' for a later promotion.',
                     carried: !!carry,
                     goesWith: carry ? 'Goes with ' + carry.withName + ' (' + carry.components.join(', ') + ')' : '',
+                    goesTip: carry ? s.nextName + ' gets ' + carry.components.join(', ') + ' as it is in ' + s.stageName
+                        + ', which includes this older change, so it goes too.' : '',
                     blockText: blocks ? 'Changed ' + blocked.component + ' after ' + blocked.after : '',
+                    blockTip: blocks ? s.stageName + '\'s ' + blocked.component + ' already has this newer change, so ' + blocked.after
+                        + ' can\'t go without it. Add it to promote.' : '',
+                    rolledBackText: r.rolledBack ? 'Rolled back in ' + s.stageName : '',
+                    rolledBackTip: r.rolledBack ? this.rolledBackTip(s, r) : '',
                     checked: on,
                     selLabel: 'Promote ' + r.name,
                     raisedBy: r.raisedBy || '',
@@ -324,6 +354,8 @@ export default class RlyPromote extends LightningElement {
             stageRuleTail: this.stageRuleTail(s, picks, carriedRows, blocked),
             hasCarried: carriedRows.length > 0,
             carriedText: carriedRows.map((r) => r.name).join(', '),
+            alsoGoesTip: 'Older releases that changed the same component as one you ticked. ' + s.nextName + ' gets ' + s.stageName
+                + '\'s version, which already has their changes, so they go too and are marked promoted with it.',
             carriedTail: ' (older ' + (carriedRows.length === 1 ? 'change' : 'changes') + ' to '
                 + [...new Set(carriedRows.flatMap((r) => overlap.carried.get(r.id).components))].join(', ') + ' — ' + s.nextName + ' gets '
                 + s.stageName + '\'s version, which includes ' + (carriedRows.length === 1 ? 'it' : 'them') + ')',
@@ -331,6 +363,8 @@ export default class RlyPromote extends LightningElement {
             blockedText: blocked ? blocked.name + ' changed ' + blocked.component + ' after ' + blocked.after + ': add it, or wait and promote them together.' : '',
             blockerId: blocked ? blocked.id : '',
             addBlockerLabel: blocked ? '+ Add ' + blocked.name : '',
+            addTip: blocked ? 'Ticks ' + blocked.name + '. ' + s.stageName + '\'s ' + blocked.component + ' already has its change, so '
+                + blocked.after + ' can\'t go without it.' : '',
             componentText: ' · ' + plural(components, 'component', 'components') + (deletions ? ' · ' + plural(deletions, 'deletion', 'deletions') : ''),
             testsLead: tests.length ? 'Tests in ' + s.nextName + ': ' : 'No test classes carried: ',
             testsList: tests.join(', '),
@@ -351,6 +385,89 @@ export default class RlyPromote extends LightningElement {
             buttonLabel: this.buttonLabel(s, picks, onlyHotfixes, busy),
             cantPromote: locked || this.hubCopy || picks.length === 0 || !!blocked || !(title || '').trim()
         };
+    }
+
+    /**
+     * The "Rolled back in <stage>" pill's tooltip: the stage is back to how it was before the release, but the release keeps
+     * its status and Git still has the change, so it can still be picked and promoting it sends the change on.
+     */
+    rolledBackTip(s, r) {
+        const rb = r.rolledBack || {};
+        const on = rb.rolledOn ? ' on ' + when(rb.rolledOn) : '';
+        const why = rb.why ? ' Why: ' + rb.why + '.' : '';
+        return s.stageName + ' was put back the way it was before ' + r.name + on + '.' + why + ' The release keeps its status and Git still has '
+            + 'the change, so promoting it sends the change on to ' + s.nextName + '. If it shouldn\'t go, leave it unticked and fix it with a new release.';
+    }
+
+    // ---------- How promoting works (side panel per card) ----------
+
+    /** "How promoting works" on a card: opens its panel (closing any other), or closes it. */
+    toggleRules(event) {
+        const stageId = event.currentTarget.dataset.stage;
+        if (this.openRulesFor === stageId) {
+            this.openRulesFor = undefined;
+            return;
+        }
+        this.openRulesFor = stageId;
+        this.focusRulesFor = stageId;
+    }
+
+    /** ✕ or Esc in the panel: closes it and gives the focus back to the card's link. */
+    closeRules(event) {
+        const stageId = event.currentTarget.dataset.stage;
+        this.openRulesFor = undefined;
+        this.focusLinkFor = stageId;
+    }
+
+    renderedCallback() {
+        if (this.focusRulesFor) {
+            const panel = [...this.template.querySelectorAll('c-rly-promote-rules')].find((p) => p.dataset.stage === this.focusRulesFor);
+            this.focusRulesFor = undefined;
+            if (panel) {
+                panel.focusHeading();
+            }
+        }
+        if (this.focusLinkFor) {
+            const link = [...this.template.querySelectorAll('button.rr-howlink')].find((b) => b.dataset.stage === this.focusLinkFor);
+            this.focusLinkFor = undefined;
+            if (link) {
+                link.focus();
+            }
+        }
+    }
+
+    // ---------- tooltips on row labels, Also goes, + Add and Rolled back ----------
+
+    get tipCls() { return this.tip ? 'rr-tip rr-tip-on' : 'rr-tip'; }
+    get tipTitle() { return this.tip ? this.tip.title : ''; }
+    get tipText() { return this.tip ? this.tip.text : ''; }
+    get tipStyle() { return this.tip ? 'top:' + this.tip.top + 'px;left:' + this.tip.left + 'px' : ''; }
+
+    /** Shows the label's reason under it (hover, focus, or a tap on touch screens). */
+    showTip(event) {
+        const el = event.currentTarget;
+        if (!el || !el.dataset.tip) {
+            return;
+        }
+        const rect = el.getBoundingClientRect();
+        const width = window.innerWidth || 1024;
+        this.tip = {
+            title: el.dataset.tipTitle || '',
+            text: el.dataset.tip,
+            top: Math.round(rect.bottom + 6),
+            left: Math.round(Math.max(8, Math.min(rect.left, width - 336)))
+        };
+    }
+
+    hideTip() {
+        this.tip = undefined;
+    }
+
+    /** Esc hides the tooltip. */
+    tipKey(event) {
+        if (event.key === 'Escape') {
+            this.hideTip();
+        }
     }
 
     /** Selected, carried (dashed box), blocking (red), a hotfix, or plain. */

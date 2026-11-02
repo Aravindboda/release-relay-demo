@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Slack_Scopes__c</fullName>
+    <description>The Slack bot token&apos;s scopes at the last check (auth.test&apos;s x-oauth-scopes header), comma separated. Approver matching needs users:read and users:read.email.</description>
+    <externalId>false</externalId>
+    <label>Slack Scopes</label>
+    <length>255</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>
