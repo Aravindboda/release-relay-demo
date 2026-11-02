@@ -1,15 +1,15 @@
 {
  "request": "REL-91020",
  "step": "validate",
- "status": "Failed",
- "changed": 40,
+ "status": "Passed",
+ "changed": 41,
  "deleted": [],
  "mergedWith": "87c1c76ac4bca37e2afd7776d7bb99a0afa1e9c0",
- "validatedTree": "625d8de000c7196cf47b2fc597b1a07ed66d9bf7",
+ "validatedTree": "7ba7a2fd962af50f03fe4f9bb5edc3572bfcd1ff",
  "environment": "sit",
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000cR3WzSAK",
+ "deployId": "0AfgL00000cR33zSAC",
  "testsRun": 360,
  "tests": [
   "RlyAppendTest",
@@ -67,21 +67,15 @@
  ],
  "coverageWarnings": [],
  "componentErrors": [],
- "testFailures": [
-  {
-   "name": "RlyRollbackTest",
-   "method": "releasesTabListsRolledBack",
-   "message": "System.AssertException: Assertion Failed: \"REL\",\"Title\",\"Route\",\"Raised by\",\"Raised on\",\"Status\",\"Approved by\",\"Approved on\",\"Via\",\"Comment\",\"Second approver\",\"Deployed to\",\"Deploy ids\",\"PR url\",\"Rolled back in\",\"Rolled back on\",\"Files\""
-  }
- ],
- "message": "1 test failure(s)",
+ "testFailures": [],
+ "message": "",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41485566995",
- "finishedAt": "2026-11-02T17:15:04.714Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41489476438",
+ "finishedAt": "2026-11-02T17:25:04.551Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
