@@ -32,6 +32,8 @@ import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
 import readRetention from '@salesforce/apex/RlyArchiveController.readRetention';
 import previewRetention from '@salesforce/apex/RlyArchiveController.previewRetention';
 import saveRetention from '@salesforce/apex/RlyArchiveController.saveRetention';
+import readBuiltLock from '@salesforce/apex/RlyBuildLock.status';
+import saveBuiltLock from '@salesforce/apex/RlyBuildLock.setPassword';
 import { MIN_DAYS, about, count, longDate, nextNightlyText, nightlyClock, num, stamp, toDate } from 'c/rlyArchiveText';
 
 /** A list shows its search box from this many rows (or while a search is typed); Connected orgs from more than 6 orgs. */
@@ -124,11 +126,15 @@ const DOT_CLS = { Connected: 'rr-dot rr-dot-ok', Failed: 'rr-dot rr-dot-bad', Re
 /** Connected orgs: one tab per Salesforce environment (RLY_Org__c.Environment__c); an org without one goes under Other. */
 const OTHER_TAB = 'Not set';
 /** The page's sections, in order; each folds open or closed. Section 1 and Connected orgs start open. */
-const FOLD_DEFAULTS = { git: true, route: false, values: false, gates: false, slack: false, retention: false, orgs: true };
+const FOLD_DEFAULTS = { git: true, route: false, values: false, gates: false, slack: false, retention: false, lock: false, orgs: true };
 /** The Archive tab, and how long the Retention days box waits after typing before it counts what becomes eligible. */
 const ARCHIVE_TAB = 'RLY_Archive';
 const PREVIEW_WAIT = 400;
 const RETENTION = 'retention';
+/** The What's built lock section (build 31): a password in front of the What's built tab. */
+const LOCK = 'lock';
+/** RlyBuildLock: shortest password. */
+const LOCK_MIN = 8;
 /** Where this browser remembers which sections are open, and the last Connected orgs tab (per viewer, best effort). */
 const FOLD_STORE = 'rly.pipeline.sections';
 const TAB_STORE = 'rly.pipeline.orgTab';
@@ -619,6 +625,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
         this.loading = true;
         this.error = undefined;
         this.loadRetention();
+        this.loadBuiltLock();
         return Promise.all([getOrgs(), getSetup(), getSlack(), this.readBackPromote()])
             .then(([h, s, sl, bp]) => {
                 this.applySlack(sl);
@@ -696,7 +703,8 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     /** The section being edited stays open and can't fold (chevron off until Cancel / Save). */
     isLocked(key) {
         return (key === 'git' && (this.isGitEditing || this.isBpEditing)) || (key === 'route' && this.editingRoute)
-            || (key === 'slack' && this.isSlackEditing) || (key === RETENTION && this.isRetentionEditing);
+            || (key === 'slack' && this.isSlackEditing) || (key === RETENTION && this.isRetentionEditing)
+            || (key === LOCK && this.isLockEditing);
     }
 
     /** A section is open when the user left it open (or it needs attention), or while something in it is being edited. */
@@ -739,6 +747,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
             { key: 'gates', title: 'Quality gates', summary: this.gatesSummary },
             { key: 'slack', title: 'Slack connection', summary: this.slackSummary, pill: this.slackStatus, pillCls: this.slackStatusCls },
             { key: RETENTION, title: 'Retention', summary: this.retentionSummary, pill: this.retentionPill, pillCls: this.retentionPillCls },
+            { key: LOCK, title: "What's built lock", summary: this.lockSummary, pill: this.lockPill, pillCls: this.lockPillCls },
             { key: 'orgs', title: 'Connected orgs', summary: this.orgsSummary }
         ];
         const out = {};
@@ -1131,13 +1140,23 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     /** Resolves true when the window may drop what is typed: nothing changed, or the user says to discard it. */
     askDiscard() {
         const retention = this.isRetentionEditing;
-        if (!(retention ? this.retentionDirty : this.formDirty)) {
+        const lock = this.isLockEditing;
+        let dirty = this.formDirty;
+        let what = this.formOrgName;
+        if (retention) {
+            dirty = this.retentionDirty;
+            what = 'Retention';
+        } else if (lock) {
+            dirty = this.lockDirty;
+            what = "What's built lock";
+        }
+        if (!dirty) {
             return Promise.resolve(true);
         }
         this.confirming = true;
         return LightningConfirm.open({
             label: 'Discard changes?',
-            message: 'You changed ' + (retention ? 'Retention' : this.formOrgName) + '. Discard the changes?',
+            message: 'You changed ' + what + '. Discard the changes?',
             theme: 'warning'
         }).then((ok) => ok === true).catch(() => false).finally(() => {
             this.confirming = false;
@@ -2275,6 +2294,8 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
 
     endEdit() {
         this.clearRetentionEdit();
+        this.lockForm = { enabled: false, password: '', confirm: '' };
+        this.lockShowPw = false;
         this.editing = undefined;
         this.editError = undefined;
         this.editOrg = undefined;
@@ -2315,7 +2336,9 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     }
 
     handleEditSave() {
-        if (this.isRetentionEditing) {
+        if (this.isLockEditing) {
+            this.handleLockSave();
+        } else if (this.isRetentionEditing) {
             this.handleRetentionSave();
         } else if (this.isGitEditing) {
             this.saveGitEdit();
@@ -3266,6 +3289,141 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
                 if (nightlyChanged && this.git) {
                     this.loadPipeFiles();
                 }
+            })
+            .catch((e) => {
+                this.editError = errorText(e);
+            })
+            .finally(() => {
+                this.saving = false;
+            });
+    }
+
+    // ---------- What's built lock (build 31): admins edit, everyone else reads ----------
+
+    /** RlyBuildLock.status: on/off, password set, last change, who is locked out (admins). Undefined until read. */
+    builtLock;
+    builtLockError;
+    /** The form while the lock is edited: the toggle and the new password typed twice (never pre-filled). */
+    lockForm = { enabled: false, password: '', confirm: '' };
+    lockSnapshot;
+    /** The eye button: the two password fields show their text. */
+    lockShowPw = false;
+
+    loadBuiltLock() {
+        return readBuiltLock()
+            .then((r) => {
+                this.builtLock = r;
+                this.builtLockError = undefined;
+            })
+            .catch((e) => {
+                this.builtLock = undefined;
+                this.builtLockError = errorText(e);
+            });
+    }
+
+    get showBuiltLock() { return !!this.builtLock; }
+    get lockCanEdit() { return this.showBuiltLock && this.builtLock.canEdit === true; }
+    get lockReadOnly() { return this.showBuiltLock && !this.lockCanEdit; }
+    get lockOn() { return this.showBuiltLock && this.builtLock.enabled === true; }
+    get isLockEditing() { return this.editing === LOCK; }
+    get lockViewing() { return !this.isLockEditing; }
+    get lockCardCls() { return this.isLockEditing ? 'rr-sec rr-card-edit rr-edit' : 'rr-sec'; }
+    get lockSummary() {
+        if (!this.builtLock) {
+            return this.builtLockError || 'Reading…';
+        }
+        const b = this.builtLock;
+        const by = b.changedOn ? 'set ' + longDate(b.changedOn) + (b.changedBy ? ' by ' + b.changedBy : '') : '';
+        return b.enabled ? ['Locked', by].filter((x) => !!x).join(' · ') : 'Off · anyone with the tab can read it';
+    }
+    get lockPill() { return this.lockOn ? 'Locked' : 'Off'; }
+    get lockPillCls() { return this.lockOn ? 'rr-pill rr-pill-ok' : 'rr-pill rr-pill-none'; }
+    get lockStateHint() { return this.lockOn ? 'Everyone, admins too, types the password once per session' : 'Anyone with the tab can read it'; }
+    get lockChangedText() {
+        const b = this.builtLock;
+        if (!b || !b.changedOn) {
+            return 'Not changed yet';
+        }
+        return stamp(b.changedOn) + (b.changedBy ? ' by ' + b.changedBy : '');
+    }
+    get lockPasswordText() { return this.builtLock && this.builtLock.passwordSet ? 'Set' : 'Not set'; }
+    get lockOutText() {
+        const n = (this.builtLock && this.builtLock.lockedOutUsers) || 0;
+        return n ? count(n, 'user', 'users') : 'Nobody';
+    }
+    get lockOutHint() {
+        const b = this.builtLock;
+        return b && b.lockedOutUntil ? 'until ' + new Date(b.lockedOutUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '5 wrong tries lock a user out for 15 minutes';
+    }
+    get lockFootNote() { return this.lockChangedText === 'Not changed yet' ? 'Not changed yet' : 'Last changed ' + this.lockChangedText; }
+
+    /** Edit: the saved on/off and two empty password fields (blank keeps the current password). */
+    openLockEdit() {
+        if (this.editLocked || !this.lockCanEdit) {
+            return;
+        }
+        this.lockForm = { enabled: this.lockOn, password: '', confirm: '' };
+        this.lockSnapshot = JSON.stringify(this.lockForm);
+        this.lockShowPw = false;
+        this.startEdit(LOCK);
+    }
+
+    get lockDirty() { return this.isLockEditing && JSON.stringify(this.lockForm) !== this.lockSnapshot; }
+    get lockFormOn() { return this.lockForm.enabled === true; }
+    get lockPwType() { return this.lockShowPw ? 'text' : 'password'; }
+    get lockEyeLabel() { return this.lockShowPw ? 'Hide password' : 'Show password'; }
+    get lockEyeIcon() { return this.lockShowPw ? 'utility:hide' : 'utility:preview'; }
+    get lockPwError() {
+        const pw = this.lockForm.password;
+        return pw && pw.length < LOCK_MIN ? 'Use at least ' + LOCK_MIN + ' characters.' : '';
+    }
+    get lockConfirmError() {
+        const f = this.lockForm;
+        return f.confirm && f.confirm !== f.password ? "Doesn't match the new password yet." : '';
+    }
+    get lockPwHint() {
+        return this.builtLock && this.builtLock.passwordSet
+            ? 'At least ' + LOCK_MIN + ' characters. Leave blank to keep the current one.'
+            : 'At least ' + LOCK_MIN + ' characters.';
+    }
+    get lockConfirmHint() { return 'Type it again. Save stays off until both match.'; }
+    /** On with no password kept and none typed: Save stays off. */
+    get lockNeedsPw() { return this.lockFormOn && !this.lockForm.password && !(this.builtLock && this.builtLock.passwordSet); }
+    get lockCantSave() {
+        const f = this.lockForm;
+        return this.saving || !this.lockDirty || !!this.lockPwError || (this.lockFormOn && f.password !== f.confirm) || this.lockNeedsPw;
+    }
+    get lockOffNote() { return !this.lockFormOn && this.lockOn ? 'Turning the lock off removes the password; anyone with the tab can read it again.' : ''; }
+
+    handleLockToggle(event) {
+        this.lockForm = { ...this.lockForm, enabled: event.target.checked === true };
+    }
+
+    handleLockPw(event) {
+        this.lockForm = { ...this.lockForm, password: event.target.value || '' };
+    }
+
+    handleLockConfirm(event) {
+        this.lockForm = { ...this.lockForm, confirm: event.target.value || '' };
+    }
+
+    toggleLockEye() {
+        this.lockShowPw = !this.lockShowPw;
+    }
+
+    /** Save: the server checks the rules again, keeps only a salted hash and ends everyone's current unlock. */
+    handleLockSave() {
+        if (this.lockCantSave) {
+            return;
+        }
+        this.saving = true;
+        this.editError = undefined;
+        const on = this.lockFormOn;
+        saveBuiltLock({ enabled: on, password: on ? this.lockForm.password : null })
+            .then((r) => {
+                this.builtLock = r;
+                this.endEdit();
+                this.toast(on ? "What's built lock saved" : "What's built lock turned off", 'success');
             })
             .catch((e) => {
                 this.editError = errorText(e);

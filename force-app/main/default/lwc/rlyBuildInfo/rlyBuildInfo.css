@@ -327,6 +327,43 @@
     .rr-fields td.rr-req:empty, .rr-fields td:empty { display: none; }
 }
 
+/* What's built lock (build 31): lock card, unlocked chip, extras table */
+.rr-pill-wait { background: #fef1cd; color: #8c4b02; }
+.rr-unlocked { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 12px; background: #ebf7e6; color: #2e844a; font-size: 12px; white-space: nowrap; flex: none; }
+.rr-unlocked .rr-linkbtn { font-weight: 600; }
+.rr-lock-wait { min-height: 160px; }
+.rr-lock-retry { margin-top: 8px; }
+.rr-lock { width: 100%; max-width: 420px; margin: 32px auto 0; padding: 28px 28px 20px; display: flex; flex-direction: column; align-items: stretch; text-align: center; }
+.rr-lock-icon { align-self: center; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; background: #eef4ff; margin-bottom: 12px; }
+.rr-lock-icon-bad { background: #fddde3; }
+.rr-lock-title { font-size: 18px; font-weight: 700; color: #181818; margin: 0 0 6px; }
+.rr-lock-lead { font-size: 13px; color: #444; margin: 0 0 16px; line-height: 1.45; }
+.rr-lock-label { text-align: left; font-size: 12px; color: #444; margin-bottom: 4px; }
+.rr-lock-field { display: flex; align-items: center; border: 1px solid #747474; border-radius: 4px; background: #fff; padding-right: 4px; }
+.rr-lock-field:focus-within { border-color: var(--rr-blue); box-shadow: 0 0 0 1px var(--rr-blue); }
+.rr-lock-field-bad, .rr-lock-field-bad:focus-within { border-color: #ba0517; box-shadow: 0 0 0 1px #ba0517; }
+.rr-lock-input { flex: 1 1 auto; min-width: 0; height: 32px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; background: transparent; outline: none; }
+.rr-lock-input:disabled { background: var(--rr-soft); }
+.rr-lock-eye { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 0; border-radius: 4px; background: none; cursor: pointer; }
+.rr-lock-eye:focus-visible { outline: 2px solid var(--rr-blue); outline-offset: 1px; }
+.rr-lock-error { min-height: 18px; margin: 4px 0 8px; text-align: left; font-size: 12px; color: #ba0517; }
+.rr-lock-btn { width: 100%; justify-content: center; margin: 0; }
+.rr-lock-foot { margin-top: 14px; font-size: 12px; color: #706e6b; }
+.rr-extras-line { margin: 12px 0 0; padding: 8px 10px; border-radius: 4px; background: var(--rr-soft); font-size: 12px; color: #444; line-height: 1.45; }
+.rr-extras { margin-top: 8px; padding: 10px 12px; }
+.rr-extras-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.rr-extras-scroll { max-height: 280px; overflow: auto; border: 1px solid var(--rr-line); border-radius: 4px; }
+.rr-extras-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
+.rr-extras-table th { position: sticky; top: 0; background: #fafaf9; text-align: left; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--rr-line); }
+.rr-extras-table td { padding: 5px 8px; border-bottom: 1px solid var(--rr-line); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rr-extras-table th:nth-child(1) { width: 40%; }
+.rr-extras + .rr-small, .rr-extras > .rr-small { margin-top: 8px; }
+@media (max-width: 480px) {
+    .rr-lock { margin-top: 16px; padding: 18px 18px 16px; }
+    .rr-unlocked { flex: 1 1 100%; justify-content: flex-start; }
+    .rr-extras-table th:nth-child(3), .rr-extras-table td:nth-child(3) { display: none; }
+}
+
 /* Print / PDF: every section open (the component opens them), chrome hidden, tables unrolled */
 @media print {
     .rr-noprint { display: none !important; }

@@ -3,15 +3,26 @@ import { LightningElement } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import read from '@salesforce/apex/RlyBuildInfo.read';
 import readCounts from '@salesforce/apex/RlyBuildInfo.counts';
-import BUILD_DATA from './buildData';
+import readBuildData from '@salesforce/apex/RlyBuildInfo.buildData';
+import lockStatus from '@salesforce/apex/RlyBuildLock.status';
+import unlockBuilt from '@salesforce/apex/RlyBuildLock.unlock';
+import lockBuilt from '@salesforce/apex/RlyBuildLock.lockAgain';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
 
 /**
  * "What's built" as a technical document (build 30): numbered Contents (sticky; a dropdown at 480px and below),
  * breadcrumb with Prev / Next, exactly one section open (Expand all opens every one), search across the sections,
- * Print / PDF (opens everything, then window.print()). Prose and field tables come from the generated buildData.js;
- * the counts are read live (RlyBuildInfo.counts, cacheable) where cheap, with the generated figures as the fallback.
+ * Print / PDF (opens everything, then window.print()). Prose and field tables come from the generated data, which
+ * build 31 no longer ships in the bundle: RlyBuildInfo.buildData returns it (from a hidden Document) only after the
+ * What's built lock (RlyBuildLock) lets this user in, so while locked the page shows the lock card and nothing else.
+ * The counts are read live (RlyBuildInfo.counts) where cheap, with the generated figures as the fallback, and only
+ * Release Relay's own components count: live names are matched against the package list in the generated data.
  */
+
+/** A hint that this tab was unlocked in this browser tab: it only skips the lock card's flash, it is never trusted. */
+const UNLOCK_HINT = 'rly.built.unlocked';
+/** What RlyBuildLock throws while the tab is locked. */
+const LOCKED_TEXT = "What's built is locked.";
 
 /** Salesforce counts most custom object records as 2 KB. */
 const KB_PER_RECORD = 2;
@@ -111,16 +122,127 @@ function liveOr(liveValue, generated) {
     return { value: n, live: true, hint: n !== generated ? 'generated ' + fmt(generated) : '' };
 }
 
+function readHint() {
+    try {
+        return window.sessionStorage.getItem(UNLOCK_HINT) === '1';
+    } catch (e) {
+        return false;
+    }
+}
+
+function writeHint(on) {
+    try {
+        if (on) {
+            window.sessionStorage.setItem(UNLOCK_HINT, '1');
+        } else {
+            window.sessionStorage.removeItem(UNLOCK_HINT);
+        }
+    } catch (e) {
+        // storage blocked: the lock card may flash once, nothing else changes
+    }
+}
+
+function timeText(v) {
+    return v ? new Date(v).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+}
+
+function dateText(v) {
+    return v ? new Date(v).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+}
+
+/** A set of the package list's names; null when the data carries no list (then every Rly / RLY name counts). */
+function listOf(pkg, key) {
+    return pkg && Array.isArray(pkg[key]) ? new Set(pkg[key]) : null;
+}
+
+function isOurs(set, name) {
+    return !set || set.has(name);
+}
+
+/** RlyBuildInfo.counts with only Release Relay's own components counted (the package list in the generated data). */
+function ownCounts(lc, pkg) {
+    if (!lc) {
+        return lc;
+    }
+    const keep = (names, key) => (Array.isArray(names) ? names.filter((n) => isOurs(listOf(pkg, key), n)) : names);
+    const resources = keep((lc.resourceSizes || []).map((r) => r.name), 'staticResources');
+    const resSet = new Set(resources || []);
+    const sets = listOf(pkg, 'permissionSets');
+    const psCounts = (lc.permissionSetCounts || []).filter((p) => isOurs(sets, p.name));
+    const classes = keep(lc.classNames, 'classes');
+    const cps = keep(lc.customPermissionNames, 'customPermissions');
+    const tabs = keep(lc.tabNames, 'tabs');
+    return {
+        ...lc,
+        apexClasses: Array.isArray(classes) ? classes.length : lc.apexClasses,
+        customPermissions: Array.isArray(cps) ? cps.length : lc.customPermissions,
+        tabs: Array.isArray(tabs) ? tabs.length : lc.tabs,
+        staticResources: resSet.size,
+        staticResourceBytes: (lc.resourceSizes || []).filter((r) => resSet.has(r.name)).reduce((n, r) => n + (r.bytes || 0), 0),
+        permissionSets: psCounts.length,
+        permissionSetCounts: psCounts
+    };
+}
+
+/** RlyBuildInfo.read with only Release Relay's classes and static resources; the other Rly / RLY ones become extras. */
+function ownInfo(info, pkg) {
+    if (!info) {
+        return info;
+    }
+    const classSet = listOf(pkg, 'classes');
+    const resSet = listOf(pkg, 'staticResources');
+    const extra = (name, kind, modified) => ({
+        key: kind + name, name, kind, modified: dateText(modified),
+        why: /demo/i.test(name) ? 'Demo' : 'Not in this build',
+        whyCls: /demo/i.test(name) ? 'rr-pill rr-pill-info rr-pill-xs' : 'rr-pill rr-pill-wait rr-pill-xs'
+    });
+    const classes = (info.classes || []).filter((c) => isOurs(classSet, c.name));
+    const resources = (info.resources || []).filter((r) => isOurs(resSet, r.name));
+    const extras = (info.classes || []).filter((c) => !isOurs(classSet, c.name)).map((c) => extra(c.name, 'Apex class', c.lastModified))
+        .concat((info.resources || []).filter((r) => !isOurs(resSet, r.name)).map((r) => extra(r.name, 'Static resource', r.lastModified)));
+    let changed;
+    classes.forEach((c) => {
+        if (c.lastModified && (!changed || new Date(c.lastModified) > new Date(changed))) {
+            changed = c.lastModified;
+        }
+    });
+    return {
+        ...info,
+        classes,
+        resources,
+        extras,
+        apexChars: classes.reduce((n, c) => n + (c.chars || 0), 0),
+        codeChangedOn: changed || info.codeChangedOn
+    };
+}
+
 function fieldSearchValues(f) {
     return [f.name, f.label, f.type, f.description, f.allValues, f.values, f.flags];
 }
 
 export default class RlyBuildInfo extends LightningElement {
-    data = BUILD_DATA;
+    /** The generated document (RlyBuildInfo.buildData); undefined until this user may see it. */
+    data;
     live;
     liveCounts;
     loading = false;
     error;
+
+    // What's built lock (build 31): RlyBuildLock.status / unlock / lockAgain. The server decides; the page only shows.
+    /** RlyBuildLock.status; undefined until read. */
+    lock;
+    /** Reading the lock or the document (no lock card yet: the sessionStorage hint skips its flash). */
+    checking = true;
+    password = '';
+    showPassword = false;
+    unlocking = false;
+    /** The last unlock answer: wrong or lockedOut (blank before any try). */
+    unlockResult = '';
+    lockError;
+    focusPassword = false;
+    /** The "not part of Release Relay" table is open. */
+    extrasOpen = false;
+    lockTimer;
 
     /** The one open section (null: all closed). */
     openKey = 'overview';
@@ -129,7 +251,7 @@ export default class RlyBuildInfo extends LightningElement {
     /** The sub-entry in view (breadcrumb, Contents). */
     subKey = '';
     openObject = 'RLY_Release__c';
-    openArea = BUILD_DATA.apexAreas.length ? BUILD_DATA.apexAreas[0].name : '';
+    openArea = '';
     openPs = 'RLY_Admin';
     fieldFilter = 'all';
     term = '';
@@ -140,10 +262,18 @@ export default class RlyBuildInfo extends LightningElement {
     renderTick = 0;
 
     connectedCallback() {
-        this.load();
+        this.checking = readHint();
+        this.readLock();
     }
 
     renderedCallback() {
+        if (this.focusPassword) {
+            const input = this.template.querySelector('.rr-lock-input');
+            if (input) {
+                this.focusPassword = false;
+                input.focus();
+            }
+        }
         if (this.pendingPrint) {
             this.pendingPrint = false;
             window.print();
@@ -159,22 +289,185 @@ export default class RlyBuildInfo extends LightningElement {
         }
     }
 
+    // ---------- What's built lock ----------
+
+    /** Asks the server whether this user may read the tab; loads the document when so, else shows the lock card. */
+    readLock() {
+        lockStatus()
+            .then((s) => {
+                this.lock = s;
+                this.waitOutLock();
+                if (s.unlocked) {
+                    this.openDocument();
+                } else {
+                    writeHint(false);
+                    this.checking = false;
+                    this.focusPassword = true;
+                }
+            })
+            .catch((e) => {
+                this.lockError = errorText(e);
+                this.checking = false;
+            });
+    }
+
+    /** Loads the generated document and the live figures; a "locked" answer brings the lock card back. */
+    openDocument() {
+        if (this.data) {
+            this.load();
+            return;
+        }
+        this.checking = true;
+        readBuildData()
+            .then((json) => {
+                const data = JSON.parse(json);
+                this.data = data;
+                this.openArea = data.apexAreas && data.apexAreas.length ? data.apexAreas[0].name : '';
+                writeHint(this.lock && this.lock.enabled);
+                this.checking = false;
+                this.load();
+            })
+            .catch((e) => {
+                this.checking = false;
+                if (errorText(e) === LOCKED_TEXT) {
+                    this.showLocked();
+                } else {
+                    this.lockError = errorText(e);
+                }
+            });
+    }
+
+    /** Locked out: the card asks the server again when the wait is over, so Unlock comes back without a reload. */
+    waitOutLock() {
+        clearTimeout(this.lockTimer);
+        const until = this.lock && this.lock.lockedUntil ? new Date(this.lock.lockedUntil).getTime() - Date.now() : 0;
+        if (until > 0) {
+            // eslint-disable-next-line @lwc/lwc/no-async-operation
+            this.lockTimer = setTimeout(() => {
+                this.unlockResult = '';
+                this.readLock();
+            }, until + 1000);
+        }
+    }
+
+    disconnectedCallback() {
+        clearTimeout(this.lockTimer);
+    }
+
+    /** Back to the lock card: the loaded document and figures are dropped from the component. */
+    showLocked() {
+        writeHint(false);
+        this.data = undefined;
+        this.live = undefined;
+        this.liveCounts = undefined;
+        this.password = '';
+        this.lock = { ...(this.lock || {}), unlocked: false };
+        this.focusPassword = true;
+    }
+
+    get showChecking() { return !this.data && !this.lockError && (this.checking || !this.lock); }
+    get showLockCard() { return !this.checking && !this.data && !!this.lock && !this.lock.unlocked && !this.lockError; }
+    get showDoc() { return !!this.data; }
+    get showLockError() { return !!this.lockError && !this.data; }
+    get lockedOut() { return !!(this.lock && this.lock.lockedUntil); }
+    get lockLead() {
+        return this.lockedOut ? 'Too many tries. Try again at ' + timeText(this.lock.lockedUntil) + '.'
+            : 'Enter the password to see Release Relay\'s technical document.';
+    }
+    get lockIconCls() { return this.lockedOut ? 'rr-lock-icon rr-lock-icon-bad' : 'rr-lock-icon'; }
+    get wrongText() {
+        if (this.unlockResult !== 'wrong' || this.lockedOut) {
+            return '';
+        }
+        const left = this.lock ? this.lock.triesLeft : 0;
+        return 'That password isn\'t right. ' + left + (left === 1 ? ' try left.' : ' tries left.');
+    }
+    get hasWrong() { return !!this.wrongText; }
+    get lockFieldCls() { return this.hasWrong ? 'rr-lock-field rr-lock-field-bad' : 'rr-lock-field'; }
+    get passwordType() { return this.showPassword ? 'text' : 'password'; }
+    get eyeLabel() { return this.showPassword ? 'Hide password' : 'Show password'; }
+    get eyeIcon() { return this.showPassword ? 'utility:hide' : 'utility:preview'; }
+    get unlockDisabled() { return this.unlocking || this.lockedOut || !this.password; }
+    get unlockLabel() { return this.unlocking ? 'Checking…' : 'Unlock'; }
+    get showUnlockedChip() { return !!(this.lock && this.lock.enabled && this.lock.unlocked); }
+    get headSub() { return this.data ? this.subtitle : 'Technical reference · locked'; }
+
+    handlePassword(event) {
+        this.password = event.target.value;
+    }
+
+    togglePassword() {
+        this.showPassword = !this.showPassword;
+        this.focusPassword = true;
+    }
+
+    handleLockKey(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            this.handleUnlock();
+        }
+    }
+
+    /** Unlock: the server checks the password and counts wrong tries; the typed text is cleared either way. */
+    handleUnlock() {
+        if (this.unlockDisabled) {
+            return;
+        }
+        this.unlocking = true;
+        unlockBuilt({ password: this.password })
+            .then((s) => {
+                this.lock = s;
+                this.unlockResult = s.result;
+                this.waitOutLock();
+                this.password = '';
+                if (s.unlocked) {
+                    this.unlockResult = '';
+                    this.openDocument();
+                } else {
+                    this.focusPassword = true;
+                }
+            })
+            .catch((e) => {
+                this.lockError = errorText(e);
+            })
+            .finally(() => {
+                this.unlocking = false;
+            });
+    }
+
+    /** Lock again: ends this user's unlock on the server and drops the document from the page. */
+    handleLockAgain() {
+        lockBuilt()
+            .then((s) => {
+                this.lock = s;
+                this.unlockResult = '';
+                this.showLocked();
+            })
+            .catch((e) => {
+                this.toast(errorText(e), 'error');
+            });
+    }
+
     load() {
         this.loading = true;
         this.error = undefined;
         readCounts()
             .then((result) => {
-                this.liveCounts = result;
+                this.liveCounts = ownCounts(result, this.data && this.data.package);
             })
             .catch(() => {
                 this.liveCounts = undefined;
             });
         read()
             .then((result) => {
-                this.live = result;
+                this.live = ownInfo(result, this.data && this.data.package);
             })
             .catch((e) => {
                 this.live = undefined;
+                if (errorText(e) === LOCKED_TEXT) {
+                    this.showLocked();
+                    return;
+                }
                 this.error = 'Live figures could not be read: ' + errorText(e) + ' The figures below are the generated ones.';
             })
             .finally(() => {
@@ -182,8 +475,10 @@ export default class RlyBuildInfo extends LightningElement {
             });
     }
 
+    /** Read again: asks the lock first (an admin may have changed it), then the document and the live figures. */
     reload() {
-        this.load();
+        this.lockError = undefined;
+        this.readLock();
     }
 
     // ---------- header ----------
@@ -1012,7 +1307,7 @@ export default class RlyBuildInfo extends LightningElement {
             known: true,
             w: width(p),
             fillCls: meterCls(p),
-            note: 'Org data storage ' + fmt(u.used) + ' of ' + fmt(u.maxValue) + ' MB used (' + pctText(p) + '); Release Relay about ' + pctText(ours) + '.'
+            note: 'Release Relay about ' + pctText(ours) + ' of the org\'s ' + fmt(u.maxValue) + ' MB (whole org ' + pctText(p) + ' used).'
         };
     }
 
@@ -1022,14 +1317,41 @@ export default class RlyBuildInfo extends LightningElement {
             return { known: false, value: '—', of: 'Not read', w: '0%', fillCls: 'rr-meter-fill', pctText: '' };
         }
         const p = pct(u.used, u.maxValue);
-        return { known: true, value: fmt(u.used), of: 'of ' + fmt(u.maxValue) + ' in the last 24 hours (whole org)', w: width(p), fillCls: meterCls(p), pctText: pctText(p) };
+        return { known: true, value: fmt(u.used), of: 'of ' + fmt(u.maxValue) + ' in the last 24 hours', w: width(p), fillCls: meterCls(p), pctText: pctText(p) };
     }
+
+    /** Org data storage (whole org), its own tile. */
+    get orgStorageMeter() {
+        const u = this.usageOf('DataStorageMB');
+        if (!u) {
+            return { known: false, value: '—', of: 'Not read', w: '0%', fillCls: 'rr-meter-fill', pctText: '' };
+        }
+        const p = pct(u.used, u.maxValue);
+        return { known: true, value: fmt(u.used) + ' MB', of: 'of ' + fmt(u.maxValue) + ' MB', w: width(p), fillCls: meterCls(p), pctText: pctText(p) };
+    }
+
+    // Rly classes and RLY static resources in this org that aren't in the package list (demo classes, leftovers).
+    get extras() { return (this.live && this.live.extras) || []; }
+    get hasExtras() { return this.extras.length > 0; }
+    get extrasLead() {
+        const cls = this.extras.filter((x) => x.kind === 'Apex class').length;
+        const res = this.extras.length - cls;
+        return '+ ' + plural(cls, 'other Rly… class', 'other Rly… classes') + ' and ' + plural(res, 'RLY… static resource', 'RLY… static resources')
+            + " in this org aren't part of Release Relay (demo classes or leftovers from older builds). They are not counted above.";
+    }
+    get extrasToggleLabel() { return this.extrasOpen ? '‹ hide list' : '› list'; }
+    get extrasExpanded() { return this.extrasOpen ? 'true' : 'false'; }
+    get extrasCount() { return fmt(this.extras.length) + ' · not in the build ' + this.data.build + ' package list'; }
+    toggleExtras() {
+        this.extrasOpen = !this.extrasOpen;
+    }
+    get resourceTitle() { return "Release Relay's own · " + plural(this.counts.res.value, 'file', 'files'); }
 
     get asyncText() { return fmt(this.live ? this.live.asyncJobs : 0); }
     get asyncNote() { return 'Release Relay jobs in the last day. None by design: a release moves when a page reads it, Slack posts or the pipeline calls back.'; }
 
     get resourceText() { return bytesText(this.counts.resBytes); }
-    get resourceNote() { return plural(this.counts.res.value, 'static resource', 'static resources') + ' (pipeline files and Guide pictures).'; }
+    get resourceNote() { return plural(this.counts.res.value, 'static resource', 'static resources') + " of Release Relay's own (pipeline files and Guide pictures)."; }
 
     get codeChangedText() {
         if (!this.live || !this.live.codeChangedOn) {
