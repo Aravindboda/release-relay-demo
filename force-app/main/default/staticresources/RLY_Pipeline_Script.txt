@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 17
+// Release Relay pipeline files: version 18
 // Version 17: a release whose Apex is only deletions and inactive triggers (<status>Inactive</status> in the trigger's
 // -meta.xml), sent with no tests, runs the local tests in production (options.production, set by the hub from its org
 // record) and no tests elsewhere; the tests and coverage gates leave inactive triggers (and the tests gate deleted

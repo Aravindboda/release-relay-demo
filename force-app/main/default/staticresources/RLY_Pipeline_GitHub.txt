@@ -1,4 +1,6 @@
-# Release Relay pipeline files: version 17
+# Release Relay pipeline files: version 18
+# Version 18: the nightly archive can also be started by hand: Actions → Release Relay → Run workflow → mode "archive"
+# (the other fields can stay blank); same job as the 2:00 AM schedule.
 # Version 17: a release whose Apex is only deletions and inactive triggers (status Inactive in the trigger's -meta.xml)
 # and that names no tests runs the local tests (RunLocalTests) in production, as Salesforce requires, and no tests
 # (NoTestRun) in sandboxes; "production" comes from the hub (options.production: the target is the hub org). The tests
@@ -56,7 +58,7 @@
 # {"snapshot":false} skips the rollback snapshot before a deploy; {"snapshotPath":"REL-00042/prod/<id>"} picks
 # the snapshot for mode=rollback.
 name: Release Relay
-run-name: "${{ github.event_name == 'schedule' && 'Release Relay nightly archive' || format('Release Relay {0} ({1})', inputs.request_id, inputs.mode) }}"
+run-name: "${{ (github.event_name == 'schedule' || inputs.mode == 'archive') && 'Release Relay nightly archive' || format('Release Relay {0} ({1})', inputs.request_id, inputs.mode) }}"
 
 on:
   # Nightly archive. Cron is UTC: 0 8 * * * is 2:00 AM Central in winter (CST), 3:00 AM in summer (CDT); change the
@@ -66,17 +68,17 @@ on:
   workflow_dispatch:
     inputs:
       request_id:
-        description: Salesforce release number
-        required: true
+        description: Salesforce release number (blank for archive)
+        required: false
         type: string
       mode:
-        description: org, branch, promote, hub, resolve, check, merge, sync or rollback
+        description: org, branch, promote, hub, resolve, check, merge, sync, rollback, or archive (the nightly archive, by hand)
         required: true
         type: choice
-        options: [org, branch, promote, hub, resolve, check, merge, sync, rollback]
+        options: [org, branch, promote, hub, resolve, check, merge, sync, rollback, archive]
       environment:
         description: GitHub environment of the source org (sync = the hub's production org)
-        required: true
+        required: false
         type: string
       target_environment:
         description: GitHub environment of the target org (blank = Git only, no validate or deploy)
@@ -85,15 +87,15 @@ on:
         default: ''
       branch:
         description: Source branch (sync = the hub's production branch)
-        required: true
+        required: false
         type: string
       target:
         description: Target branch (sync = the back-promote org's branch)
-        required: true
+        required: false
         type: string
       title:
         description: Pull request title
-        required: true
+        required: false
         type: string
       components:
         description: Type:Name list to retrieve, comma separated (promote = the releases' merge commits)
@@ -504,7 +506,7 @@ jobs:
   # The hub decides: it skips (and says why) unless it is the production hub, the user has Release Relay Admin,
   # "Archive every night" is on and Retention days are set. No script from the repository is needed.
   archive:
-    if: ${{ github.event_name == 'schedule' }}
+    if: ${{ github.event_name == 'schedule' || inputs.mode == 'archive' }}
     runs-on: ubuntu-latest
     environment: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
     timeout-minutes: 30
