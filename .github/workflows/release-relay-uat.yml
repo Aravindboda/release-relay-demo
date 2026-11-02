@@ -1,0 +1,73 @@
+# Release Relay: per-org entry point for UAT.
+# Calls the main Release Relay workflow (release-relay.yml) with UAT's GitHub environment as the target, so a run
+# for UAT can be started by hand (Actions → "Release Relay · UAT" → Run workflow) without typing the environment.
+# Settings for UAT stay in GitHub → Settings → Environments → uat (secrets SF_USERNAME, SF_CLIENT_ID, SF_JKS,
+# SF_JKS_PASSWORD; variables SF_INSTANCE_URL, SF_JKS_ALIAS, ORG_LABEL, …) and its protection rules.
+# The hub does not use this file: it dispatches release-relay.yml directly. Nightly archive stays in release-relay.yml.
+name: Release Relay · UAT
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: Salesforce release number
+        required: true
+        type: string
+      mode:
+        description: org, branch, promote, hub, resolve, check, merge, sync or rollback
+        required: true
+        type: choice
+        options: [org, branch, promote, hub, resolve, check, merge, sync, rollback]
+      environment:
+        description: GitHub environment of the source org
+        required: true
+        type: string
+        default: 'sit'
+      branch:
+        description: Source branch
+        required: true
+        type: string
+      target:
+        description: Target branch (UAT's branch)
+        required: true
+        type: string
+        default: 'uat'
+      title:
+        description: Pull request title
+        required: true
+        type: string
+      components:
+        description: Type:Name list to retrieve, comma separated
+        required: false
+        type: string
+        default: ''
+      deletions:
+        description: Type:Name list to delete, comma separated
+        required: false
+        type: string
+        default: ''
+      options:
+        description: 'JSON options, for example {"scan":"off"}'
+        required: false
+        type: string
+        default: '{}'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  relay:
+    uses: ./.github/workflows/release-relay.yml
+    secrets: inherit
+    with:
+      request_id: ${{ inputs.request_id }}
+      mode: ${{ inputs.mode }}
+      environment: ${{ inputs.environment }}
+      target_environment: uat
+      branch: ${{ inputs.branch }}
+      target: ${{ inputs.target }}
+      title: ${{ inputs.title }}
+      components: ${{ inputs.components }}
+      deletions: ${{ inputs.deletions }}
+      options: ${{ inputs.options }}

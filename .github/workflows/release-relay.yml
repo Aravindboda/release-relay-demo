@@ -1,4 +1,6 @@
 # Release Relay pipeline files: version 18
+# Per-org callers: this workflow can also be called (on: workflow_call) by release-relay-<org>.yml files, one per org,
+# which fix that org's GitHub environment as the target. The hub keeps dispatching this file; callers are optional.
 # Version 18: the nightly archive can also be started by hand: Actions → Release Relay → Run workflow → mode "archive"
 # (the other fields can stay blank); same job as the 2:00 AM schedule.
 # Version 17: a release whose Apex is only deletions and inactive triggers (status Inactive in the trigger's -meta.xml)
@@ -76,6 +78,53 @@ on:
         required: true
         type: choice
         options: [org, branch, promote, hub, resolve, check, merge, sync, rollback, archive]
+      environment:
+        description: GitHub environment of the source org (sync = the hub's production org)
+        required: false
+        type: string
+      target_environment:
+        description: GitHub environment of the target org (blank = Git only, no validate or deploy)
+        required: false
+        type: string
+        default: ''
+      branch:
+        description: Source branch (sync = the hub's production branch)
+        required: false
+        type: string
+      target:
+        description: Target branch (sync = the back-promote org's branch)
+        required: false
+        type: string
+      title:
+        description: Pull request title
+        required: false
+        type: string
+      components:
+        description: Type:Name list to retrieve, comma separated (promote = the releases' merge commits)
+        required: false
+        type: string
+        default: ''
+      deletions:
+        description: Type:Name list to delete, comma separated
+        required: false
+        type: string
+        default: ''
+      options:
+        description: 'JSON options from Salesforce, for example {"scan":"off","notify":"dev"}'
+        required: false
+        type: string
+        default: '{}'
+  # Lets a per-org workflow (release-relay-<org>.yml) call this one with its org already filled in.
+  workflow_call:
+    inputs:
+      request_id:
+        description: Salesforce release number (blank for archive)
+        required: false
+        type: string
+      mode:
+        description: org, branch, promote, hub, resolve, check, merge, sync, rollback, or archive (the nightly archive, by hand)
+        required: true
+        type: string
       environment:
         description: GitHub environment of the source org (sync = the hub's production org)
         required: false
