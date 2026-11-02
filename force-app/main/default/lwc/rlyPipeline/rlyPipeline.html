@@ -712,6 +712,116 @@
                         </section>
                     </template>
 
+                    <!-- What's built lock (build 31): a password in front of the What's built tab; admins edit, everyone else reads -->
+                    <template lwc:if={showBuiltLock}>
+                        <section class={lockCardCls} aria-label="What's built lock" data-section="lock">
+                            <template lwc:if={fold.lock.open}>
+                                <div class={fold.lock.headCls}>
+                                    <button type="button" class="rr-chev" aria-expanded={fold.lock.expanded} aria-controls="rr-sec-lock" aria-label={fold.lock.foldLabel}
+                                        title={fold.lock.foldLabel} data-key="lock" onclick={handleFold} disabled={fold.lock.locked}>
+                                        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>
+                                    </button>
+                                    <div class="rr-ttl"><h2 class="rr-h2">{fold.lock.title}</h2><p class="rr-sub">A password in front of the What's built tab</p></div>
+                                    <template lwc:if={lockViewing}>
+                                        <template lwc:if={lockCanEdit}>
+                                            <lightning-button label="Edit" title="Edit What's built lock" onclick={openLockEdit} disabled={editLocked}></lightning-button>
+                                        </template>
+                                    </template>
+                                    <template lwc:else><span class="rr-pill rr-pill-info">Editing</span></template>
+                                </div>
+                            </template>
+                            <template lwc:else>
+                                <div class={fold.lock.headCls}>
+                                    <button type="button" class="rr-fold" aria-expanded={fold.lock.expanded} aria-controls="rr-sec-lock" data-key="lock" onclick={handleFold}>
+                                        <span class="rr-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+                                        <span class="rr-h2 rr-fold-title">{fold.lock.title}</span>
+                                        <span class="rr-sum">{fold.lock.summary}</span>
+                                    </button>
+                                    <template lwc:if={fold.lock.pill}><span class={fold.lock.pillCls}>{fold.lock.pill}</span></template>
+                                </div>
+                            </template>
+                            <template lwc:if={fold.lock.open}>
+                                <div id="rr-sec-lock">
+                                    <template lwc:if={lockViewing}>
+                                        <div class="rr-body">
+                                            <dl class="rr-ro rr-ro-2">
+                                                <div class="slds-form-element slds-form-element_readonly rr-ro-item">
+                                                    <dt class="slds-form-element__label">Lock</dt>
+                                                    <dd class="slds-form-element__control">
+                                                        <div class="slds-form-element__static"><span class={lockPillCls}>{lockPill}</span></div>
+                                                        <p class="rr-kicker">{lockStateHint}</p>
+                                                    </dd>
+                                                </div>
+                                                <div class="slds-form-element slds-form-element_readonly rr-ro-item">
+                                                    <dt class="slds-form-element__label">Last changed</dt>
+                                                    <dd class="slds-form-element__control"><div class="slds-form-element__static rr-break">{lockChangedText}</div></dd>
+                                                </div>
+                                                <template lwc:if={lockCanEdit}>
+                                                    <div class="slds-form-element slds-form-element_readonly rr-ro-item">
+                                                        <dt class="slds-form-element__label">Password</dt>
+                                                        <dd class="slds-form-element__control">
+                                                            <div class="slds-form-element__static">{lockPasswordText}</div>
+                                                            <p class="rr-kicker">Never shown. Set a new one to reset it.</p>
+                                                        </dd>
+                                                    </div>
+                                                    <div class="slds-form-element slds-form-element_readonly rr-ro-item">
+                                                        <dt class="slds-form-element__label">Locked out now</dt>
+                                                        <dd class="slds-form-element__control">
+                                                            <div class="slds-form-element__static">{lockOutText}</div>
+                                                            <p class="rr-kicker">{lockOutHint}</p>
+                                                        </dd>
+                                                    </div>
+                                                </template>
+                                            </dl>
+                                            <template lwc:if={lockReadOnly}><p class="rr-kicker">Only Release Relay admins can change this.</p></template>
+                                        </div>
+                                    </template>
+                                    <template lwc:if={isLockEditing}>
+                                        <div class="rr-body" onkeydown={handleEditKey}>
+                                            <div class="rr-col">
+                                                <lightning-input class="rr-first" type="toggle" label="Lock What's built" checked={lockFormOn} onchange={handleLockToggle}
+                                                    message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                                                <p class="rr-kicker">Everyone, admins too, needs the password once per session (8 hours at most).</p>
+                                            </div>
+                                            <template lwc:if={lockFormOn}>
+                                                <div class="rr-lockpw">
+                                                    <div class="rr-col">
+                                                        <div class="rr-lockpw-row">
+                                                            <lightning-input class="rr-lockpw-in" type={lockPwType} label="New password" value={lockForm.password}
+                                                                autocomplete="new-password" onchange={handleLockPw}></lightning-input>
+                                                            <lightning-button-icon icon-name={lockEyeIcon} variant="bare" alternative-text={lockEyeLabel} title={lockEyeLabel}
+                                                                onclick={toggleLockEye}></lightning-button-icon>
+                                                        </div>
+                                                        <template lwc:if={lockPwError}><p class="rr-rule-err" role="alert">{lockPwError}</p></template>
+                                                        <template lwc:else><p class="rr-hint">{lockPwHint}</p></template>
+                                                    </div>
+                                                    <div class="rr-col">
+                                                        <div class="rr-lockpw-row">
+                                                            <lightning-input class="rr-lockpw-in" type={lockPwType} label="Confirm" value={lockForm.confirm}
+                                                                autocomplete="new-password" onchange={handleLockConfirm}></lightning-input>
+                                                            <lightning-button-icon icon-name={lockEyeIcon} variant="bare" alternative-text={lockEyeLabel} title={lockEyeLabel}
+                                                                onclick={toggleLockEye}></lightning-button-icon>
+                                                        </div>
+                                                        <template lwc:if={lockConfirmError}><p class="rr-rule-err" role="alert">{lockConfirmError}</p></template>
+                                                        <template lwc:else><p class="rr-hint">{lockConfirmHint}</p></template>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <template lwc:if={lockOffNote}><p class="rr-msg rr-msg-wait" role="status">{lockOffNote}</p></template>
+                                            <p class="rr-msg rr-msg-info">Only a salted hash is kept, never the password. Forgot it? Set a new one here. Saving ends everyone's current unlock.</p>
+                                            <template lwc:if={editError}><div class="rr-msg rr-msg-bad" role="alert">{editError}</div></template>
+                                        </div>
+                                        <div class="rr-card-foot">
+                                            <span class="rr-kicker rr-grow">{lockFootNote}</span>
+                                            <lightning-button label="Cancel" onclick={handleEditCancel} disabled={saving}></lightning-button>
+                                            <lightning-button variant="brand" label={saveLabel} onclick={handleLockSave} disabled={lockCantSave}></lightning-button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </section>
+                    </template>
+
                     <!-- Connected orgs: tabs by Salesforce environment, compact cards; a card opens the org's window -->
                     <section class="rr-sec" aria-label="Connected orgs">
                         <template lwc:if={fold.orgs.open}>

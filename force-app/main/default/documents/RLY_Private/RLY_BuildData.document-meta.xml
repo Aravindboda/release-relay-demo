@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Release Relay: the What's built tab's generated technical document (JSON, from gen_builtdoc.py). Read only by Apex (RlyBuildInfo.buildData) after the What's built lock lets the user in. In a hidden folder and not externally available, so it can't be opened by URL.</description>
+    <internalUseOnly>true</internalUseOnly>
+    <name>RLY_BuildData</name>
+    <public>false</public>
+</Document>

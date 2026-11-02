@@ -1,5 +1,7 @@
 <template>
     <div class="rr-page" data-tick={renderTick}>
+        <!-- What's built lock (build 31): nothing from the document is on the page until Apex says this user may read it -->
+        <template lwc:if={showDoc}>
         <!-- page header -->
         <section class="rr-card rr-head" data-anchor="top">
             <span class="rr-head-icon"><lightning-icon icon-name="utility:knowledge_base" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
@@ -8,6 +10,13 @@
                 <h1 class="rr-title">What's built</h1>
                 <p class="rr-sub">{subtitle}</p>
             </div>
+            <template lwc:if={showUnlockedChip}>
+                <span class="rr-unlocked rr-noprint" role="status">
+                    <lightning-icon icon-name="utility:unlock" size="xx-small" alternative-text=""></lightning-icon>
+                    <span>Unlocked for this session ·</span>
+                    <button type="button" class="rr-linkbtn" onclick={handleLockAgain}>Lock again</button>
+                </span>
+            </template>
             <div class="rr-head-search rr-noprint">
                 <c-rly-search-box label="Search the document" placeholder="Search fields, classes, permissions…" shown={searchShown} total={searchTotal}
                     onsearch={handleSearch}></c-rly-search-box>
@@ -620,7 +629,12 @@
                                     <span class="rr-small rr-weak">{storageMeter.note}</span>
                                 </li>
                                 <li class="rr-tile2">
-                                    <span class="rr-tl">API requests today</span>
+                                    <span class="rr-tl">Static resources</span>
+                                    <span class="rr-tv2">{resourceText}</span>
+                                    <span class="rr-small rr-weak">{resourceNote}</span>
+                                </li>
+                                <li class="rr-tile2">
+                                    <span class="rr-tl">API requests today (whole org)</span>
                                     <span class="rr-tv2">{apiMeter.value}</span>
                                     <span class="rr-small rr-weak">{apiMeter.of} <template lwc:if={apiMeter.known}>· {apiMeter.pctText}</template></span>
                                     <template lwc:if={apiMeter.known}>
@@ -632,16 +646,43 @@
                                     <span class="rr-small rr-weak">Release Relay's own calls are callouts out of the hub, not API requests into it.</span>
                                 </li>
                                 <li class="rr-tile2">
+                                    <span class="rr-tl">Org data storage (whole org)</span>
+                                    <span class="rr-tv2">{orgStorageMeter.value}</span>
+                                    <span class="rr-small rr-weak">{orgStorageMeter.of} <template lwc:if={orgStorageMeter.known}>· {orgStorageMeter.pctText}</template></span>
+                                    <template lwc:if={orgStorageMeter.known}>
+                                        <svg class="rr-meter" width="100%" height="6" aria-hidden="true">
+                                            <rect class="rr-meter-track" x="0" y="0" width="100%" height="6" rx="3"></rect>
+                                            <rect class={orgStorageMeter.fillCls} x="0" y="0" width={orgStorageMeter.w} height="6" rx="3"></rect>
+                                        </svg>
+                                    </template>
+                                </li>
+                                <li class="rr-tile2">
                                     <span class="rr-tl">Async Apex</span>
                                     <span class="rr-tv2">{asyncText}</span>
                                     <span class="rr-small rr-weak">{asyncNote}</span>
                                 </li>
-                                <li class="rr-tile2">
-                                    <span class="rr-tl">Static resources</span>
-                                    <span class="rr-tv2">{resourceText}</span>
-                                    <span class="rr-small rr-weak">{resourceNote}</span>
-                                </li>
                             </ul>
+                            <template lwc:if={hasExtras}>
+                                <p class="rr-extras-line">{extrasLead}
+                                    <button type="button" class="rr-linkbtn" aria-expanded={extrasExpanded} aria-controls="rr-extras" onclick={toggleExtras}>{extrasToggleLabel}</button>
+                                </p>
+                                <template lwc:if={extrasOpen}>
+                                    <div class="rr-card rr-extras" id="rr-extras">
+                                        <div class="rr-extras-head"><strong>Not part of Release Relay</strong><span class="rr-weak rr-small">{extrasCount}</span><span class="rr-weak rr-small rr-push">Delete them in Setup if no one uses them</span></div>
+                                        <div class="rr-extras-scroll">
+                                            <table class="rr-extras-table">
+                                                <thead><tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Last modified</th><th scope="col">Why</th></tr></thead>
+                                                <tbody>
+                                                    <template for:each={extras} for:item="x">
+                                                        <tr key={x.key}><td class="rr-mono">{x.name}</td><td>{x.kind}</td><td>{x.modified}</td><td><span class={x.whyCls}>{x.why}</span></td></tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <p class="rr-small rr-weak">Why: Demo = the name has Demo in it · Not in this build = named like Release Relay but not in this build's package list (a leftover from an older build or something else).</p>
+                                    </div>
+                                </template>
+                            </template>
                             <template lwc:if={hasRecords}>
                                 <p class="rr-cap">Records by object</p>
                                 <ul class="rr-counts">
@@ -754,5 +795,46 @@
                 </section>
             </div>
         </div>
+        </template>
+        <template lwc:else>
+            <!-- locked, or still asking -->
+            <section class="rr-card rr-head" data-anchor="top">
+                <span class="rr-head-icon"><lightning-icon icon-name="utility:knowledge_base" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
+                <div class="rr-head-text">
+                    <p class="rr-kicker">{appName}</p>
+                    <h1 class="rr-title">What's built</h1>
+                    <p class="rr-sub">{headSub}</p>
+                </div>
+            </section>
+            <template lwc:if={showChecking}>
+                <div class="rr-lock-wait slds-is-relative" role="status">
+                    <lightning-spinner alternative-text="Opening What's built" size="small"></lightning-spinner>
+                </div>
+            </template>
+            <template lwc:if={showLockError}>
+                <div class="rr-msg rr-msg-warn" role="alert">{lockError}</div>
+                <p class="rr-lock-retry"><button type="button" class="slds-button slds-button_neutral" onclick={reload}>Try again</button></p>
+            </template>
+            <template lwc:if={showLockCard}>
+                <section class="rr-card rr-lock" aria-labelledby="rr-lock-title">
+                    <span class={lockIconCls} aria-hidden="true"><lightning-icon icon-name="utility:lock" size="x-small" alternative-text=""></lightning-icon></span>
+                    <h2 class="rr-lock-title" id="rr-lock-title">What's built is locked</h2>
+                    <p class="rr-lock-lead" role="status">{lockLead}</p>
+                    <label class="rr-lock-label" for="rr-lock-input">Password</label>
+                    <div class={lockFieldCls}>
+                        <input id="rr-lock-input" class="rr-lock-input" type={passwordType} value={password} autocomplete="current-password"
+                            oninput={handlePassword} onkeydown={handleLockKey} disabled={lockedOut} aria-invalid={hasWrong}
+                            aria-describedby="rr-lock-error" />
+                        <button type="button" class="rr-lock-eye" aria-label={eyeLabel} title={eyeLabel} aria-pressed={showPassword}
+                            onclick={togglePassword} disabled={lockedOut}>
+                            <lightning-icon icon-name={eyeIcon} size="xx-small" alternative-text=""></lightning-icon>
+                        </button>
+                    </div>
+                    <p class="rr-lock-error" id="rr-lock-error" role="alert">{wrongText}</p>
+                    <button type="button" class="slds-button slds-button_brand rr-lock-btn" onclick={handleUnlock} disabled={unlockDisabled}>{unlockLabel}</button>
+                    <p class="rr-lock-foot">Ask a Release Relay admin if you don't have it.</p>
+                </section>
+            </template>
+        </template>
     </div>
 </template>

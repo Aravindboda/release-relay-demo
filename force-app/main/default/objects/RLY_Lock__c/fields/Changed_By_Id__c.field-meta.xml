@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Changed_By_Id__c</fullName>
+    <description>Org default row: user Id of the admin who last changed the lock (text: a hierarchy setting can&apos;t hold a User lookup to its own owner).</description>
+    <label>Changed By Id</label>
+    <length>18</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>
