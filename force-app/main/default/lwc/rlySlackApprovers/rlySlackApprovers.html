@@ -1,0 +1,281 @@
+<template>
+    <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="rr-ap-title" class="slds-modal slds-fade-in-open slds-modal_large rr-apm" onkeydown={handleKey}>
+        <div class="slds-modal__container rr-apc">
+            <button type="button" class="slds-button slds-button_icon slds-modal__close rr-x" title="Close" onclick={handleClose}>
+                <lightning-icon icon-name="utility:close" size="small" variant="inverse" alternative-text="Close"></lightning-icon>
+            </button>
+            <div class="slds-modal__header rr-aph">
+                <div class="rr-aph-text">
+                    <h2 id="rr-ap-title" class="slds-modal__title rr-aph-title">Slack approvers</h2>
+                    <p class="rr-aph-sub">People who can approve releases (RLY_Approver or RLY_Admin) and the Slack account each one approves from. {matchLabelLead}<strong>{matchLabel}</strong>{lastMatchText}</p>
+                </div>
+                <template lwc:if={isAdmin}>
+                    <div class="rr-aph-btns">
+                        <template lwc:if={showMatchNow}>
+                            <lightning-button label={matchButtonLabel} onclick={handleMatchNow} disabled={matchDisabled}></lightning-button>
+                        </template>
+                        <lightning-button variant="brand" label="Add approvers" onclick={openAdd} disabled={matching}></lightning-button>
+                    </div>
+                </template>
+            </div>
+
+            <div class="slds-modal__content rr-apb">
+                <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+                <template lwc:if={error}><div class="rr-msg rr-msg-bad rr-m" role="alert">{error}</div></template>
+                <template lwc:if={problemText}>
+                    <div class="rr-msg rr-msg-wait rr-m" role="status">{problemText}</div>
+                </template>
+                <template lwc:if={banner}>
+                    <div class={bannerCls} role="status">
+                        <lightning-icon icon-name={bannerIcon} size="x-small" alternative-text=""></lightning-icon>
+                        <div class="rr-grow"><strong>{bannerText}</strong><template lwc:if={bannerDetail}><span class="rr-banner-d"> {bannerDetail}</span></template></div>
+                        <button type="button" class="rr-iconbtn" title="Dismiss" aria-label="Dismiss" onclick={closeBanner}>
+                            <lightning-icon icon-name="utility:close" size="xx-small" alternative-text=""></lightning-icon>
+                        </button>
+                    </div>
+                </template>
+
+                <!-- Match now: progress, then the result -->
+                <template lwc:if={showRun}>
+                    <div class="rr-run" role="status" aria-live="polite">
+                        <div class="rr-run-head">
+                            <strong class="rr-grow">{runTitle}</strong>
+                            <template lwc:if={runDone}><span class="rr-pill rr-pill-ok">Done</span></template>
+                        </div>
+                        <template lwc:if={runRunning}>
+                            <p class="rr-small">{runProgress}</p>
+                            <div class="rr-bar"><div class="rr-bar-in"></div></div>
+                        </template>
+                        <template lwc:if={runWait}><p class="rr-small rr-warn">{runWait}</p></template>
+                        <template lwc:if={runDone}><p class="rr-run-sum">{runSummary}</p></template>
+                        <template lwc:if={runProblem}><p class="rr-msg rr-msg-bad">{runProblem}</p></template>
+                        <ul class="rr-passes">
+                            <template for:each={runPasses} for:item="p">
+                                <li key={p.key}><strong>{p.title}</strong> <span class="rr-weak">{p.text}</span> <span class="rr-pill rr-pill-none">{p.state}</span></li>
+                            </template>
+                        </ul>
+                        <template lwc:if={runHasMisses}>
+                            <ul class="rr-misses">
+                                <template for:each={runMisses} for:item="m">
+                                    <li key={m.key}><span>{m.name}</span><span class="rr-warn">{m.reason}</span></li>
+                                </template>
+                            </ul>
+                        </template>
+                        <p class="rr-hint">{runFoot}</p>
+                        <template lwc:if={runDone}>
+                            <div class="rr-run-btns">
+                                <lightning-button label="Close" onclick={closeRun}></lightning-button>
+                                <template lwc:if={runHasMisses}><lightning-button variant="brand" label={runShowLabel} onclick={showMisses}></lightning-button></template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <template lwc:if={noRows}>
+                    <div class="rr-empty">
+                        <strong>No approvers yet</strong>
+                        <p class="rr-small rr-weak">Add the people who approve releases. They get the RLY_Approver permission set and are looked up in Slack.</p>
+                        <template lwc:if={isAdmin}><lightning-button variant="brand" label="Add approvers" onclick={openAdd}></lightning-button></template>
+                    </div>
+                </template>
+
+                <template lwc:if={hasRows}>
+                    <div class="rr-toolbar">
+                        <c-rly-search-box label="Search approvers" placeholder={searchHint} shown={shownCount} total={total} onsearch={handleSearch}></c-rly-search-box>
+                        <div class="rr-chips" role="group" aria-label="Show approvers">
+                            <template for:each={chips} for:item="c">
+                                <button key={c.key} type="button" class={c.cls} aria-pressed={c.pressed} data-key={c.key} onclick={handleChip}>
+                                    <span class="rr-wide-only">{c.label}</span><span class="rr-narrow-only">{c.short}</span><i>{c.count}</i>
+                                </button>
+                            </template>
+                        </div>
+                        <span class="rr-count rr-wide-only">{countLine}</span>
+                    </div>
+
+                    <!-- Wide: fixed columns, pinned header, scroll inside -->
+                    <div class="rr-scroll rr-wide-only">
+                        <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table rr-ft" aria-label="Slack approvers">
+                            <colgroup>
+                                <col class="rr-w-name" />
+                                <template lwc:if={showFedColumn}><col class="rr-w-fed" /></template>
+                                <col class="rr-w-slack" />
+                                <col class="rr-w-by" />
+                                <col class="rr-w-on" />
+                                <col class="rr-w-access" />
+                                <col class="rr-w-act" />
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Name</th>
+                                    <template lwc:if={showFedColumn}><th scope="col">Federation ID</th></template>
+                                    <th scope="col">Slack member</th>
+                                    <th scope="col">Linked by</th>
+                                    <th scope="col">Linked on</th>
+                                    <th scope="col">Access</th>
+                                    <th scope="col" class="rr-ta-r">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={shownRows} for:item="r">
+                                    <tr key={r.key} class={r.rowCls}>
+                                        <td title={r.name}>
+                                            <span class="rr-line"><template for:each={r.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></span>
+                                            <span class="rr-line rr-small rr-weak"><template for:each={r.userParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></span>
+                                        </td>
+                                        <template lwc:if={showFedColumn}>
+                                            <td title={r.federationId}>
+                                                <template lwc:if={r.showFed}><span class="rr-line"><template for:each={r.fedParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></span></template>
+                                                <template lwc:if={r.fedEmpty}><span class="rr-weak rr-em">empty</span></template>
+                                            </td>
+                                        </template>
+                                        <template lwc:if={r.editing}>
+                                            <td colspan="3" class="rr-td-input">
+                                                <div class="rr-edit" onkeydown={handleEditKey}>
+                                                    <lightning-input class="rr-edit-in" variant="label-hidden" label={editLabel} value={editValue} placeholder="e.g. U05TQ1XM8RJ" max-length="20" onchange={handleEditInput}></lightning-input>
+                                                    <lightning-button label="Cancel" onclick={cancelEdit} disabled={editSaving}></lightning-button>
+                                                    <lightning-button variant="brand" label={editSaveLabel} onclick={saveEdit} disabled={editSaving}></lightning-button>
+                                                </div>
+                                                <template lwc:if={editError}><p class="rr-field-err" role="alert">{editError}</p></template>
+                                                <p class="rr-hint">On Save the hub asks Slack who it is, then links it to this approver (Linked by Admin).</p>
+                                            </td>
+                                        </template>
+                                        <template lwc:else>
+                                            <td title={r.reasonLine}>
+                                                <template lwc:if={r.linked}>
+                                                    <span class="rr-mono rr-line"><template for:each={r.memberParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></span>
+                                                    <template lwc:if={r.showChanged}><span class="rr-line rr-small rr-warn">{r.reasonLine}</span></template>
+                                                </template>
+                                                <template lwc:if={r.showReason}>
+                                                    <span class="rr-line rr-reason"><lightning-icon icon-name="utility:warning" size="xx-small" variant="warning" alternative-text="Needs attention"></lightning-icon> <strong>{r.reasonText}</strong><span class="rr-weak"> · {r.reasonDetail}</span></span>
+                                                </template>
+                                            </td>
+                                            <td><template lwc:if={r.hasBy}><span class={r.byCls}>{r.byText}</span></template><template lwc:else><span class="rr-weak">–</span></template></td>
+                                            <td>{r.onText}</td>
+                                        </template>
+                                        <td>{r.access}</td>
+                                        <td class="rr-ta-r rr-acts">
+                                            <template lwc:if={r.busy}><lightning-spinner alternative-text="Saving" size="x-small" class="rr-inline-spin"></lightning-spinner></template>
+                                            <template lwc:if={r.hasFix}>
+                                                <lightning-button label={r.fixLabel} data-id={r.userId} data-action={r.fixAction} onclick={handleFix} disabled={r.busy}></lightning-button>
+                                            </template>
+                                            <template lwc:if={r.showKeep}>
+                                                <lightning-button label="Keep" data-id={r.userId} onclick={handleKeep} disabled={r.busy}></lightning-button>
+                                            </template>
+                                            <template lwc:if={r.canAct}>
+                                                <lightning-button-menu alternative-text={r.menuLabel} title={r.menuLabel} menu-alignment="right" icon-size="x-small" data-id={r.userId} onselect={handleMenu}>
+                                                    <lightning-menu-item value="unlink" label={r.unlinkLabel} disabled={r.unlinkOff}></lightning-menu-item>
+                                                    <lightning-menu-item value="set" label="Set ID by hand…"></lightning-menu-item>
+                                                    <lightning-menu-divider></lightning-menu-divider>
+                                                    <lightning-menu-item value="remove" label={r.removeLabel} disabled={r.removeOff}></lightning-menu-item>
+                                                </lightning-button-menu>
+                                            </template>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <template lwc:if={noMatch}>
+                                    <tr><td colspan="7" class="rr-nomatch">{noMatchText} <button type="button" class="rr-linkbtn" onclick={clearSearch}>Show all</button></td></tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Narrow (480px and less): rows stack -->
+                    <ul class="rr-stack rr-narrow-only" aria-label="Slack approvers">
+                        <template for:each={shownRows} for:item="r">
+                            <li key={r.key} class={r.rowCls}>
+                                <div class="rr-stack-top">
+                                    <strong class="rr-grow rr-line">{r.name}</strong>
+                                    <template lwc:if={r.hasBy}><span class={r.byCls}>{r.byText}</span></template>
+                                    <template lwc:if={r.canAct}>
+                                        <lightning-button-menu alternative-text={r.menuLabel} menu-alignment="right" icon-size="x-small" data-id={r.userId} onselect={handleMenu}>
+                                            <lightning-menu-item value="unlink" label={r.unlinkLabel} disabled={r.unlinkOff}></lightning-menu-item>
+                                            <lightning-menu-item value="set" label="Set ID by hand…"></lightning-menu-item>
+                                            <lightning-menu-item value="remove" label={r.removeLabel} disabled={r.removeOff}></lightning-menu-item>
+                                        </lightning-button-menu>
+                                    </template>
+                                </div>
+                                <span class="rr-line rr-small rr-weak">{r.narrowFed}</span>
+                                <template lwc:if={r.showReason}><span class="rr-line rr-small rr-reason-t">{r.reasonText}</span></template>
+                                <template lwc:if={r.linked}><span class="rr-line rr-small rr-mono">{r.narrowLine}</span></template>
+                                <template lwc:if={r.editing}>
+                                    <div class="rr-edit" onkeydown={handleEditKey}>
+                                        <lightning-input class="rr-edit-in" variant="label-hidden" label={editLabel} value={editValue} placeholder="e.g. U05TQ1XM8RJ" max-length="20" onchange={handleEditInput}></lightning-input>
+                                        <lightning-button label="Cancel" onclick={cancelEdit} disabled={editSaving}></lightning-button>
+                                        <lightning-button variant="brand" label={editSaveLabel} onclick={saveEdit} disabled={editSaving}></lightning-button>
+                                    </div>
+                                    <template lwc:if={editError}><p class="rr-field-err" role="alert">{editError}</p></template>
+                                </template>
+                                <template lwc:if={r.hasFix}>
+                                    <div><lightning-button label={r.fixLabel} data-id={r.userId} data-action={r.fixAction} onclick={handleFix} disabled={r.busy}></lightning-button></div>
+                                </template>
+                            </li>
+                        </template>
+                        <template lwc:if={noMatch}><li class="rr-nomatch">{noMatchText} <button type="button" class="rr-linkbtn" onclick={clearSearch}>Show all</button></li></template>
+                    </ul>
+                    <p class="rr-hint rr-narrow-only rr-m">{narrowFooter}</p>
+                </template>
+            </div>
+
+            <div class="slds-modal__footer rr-apf">
+                <p class="rr-hint">Linked by: <span class="rr-by rr-by-sso">SSO</span> Federation ID found in Slack · <span class="rr-by rr-by-email">Email</span> Salesforce email found in Slack · <span class="rr-by rr-by-self">Self</span> the approver linked from Slack · <span class="rr-by rr-by-admin">Admin</span> set by hand (Linked on shows who). Only linked approvers can press Approve or Reject in Slack; the rest still approve in Salesforce.</p>
+            </div>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+
+    <!-- Add approvers: search active users, select several, Add -->
+    <template lwc:if={adding}>
+        <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="rr-add-title" class="slds-modal slds-fade-in-open rr-addm" onkeydown={handleKey}>
+            <div class="slds-modal__container">
+                <button type="button" class="slds-button slds-button_icon slds-modal__close" title="Close" onclick={closeAdd}>
+                    <lightning-icon icon-name="utility:close" size="small" variant="inverse" alternative-text="Close"></lightning-icon>
+                </button>
+                <div class="slds-modal__header rr-aph">
+                    <h2 id="rr-add-title" class="slds-modal__title rr-aph-title rr-grow">Add approvers</h2>
+                    <template lwc:if={hasPicked}><span class="rr-pill rr-pill-info">{pickedHeader}</span></template>
+                </div>
+                <div class="slds-modal__content rr-addb">
+                    <lightning-input type="search" label="Search people" variant="label-hidden" value={pickTerm} onchange={handlePickSearch}
+                        placeholder="Name, username or Federation ID"></lightning-input>
+                    <p class="rr-hint">Searches active users by name, username or Federation ID (at least 2 letters, up to 50 shown). Selected people stay selected when you search again.</p>
+                    <template lwc:if={hasCandidates}>
+                        <div class="rr-scroll rr-scroll-s">
+                            <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table rr-ft rr-ft-narrow" aria-label="People">
+                                <colgroup><col /><col /><col /><col class="rr-w-pick" /></colgroup>
+                                <thead><tr><th scope="col">Name</th><th scope="col">Username</th><th scope="col">Federation ID</th><th scope="col"><span class="slds-assistive-text">Select</span></th></tr></thead>
+                                <tbody>
+                                    <template for:each={candidateRows} for:item="c">
+                                        <tr key={c.userId} class={c.cls} title={c.title}>
+                                            <td>{c.name}</td>
+                                            <td>{c.username}</td>
+                                            <td><span class={c.fedCls}>{c.fedText}</span></td>
+                                            <td class="rr-ta-r">
+                                                <template lwc:if={c.off}><span class="rr-pill rr-pill-none" title={c.blocked}>{c.blockedTag}</span></template>
+                                                <template lwc:else>
+                                                    <button type="button" class="rr-chip rr-pick" aria-pressed={c.pressed} aria-label={c.pickLabel} data-id={c.userId} onclick={togglePick}>
+                                                        <template lwc:if={c.on}>Selected</template><template lwc:else>Select</template>
+                                                    </button>
+                                                </template>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+                    <template lwc:else><p class="rr-nomatch-p">{pickNoneText}</p></template>
+                    <template lwc:if={hasPicked}>
+                        <p class="rr-small">Selected: {pickedText} · <button type="button" class="rr-linkbtn" onclick={clearPicked}>Clear</button></p>
+                    </template>
+                    <p class="rr-hint">Greyed: already an approver, or their license can't hold RLY_Approver (hover says why).</p>
+                </div>
+                <div class="slds-modal__footer rr-apf rr-addf">
+                    <span class="rr-hint rr-grow">Adds the RLY_Approver permission set, then looks each one up in Slack.</span>
+                    <lightning-button label="Cancel" onclick={closeAdd} disabled={addBusy}></lightning-button>
+                    <lightning-button variant="brand" label={addLabel} onclick={handleAdd} disabled={addDisabled}></lightning-button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open rr-addbd" role="presentation"></div>
+    </template>
+</template>

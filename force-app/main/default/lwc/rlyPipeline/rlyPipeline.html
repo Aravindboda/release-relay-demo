@@ -468,6 +468,7 @@
             <span class="rr-h2 rr-fold-title">{fold.slack.title}</span>
             <span class="rr-sum">{fold.slack.summary}</span>
         </button>
+        <template lwc:if={showApproverLink}><button type="button" class="rr-linkbtn rr-ap-link" title="Open the Slack approvers window" onclick={openApprovers}>{approverLinkText}</button></template>
         <template lwc:if={fold.slack.pill}><span class={fold.slack.pillCls}>{fold.slack.pill}</span></template>
     </div>
 </template>
@@ -515,39 +516,10 @@
                                         </dl>
                                         <template lwc:if={showTokenSetup}><div class="rr-msg rr-msg-wait" role="status">{tokenSetupText} <a href={tokenSetupUrl} target="_blank" rel="noopener noreferrer">Open Named Credentials</a></div></template>
                                         <div class="rr-row">
-                                            <lightning-button variant="base" label={approversToggleLabel} onclick={toggleApprovers}></lightning-button>
+                                            <lightning-button variant="base" label="Manage approvers ›" title="Add, remove and link approvers" onclick={openApprovers}></lightning-button>
                                         </div>
                                     </div>
                                     <template lwc:if={slackLastText}><p class={slackLastCls}>{slackLastText}</p></template>
-                                </template>
-                                <template lwc:if={showApprovers}>
-                                    <div class="rr-body rr-line-top">
-                                        <p class="rr-small rr-weak">Only linked approvers can press Approve or Reject in Slack. Press Edit → Approve in Slack → Link Slack member IDs to link one.</p>
-                                        <template lwc:if={noApprovers}><p class="rr-small rr-weak">No approvers yet: assign the RLY_Approver permission set.</p></template>
-                                        <template lwc:if={hasApprovers}>
-                                            <template lwc:if={showApproverSearch}>
-                                                <c-rly-search-box data-list="approvers" label="Search approvers" placeholder="Search by name or Slack member ID"
-                                                    shown={approversShown} total={approversTotal} onsearch={handleListSearch}></c-rly-search-box>
-                                            </template>
-                                            <div class="rr-scroll">
-                                                <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table rr-ft rr-ft-narrow" aria-label="Approvers">
-                                                    <colgroup><col /><col class="rr-w-member" /></colgroup>
-                                                    <thead><tr><th scope="col">Approver</th><th scope="col">Slack member ID</th></tr></thead>
-                                                    <tbody>
-                                                        <template for:each={shownApprovers} for:item="a">
-                                                            <tr key={a.userId}>
-                                                                <td title={a.name}><template for:each={a.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template><template lwc:if={a.linked}><span class="rr-pill rr-pill-ok rr-sp">Linked</span></template></td>
-                                                                <td><span class="rr-mono">{a.memberText}</span></td>
-                                                            </tr>
-                                                        </template>
-                                                        <template lwc:if={approversNoMatch}>
-                                                            <tr><td colspan="2" class="rr-nomatch">{approversNoMatchText} <button type="button" class="rr-linkbtn" data-list="approvers" onclick={clearListSearch}>Clear search</button></td></tr>
-                                                        </template>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </template>
-                                    </div>
                                 </template>
                             </template>
                             <template lwc:if={isSlackEditing}>
@@ -585,38 +557,29 @@
                                                 </template>
                                                 <template lwc:else><p class="rr-kicker">Interactivity URL: set up a Salesforce Site first (Guide → Set up → Slack).</p></template>
                                             </div>
-                                            <p class="rr-kicker">Approvers linked: {approversText}<lightning-button class="rr-sp" variant="base" label={linkApproversLabel} onclick={toggleApprovers}></lightning-button></p>
-                                            <template lwc:if={showApprovers}>
-                                                <p class="rr-small rr-weak">Each approver's Slack member ID (Slack: profile &gt; More &gt; Copy member ID). Only linked approvers can press Approve or Reject in Slack. Leave blank to unlink.</p>
-                                                <template lwc:if={noApprovers}><p class="rr-small rr-weak">No approvers yet: assign the RLY_Approver permission set.</p></template>
-                                                <template lwc:if={hasApprovers}>
-                                                    <template lwc:if={showApproverSearch}>
-                                                        <c-rly-search-box data-list="approvers" label="Search approvers" placeholder="Search by name or Slack member ID"
-                                                            shown={approversShown} total={approversTotal} onsearch={handleListSearch}></c-rly-search-box>
-                                                    </template>
-                                                    <div class="rr-scroll">
-                                                        <table class="slds-table slds-table_cell-buffer slds-table_bordered rr-table rr-ft rr-ft-narrow" aria-label="Approvers">
-                                                            <colgroup><col /><col class="rr-w-member-edit" /></colgroup>
-                                                            <thead><tr><th scope="col">Approver</th><th scope="col">Slack member ID</th></tr></thead>
-                                                            <tbody>
-                                                                <template for:each={shownApprovers} for:item="a">
-                                                                    <tr key={a.userId}>
-                                                                        <td title={a.name}><template for:each={a.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template><template lwc:if={a.linked}><span class="rr-pill rr-pill-ok rr-sp">Linked</span></template></td>
-                                                                        <td class="rr-td-input">
-                                                                            <lightning-input variant="label-hidden" label={a.inputLabel} value={a.memberId} placeholder="e.g. U0…" max-length="20"
-                                                                                data-id={a.userId} onchange={handleMemberInput}></lightning-input>
-                                                                        </td>
-                                                                    </tr>
-                                                                </template>
-                                                                <template lwc:if={approversNoMatch}>
-                                                                    <tr><td colspan="2" class="rr-nomatch">{approversNoMatchText} <button type="button" class="rr-linkbtn" data-list="approvers" onclick={clearListSearch}>Clear search</button></td></tr>
-                                                                </template>
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </template>
-                                            </template>
                                         </template>
+                                    </div>
+                                    <div class="rr-apblock">
+                                        <p class="rr-h4">Approvers</p>
+                                        <c-rly-choice-chips label="Match approvers by" mode="single" options={matchOptions} value={slackForm.matchBy} onchange={handleMatchBy}></c-rly-choice-chips>
+                                        <p class="rr-hint">{matchHint}</p>
+                                        <template lwc:if={scopeMissingText}>
+                                            <div class="rr-msg rr-msg-wait" role="status">
+                                                <strong>{scopeMissingText}</strong> Without it Slack can't find people by email, so nothing can be matched; links already saved keep working.
+                                                <p class="rr-small">{scopeHowText}</p>
+                                            </div>
+                                        </template>
+                                        <template lwc:if={scopeProblemText}><p class="rr-hint">Scope check: {scopeProblemText}</p></template>
+                                        <template lwc:if={hasScopeItems}>
+                                            <ul class="rr-scopes" aria-label="Bot token scopes">
+                                                <template for:each={scopeItems} for:item="sc">
+                                                    <li key={sc.key} class={sc.cls}><span aria-hidden="true">{sc.mark}</span> <span class="rr-mono">{sc.name}</span></li>
+                                                </template>
+                                            </ul>
+                                        </template>
+                                        <p class="rr-hint">{scopeCheckedText} <template lwc:if={hasScopeItems}><button type="button" class="rr-linkbtn" onclick={handleScopeRecheck}>Check again</button></template></p>
+                                        <p class="rr-small">{editApproversText} · <button type="button" class="rr-linkbtn" onclick={openApprovers}>Manage approvers ›</button> <span class="rr-weak">(add, remove, link: the Approvers window)</span></p>
+                                        <template lwc:if={matchChangedNote}><p class="rr-hint">{matchChangedNote}</p></template>
                                     </div>
                                     <template lwc:if={editError}><div class="rr-msg rr-msg-bad" role="alert">{editError}</div></template>
                                 </div>
@@ -1053,6 +1016,11 @@
                         </div>
                     </section>
                     <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+                </template>
+
+                <!-- Slack approvers window (board HubSlackApprovers 3): opened from the Slack connection line, card or Edit -->
+                <template lwc:if={approversOpen}>
+                    <c-rly-slack-approvers onclose={closeApprovers} onchanged={handleApproversChanged}></c-rly-slack-approvers>
                 </template>
             </div>
         </template>

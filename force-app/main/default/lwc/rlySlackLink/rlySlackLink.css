@@ -1,0 +1,41 @@
+:host {
+    display: block;
+    --rr-blue: #0176d3;
+    --rr-ink: #181818;
+    --rr-muted: #5c5c5c;
+    --rr-line: #e5e5e5;
+    padding-bottom: 1.5rem;
+}
+
+.rr-page { max-width: 46rem; margin: 0 auto; color: var(--rr-ink); }
+.rr-card { position: relative; background: #fff; border: 1px solid var(--rr-line); border-radius: 4px; box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05); }
+.rr-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--rr-line); }
+.rr-title { margin: 0; font-size: 18px; font-weight: 700; }
+.rr-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; min-height: 80px; }
+.rr-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--rr-line); background: #fafaf9; }
+.rr-grow { flex: 1 1 auto; min-width: 0; }
+.rr-q { margin: 0; font-size: 15px; font-weight: 700; }
+.rr-pair { display: flex; align-items: center; gap: 12px; }
+.rr-acct { flex: 1 1 0; min-width: 0; border: 1px solid var(--rr-line); border-radius: 4px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.rr-arrow { font-size: 20px; color: var(--rr-muted); }
+.rr-kicker { margin: 0; font-size: 12px; color: var(--rr-muted); }
+.rr-small { font-size: 12px; }
+.rr-weak { color: var(--rr-muted); }
+.rr-ok { color: #2e844a; }
+.rr-mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.rr-hint { margin: 0; font-size: 12px; color: #747474; }
+.rr-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 10px; }
+.rr-pill-info { background: #e5f2fd; color: #014486; }
+.rr-msg { padding: 8px 10px; border-radius: 4px; font-size: 13px; line-height: 1.45; }
+.rr-msg-bad { background: #fef1ee; color: #8e030f; }
+.rr-msg-wait { background: #fef1cd; color: #8c4b02; }
+.rr-msg-ok { background: #ebf7e6; color: #194e31; }
+.rr-msg-info { background: #f3f3f3; color: #444; }
+.rr-linkbtn { border: 0; background: none; padding: 0; font: inherit; color: #0b5cab; text-decoration: underline; cursor: pointer; }
+.rr-linkbtn:focus-visible { outline: 2px solid var(--rr-blue); outline-offset: 2px; }
+
+@media (max-width: 480px) {
+    .rr-pair { flex-direction: column; align-items: stretch; }
+    .rr-arrow { transform: rotate(90deg); align-self: center; }
+    .rr-head, .rr-body, .rr-foot { padding-left: 16px; padding-right: 16px; }
+}

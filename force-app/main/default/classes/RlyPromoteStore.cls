@@ -8,6 +8,7 @@ public with sharing class RlyPromoteStore {
     /**
      * @description Releases deployed to these stages and waiting to be promoted: deployed, merged (or with manual steps
      * only: no merge commit), not carried by a promotion yet, not back promotes. Hotfixes first, then oldest deploy first.
+     * With their latest rollback (status, org, when, why) so the Promote tab can mark one rolled back in the stage.
      * @param stageIds the stage orgs
      * @return the releases
      */
@@ -136,7 +137,8 @@ public with sharing class RlyPromoteStore {
          */
         public List<RLY_Release__c> queryReady(Set<Id> stageIds) {
             return [SELECT Id, Name, Title__c, Target_Org__c, Is_Hotfix__c, Hotfix_Reason__c, Last_Synced__c, CreatedBy.Name,
-                           Test_Classes__c, Component_Count__c, Merge_Commit__c, Deletion_Count__c, Manual_Only__c
+                           Test_Classes__c, Component_Count__c, Merge_Commit__c, Deletion_Count__c, Manual_Only__c,
+                           Rollback_Status__c, Rollback_Org__c, Rollback_On__c, Rollback_Reason__c
                     FROM RLY_Release__c
                     WHERE Target_Org__c IN :stageIds AND Status__c = 'Deployed' AND (Merge_Commit__c != null OR Manual_Only__c = true)
                         AND Promoted_In__c = null AND Release_Type__c != 'Back_Promote'

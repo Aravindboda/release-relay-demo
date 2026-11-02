@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Last_Match_By__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>The admin who last matched approvers to Slack.</description>
+    <label>Last Match By</label>
+    <referenceTo>User</referenceTo>
+    <relationshipName>RLY_Slack_Match_Runs</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

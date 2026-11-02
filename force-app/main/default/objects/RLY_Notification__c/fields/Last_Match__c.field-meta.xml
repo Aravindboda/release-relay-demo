@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Last_Match__c</fullName>
+    <description>When approvers were last matched to Slack (Match now, or Add approvers).</description>
+    <label>Last Match</label>
+    <required>false</required>
+    <type>DateTime</type>
+</CustomField>
