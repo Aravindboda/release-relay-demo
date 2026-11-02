@@ -1,7 +1,9 @@
 /**
  * @description Tests for the "What's built" tab's live figures (RlyBuildInfo): Release Relay record counts, Apex class
- * sizes, org limits, static resources, async Apex (none) and the document's counts read from setup objects. Every test
- * runs through System.runAs as an active System Administrator with Release Relay Developer.
+ * sizes, org limits, static resources, async Apex (none) and the document's counts read from setup objects; build 31:
+ * the generated data read from its Document, counts matched against the package list it carries (the rest are extras),
+ * and nothing returned while the What's built lock is on. Every test runs through System.runAs as an active System
+ * Administrator with Release Relay Developer.
  */
 @IsTest
 private class RlyBuildInfoTest {
@@ -91,6 +93,71 @@ private class RlyBuildInfoTest {
             System.assertEquals(1, pc.tabs, 'One tab');
             System.assertEquals(1, pc.objects, 'One object');
             System.assertEquals(1, pc.fields, 'One field; unknown kinds and other parents ignored');
+        }
+    }
+
+    /**
+     * @description Puts a generated-data Document in this test (test Documents aren't the org's) and points the class at it.
+     * @param body the JSON
+     */
+    private static void dataDocument(String body) {
+        RlyBuildInfo.dataName = 'RLY_Build_Data_Test_31';
+        insert new Document(Name = 'RLY Build Data Test', DeveloperName = RlyBuildInfo.dataName, FolderId = UserInfo.getUserId(),
+            ContentType = 'application/json', Type = 'json', Body = Blob.valueOf(body));
+    }
+
+    @IsTest
+    static void dataAndNames() {
+        System.runAs(RlyTestData.admin()) {
+            dataDocument('{"build":"31","package":{"classes":["RlyBuildInfo"]},"features":[{"key":"f0"}]}');
+            String body = RlyBuildInfo.buildData();
+            System.assert(body.contains('"build":"31"'), 'The Document\'s JSON comes back');
+            RlyBuildInfo.Counts c = RlyBuildInfo.counts();
+            System.assert(new Set<String>(c.classNames).contains('RlyBuildInfo'), 'Class names come back for the package list match');
+            System.assertEquals(c.classNames.size(), c.apexClasses, 'Count is the names found');
+            System.assertEquals(c.customPermissionNames.size(), c.customPermissions, 'Custom permission names come back');
+            System.assertEquals(c.resourceSizes.size(), c.staticResources, 'Static resources with their size');
+            System.assert(c.tabNames == null || c.tabNames.size() == c.tabs, 'Tab names when readable');
+            RlyBuildInfo.BuildInfo info = RlyBuildInfo.read();
+            System.assertNotEquals(null, info.classes[0].lastModified, 'Classes come with their last change');
+        }
+    }
+
+    @IsTest
+    static void missingData() {
+        System.runAs(RlyTestData.admin()) {
+            RlyBuildInfo.dataName = 'RLY_No_Such_Document_31';
+            String message = '';
+            try {
+                RlyBuildInfo.buildData();
+            } catch (AuraHandledException e) {
+                message = e.getMessage();
+            }
+            System.assert(message.contains('RLY_BuildData'), 'Missing Document explained: ' + message);
+        }
+    }
+
+    @IsTest
+    static void lockedReturnsNothing() {
+        System.runAs(RlyTestData.admin()) {
+            insert new RLY_Lock__c(SetupOwnerId = UserInfo.getOrganizationId(), Enabled__c = true, Hash__c = 'x', Changed_On__c = System.now());
+            Integer refused = 0;
+            try {
+                RlyBuildInfo.buildData();
+            } catch (AuraHandledException e) {
+                refused += e.getMessage() == 'What\'s built is locked.' ? 1 : 0;
+            }
+            try {
+                RlyBuildInfo.read();
+            } catch (AuraHandledException e) {
+                refused += e.getMessage() == 'What\'s built is locked.' ? 1 : 0;
+            }
+            try {
+                RlyBuildInfo.counts();
+            } catch (AuraHandledException e) {
+                refused += e.getMessage() == 'What\'s built is locked.' ? 1 : 0;
+            }
+            System.assertEquals(3, refused, 'Every method refuses while locked');
         }
     }
 }

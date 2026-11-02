@@ -298,3 +298,11 @@ button.rr-chev:disabled { cursor: default; opacity: 0.4; }
 .rr-scope-bad { color: #ba0517; font-weight: 700; }
 @media (max-width: 480px) { .rr-ap-link { max-width: 100%; white-space: normal; } }
 
+/* What's built lock (build 31): new password + confirm side by side, each with its eye button; stacked at 480px */
+.rr-lockpw { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.rr-lockpw-row { display: flex; align-items: flex-end; gap: 4px; }
+.rr-lockpw-in { flex: 1 1 auto; min-width: 0; }
+.rr-lockpw-row lightning-button-icon { flex: none; padding-bottom: 6px; }
+@media (max-width: 480px) {
+    .rr-lockpw { grid-template-columns: minmax(0, 1fr); }
+}
