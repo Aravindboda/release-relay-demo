@@ -1,4 +1,6 @@
-# Release Relay pipeline files: version 15
+# Release Relay pipeline files: version 16
+# Version 16: a file that is new on one side only no longer counts as a conflict when git pairs it with a file the
+# other side deleted (identical -meta.xml files looked like a rename); the release branch's file is kept.
 # Version 15: a nightly schedule (on.schedule, 08:00 UTC = 2:00 AM Central in winter) runs the archive job: it signs in
 # to the hub and calls POST /services/apexrest/rly/archive once per pass (at most 25) until the hub says done. The hub
 # removes finished releases older than its Retention days only when "Archive every night" is on; every other job skips

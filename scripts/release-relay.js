@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 15
+// Release Relay pipeline files: version 16
 // Version 15: no change to this script; it moves with the GitHub pipeline file (nightly archive job), since the lowest
 // version among a hub's files counts.
 /*
@@ -2587,6 +2587,33 @@ function conflictedFiles() {
 }
 
 /**
+ * After a failed merge: files that are new on one side only (not in the merge base, missing on the other side) are not
+ * real conflicts. Git can still flag them when it pairs a new file with one the other side deleted (a "rename"
+ * guessed from identical -meta.xml files). Takes the side that has the file. Returns true when no conflict is left.
+ */
+function resolveAddedFiles() {
+    const files = conflictedFiles();
+    if (!files.length) {
+        return false;
+    }
+    const mergeBase = gitQuiet(['merge-base', 'HEAD', 'MERGE_HEAD']);
+    for (const file of files) {
+        const inBase = mergeBase && gitQuiet(['cat-file', '-e', `${mergeBase.trim()}:${file}`]) !== null;
+        const ours = gitQuiet(['cat-file', '-e', `HEAD:${file}`]) !== null;
+        const theirs = gitQuiet(['cat-file', '-e', `MERGE_HEAD:${file}`]) !== null;
+        if (inBase || (ours && theirs)) {
+            return false;
+        }
+    }
+    for (const file of files) {
+        const ours = gitQuiet(['cat-file', '-e', `HEAD:${file}`]) !== null;
+        git(['checkout', ours ? '--ours' : '--theirs', '--', file]);
+        git(['add', '--', file]);
+    }
+    return conflictedFiles().length === 0;
+}
+
+/**
  * Checks out TARGET and merges BRANCH into it locally (nothing is pushed), so validation deploys what
  * the target will really get. Returns { base } (the target commit) or { conflicts } (a result to write).
  */
@@ -2598,10 +2625,13 @@ function mergeForValidation() {
     try {
         run('git', ['merge', '--no-ff', '--no-commit', `refs/remotes/origin/${branch}`], { stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) {
-        const files = conflictedFiles();
-        if (!files.length) {
+        const files = resolveAddedFiles() ? [] : conflictedFiles();
+        if (!files.length && !gitQuiet(['rev-parse', '-q', '--verify', 'MERGE_HEAD'])) {
             throw new Error('Merging ' + branch + ' into ' + target + ' failed: ' + String(e.stderr || e.message).slice(0, 500));
         }
+    }
+    if (conflictedFiles().length) {
+        const files = conflictedFiles();
         const conflicts = files.slice(0, CONFLICT_FILES_LIMIT).map((file) => {
             const merged = clip(fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null);
             const mine = clip(textAt(`refs/remotes/origin/${branch}`, file));
@@ -2644,6 +2674,9 @@ function resolveConflicts() {
         run('git', ['merge', '--no-ff', '--no-commit', `refs/remotes/origin/${target}`], { stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) {
         // conflicts expected: resolved below
+    }
+    if (conflictedFiles().length) {
+        resolveAddedFiles();
     }
     const conflicted = new Set(conflictedFiles());
     const byFile = new Map(resolutions.map((r) => [String(r.file), r]));
@@ -2717,6 +2750,12 @@ function syncDeveloperBranches() {
             out.push({ branch: b, status: 'Synced', message: wins
                 ? `${b} now includes ${target} (${target}'s lines win where they differ).` : `${b} now includes ${target}.` });
         } catch (e) {
+            if (resolveAddedFiles()) {
+                git(['commit', '-q', '--no-edit']);
+                git(['push', '-q', 'origin', `HEAD:refs/heads/${b}`]);
+                out.push({ branch: b, status: 'Synced', message: `${b} now includes ${target}.` });
+                continue;
+            }
             const files = conflictedFiles();
             gitQuiet(['merge', '--abort']);
             out.push({ branch: b, status: 'Conflict', message: files.length
@@ -2978,15 +3017,19 @@ async function stepSync() {
                 run('git', ['merge', '--no-edit', '-m', `Release Relay ${requestId}: back promote ${branch} into ${target}`,
                     `refs/remotes/origin/${branch}`], { stdio: ['ignore', 'pipe', 'pipe'] });
             } catch (e) {
-                const files = conflictedFiles();
-                gitQuiet(['merge', '--abort']);
-                if (!files.length) {
-                    throw new Error(`Merging ${branch} into ${target} failed: ${String(e.stderr || e.message).slice(0, 500)}`);
+                if (resolveAddedFiles()) {
+                    git(['commit', '-q', '--no-edit']);
+                } else {
+                    const files = conflictedFiles();
+                    gitQuiet(['merge', '--abort']);
+                    if (!files.length) {
+                        throw new Error(`Merging ${branch} into ${target} failed: ${String(e.stderr || e.message).slice(0, 500)}`);
+                    }
+                    result('Conflict', { sha: git(['rev-parse', `refs/remotes/origin/${branch}`]), conflicts: files.slice(0, 200),
+                        message: `${files.length} file(s) in ${target} conflict with ${branch}. Nothing was deployed or pushed. `
+                            + `Bring ${branch} into ${target} by hand (keep ${branch}'s lines), then sync again.` });
+                    process.exit(1);
                 }
-                result('Conflict', { sha: git(['rev-parse', `refs/remotes/origin/${branch}`]), conflicts: files.slice(0, 200),
-                    message: `${files.length} file(s) in ${target} conflict with ${branch}. Nothing was deployed or pushed. `
-                        + `Bring ${branch} into ${target} by hand (keep ${branch}'s lines), then sync again.` });
-                process.exit(1);
             }
         } else {
             git(['checkout', '-q', '-B', target, `refs/remotes/origin/${branch}`]);
