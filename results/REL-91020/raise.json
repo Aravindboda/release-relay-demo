@@ -1,0 +1,19 @@
+{
+ "request": "REL-91020",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rly-b34-sit",
+ "target": "rly-sit-install",
+ "sha": "08da973df80ed9f1499f3c269bd544ea416eec3f",
+ "pr": 166,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/166",
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "appended": false,
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41484770930",
+ "finishedAt": "2026-11-02T16:47:00.446Z"
+}
