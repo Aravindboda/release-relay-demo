@@ -1,4 +1,8 @@
-# Release Relay pipeline files: version 16
+# Release Relay pipeline files: version 17
+# Version 17: a release whose Apex is only deletions and inactive triggers (status Inactive in the trigger's -meta.xml)
+# and that names no tests runs the local tests (RunLocalTests) in production, as Salesforce requires, and no tests
+# (NoTestRun) in sandboxes; "production" comes from the hub (options.production: the target is the hub org). The tests
+# and coverage gates leave inactive triggers out (no 0% failure for them).
 # Version 16: a file that is new on one side only no longer counts as a conflict when git pairs it with a file the
 # other side deleted (identical -meta.xml files looked like a rename); the release branch's file is kept.
 # Version 15: a nightly schedule (on.schedule, 08:00 UTC = 2:00 AM Central in winter) runs the archive job: it signs in
