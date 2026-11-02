@@ -102,19 +102,25 @@ const EVENT_LOOK = {
     Back_Promoted: { title: 'Back promoted', icon: 'utility:back' },
     Comment: { title: 'Comment', icon: 'utility:comments' },
     Rolled_Back: { title: 'Rolled back', icon: 'utility:undo' },
-    Rollback_Failed: { title: 'Rollback failed', icon: 'utility:error' }
+    Rollback_Failed: { title: 'Rollback failed', icon: 'utility:error' },
+    File_Attached: { title: 'Attached', icon: 'utility:attach' },
+    File_Removed: { title: 'Removed', icon: 'utility:delete' },
+    Proof_Added: { title: 'Proof added', icon: 'utility:upload' },
+    File_Downloaded: { title: 'Downloaded', icon: 'utility:download' }
 };
+/** File events on manual steps (build 34): the History card's Files chip shows only these. */
+const FILE_EVENTS = ['File_Attached', 'File_Removed', 'Proof_Added', 'File_Downloaded'];
 /** History dot colour per event type (anything else is blue): green done, red failed, amber rolled back or waiting. */
 const EVENT_TONE = {
     Deployed: 'ok', Approved: 'ok', Auto_Approved: 'ok', Manual_Step: 'ok', Merged_Back: 'ok', Back_Promoted: 'ok',
-    Scan: 'ok', Validation: 'ok', Flow_Activated: 'ok',
+    Scan: 'ok', Validation: 'ok', Flow_Activated: 'ok', Proof_Added: 'ok',
     Rejected: 'bad', Deploy_Failed: 'bad', Rollback_Failed: 'bad',
     Rolled_Back: 'wait'
 };
 /** Types whose title names the org: "Deployed to <org>", "Approved for <org>"… */
 const EVENT_ORG_WORD = {
     Approved: ' for ', Rejected: ' for ', Deployed: ' to ', Deploy_Failed: ' in ', Validation: ' in ', Manual_Step: ' in ',
-    Flow_Activated: ' in ', Auto_Approved: ' for ', Rolled_Back: ' in ', Rollback_Failed: ' in '
+    Flow_Activated: ' in ', Auto_Approved: ' for ', Rolled_Back: ' in ', Rollback_Failed: ' in ', Proof_Added: ' in ', File_Downloaded: ' in '
 };
 /** RLY_Release__c.Rollback_Status__c (RlyRollbackState): the header pill's tone per rollback state (board HubRollbackValuesGates 2). */
 const ROLLBACK_PILL = { Running: 'rr-pill rr-pill-info', Rolled_Back: 'rr-pill rr-pill-wait', Failed: 'rr-pill rr-pill-bad' };
@@ -848,6 +854,8 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     compSearch = '';
     /** Search text of the History list (normalised). */
     historySearch = '';
+    /** History chip: all events, or only the file events (Attached, Removed, Proof added, Downloaded). */
+    historyKind = 'all';
 
     /** Components and deletions shown after the search, with the matches marked. */
     get shownItems() {
@@ -880,10 +888,28 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     /** History after the search; the arrows join only the events shown. */
     get shownEvents() {
         const q = this.historySearch;
-        const list = this.events.filter((e) => matchesSearch([e.title, e.who, e.detail, e.refLink, e.refText], q));
+        const filesOnly = this.historyKind === 'files';
+        const list = this.events.filter((e) => (!filesOnly || e.isFile) && matchesSearch([e.title, e.who, e.detail, e.refLink, e.refText], q));
         return list.map((e, i) => ({ ...e, hasArrow: i < list.length - 1, titleParts: highlightParts(e.title, q) }));
     }
-    get showHistorySearch() { return this.events.length >= SEARCH_FROM || !!this.historySearch; }
+    get showHistorySearch() { return this.events.length >= SEARCH_FROM || !!this.historySearch || this.hasFileEvents; }
+    get fileEventCount() { return this.events.filter((e) => e.isFile).length; }
+    get hasFileEvents() { return this.fileEventCount > 0; }
+    /** All n | Files n chips (board HubStepFiles 5), shown when the release has file events. */
+    get historyChips() {
+        return [
+            { value: 'all', label: 'All', count: String(this.events.length) },
+            { value: 'files', label: 'Files', count: String(this.fileEventCount) }
+        ].map((c) => ({
+            ...c,
+            pressed: c.value === this.historyKind ? 'true' : 'false',
+            cls: 'rr-hchip' + (c.value === this.historyKind ? ' rr-hchip-on' : '')
+        }));
+    }
+
+    pickHistoryKind(event) {
+        this.historyKind = event.currentTarget.dataset.value;
+    }
     get historyNoMatch() { return !!this.historySearch && this.shownEvents.length === 0; }
     get historyNoMatchText() { return 'No events match \u2018' + this.historySearch + '\u2019.'; }
 
@@ -1258,6 +1284,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             const ref = e.reference || '';
             return {
                 key: e.id || 'e' + i,
+                isFile: FILE_EVENTS.includes(e.eventType),
                 title: e.title || this.eventTitle(e, look, failed) + (orgWord && e.orgName ? orgWord + e.orgName : ''),
                 icon: look.icon,
                 cls: 'rr-vt-dot rr-vt-' + eventTone(e, failed),

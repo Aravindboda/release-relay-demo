@@ -35,7 +35,10 @@ const EVENT_LOOK = {
     Back_Promoted: { label: 'Back promoted', icon: 'utility:back', tone: 'B' },
     Rolled_Back: { label: 'Rolled back', icon: 'utility:undo', tone: 'N', rollback: true },
     Rollback_Failed: { label: 'Rollback failed', icon: 'utility:undo', tone: 'R', rollback: true, failure: true },
-    Comment: { label: 'Comment', icon: 'utility:comments', tone: 'N' }
+    Comment: { label: 'Comment', icon: 'utility:comments', tone: 'N' },
+    File_Attached: { label: 'File attached', icon: 'utility:attach', tone: 'N' },
+    File_Removed: { label: 'File removed', icon: 'utility:delete', tone: 'N' },
+    Proof_Added: { label: 'Proof added', icon: 'utility:upload', tone: 'G' }
 };
 const ACTIVITY_CHIPS = [
     { id: 'all', label: 'All' },

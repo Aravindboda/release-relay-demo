@@ -94,6 +94,26 @@
                 <default>false</default>
                 <label>Comment</label>
             </value>
+            <value>
+                <fullName>File_Attached</fullName>
+                <default>false</default>
+                <label>Attached</label>
+            </value>
+            <value>
+                <fullName>File_Removed</fullName>
+                <default>false</default>
+                <label>Removed</label>
+            </value>
+            <value>
+                <fullName>Proof_Added</fullName>
+                <default>false</default>
+                <label>Proof added</label>
+            </value>
+            <value>
+                <fullName>File_Downloaded</fullName>
+                <default>false</default>
+                <label>Downloaded</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

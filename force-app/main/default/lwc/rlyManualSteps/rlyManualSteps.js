@@ -6,6 +6,10 @@ import saveStep from '@salesforce/apex/RlyManualStepController.saveStep';
 import deleteStep from '@salesforce/apex/RlyManualStepController.deleteStep';
 import markRun from '@salesforce/apex/RlyManualStepController.markRun';
 import getStart from '@salesforce/apex/RlyChangesController.getStart';
+import removeFile from '@salesforce/apex/RlyManualStepController.removeFile';
+import draftFiles from '@salesforce/apex/RlyManualStepController.draftFiles';
+import removeDraftFile from '@salesforce/apex/RlyManualStepController.removeDraftFile';
+import USER_ID from '@salesforce/user/Id';
 
 const CATEGORIES = [
     { value: 'Permissions', label: 'Profile or permission access' },
@@ -29,6 +33,14 @@ const MAX_STEPS = 50;
 /** The checklist shows its search box from this many steps (or while a search is typed). */
 const SEARCH_FROM = 7;
 const MAX_TITLE = 120;
+/** The run's status buttons (board HubStepFiles 2): To do | Done | Not needed ("N/A" under 480px, full label as title). */
+const SEGMENTS = [
+    { value: 'To_Do', label: 'To do', short: 'To do' },
+    { value: 'Done', label: 'Done', short: 'Done' },
+    { value: 'Not_Needed', label: 'Not needed', short: 'N/A' }
+];
+/** New Release draft files by ContentDocument Id (RlyStepFiles.FileRow), kept while the page is open. */
+const DRAFT_FILES = new Map();
 
 function errorText(e) {
     return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
@@ -66,13 +78,21 @@ function blankForm() {
     return { id: null, key: null, title: '', category: 'Permissions', timing: 'After_Deploy', instructions: '', backPromote: true, scopeMode: 'all', scopeOrgs: [] };
 }
 
+function fileIds(list) {
+    return Array.isArray(list) ? list.filter((x) => x) : [];
+}
+
 /**
  * Manual steps (board HubManualSteps): changes that can't be deployed as metadata. They follow the release through every
  * org on the route, in order, and the deployment team checks each one off per org.
  * Two uses:
  *  - draft (New Release → Review): the steps are kept here and sent up in a stepschange event ({ steps }) as StepInput rows;
  *  - a release (release-id): RlyManualStepController.getSteps, per org tabs with the checklist; canEdit users add, edit and
- *    reorder steps until the first deploy; canCheck users (deployment team, admin) tick them with markRun.
+ *    reorder steps until the first deploy; canCheck users (deployment team, admin) mark each run To do | Done | Not needed
+ *    with markRun.
+ * Files (board HubStepFiles, build 34, c-rly-step-files): each step's files (the raiser or an admin, until approval; then
+ * locked) and each run's proof (the deployment team). On New Release a step has no Id yet, so its files upload to the
+ * raiser's own user record and travel as StepInput.files; Raise links them to the saved steps.
  */
 export default class RlyManualSteps extends LightningElement {
     @api draft = false;
@@ -95,7 +115,8 @@ export default class RlyManualSteps extends LightningElement {
             return;
         }
         this._emitted = list;
-        this.drafts = (Array.isArray(list) ? list : []).map((s, i) => ({ ...s, sequence: i + 1, key: 'd' + this.nextKey++ }));
+        this.drafts = (Array.isArray(list) ? list : []).map((s, i) => ({ ...s, files: fileIds(s.files), sequence: i + 1, key: 'd' + this.nextKey++ }));
+        this.loadDraftFiles();
     }
 
     _releaseId;
@@ -118,6 +139,8 @@ export default class RlyManualSteps extends LightningElement {
     routeNames;
     nextKey = 1;
     _emitted;
+    /** Bumped when draft file details arrive, so the draft steps re-render with them. */
+    draftFilesSeen = 0;
 
     @api
     get releaseId() {
@@ -276,7 +299,24 @@ export default class RlyManualSteps extends LightningElement {
         const open = status === TO_DO;
         const expanded = !!text && (open !== this.toggled.has(r.id));
         const noting = this.notingId === r.id;
+        const step = this.definitions.find((s) => s.id === r.stepId) || {};
+        const orgName = this.selectedOrg ? this.selectedOrg.orgName : '';
+        const stepFiles = Array.isArray(step.files) ? step.files : [];
         return {
+            ...this.segmentsView(r, status),
+            stepId: r.stepId,
+            stepFiles,
+            showStepFiles: stepFiles.length > 0 || (!!step.canAttach && !this.disabled),
+            stepCanAttach: !!step.canAttach && !this.disabled,
+            stepLocked: !!step.locked && stepFiles.length > 0,
+            stepLockText: step.lockText || '',
+            proof: Array.isArray(r.proof) ? r.proof : [],
+            canAddProof: !!r.canAddProof && !this.disabled,
+            proofLabel: 'Proof in ' + orgName,
+            proofEmpty: 'None yet',
+            inOrgLabel: 'In ' + orgName,
+            segLabel: 'Status in ' + orgName + ': ' + r.title,
+            whoText: this.whoText(r, status),
             key: r.id,
             id: r.id,
             no: i + 1,
@@ -289,8 +329,6 @@ export default class RlyManualSteps extends LightningElement {
             isDone: status === DONE,
             isNotNeeded: status === NOT_NEEDED,
             isOpen: open,
-            tickable: this.canCheck && status !== NOT_NEEDED,
-            tickLabel: (status === DONE ? 'Mark as not done: ' : 'Mark as done: ') + r.title,
             boxCls: 'rr-box' + (status === DONE ? ' rr-box-done' : '') + (status === NOT_NEEDED ? ' rr-box-na' : ''),
             boxGlyph: { [DONE]: '✓', [NOT_NEEDED]: '–' }[status] || '',
             boxLabel: open ? 'To do' : labelOf([{ value: DONE, label: 'Done' }, { value: NOT_NEEDED, label: 'Not needed' }], status),
@@ -300,10 +338,29 @@ export default class RlyManualSteps extends LightningElement {
             ariaExpanded: expanded ? 'true' : 'false',
             toggleLabel: expanded ? 'Hide instructions' : 'Show instructions',
             metaText: this.metaText(r, status, many),
-            showNotNeeded: this.canCheck && open && !noting,
-            showReopen: this.canCheck && status === NOT_NEEDED,
             noting
         };
+    }
+
+    /** The To do | Done | Not needed buttons: the run's status pressed; off for those who can't check steps off. */
+    segmentsView(r, status) {
+        const off = !this.canCheck || this.actDisabled;
+        return {
+            segments: SEGMENTS.map((g) => ({
+                ...g,
+                pressed: g.value === status ? 'true' : 'false',
+                off,
+                cls: 'rr-seg-btn' + (g.value === status ? ' rr-seg-on' : '')
+            }))
+        };
+    }
+
+    /** "Dana Lee · Today 2:10 PM" once marked; for an open Before deploy step, what waits on it. */
+    whoText(r, status) {
+        if (status !== TO_DO) {
+            return [r.doneBy, when(r.doneOn)].filter((x) => x).join(' · ');
+        }
+        return r.timing === BEFORE ? 'The deploy waits for this step' : '';
     }
 
     metaText(r, status, many) {
@@ -351,10 +408,11 @@ export default class RlyManualSteps extends LightningElement {
     get noRunsText() { return this.selectedOrg ? 'No manual steps in ' + this.selectedOrg.orgName + '.' : ''; }
     get checkNote() {
         if (this.canCheck) {
-            return 'Tick each step when it is done in this org. Not needed asks for a note.';
+            return 'Mark each step To do, Done or Not needed in this org (Not needed asks for a note), and add proof such as a success file. '
+                + 'Preview opens PDFs and images; every file has Download.';
         }
-        return 'Only the deployment team (' + APP_NAME + ' Deployment Team, or an admin) ticks steps.'
-            + (this.canEdit ? ' You can add, edit and reorder them until the first deploy.' : '');
+        return 'Only the deployment team (' + APP_NAME + ' Deployment Team, or an admin) marks steps and adds proof.'
+            + (this.canEdit ? ' You can add, edit and reorder them until the first deploy, and attach files until the release is approved.' : '');
     }
 
     pickOrg(event) {
@@ -385,14 +443,22 @@ export default class RlyManualSteps extends LightningElement {
         this.toggled = next;
     }
 
-    handleTick(event) {
-        const id = event.target.dataset.id;
-        this.mark(id, event.target.checked ? DONE : TO_DO, null);
-    }
-
-    startNote(event) {
-        this.notingId = event.currentTarget.dataset.id;
-        this.noteText = '';
+    /** To do | Done | Not needed: Not needed asks for a note first; pressing the current status does nothing. */
+    pickStatus(event) {
+        const id = event.currentTarget.dataset.id;
+        const status = event.currentTarget.dataset.status;
+        const o = this.selectedOrg;
+        const run = o ? (o.runs || []).find((x) => x.id === id) : null;
+        if (!run || (run.status || TO_DO) === status || this.actDisabled) {
+            return;
+        }
+        if (status === NOT_NEEDED) {
+            this.notingId = id;
+            this.noteText = '';
+            return;
+        }
+        this.notingId = undefined;
+        this.mark(id, status, null);
     }
     handleNote(event) { this.noteText = event.target.value; }
     cancelNote() { this.notingId = undefined; }
@@ -407,12 +473,86 @@ export default class RlyManualSteps extends LightningElement {
         }
     }
 
-    reopen(event) {
-        this.mark(event.currentTarget.dataset.id, TO_DO, null);
-    }
-
     mark(runId, status, note) {
         return this.call(markRun, { runJson: JSON.stringify({ runId, status, note, releaseId: this.releaseId }) });
+    }
+
+    // ---------- files on steps and proof on runs (board HubStepFiles) ----------
+
+    /** A file was uploaded to a step or a run: read the card again (and the page, for History). */
+    async handleFilesChanged() {
+        await this.load();
+        this.dispatchEvent(new CustomEvent('stepschange', { detail: { open: this.openCount } }));
+    }
+
+    /** Remove ×: unlinks the file from the step or run (and deletes it when it is yours and nothing else holds it). */
+    handleFileRemove(event) {
+        const { recordId, documentId } = event.detail || {};
+        return this.call(removeFile, { recordId, contentDocumentId: documentId, releaseId: this._releaseId });
+    }
+
+    /** Files under the steps list: New Release drafts, or a release's own steps before it has runs. */
+    handleDefinitionFiles(event) {
+        if (!this.draft) {
+            return this.handleFilesChanged();
+        }
+        const key = event.currentTarget.dataset.key;
+        const ids = ((event.detail && event.detail.files) || []).map((f) => f.documentId);
+        this.drafts = this.drafts.map((s) => (s.key === key ? { ...s, files: [...new Set([...fileIds(s.files), ...ids])] } : s));
+        this.emitDrafts();
+        return this.loadDraftFiles();
+    }
+
+    async handleDefinitionRemove(event) {
+        if (!this.draft) {
+            return this.handleFileRemove(event);
+        }
+        const key = event.currentTarget.dataset.key;
+        const id = event.detail && event.detail.documentId;
+        this.busy = true;
+        try {
+            await removeDraftFile({ contentDocumentId: id });
+            DRAFT_FILES.delete(id);
+            this.drafts = this.drafts.map((s) => (s.key === key ? { ...s, files: fileIds(s.files).filter((x) => x !== id) } : s));
+            this.emitDrafts();
+            this.error = undefined;
+        } catch (e) {
+            this.error = errorText(e);
+        } finally {
+            this.busy = false;
+        }
+        return undefined;
+    }
+
+    /** New Release: reads the details (name, size, who) of draft files not seen yet. */
+    async loadDraftFiles() {
+        const missing = this.drafts.flatMap((s) => fileIds(s.files)).filter((id) => !DRAFT_FILES.has(id));
+        if (!missing.length) {
+            return;
+        }
+        try {
+            const rows = await draftFiles({ contentDocumentIds: missing });
+            (rows || []).forEach((f) => DRAFT_FILES.set(f.documentId, f));
+            this.draftFilesSeen++;
+        } catch (e) {
+            this.error = errorText(e);
+        }
+    }
+
+    /** Removing a draft step also deletes its draft files (they are only in your own files). */
+    dropDraftFiles(step) {
+        fileIds(step && step.files).forEach((id) => {
+            DRAFT_FILES.delete(id);
+            removeDraftFile({ contentDocumentId: id }).catch(() => {
+                // the file stays in your own files; nothing to show
+            });
+        });
+    }
+
+    get showDraftFilesNote() { return this.draft && this.drafts.length > 0; }
+    get draftFilesNote() {
+        return 'Files upload straight to Salesforce Files when you drop them. Before the release is raised they wait on your draft; '
+            + 'Raise pull request links them to the saved steps. Remove × deletes the file (the raiser or an admin, until the release is approved).';
     }
 
     // ---------- the steps themselves (add, edit, reorder) ----------
@@ -436,6 +576,7 @@ export default class RlyManualSteps extends LightningElement {
         return own.map((s, i) => {
             const key = this.draft ? s.key : s.id;
             return {
+                ...this.definitionFiles(s),
                 key,
                 no: i + 1,
                 title: s.title,
@@ -454,6 +595,23 @@ export default class RlyManualSteps extends LightningElement {
             };
         });
     }
+    /** A step's files under the steps list: New Release drafts (uploaded to your own user record), or a release without runs yet. */
+    definitionFiles(s) {
+        // draftFilesSeen is read here so the rows re-render when draft file details arrive
+        if (this.draft && this.draftFilesSeen >= 0) {
+            const rows = fileIds(s.files).map((id) => DRAFT_FILES.get(id) || { documentId: id, title: 'Reading…', canRemove: true });
+            return {
+                showFiles: true, filesLabel: 'Attach files', fileRows: rows, fileRecordId: USER_ID,
+                fileCanAttach: !this.disabled, fileLocked: false, fileLockText: ''
+            };
+        }
+        const rows = Array.isArray(s.files) ? s.files : [];
+        return {
+            showFiles: !this.hasOrgs && (rows.length > 0 || !!s.canAttach), filesLabel: 'Step files', fileRows: rows, fileRecordId: s.id,
+            fileCanAttach: !!s.canAttach && !this.disabled, fileLocked: !!s.locked && rows.length > 0, fileLockText: s.lockText || ''
+        };
+    }
+
     get hasStepRows() { return this.ownSteps.length > 0; }
     get canAdd() { return this.canEdit && !this.formOpen && this.ownSteps.length < MAX_STEPS; }
     get addDisabled() { return this.busy || this.disabled; }
@@ -553,9 +711,9 @@ export default class RlyManualSteps extends LightningElement {
         const own = this.ownSteps;
         if (this.draft) {
             if (this.form.key) {
-                this.drafts = this.drafts.map((s) => (s.key === this.form.key ? { ...this.formInput(s.sequence), key: s.key } : s));
+                this.drafts = this.drafts.map((s) => (s.key === this.form.key ? { ...this.formInput(s.sequence), key: s.key, files: fileIds(s.files) } : s));
             } else {
-                this.drafts = [...this.drafts, { ...this.formInput(own.length + 1), key: 'd' + this.nextKey++ }];
+                this.drafts = [...this.drafts, { ...this.formInput(own.length + 1), key: 'd' + this.nextKey++, files: [] }];
             }
             this.formOpen = false;
             this.emitDrafts();
@@ -575,6 +733,7 @@ export default class RlyManualSteps extends LightningElement {
     async removeStep(event) {
         const key = event.currentTarget.dataset.key;
         if (this.draft) {
+            this.dropDraftFiles(this.drafts.find((s) => s.key === key));
             this.drafts = this.drafts.filter((s) => s.key !== key).map((s, i) => ({ ...s, sequence: i + 1 }));
             this.emitDrafts();
             return;
@@ -621,7 +780,7 @@ export default class RlyManualSteps extends LightningElement {
     emitDrafts() {
         const steps = this.drafts.map((s, i) => ({
             title: s.title, instructions: s.instructions, category: s.category, timing: s.timing,
-            sequence: i + 1, backPromote: s.backPromote, orgScope: s.orgScope
+            sequence: i + 1, backPromote: s.backPromote, orgScope: s.orgScope, files: fileIds(s.files)
         }));
         this._emitted = steps;
         this.dispatchEvent(new CustomEvent('stepschange', { detail: { steps } }));
