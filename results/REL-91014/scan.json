@@ -1,0 +1,86 @@
+{
+ "request": "REL-91014",
+ "step": "scan",
+ "status": "Failed",
+ "total": 5,
+ "blocking": 2,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "High": 2,
+  "Moderate": 3
+ },
+ "files": [
+  "force-app/main/default/classes/RlyBuildInfo.cls",
+  "force-app/main/default/classes/RlyBuildInfoTest.cls",
+  "force-app/main/default/classes/RlyBuildLock.cls",
+  "force-app/main/default/classes/RlyBuildLockTest.cls",
+  "force-app/main/default/lwc/rlyBuildInfo/rlyBuildInfo.html",
+  "force-app/main/default/lwc/rlyBuildInfo/rlyBuildInfo.js",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js"
+ ],
+ "violations": [
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "no-unused-vars",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyBuildInfo/rlyBuildInfo.js",
+   "line": 128,
+   "message": "'e' is defined but never used.",
+   "url": "https://eslint.org/docs/latest/rules/no-unused-vars"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "no-unused-vars",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyBuildInfo/rlyBuildInfo.js",
+   "line": 140,
+   "message": "'e' is defined but never used.",
+   "url": "https://eslint.org/docs/latest/rules/no-unused-vars"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyBuildInfo/rlyBuildInfo.js",
+   "line": 345,
+   "message": "Inline rule disablement not allowed: @lwc/lwc/no-async-operation",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+   "line": 3020,
+   "message": "Inline rule disablement not allowed: @lwc/lwc/no-async-operation",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+   "line": 3254,
+   "message": "Inline rule disablement not allowed: @lwc/lwc/no-async-operation",
+   "url": null
+  }
+ ],
+ "message": "2 violation(s) at High or above.",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41370924338",
+ "finishedAt": "2026-11-02T01:09:57.889Z"
+}
