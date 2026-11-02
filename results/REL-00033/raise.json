@@ -1,0 +1,24 @@
+{
+ "request": "REL-00033",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "promote",
+ "branch": "promote/rel-00033",
+ "target": "prod",
+ "sha": "6419075fe39c6a7f8819a13325e78f7d2e3b4561",
+ "pr": 163,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/163",
+ "commits": [
+  "9a9ed0251b20ab6a24654bc6ea73b551eaad12d3"
+ ],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "appended": false,
+ "message": "",
+ "files": 4,
+ "fromStage": "sit",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41455690329",
+ "finishedAt": "2026-11-02T13:45:29.519Z",
+ "attempt": "0d18981364c832c7dcf0eef51b990d92"
+}
