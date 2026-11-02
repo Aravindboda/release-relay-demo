@@ -1,0 +1,77 @@
+{
+ "request": "REL-91018",
+ "step": "scan",
+ "status": "Passed",
+ "total": 5,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Moderate": 5
+ },
+ "files": [
+  "force-app/main/default/lwc/rlyArchive/rlyArchive.js"
+ ],
+ "violations": [
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
+   "line": 788,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
+   "line": 792,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
+   "line": 798,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
+   "line": 808,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
+   "line": 813,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41450841315",
+ "finishedAt": "2026-11-02T13:12:20.505Z"
+}
