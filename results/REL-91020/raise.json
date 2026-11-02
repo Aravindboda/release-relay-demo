@@ -1,19 +1,19 @@
 {
  "request": "REL-91020",
  "step": "raise",
- "status": "Failed",
+ "status": "Opened",
  "mode": "hub",
  "branch": "feature/rly-b34-sit",
  "target": "rly-sit-install",
- "sha": null,
- "pr": null,
- "url": null,
+ "sha": "de5f35951ee218679051dc14d2eeed9f6c8a43be",
+ "pr": 166,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/166",
  "commits": [],
  "conflicts": [],
  "deleted": [],
  "valuesTokenized": 0,
  "appended": false,
- "message": ".relay-inbox/REL-91020.zip isn't on feature/rly-b34-sit (nor a .relay-inbox/REL-91020.deletions listing deletions). Raise the release again from Release Relay.",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41485439392",
- "finishedAt": "2026-11-02T16:51:02.332Z"
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41485566995",
+ "finishedAt": "2026-11-02T16:52:07.575Z"
 }
