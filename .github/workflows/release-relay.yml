@@ -579,8 +579,13 @@ jobs:
           for call in $(seq 1 25); do
             body="$(jq -n --arg runUrl "$RUN_URL" --arg runId "$run_id" \
               '{runUrl: $runUrl} + (if $runId == "" then {} else {runId: $runId} end)')"
-            answer="$(curl -sS --fail-with-body -X POST "$base/services/apexrest/rly/archive" \
+            code="$(curl -sS -o /tmp/ans.json -w '%{http_code}' -X POST "$base/services/apexrest/rly/archive" \
               -H "Authorization: Bearer $token" -H 'Content-Type: application/json' -d "$body")"
+            echo "HTTP $code from $base/services/apexrest/rly/archive"; cat /tmp/ans.json; echo
+            curl -sS -o /tmp/lim.json -w 'limits HTTP %{http_code}\n' "$base/services/data/v65.0/limits" -H "Authorization: Bearer $token"; head -c 200 /tmp/lim.json; echo
+            curl -sS "$base/services/data/v65.0/query?q=SELECT+Id,Name+FROM+ApexClass+WHERE+Name='RlyArchiveRest'" -H "Authorization: Bearer $token" | head -c 300; echo
+            [ "$code" = "200" ] || exit 1
+            answer="$(cat /tmp/ans.json)"
             if [ "$(printf '%s' "$answer" | jq -r '.skipped')" = "true" ]; then
               echo "Call $call: $(printf '%s' "$answer" | jq -r '.reason')"
               echo "Nightly archive: $(printf '%s' "$answer" | jq -r '.reason')" >> "$GITHUB_STEP_SUMMARY"
