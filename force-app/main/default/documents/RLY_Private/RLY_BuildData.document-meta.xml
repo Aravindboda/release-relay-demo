@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>What's built data (JSON). Read only by Apex (RlyBuildInfo.buildData) after the What's built lock; hidden folder, not externally available.</description>
+    <internalUseOnly>true</internalUseOnly>
+    <name>RLY_BuildData</name>
+    <public>false</public>
+</Document>

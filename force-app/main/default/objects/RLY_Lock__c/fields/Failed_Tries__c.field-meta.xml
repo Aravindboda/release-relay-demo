@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Failed_Tries__c</fullName>
+    <description>User row: wrong passwords in a row. 5 locks the user out for 15 minutes; a right password or the end of the wait resets it.</description>
+    <label>Failed Tries</label>
+    <precision>3</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>
