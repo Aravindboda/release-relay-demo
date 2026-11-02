@@ -1,38 +1,36 @@
 {
  "request": "REL-00029",
  "step": "validate",
- "status": "Conflict",
- "conflicts": [
-  {
-   "file": "force-app/main/default/classes/ShippingQuote.cls-meta.xml",
-   "merged": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ApexClass xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <apiVersion>65.0</apiVersion>\n    <status>Active</status>\n</ApexClass>\n",
-   "mine": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ApexClass xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <apiVersion>65.0</apiVersion>\n    <status>Active</status>\n</ApexClass>",
-   "theirs": null,
-   "truncated": false
-  },
-  {
-   "file": "force-app/main/default/classes/ShippingQuoteTest.cls-meta.xml",
-   "merged": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ApexClass xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <apiVersion>65.0</apiVersion>\n    <status>Active</status>\n</ApexClass>\n",
-   "mine": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ApexClass xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <apiVersion>65.0</apiVersion>\n    <status>Active</status>\n</ApexClass>",
-   "theirs": null,
-   "truncated": false
-  }
+ "status": "Passed",
+ "changed": 4,
+ "deleted": [],
+ "mergedWith": "f5b8fe32ec3aab44a317a0f40698f01ce278f2b4",
+ "validatedTree": "572d1b9e7fac3b368568c7a01da46d6f5982ecdf",
+ "environment": "sit",
+ "ok": true,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000cMoGPSA0",
+ "testsRun": 1,
+ "tests": [
+  "ShippingQuoteTest"
  ],
- "conflictCount": 2,
- "message": "2 file(s) conflict with sit. Choose what to keep in Release Relay, then check again.",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41376812846",
- "finishedAt": "2026-11-02T02:16:56.258Z",
- "attempt": "1f90abd5910e9c9ddbd5e60cac799e63",
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41379089331",
+ "finishedAt": "2026-11-02T02:42:03.740Z",
+ "attempt": "356cc8b4d98d9f7e1979c0ece3cf6844",
  "excluded": [],
  "selfUpdate": false,
  "values": {
   "replaced": 0,
   "files": [],
   "hash": ""
- },
- "gates": {
-  "file": ".relay/gates.json",
-  "passed": true,
-  "failures": []
  }
 }
