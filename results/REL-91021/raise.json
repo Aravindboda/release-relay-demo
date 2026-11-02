@@ -1,19 +1,19 @@
 {
  "request": "REL-91021",
  "step": "raise",
- "status": "Failed",
+ "status": "Opened",
  "mode": "hub",
  "branch": "feature/rly-build34",
  "target": "release-relay-hub",
- "sha": null,
- "pr": null,
- "url": null,
+ "sha": "d5402dfaf8bb37ed0b19aed3bcec8510ec7ecdef",
+ "pr": 167,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/167",
  "commits": [],
  "conflicts": [],
  "deleted": [],
  "valuesTokenized": 0,
  "appended": false,
- "message": ".relay-inbox/REL-91021.zip isn't on feature/rly-build34 (nor a .relay-inbox/REL-91021.deletions listing deletions). Raise the release again from Release Relay.",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41485443179",
- "finishedAt": "2026-11-02T16:51:05.271Z"
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41485571229",
+ "finishedAt": "2026-11-02T16:52:42.654Z"
 }
