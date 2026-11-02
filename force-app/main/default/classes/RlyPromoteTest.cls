@@ -68,6 +68,30 @@ private class RlyPromoteTest {
     }
 
     @IsTest
+    static void boardMarksReleasesRolledBackInTheStage() {
+        System.runAs(RlyTestData.admin()) {
+            List<RLY_Release__c> rels = waitingInSit();
+            Datetime rolledOn = System.now().addMinutes(-2);
+            update new List<RLY_Release__c>{
+                new RLY_Release__c(Id = rels[0].Id, Rollback_Status__c = 'Rolled_Back', Rollback_Org__c = orgId('SIT'),
+                    Rollback_On__c = rolledOn, Rollback_Reason__c = 'Broke the login page'),
+                new RLY_Release__c(Id = rels[1].Id, Rollback_Status__c = 'Rolled_Back', Rollback_Org__c = orgId('PROD'))
+            };
+            Map<Id, RlyPromoteController.Ready> byId = new Map<Id, RlyPromoteController.Ready>();
+            for (RlyPromoteController.Ready x : RlyPromoteController.getPromote().stages[0].ready) {
+                byId.put(x.id, x);
+            }
+            System.assertEquals(2, byId.size(), 'Both still wait: a rollback keeps the status');
+            RlyPromoteController.Ready rolled = byId.get(rels[0].Id);
+            System.assertNotEquals(null, rolled.rolledBack, 'Rolled back in SIT');
+            System.assertEquals(rolledOn, rolled.rolledBack.rolledOn, 'When');
+            System.assertEquals('Broke the login page', rolled.rolledBack.why, 'Why');
+            RlyPromoteController.Ready other = byId.get(rels[1].Id);
+            System.assertEquals(null, other.rolledBack, 'A rollback in another org is not shown on the SIT card');
+        }
+    }
+
+    @IsTest
     static void promoteSavesTheQueuedPromotion() {
         System.runAs(RlyTestData.admin()) {
             List<RLY_Release__c> rels = waitingInSit();

@@ -49,22 +49,39 @@
                                     <h2 class="rr-h1"><span>{s.stageName}</span> <span class="rr-arrow" aria-label="to">→</span> <span>{s.nextText}</span></h2>
                                 </div>
                                 <span class="rr-weak rr-small">{s.subText}</span>
+                                <!-- board HubPromoteRules: opens the side panel for this card -->
+                                <button type="button" class="rr-howlink" data-stage={s.stageId} aria-expanded={s.rulesExpanded} aria-controls={s.rulesId} onclick={toggleRules}>
+                                    <lightning-icon icon-name="utility:info" size="xx-small" class="rr-howicon" alternative-text=""></lightning-icon>How promoting works
+                                </button>
                             </section>
 
                             <template lwc:if={s.empty}>
+                                <template lwc:if={s.rulesOpen}>
+                                    <div id={s.rulesId} class="rr-rules-slot">
+                                        <c-rly-promote-rules variant="panel" stage-name={s.stageName} next-name={s.nextName} route={routeStops}
+                                            data-stage={s.stageId} onclose={closeRules}></c-rly-promote-rules>
+                                    </div>
+                                </template>
                                 <div class="rr-empty">{s.emptyText}</div>
                             </template>
                             <template lwc:else>
-                                <div class="rr-grid">
+                                <div class={s.gridCls}>
+                                    <!-- How promoting works: beside the list (under the card heading on narrow screens) -->
+                                    <template lwc:if={s.rulesOpen}>
+                                        <div id={s.rulesId} class="rr-rules-slot rr-ga-rules">
+                                            <c-rly-promote-rules variant="panel" stage-name={s.stageName} next-name={s.nextName} route={routeStops}
+                                                data-stage={s.stageId} onclose={closeRules}></c-rly-promote-rules>
+                                        </div>
+                                    </template>
                                     <!-- the releases ready in the stage: hotfixes first, then oldest deploy first -->
-                                    <section class="rr-card rr-table-card" aria-label={s.listLabel}>
+                                    <section class="rr-card rr-table-card rr-ga-list" aria-label={s.listLabel}>
                                         <template lwc:if={s.showSearch}>
                                             <div class="rr-toolbar">
                                                 <c-rly-search-box data-stage={s.stageId} label={s.searchLabel} placeholder="Search by release, title, person or test"
                                                     shown={s.shownCount} total={s.totalCount} onsearch={handleStageSearch}></c-rly-search-box>
                                             </div>
                                         </template>
-                                        <div class="rr-scroll">
+                                        <div class="rr-scroll" onscroll={hideTip}>
                                             <table class="slds-table slds-table_cell-buffer rr-table rr-ft">
                                                 <colgroup>
                                                     <col class="rr-w-check" />
@@ -101,14 +118,24 @@
                                                                 <span class="rr-row">
                                                                     <template lwc:if={r.isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
                                                                     <template lwc:if={r.manualOnly}><span class="rr-pill rr-pill-info">Manual steps only</span></template>
+                                                                    <template lwc:if={r.rolledBackText}><span class="rr-pill rr-pill-roll rr-tipped" tabindex="0" aria-describedby="rr-row-tip"
+                                                                        data-tip={r.rolledBackTip} data-tip-title={r.rolledBackText} onmouseenter={showTip} onmouseleave={hideTip}
+                                                                        onfocus={showTip} onblur={hideTip} onkeydown={tipKey}>{r.rolledBackText}</span></template>
                                                                     <strong title={r.name}><template for:each={r.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></strong>
                                                                     <span class="rr-rel-title" title={r.title}><template for:each={r.titleParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></span>
                                                                     <template lwc:if={r.deletesText}><span class="rr-pill rr-pill-bad">{r.deletesText}</span></template>
                                                                 </span>
                                                                 <template lwc:if={r.reason}><span class="rr-reason rr-line" title={r.reason}>{r.reason}</span></template>
-                                                                <template lwc:if={r.stays}><span class="rr-reason rr-line">Stays in {s.stageName}</span></template>
-                                                                <template lwc:if={r.carried}><span class="rr-reason rr-reason-go rr-line" title={r.goesWith}>{r.goesWith}</span></template>
-                                                                <template lwc:if={r.blockText}><span class="rr-reason rr-reason-bad rr-line" title={r.blockText}>{r.blockText}</span></template>
+                                                                <!-- row labels explain themselves on hover or focus (one shared tooltip, rr-row-tip) -->
+                                                                <template lwc:if={r.stays}><span class="rr-reason rr-line"><span class="rr-tipped" tabindex="0" aria-describedby="rr-row-tip"
+                                                                    data-tip={r.staysTip} data-tip-title={r.staysText} onmouseenter={showTip} onmouseleave={hideTip}
+                                                                    onfocus={showTip} onblur={hideTip} onkeydown={tipKey}>{r.staysText}</span></span></template>
+                                                                <template lwc:if={r.carried}><span class="rr-reason rr-reason-go rr-line"><span class="rr-tipped" tabindex="0" aria-describedby="rr-row-tip"
+                                                                    data-tip={r.goesTip} data-tip-title={r.goesWith} onmouseenter={showTip} onmouseleave={hideTip}
+                                                                    onfocus={showTip} onblur={hideTip} onkeydown={tipKey}>{r.goesWith}</span></span></template>
+                                                                <template lwc:if={r.blockText}><span class="rr-reason rr-reason-bad rr-line"><span class="rr-tipped" tabindex="0" aria-describedby="rr-row-tip"
+                                                                    data-tip={r.blockTip} data-tip-title={r.blockText} onmouseenter={showTip} onmouseleave={hideTip}
+                                                                    onfocus={showTip} onblur={hideTip} onkeydown={tipKey}>{r.blockText}</span></span></template>
                                                             </td>
                                                             <td title={r.raisedBy}>{r.raisedBy}</td>
                                                             <td class="rr-nowrap" title={r.deployedText}>{r.deployedText}</td>
@@ -125,18 +152,22 @@
                                     </section>
 
                                     <!-- what goes to the next stop -->
-                                    <section class="rr-card" aria-label={s.bundleTitle}>
+                                    <section class="rr-card rr-ga-bundle" aria-label={s.bundleTitle}>
                                         <div class="rr-card-head"><h2 class="rr-h2">{s.bundleTitle}</h2></div>
                                         <div class="rr-body">
                                             <p><strong>{s.countText}</strong>{s.componentText}</p>
                                             <template lwc:if={s.hasCarried}>
-                                                <div class="rr-msg rr-msg-info" role="status"><strong>Also goes: {s.carriedText}</strong>{s.carriedTail}</div>
+                                                <div class="rr-msg rr-msg-info" role="status"><strong class="rr-tipped" tabindex="0" aria-describedby="rr-row-tip"
+                                                    data-tip={s.alsoGoesTip} data-tip-title="Also goes" onmouseenter={showTip} onmouseleave={hideTip}
+                                                    onfocus={showTip} onblur={hideTip} onkeydown={tipKey}>Also goes: {s.carriedText}</strong>{s.carriedTail}</div>
                                             </template>
                                             <div class="rr-rule"><strong>{s.stageRule}</strong><span class="rr-weak">{s.stageRuleTail}</span></div>
                                             <template lwc:if={s.blocked}>
                                                 <div class="rr-msg rr-msg-warn rr-row" role="alert">
                                                     <span class="rr-grow">{s.blockedText}</span>
-                                                    <button type="button" class="rr-add-chip" data-stage={s.stageId} data-id={s.blockerId} onclick={addBlocker} disabled={s.locked}>{s.addBlockerLabel}</button>
+                                                    <button type="button" class="rr-add-chip" data-stage={s.stageId} data-id={s.blockerId} onclick={addBlocker} disabled={s.locked}
+                                                        aria-describedby="rr-row-tip" data-tip={s.addTip} data-tip-title={s.addBlockerLabel} onmouseenter={showTip}
+                                                        onmouseleave={hideTip} onfocus={showTip} onblur={hideTip} onkeydown={tipKey}>{s.addBlockerLabel}</button>
                                                 </div>
                                             </template>
                                             <p>{s.testsLead}<span class="rr-mono">{s.testsList}</span>{s.testsTail}</p>
@@ -176,6 +207,9 @@
                         </div>
                     </template>
                 </template>
+
+                <!-- the one tooltip for row labels, Also goes and + Add (fixed, so the scrolling list doesn't clip it) -->
+                <div id="rr-row-tip" role="tooltip" class={tipCls} style={tipStyle}><strong>{tipTitle}</strong><span>{tipText}</span></div>
             </div>
         </template>
     </template>
