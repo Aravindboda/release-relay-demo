@@ -13,7 +13,7 @@ public with sharing class InvoiceTotals {
         for (Decimal a : amounts) {
             subtotal += a == null ? 0 : a;
         }
-        Decimal pct = discountPercent == null ? 0 : Math.min(Math.max(discountPercent, 0), 50); // SIT hotfix: discounts capped at 50%
+        Decimal pct = discountPercent == null ? 0 : Math.min(Math.max(discountPercent, 0), 75); // Max discount 75%
         return (subtotal * (100 - pct) / 100).setScale(2, RoundingMode.HALF_UP);
     }
 }
