@@ -1,0 +1,49 @@
+{
+ "request": "REL-00037",
+ "step": "scan",
+ "status": "Passed",
+ "total": 2,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Low": 2
+ },
+ "files": [
+  "force-app/main/default/classes/InvoiceDueDate.cls",
+  "force-app/main/default/classes/InvoiceDueDateTest.cls",
+  "force-app/main/default/classes/InvoiceTotals.cls"
+ ],
+ "violations": [
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "AnnotationsNamingConventions",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/InvoiceDueDateTest.cls",
+   "line": 4,
+   "message": "The annotation @isTest should be in PascalCase: @IsTest",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#annotationsnamingconventions"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "AnnotationsNamingConventions",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/InvoiceDueDateTest.cls",
+   "line": 6,
+   "message": "The annotation @isTest should be in PascalCase: @IsTest",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.26.0/pmd_rules_apex_codestyle.html#annotationsnamingconventions"
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41670744304",
+ "finishedAt": "2026-11-03T16:07:17.106Z"
+}
