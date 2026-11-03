@@ -1,0 +1,23 @@
+{
+ "request": "REL-00037",
+ "step": "merge",
+ "status": "Merged",
+ "pr": 171,
+ "sha": "f1de76f07cb85477fadbf02fb8a7150d2e14dd15",
+ "method": "merge",
+ "sync": [
+  {
+   "branch": "sit",
+   "status": "Conflict",
+   "message": "sit couldn't take prod automatically: 2 file(s) conflict (force-app/main/default/classes/RlyDemoGreeting.cls, force-app/main/default/classes/RlyDemoGreetingTest.cls)."
+  },
+  {
+   "branch": "dev1",
+   "status": "Conflict",
+   "message": "dev1 couldn't take prod automatically: 2 file(s) conflict (force-app/main/default/classes/RlyDemoGreeting.cls, force-app/main/default/classes/RlyDemoGreetingTest.cls)."
+  }
+ ],
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/41671247927",
+ "finishedAt": "2026-11-03T16:09:41.575Z",
+ "attempt": "5c390e0466056108408e4736b92d1c20"
+}
