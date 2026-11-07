@@ -5,7 +5,7 @@
  "mode": "hub",
  "branch": "feature/rly-b40-check",
  "target": "rly-sit-install",
- "sha": "5419726e59083e4dbf3a2243c5d7c2e50977a3e9",
+ "sha": "78efd9fc8f81466fa7582c0f0799d513e82bc10f",
  "pr": 196,
  "url": "https://github.com/Aravindboda/release-relay-demo/pull/196",
  "commits": [],
@@ -14,6 +14,6 @@
  "valuesTokenized": 0,
  "appended": false,
  "message": "",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42396803887",
- "finishedAt": "2026-11-07T17:32:38.261Z"
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42397506170",
+ "finishedAt": "2026-11-07T17:41:18.354Z"
 }
