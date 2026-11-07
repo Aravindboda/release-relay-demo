@@ -204,6 +204,11 @@
                     </section>
                 </template>
 
+                <!-- data sets (build 43) -->
+                <template lwc:if={isDataView}>
+                    <c-rly-data-sync class="rr-data-view"></c-rly-data-sync>
+                </template>
+
                 <!-- installed packages -->
                 <template lwc:if={isPackagesView}>
                     <section class="rr-card rr-split-card">

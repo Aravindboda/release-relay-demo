@@ -1,6 +1,7 @@
 import { LightningElement } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import readHome from '@salesforce/apex/RlyHomeController.read';
+import upcomingFreezes from '@salesforce/apex/RlyWindowController.upcomingFreezes';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import { searchTerm, matchesSearch, highlightParts } from 'c/rlyListSearch';
 
@@ -38,7 +39,9 @@ const EVENT_LOOK = {
     Comment: { label: 'Comment', icon: 'utility:comments', tone: 'N' },
     File_Attached: { label: 'File attached', icon: 'utility:attach', tone: 'N' },
     File_Removed: { label: 'File removed', icon: 'utility:delete', tone: 'N' },
-    Proof_Added: { label: 'Proof added', icon: 'utility:upload', tone: 'G' }
+    Proof_Added: { label: 'Proof added', icon: 'utility:upload', tone: 'G' },
+    Window_Held: { label: 'Waiting for the window', icon: 'utility:clock', tone: 'A' },
+    Window_Override: { label: 'Deployed outside the window', icon: 'utility:warning', tone: 'A' }
 };
 const ACTIVITY_CHIPS = [
     { id: 'all', label: 'All' },
@@ -249,11 +252,27 @@ export default class RlyHome extends NavigationMixin(LightningElement) {
             });
     }
 
+    /** Freezes running now or starting within a week (build 39): one line each above the health line. */
+    freezes = [];
+
+    loadFreezes() {
+        upcomingFreezes()
+            .then((list) => {
+                this.freezes = (list || []).map((f, i) => ({ key: 'fz' + i, text: f.text, cls: 'rr-msg rr-msg-warn rr-freeze' }));
+            })
+            .catch(() => {
+                this.freezes = [];
+            });
+    }
+
+    get hasFreezes() { return this.freezes.length > 0; }
+
     async load() {
         this.loading = true;
         this.error = undefined;
         try {
             this.home = await readHome();
+            this.loadFreezes();
         } catch (e) {
             this.error = errorText(e);
         } finally {

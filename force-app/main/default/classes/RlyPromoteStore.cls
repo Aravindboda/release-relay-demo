@@ -244,7 +244,7 @@ public with sharing class RlyPromoteStore {
          * @return the releases
          */
         public List<RLY_Release__c> openSyncs() {
-            return [SELECT Id FROM RLY_Release__c WHERE Release_Type__c = 'Back_Promote' AND Status__c IN ('Submitted', 'Deploying')
+            return [SELECT Id FROM RLY_Release__c WHERE Release_Type__c = 'Back_Promote' AND Status__c IN ('Submitted', 'Deploying', 'Waiting for window')
                     WITH SYSTEM_MODE ORDER BY CreatedDate ASC LIMIT 5];
         }
 

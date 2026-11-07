@@ -23,6 +23,7 @@ public with sharing class RlyRunMonitorRetention {
         Datetime cutoff = RlyArchiveService.cutoff(days);
         try {
             RlySyncStore.removeOlderThan(cutoff, perCall); // Sync status checks go by the same retention (build 38)
+            RlyDataStore.removeOlderThan(cutoff, perCall); // data runs too (build 43)
             return RlyRunMonitorStore.removeOlderThan(cutoff, perCall);
         } catch (DmlException e) {
             return 0; // a locked row waits for the next night

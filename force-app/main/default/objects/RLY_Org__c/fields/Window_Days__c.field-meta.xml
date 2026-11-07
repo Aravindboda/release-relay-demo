@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Window_Days__c</fullName>
+    <description>Release window: the days deploys into this org may run (Mon,Tue,…). Blank: no window, deploys run any time.</description>
+    <externalId>false</externalId>
+    <label>Window Days</label>
+    <length>40</length>
+    <required>false</required>
+    <trackHistory>true</trackHistory>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

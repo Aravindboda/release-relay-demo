@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Release__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Optional: the release this data goes with.</description>
+    <externalId>false</externalId>
+    <label>Release</label>
+    <referenceTo>RLY_Release__c</referenceTo>
+    <relationshipLabel>Data Runs</relationshipLabel>
+    <relationshipName>Data_Runs</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

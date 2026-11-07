@@ -17,7 +17,7 @@ const APPROVAL = ['Ready for approval'];
 const DONE = ['Deployed'];
 const BAD = ['Checks failed', 'Deploy failed', 'Failed', 'Rejected'];
 /** Something is running (RlyStatusReader.OPEN_STATUSES): the list reads these releases' latest status. */
-const RUNNING = ['Submitted', 'Retrieving', 'Workflow running', 'Validating', 'Deploying'];
+const RUNNING = ['Submitted', 'Retrieving', 'Workflow running', 'Validating', 'Deploying', 'Waiting for window'];
 /** Still needs something (RlyReleaseQuery open state): running, or waiting for the developer or an approver. */
 const OPEN = [...RUNNING, 'PR open', 'Checks failed', 'Ready for approval', 'Approved', 'Merging', 'Merged'];
 const SCAN_BAD = ['Failed', 'Error'];
@@ -32,6 +32,7 @@ const APPROVAL_CHIPS = [
 const STATE_CHIPS = [
     { id: 'open', label: 'Open', title: 'Running, checks failed or waiting for approval' },
     { id: 'checks', label: 'Checks failed', title: 'The code scan or the check-only deploy failed, or there are merge conflicts to resolve' },
+    { id: 'window', label: 'Waiting for the window', title: 'Approved, waiting for the target org\'s release window or a freeze to end' },
     { id: 'deployed', label: 'Deployed', title: 'Deployed to the target org' },
     { id: 'rolledback', label: 'Rolled back', title: 'Rolled back in an org from its snapshot (Git is not changed)' },
     { id: 'failed', label: 'Failed', title: 'The run or the deploy failed' },
@@ -112,6 +113,7 @@ function position(r) {
         case 'Deployed':
             return { at: STEPS.length, fail: -1 };
         case 'Deploying':
+        case 'Waiting for window':
             return { at: 6, fail: -1 };
         case 'Deploy failed':
             return { at: 6, fail: 6 };
