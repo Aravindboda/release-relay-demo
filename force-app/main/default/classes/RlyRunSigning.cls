@@ -19,7 +19,7 @@ public with sharing class RlyRunSigning {
     private static final List<String> FIELDS = new List<String>{
         'request_id', 'mode', 'environment', 'target_environment', 'branch', 'target', 'title' };
     private static final List<String> HASHED = new List<String>{ 'components', 'deletions' };
-    private static final String OPTIONS = 'options';
+    private static final String OPTIONS_INPUT = 'options';
     private static final String EMPTY_OPTIONS = '{}';
 
     /**
@@ -44,10 +44,10 @@ public with sharing class RlyRunSigning {
      */
     public static Map<String, String> sign(Map<String, String> inputs, String key, Long iat) {
         Map<String, String> out = inputs.clone();
-        String options = optionsBase(inputs.get(OPTIONS));
+        String options = optionsBase(inputs.get(OPTIONS_INPUT));
         String sig = mac(key, canonical(inputs, options, iat));
         String suffix = '"iat":' + iat + ',"sig":"' + sig + '"}';
-        out.put(OPTIONS, options == EMPTY_OPTIONS ? '{' + suffix : options.removeEnd('}') + ',' + suffix);
+        out.put(OPTIONS_INPUT, options == EMPTY_OPTIONS ? '{' + suffix : options.removeEnd('}') + ',' + suffix);
         return out;
     }
 

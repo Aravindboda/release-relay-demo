@@ -16,8 +16,8 @@ public with sharing class RlyResultSignature {
     public static final String REJECTED = 'Result rejected: not signed by the pipeline';
     /** @description The canonical's version line. */
     public static final String VERSION = 'rr1-result';
-    private static final String PAYLOAD = 'payload';
-    private static final String SIG = 'sig';
+    private static final String PAYLOAD_KEY = 'payload';
+    private static final String SIG_KEY = 'sig';
     /** @description Checker mode: a missing signature is rejected while a key is set. */
     public static final String MODE_STRICT = 'strict';
     /** @description Checker mode: a missing signature is accepted; one that is there is checked. */
@@ -88,8 +88,8 @@ public with sharing class RlyResultSignature {
                 o.data = o.rejected ? null : wrapper;
                 return o;
             }
-            String payload = (String) wrapper.get(PAYLOAD);
-            Object sig = wrapper.get(SIG);
+            String payload = (String) wrapper.get(PAYLOAD_KEY);
+            Object sig = wrapper.get(SIG_KEY);
             if (key != null && (sig != null || sigRequired)) {
                 o.signed = sig instanceof String && RlyRunSigning.same(RlyRunSigning.mac(key, canonical(requestId, step, payload)), (String) sig);
                 o.rejected = !o.signed;
@@ -122,11 +122,11 @@ public with sharing class RlyResultSignature {
 
     // The wrapper: a payload text and nothing but a sig besides.
     private static Boolean isWrapper(Map<String, Object> wrapper) {
-        if (!(wrapper.get(PAYLOAD) instanceof String)) {
+        if (!(wrapper.get(PAYLOAD_KEY) instanceof String)) {
             return false;
         }
         for (String k : wrapper.keySet()) {
-            if (!k.equals(PAYLOAD) && !k.equals(SIG)) {
+            if (!k.equals(PAYLOAD_KEY) && !k.equals(SIG_KEY)) {
                 return false;
             }
         }

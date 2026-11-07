@@ -138,11 +138,11 @@ private class RlyRunSigningTest {
             Map<String, Object> inputs = (Map<String, Object>) ((Map<String, Object>) JSON.deserializeUntyped(mock.bodyFor('/dispatches'))).get('inputs');
             String sent = String.valueOf(inputs.get('options'));
             Map<String, Object> options = (Map<String, Object>) JSON.deserializeUntyped(sent);
-            Long iat = Long.valueOf(String.valueOf(options.get('iat')));
+            Long sentIat = Long.valueOf(String.valueOf(options.get('iat')));
             String base = sent.replaceFirst(',"iat":\\d+,"sig":"[A-Za-z0-9+/=]+"\\}$', '}');
-            System.assert(iat >= before, 'iat is now, in epoch seconds');
+            System.assert(sentIat >= before, 'iat is now, in epoch seconds');
             System.assertEquals(vectorOne().get('options'), base, 'The pipeline\'s strip gives back what was signed');
-            System.assertEquals(RlyRunSigning.mac(KEY, RlyRunSigning.canonical(vectorOne(), base, iat)), options.get('sig'), 'GitHub run signed');
+            System.assertEquals(RlyRunSigning.mac(KEY, RlyRunSigning.canonical(vectorOne(), base, sentIat)), options.get('sig'), 'GitHub run signed');
             String gitLabBody = mock.bodyFor('/pipeline');
             System.assert(gitLabBody.contains('"variable_type":"env_var"') && gitLabBody.contains('"raw":true'), 'GitLab variables are raw: ' + gitLabBody);
             System.assert(gitLabBody.contains('\\"sig\\":'), 'GitLab run signed too: ' + gitLabBody);
