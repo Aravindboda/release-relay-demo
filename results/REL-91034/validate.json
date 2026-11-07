@@ -5,11 +5,11 @@
  "changed": 56,
  "deleted": [],
  "mergedWith": "600f686359cae5e3bb836aa2ad49da2cb645ff26",
- "validatedTree": "f80938bc8b3b76bae19d749e40879ea4a88b0061",
+ "validatedTree": "4fe345f6f967f2fbfc169009853f65f385e112eb",
  "environment": "sit",
  "ok": false,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d6w7iSAA",
+ "deployId": "0AfgL00000d7FDZSA2",
  "testsRun": 430,
  "tests": [
   "RlyAppendTest",
@@ -79,43 +79,18 @@
   {
    "name": "RlyRunMonitorRetention",
    "message": "Test coverage of selected Apex Class is 69.231%, at least 75% test coverage is required"
-  },
-  {
-   "name": "RlySyncPaths",
-   "message": "Test coverage of selected Apex Class is 28.571%, at least 75% test coverage is required"
   }
  ],
  "componentErrors": [],
- "testFailures": [
-  {
-   "name": "RlySyncTest",
-   "method": "aDeveloperOrgIsSentInPartsThenCompared",
-   "message": "System.AuraHandledException: Couldn't reach GitHub: You have uncommitted work pending. Please commit or rollback before calling out"
-  },
-  {
-   "name": "RlySyncTest",
-   "method": "backPromoteKeepsToTheRouteAndOneAtATime",
-   "message": "System.AuraHandledException: SObject row was retrieved via SOQL without querying the requested field: RLY_Org__c.Synced_On__c"
-  },
-  {
-   "name": "RlySyncTest",
-   "method": "pickedComponentsAreBackPromotedOrPushed",
-   "message": "System.AuraHandledException: SObject row was retrieved via SOQL without querying the requested field: RLY_Org__c.Synced_On__c"
-  },
-  {
-   "name": "RlySyncTest",
-   "method": "routeResultsAndFilesAreRead",
-   "message": "System.AuraHandledException: Couldn't reach GitHub: You have uncommitted work pending. Please commit or rollback before calling out"
-  }
- ],
- "message": "4 test failure(s)",
+ "testFailures": [],
+ "message": "Deployment failed",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42389034019",
- "finishedAt": "2026-11-07T16:08:28.263Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42389871257",
+ "finishedAt": "2026-11-07T16:15:02.282Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
