@@ -1429,7 +1429,7 @@ const USE_SECTIONS = [
                 blocks: [
                     { type: 'text', paras: [
                         '**Sync status** answers three questions: is each org the same as its own branch, has everything a higher stage has come back down the route, and which managed packages are installed where. Everyone with a Release Relay permission set can open it and start a check; back promote and push need **Release Relay Admin**, like back promote on the Pipeline tab.',
-                        'Checks run in the Git pipeline (pipeline files version 23) and can take a few minutes on a big org; the tab reads again every few seconds while one runs and keeps the latest result of each, with when it was checked.'
+                        'Checks run in the Git pipeline (pipeline files version 23 or later) and can take a few minutes on a big org; the tab reads again every few seconds while one runs and keeps the latest result of each, with when it was checked.'
                     ] },
                     { type: 'table', cols: ['View', 'What it shows', 'What you can do'], rows: [
                         ['Org vs branch', 'One card per org on the route: **In sync**, or **Out of sync** with how many differ. Pick a card to list the differences by type: **Only in org** (changed in the org directly), **Only on branch** (in Git but not in the org) and **Different**. Open one for the side-by-side compare (branch left, org right).', '**Check now**. Pick components, then **Bring into the branch** (a New Release from that org with them selected; only-on-branch ones as deletions) or **Push to the org** (deploys the branch\'s files to a stage or the hub).'],
@@ -1443,6 +1443,31 @@ const USE_SECTIONS = [
                     ] },
                     { type: 'note', text: 'Release Relay never installs or uninstalls a package: Salesforce allows that only in Setup → Installed Packages, so it is a manual step with proof per org.' },
                     { type: 'links', links: [{ label: 'Open Sync status', tab: 'RLY_Sync_Status' }, { label: 'Pipeline files', to: 'pipelinetab', kind: 'neutral' }] }
+                ]
+            },
+            {
+                key: 'sync-data',
+                title: 'Data sets: send up, copy down, refill',
+                blocks: [
+                    { type: 'text', paras: [
+                        '**Sync status → Data** moves configuration records between orgs: claim types and their rules, price lists, settings kept as records. An admin defines each **data set**: its objects in load order (parents first), which records (a filter), the **match key** that finds the same record in the other org (an external ID field, or a combination of fields such as Claim type and Name), the parent lookups, and the fields to mask.',
+                        'Every run is a **dry run** first: the pipeline reads both orgs and counts what would be inserted, updated or left unchanged, per object. Nothing changes until someone presses **Load**. It needs pipeline files version 24.'
+                    ] },
+                    { type: 'table', cols: ['Direction', 'Who', 'How'], rows: [
+                        ['Send up', 'Anyone starts it; an approver or admin who didn\'t start it loads it', 'From a developer org or a stage to a higher org. Optionally linked to a release (REL-…). Masking is off unless you turn it on.'],
+                        ['Copy down', 'Admins', 'From production or a stage to a lower org. Personal data (emails, phones, names) is masked unless you turn **Mask personal data** off.'],
+                        ['Refill', 'Admins', 'Shown on an org whose Org Id changed since its last load (a sandbox refresh): repeats that load with the same data set.']
+                    ] },
+                    { type: 'list', items: [
+                        'No match key, no object: a data set can\'t include an object without one.',
+                        'A key that matches two or more records in the target, a record without a key, or a child whose parent isn\'t in either org **blocks** the run, with the keys listed. Fix the data (or the key) and start again.',
+                        'Parents load first, then children: a child\'s lookup is matched by its parent\'s key, so a child that a trigger already created is updated, not duplicated.',
+                        'Give the data set a **trigger bypass** (a custom setting checkbox or a permission set): it is switched on for the pipeline\'s user during the load and back off after. Without one, the dry run flags **Triggers fire** on objects with active triggers in the target.',
+                        'Per-org values (`{{relay:NAME}}` on the Pipeline tab) are swapped: the source org\'s value becomes the target\'s, for example a callback URL.',
+                        'The pipeline loads stage orgs and the hub (they have a sign-in in GitHub). A developer org can be a source: the page sends its records first, so keep it open until the dry run starts. At most 10,000 records per object.',
+                        'The owner field, Id and system fields are never written. Old runs leave with the nightly archive, after the Retention days.'
+                    ] },
+                    { type: 'note', text: 'OmniStudio DataPacks (OmniScripts, FlexCards, Integration Procedures and Data Mappers as DataPacks) are not moved by data sets yet: they need the OmniStudio migration tool and its own matching. Deploy their metadata form with a release, or move them with the OmniStudio tools.' }
                 ]
             }
         ]

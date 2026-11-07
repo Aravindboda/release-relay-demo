@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Target_Org__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Where the records go.</description>
+    <externalId>false</externalId>
+    <label>Target Org</label>
+    <referenceTo>RLY_Org__c</referenceTo>
+    <relationshipLabel>Data Runs In</relationshipLabel>
+    <relationshipName>Data_Runs_In</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>
