@@ -30,7 +30,7 @@ public with sharing class RlyRunMonitorController {
      * @return the page
      */
     @AuraEnabled
-    public static RlyRunMonitorViews.Page readOlder(String repository, String startedBefore, Id idBefore) {
+    public static RlyRunMonitorViews.OlderPage readOlder(String repository, String startedBefore, Id idBefore) {
         Datetime cursor = RlyRunMonitorInput.moment(startedBefore);
         if (cursor == null) {
             throw new AuraHandledException('Pick up from the oldest run shown: its start time is missing.');

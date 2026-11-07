@@ -102,7 +102,7 @@ public with sharing class RlyRunMonitorInbound {
             setIfSent(row, 'Started__c', checked('started', RlyRunMonitorInput.moment(input.get('started'))));
             setIfSent(row, 'Finished__c', checked('finished', RlyRunMonitorInput.moment(input.get('finished'))));
             setIfSent(row, 'Run_Url__c', checked('runUrl', RlyRunMonitorInput.url(input.get('runUrl'))));
-            setIfSent(row, 'Steps__c', checked('steps', RlyRunMonitorInput.steps(input.get('steps'))));
+            setIfSent(row, 'Steps__c', checked('steps', RlyRunMonitorSteps.steps(input.get('steps'))));
             Long seconds = RlyRunMonitorInput.whole(input.get('durationSeconds'));
             setIfSent(row, 'Duration_Seconds__c', seconds == null || seconds < 0 ? null : Decimal.valueOf(seconds));
             withRelease(row);
