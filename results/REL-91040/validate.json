@@ -5,12 +5,12 @@
  "changed": 71,
  "deleted": [],
  "mergedWith": "9127b295ec0aec78b9cb3a87c0b065acdb0b1f50",
- "validatedTree": "c9717c81e60ebb3b6519a7ad6b29373808f1ee98",
+ "validatedTree": "1ee49c69fd6bba0f4f183531783f43621d816bf7",
  "environment": "sit",
  "ok": false,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d7RWTSA2",
- "testsRun": 0,
+ "deployId": "0AfgL00000d6p4eSAA",
+ "testsRun": 445,
  "tests": [
   "RlyAppendTest",
   "RlyApprovalRulesTest",
@@ -77,41 +77,22 @@
   "RlyWorkItemsTest"
  ],
  "coverageWarnings": [],
- "componentErrors": [
+ "componentErrors": [],
+ "testFailures": [
   {
-   "type": "ApexClass",
-   "name": "RlyWorkItemsTest",
-   "problem": "Method does not exist or incorrect signature: void orgId(String) from the type RlyWorkItemsTest",
-   "line": 29
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyWorkItemsTest",
-   "problem": "Method does not exist or incorrect signature: void orgId(String) from the type RlyWorkItemsTest",
-   "line": 29
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyWorkItemsTest",
-   "problem": "Method does not exist or incorrect signature: void orgId(String) from the type RlyWorkItemsTest",
-   "line": 80
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyWorkItemsTest",
-   "problem": "Method does not exist or incorrect signature: void orgId(String) from the type RlyWorkItemsTest",
-   "line": 80
+   "name": "RlyManualOnlyTest",
+   "method": "raisedWithoutMetadataGoesToApprovalThenDeploysWhenTheStepsAreDone",
+   "message": "System.LimitException: Too many SOQL queries: 101"
   }
  ],
- "testFailures": [],
- "message": "4 component error(s)",
+ "message": "1 test failure(s)",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42393782093",
- "finishedAt": "2026-11-07T17:17:37.947Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42395652441",
+ "finishedAt": "2026-11-07T17:30:48.102Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
