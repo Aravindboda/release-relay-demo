@@ -35,6 +35,7 @@ public with sharing class RlyPipelineOptions {
             options.put('validateMerged', true);
         }
         addModeOptions(rel, mode, options);
+        RlyRunPeople.addTo(rel, options);
         return options;
     }
 
