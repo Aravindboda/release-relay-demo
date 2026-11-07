@@ -1,17 +1,17 @@
 /**
  * @description The releases the pipeline runs belong to (RLY_Release__c): a release by its number (the run endpoint's
- * requestId), the open releases with a source branch and releases by Id (the Pipeline Monitor's Active branches).
+ * requestId, with its check results), the open releases with a source branch and releases by Id (the Pipeline Monitor's Active branches).
  * Releases are shared hub records: read in system mode in the private inner without sharing class.
  */
 public with sharing class RlyRunMonitorReleases {
 
     /**
-     * @description The release with this number (REL-00031), or null.
+     * @description The release with this number (REL-00031), with what a failed check needs (RlyRunMonitorChecks), or null.
      * @param releaseName the release number
-     * @return the release's Id, or null
+     * @return the release, or null
      */
-    public static Id releaseIdByName(String releaseName) {
-        return String.isBlank(releaseName) ? null : new SystemAccess().releaseIdByName(releaseName);
+    public static RLY_Release__c releaseByName(String releaseName) {
+        return String.isBlank(releaseName) ? null : new SystemAccess().releaseByName(releaseName);
     }
 
     /**
@@ -37,13 +37,15 @@ public with sharing class RlyRunMonitorReleases {
     private without sharing class SystemAccess {
 
         /**
-         * @description A release's Id by its number.
+         * @description A release by its number.
          * @param releaseName the number
-         * @return the Id, or null
+         * @return the release, or null
          */
-        public Id releaseIdByName(String releaseName) {
-            List<RLY_Release__c> rows = [SELECT Id FROM RLY_Release__c WHERE Name = :releaseName WITH SYSTEM_MODE LIMIT 1];
-            return rows.isEmpty() ? null : rows[0].Id;
+        public RLY_Release__c releaseByName(String releaseName) {
+            List<RLY_Release__c> rows = [SELECT Id, Name, Status__c, Run_ID__c, Target_Branch__c, Validation_Status__c,
+                                                Validation_Result__c, Scan_Status__c, Scan_Blocking__c
+                                         FROM RLY_Release__c WHERE Name = :releaseName WITH SYSTEM_MODE LIMIT 1];
+            return rows.isEmpty() ? null : rows[0];
         }
 
         /**

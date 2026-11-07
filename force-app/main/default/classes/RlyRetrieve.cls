@@ -94,11 +94,31 @@ public with sharing class RlyRetrieve {
         return read(body);
     }
 
+    /**
+     * @description Why a finished retrieve can't be committed: it failed, or some components weren't found.
+     * @param st the retrieve's status
+     * @param sourceName the developer org's name
+     * @return the reason, or null
+     */
+    public static String problemOf(RetrieveStatus st, String sourceName) {
+        if (!st.success || String.isBlank(st.zipBase64)) {
+            return 'Retrieving from ' + sourceName + ' failed: ' + (st.message == null ? '' : st.message)
+                + (st.problems.isEmpty() ? '' : ' ' + String.join(st.problems, '; '));
+        }
+        if (!st.problems.isEmpty()) {
+            return 'Some components couldn\'t be retrieved from ' + sourceName + ': ' + String.join(st.problems, '; ');
+        }
+        return null;
+    }
+
     private static RetrieveStatus read(String body) {
         RetrieveStatus st = new RetrieveStatus();
-        String zip = RlySoapClient.between(body, '<zipFile>', '</zipFile>');
-        // Take the zip out before reading the rest, so the small remainder is all that's searched.
-        String rest = zip == null ? body : body.replace(zip, '');
+        // The zip is cut out once and the small remainder joined from its two ends (no replace over the big text,
+        // which would hold another copy of it).
+        Integer open = body.indexOf('<zipFile>');
+        Integer close = open < 0 ? -1 : body.indexOf('</zipFile>', open);
+        String zip = close < 0 ? null : body.substring(open + '<zipFile>'.length(), close);
+        String rest = close < 0 ? body : body.left(open) + body.substring(close);
         st.done = RlySoapClient.between(rest, '<done>', '</done>') == 'true';
         String status = RlySoapClient.between(rest, '<status>', '</status>');
         st.success = status == 'Succeeded';

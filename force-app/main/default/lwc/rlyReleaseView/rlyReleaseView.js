@@ -28,6 +28,9 @@ const RESOLVING = 'Resolving conflicts';
 const GOOD = ['Deployed', 'Ready for approval'];
 const BAD = ['Checks failed', 'Deploy failed', 'Failed', 'Rejected'];
 const RUNNING = ['Retrieving', 'Workflow running', 'Validating', 'Deploying'];
+/** Types retrieved in a part of their own (RlyRaiseParts.HEAVY). */
+const HEAVY_TYPES = ['StaticResource', 'ContentAsset', 'Document', 'Profile', 'ExperienceBundle', 'SiteDotCom', 'NetworkBranding',
+    'Territory2Model', 'CustomObjectTranslation', 'Translations'];
 const ENDED_BADLY = ['Failed', 'Deploy failed'];
 
 /** Deploying, but the deploy waits for manual steps before it, or a release of only manual steps waits for them. */
@@ -656,8 +659,20 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         }
         return {
             key: 'collect', title: 'Collected from ' + (this.detail ? this.detail.sourceName : ''), state,
-            text: s === 'Retrieving' ? 'Retrieving the components with the Metadata API…' : (this.rel.Component_Count__c || 0) + ' components' + this.deletionsTail
+            text: s === 'Retrieving' ? this.retrievingText : (this.rel.Component_Count__c || 0) + ' components' + this.deletionsTail
         };
+    }
+
+    /** A big release is retrieved in parts (RlyRaiseParts: Retrieve_Id__c "k:id"; heavy types alone, the rest 25 a part). */
+    get retrievingText() {
+        const m = /^(\d+):/.exec(this.rel.Retrieve_Id__c || '');
+        if (!m) {
+            return 'Retrieving the components with the Metadata API…';
+        }
+        const raw = (this.detail && this.detail.items ? this.detail.items : []).filter((i) => i.Is_Deletion__c !== true);
+        const heavy = raw.filter((i) => HEAVY_TYPES.includes(i.Metadata_Type__c)).length;
+        const total = heavy + Math.ceil((raw.length - heavy) / 25);
+        return 'Retrieving part ' + m[1] + ' of ' + Math.max(total, Number(m[1])) + ' and sending each to Git (a big release goes in parts)…';
     }
 
     get deletionsTail() {

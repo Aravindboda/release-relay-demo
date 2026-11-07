@@ -3,7 +3,8 @@
  * branch (RLY_Org__c.Branch__c; the first stage's branch when it has none) under the Git connection's source path that
  * the org doesn't have any more (Metadata API listMetadata). They may have been deleted in the org, or came from another
  * org through the branch and were never deployed to it, so the page never pre-selects them. Standard objects and fields
- * are left out (they can't be deleted). Callouts only.
+ * are left out (they can't be deleted). Callouts only. The page reads it in parts instead (RlyDeletionPlan for the
+ * branch, RlyDeletionPresence for the org), so neither side is read in one call.
  */
 public with sharing class RlyDeletionFinder {
 
@@ -13,13 +14,10 @@ public with sharing class RlyDeletionFinder {
      * @return the candidates, each with deleted = true
      */
     public static List<RlyChangeFinder.Change> find(RLY_Org__c org) {
-        RLY_Git_Connection__c conn = RlyReleaseStore.git();
-        if (conn == null || conn.Status__c != 'Connected') {
-            throw new RlyReleaseException('The Git connection isn\'t set up and checked yet (Pipeline tab).');
-        }
+        RlyGit git = git();
         String branch = branchOf(org);
-        String sourcePath = String.isBlank(conn.Source_Path__c) ? '' : conn.Source_Path__c.trim().removeEnd('/');
-        List<String> keys = RlyDeletionPaths.keysOf(RlyGit.forConnection(conn).listFiles(branch, sourcePath), sourcePath);
+        String sourcePath = sourcePath();
+        List<String> keys = RlyDeletionPaths.keysOf(git.listFiles(branch, sourcePath), sourcePath);
         Map<String, List<String>> byType = new Map<String, List<String>>();
         for (String k : keys) {
             String t = k.substringBefore(':');
@@ -29,6 +27,27 @@ public with sharing class RlyDeletionFinder {
             byType.get(t).add(k.substringAfter(':'));
         }
         return missing(byType, present(org, byType.keySet()));
+    }
+
+    /**
+     * @description The hub's Git connection, checked (connected).
+     * @return the provider
+     */
+    public static RlyGit git() {
+        RLY_Git_Connection__c conn = RlyReleaseStore.git();
+        if (conn == null || conn.Status__c != 'Connected') {
+            throw new RlyReleaseException('The Git connection isn\'t set up and checked yet (Pipeline tab).');
+        }
+        return RlyGit.forConnection(conn);
+    }
+
+    /**
+     * @description The Git connection's source path, without a trailing slash (blank: the repository root).
+     * @return the path
+     */
+    public static String sourcePath() {
+        RLY_Git_Connection__c conn = RlyReleaseStore.git();
+        return conn == null || String.isBlank(conn.Source_Path__c) ? '' : conn.Source_Path__c.trim().removeEnd('/');
     }
 
     /**

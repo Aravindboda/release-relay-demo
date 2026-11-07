@@ -164,10 +164,20 @@
                         <template lwc:if={findingDeletions}>
                             <div class="rr-pad rr-finding" aria-live="polite">
                                 <span class="rr-spin-box"><lightning-spinner alternative-text="Finding deleted components" size="small"></lightning-spinner></span>
-                                <p class="rr-small rr-weak">Comparing {ownBranch}'s branch with {sourceName}…</p>
+                                <p class="rr-small rr-weak">{delText}</p>
                             </div>
                         </template>
                         <template lwc:if={deletionResult}><div class={deletionResultCls} role="status">{deletionResult}</div></template>
+                        <template lwc:if={hasDeletionFailures}>
+                            <ul class="rr-fails" aria-label="Parts that couldn't be read">
+                                <template for:each={deletionFailureRows} for:item="f">
+                                    <li key={f.key} class="rr-msg rr-msg-bad rr-msg-inset rr-fail">
+                                        <span class="rr-fail-text">{f.text}</span>
+                                        <lightning-button label="Try again" data-key={f.key} onclick={retryDeletionPart} disabled={cantFindDeletions}></lightning-button>
+                                    </li>
+                                </template>
+                            </ul>
+                        </template>
 
                         <template lwc:if={scanning}>
                             <div class="rr-pad" aria-live="polite">
@@ -176,6 +186,16 @@
                             </div>
                         </template>
                         <template lwc:if={hasScanErrors}><div class="rr-msg rr-msg-bad rr-msg-inset">{scanErrorText}</div></template>
+                        <template lwc:if={hasScanFailures}>
+                            <ul class="rr-fails" aria-label="Types that couldn't be listed">
+                                <template for:each={scanFailureRows} for:item="f">
+                                    <li key={f.key} class="rr-msg rr-msg-bad rr-msg-inset rr-fail">
+                                        <span class="rr-fail-text">{f.text}</span>
+                                        <lightning-button label="Try again" data-key={f.key} onclick={retryScanPart} disabled={retrying}></lightning-button>
+                                    </li>
+                                </template>
+                            </ul>
+                        </template>
 
                         <div class="rr-split">
                             <nav class="rr-types" aria-label="Types">

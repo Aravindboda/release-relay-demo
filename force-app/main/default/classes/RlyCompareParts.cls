@@ -5,6 +5,9 @@
  */
 public with sharing class RlyCompareParts {
 
+    /** @description Where a file too large for the hub can be seen. */
+    public static final String PIPELINE_HINT = 'Compare in the pipeline shows its changes.';
+
     /**
      * @description Checks the components asked for: 1 to RlyCompareFiles.MAX_COMPONENTS, each Type:Name.
      * @param keys the components
@@ -126,10 +129,10 @@ public with sharing class RlyCompareParts {
      * @description The reason for a file too large to compare, with its line count.
      * @param text the file
      * @param whereText for example in DEV1
-     * @return for example Too large to compare here (6,240 lines in DEV1).
+     * @return for example Too large to compare here (6,240 lines in DEV1). Compare in the pipeline shows its changes.
      */
     public static String tooLarge(String text, String whereText) {
         Integer lines = text == null ? 0 : text.countMatches('\n') + 1;
-        return RlyCompareFiles.TOO_LARGE + ' (' + lines.format() + ' lines ' + whereText + ').';
+        return RlyCompareFiles.TOO_LARGE + ' (' + lines.format() + ' lines ' + whereText + '). ' + PIPELINE_HINT;
     }
 }

@@ -10,7 +10,6 @@ public with sharing class RlyChangeFinder {
 
     /** @description Most changes one call returns. */
     public static final Integer MAX_ITEMS = 3000;
-    private static final Integer MAX_FOLDERS = 60;
     private static final Integer NAMES_PER_QUERY = 100;
     private static final Set<String> MANAGED = new Set<String>{ 'installed', 'installedEditable', 'released', 'deleted', 'deprecated', 'deprecatedEditable' };
 
@@ -39,25 +38,7 @@ public with sharing class RlyChangeFinder {
      * @return the changes
      */
     public static List<Change> tracked(RLY_Org__c org, Datetime since) {
-        String soql = 'SELECT MemberName, MemberType, IsNameObsolete, LastModifiedDate, LastModifiedById FROM SourceMember'
-            + (since == null ? '' : ' WHERE LastModifiedDate >= ' + since.formatGmt('yyyy-MM-dd\'T\'HH:mm:ss\'Z\''))
-            + ' ORDER BY LastModifiedDate DESC LIMIT ' + MAX_ITEMS;
-        List<Object> rows = records(RlyOrgSession.getJson(org, RlyOrgSession.toolingQueryPath(soql)));
-        Set<String> userIds = new Set<String>();
-        for (Object o : rows) {
-            userIds.add(String.valueOf(((Map<String, Object>) o).get('LastModifiedById')));
-        }
-        Map<String, String> names = userNames(org, userIds);
-        List<Change> out = new List<Change>();
-        for (Object o : rows) {
-            Map<String, Object> r = (Map<String, Object>) o;
-            Change c = makeChange(String.valueOf(r.get('MemberType')), String.valueOf(r.get('MemberName')));
-            c.modifiedBy = names.get(String.valueOf(r.get('LastModifiedById')));
-            c.modifiedOn = parseTime(r.get('LastModifiedDate'));
-            c.deleted = r.get('IsNameObsolete') == true;
-            out.add(c);
-        }
-        return out;
+        return RlyChangePages.tracked(new RlyChangePages.Ask(org, since, null)).changes;
     }
 
     /**
@@ -72,45 +53,46 @@ public with sharing class RlyChangeFinder {
         for (String t : types) {
             queries.add(new RlyMetadata.Query(t, null));
         }
-        return toChanges(RlyMetadata.listFiles(org, queries), since);
+        return changesOf(RlyMetadata.listFiles(org, queries), since);
     }
 
     /**
-     * @description Changes of a folder type: its folders, then the items in each folder.
+     * @description Changes of a folder type: its folders, then the items in the first RlyChangePages.FOLDERS_PER_CALL
+     * folders (the page reads the rest in runs, RlyChangePartsController.listFolderPage).
      * @param org the developer org
      * @param type a folder-based type such as Report
      * @param since the earliest change, or null
      * @return the changes
      */
     public static List<Change> inFolders(RLY_Org__c org, String type, Datetime since) {
-        String folderType = RlyMetadata.FOLDER_TYPE.get(type);
-        if (folderType == null) {
-            throw new RlyMetadata.MetadataException(type + ' isn\'t a folder type.');
-        }
-        List<RlyMetadata.FileProp> folders = RlyMetadata.listFiles(org, new List<RlyMetadata.Query>{ new RlyMetadata.Query(folderType, null) });
-        List<RlyMetadata.Query> queries = new List<RlyMetadata.Query>();
-        Integer count = 0;
-        for (RlyMetadata.FileProp f : folders) {
-            if (MANAGED.contains(f.manageableState) || count++ >= MAX_FOLDERS) {
-                continue;
-            }
-            queries.add(new RlyMetadata.Query(type, f.fullName));
-        }
-        List<Change> out = toChanges(folders, since);
-        out.addAll(toChanges(RlyMetadata.listFiles(org, queries), since));
-        return out;
+        return RlyChangePages.folders(new RlyChangePages.Ask(org, since, null), type).changes;
     }
 
-    private static List<Change> toChanges(List<RlyMetadata.FileProp> props, Datetime since) {
+    /**
+     * @description Whether a listed component comes from a managed package (left out of the changes).
+     * @param p the listed component
+     * @return true for a managed component
+     */
+    public static Boolean isManaged(RlyMetadata.FileProp p) {
+        return MANAGED.contains(p.manageableState) || String.isNotBlank(p.namespacePrefix);
+    }
+
+    /**
+     * @description Listed components as changes: unmanaged ones changed since the date, at most MAX_ITEMS.
+     * @param props the listed components
+     * @param since the earliest change, or null
+     * @return the changes
+     */
+    public static List<Change> changesOf(List<RlyMetadata.FileProp> props, Datetime since) {
         List<Change> out = new List<Change>();
         for (RlyMetadata.FileProp p : props) {
-            if (MANAGED.contains(p.manageableState) || String.isNotBlank(p.namespacePrefix)) {
+            if (isManaged(p)) {
                 continue;
             }
             if (since != null && (p.lastModifiedDate == null || p.lastModifiedDate < since)) {
                 continue;
             }
-            Change c = makeChange(p.type, p.fullName);
+            Change c = changeOf(p.type, p.fullName);
             c.modifiedBy = p.lastModifiedByName;
             c.modifiedOn = p.lastModifiedDate;
             c.deleted = false;
@@ -122,7 +104,13 @@ public with sharing class RlyChangeFinder {
         return out;
     }
 
-    private static Change makeChange(String type, String name) {
+    /**
+     * @description A change of a component, tagged Custom or Standard.
+     * @param type the metadata type
+     * @param name the full name
+     * @return the change
+     */
+    public static Change changeOf(String type, String name) {
         Change c = new Change();
         c.type = type;
         c.name = name;
@@ -161,7 +149,7 @@ public with sharing class RlyChangeFinder {
                 quoted.add('\'' + String.escapeSingleQuotes(classNames[j]) + '\'');
             }
             String soql = 'SELECT Name, Body FROM ApexClass WHERE NamespacePrefix = null AND Name IN (' + String.join(quoted, ',') + ')';
-            for (Object o : records(RlyOrgSession.getJson(org, RlyOrgSession.toolingQueryPath(soql)))) {
+            for (Object o : rowsOf(RlyOrgSession.getJson(org, RlyOrgSession.toolingQueryPath(soql)))) {
                 Map<String, Object> r = (Map<String, Object>) o;
                 if (testMark.matcher(String.valueOf(r.get('Body'))).find()) {
                     out.add(String.valueOf(r.get('Name')));
@@ -171,7 +159,13 @@ public with sharing class RlyChangeFinder {
         return out;
     }
 
-    private static Map<String, String> userNames(RLY_Org__c org, Set<String> ids) {
+    /**
+     * @description Users' names by Id (15 and 18 characters) in the org.
+     * @param org the developer org
+     * @param ids the users' Ids (null and 'null' are ignored)
+     * @return the names by Id
+     */
+    public static Map<String, String> userNamesOf(RLY_Org__c org, Set<String> ids) {
         Map<String, String> out = new Map<String, String>();
         ids.remove(null);
         ids.remove('null');
@@ -183,7 +177,7 @@ public with sharing class RlyChangeFinder {
             quoted.add('\'' + String.escapeSingleQuotes(i) + '\'');
         }
         String soql = 'SELECT Id, Name FROM User WHERE Id IN (' + String.join(quoted, ',') + ')';
-        for (Object o : records(RlyOrgSession.getJson(org, RlyOrgSession.queryPath(soql)))) {
+        for (Object o : rowsOf(RlyOrgSession.getJson(org, RlyOrgSession.queryPath(soql)))) {
             Map<String, Object> r = (Map<String, Object>) o;
             out.put(String.valueOf(r.get('Id')), String.valueOf(r.get('Name')));
             out.put(String.valueOf(r.get('Id')).left(15), String.valueOf(r.get('Name')));
@@ -191,12 +185,22 @@ public with sharing class RlyChangeFinder {
         return out;
     }
 
-    private static List<Object> records(Object body) {
+    /**
+     * @description A query answer's records.
+     * @param body the parsed answer
+     * @return the records (none when it has none)
+     */
+    public static List<Object> rowsOf(Object body) {
         Object rows = ((Map<String, Object>) body).get('records');
         return rows == null ? new List<Object>() : (List<Object>) rows;
     }
 
-    private static Datetime parseTime(Object value) {
+    /**
+     * @description A REST date-time (2026-10-30T10:00:00.000+0000).
+     * @param value the value
+     * @return the moment, or null
+     */
+    public static Datetime timeOf(Object value) {
         if (value == null) {
             return null;
         }

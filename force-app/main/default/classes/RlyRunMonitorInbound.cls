@@ -5,7 +5,8 @@
  * branch, targetOrg, status (Queued, In progress, Succeeded, Failed, Cancelled, or GitHub's words), started, finished
  * (ISO 8601), durationSeconds, actor, runUrl (https), requestId (REL-00031), failureMessage, steps
  * ([{name, outcome, seconds}]). The run is upserted by Run_Id__c = runId + "-" + attempt; a value left out keeps what an
- * earlier call saved, and a finished run is never set back to Queued or In progress. Answer: {ok, id, runKey, status,
+ * earlier call saved, and a finished run is never set back to Queued or In progress. A run that ends Succeeded while its
+ * release's checks failed in it is saved Failed with why (RlyRunMonitorChecks). Answer: {ok, id, runKey, status,
  * release, warnings} or {ok:false, error}.
  */
 public with sharing class RlyRunMonitorInbound {
@@ -41,6 +42,7 @@ public with sharing class RlyRunMonitorInbound {
         }
         RLY_Pipeline_Run__c built = rd.build();
         RLY_Pipeline_Run__c row = settle(built, RlyRunMonitorStore.byRunKey(built.Run_Id__c), rd.status);
+        failIfChecksFailed(row, rd);
         Id saved = RlyRunMonitorStore.save(row);
         httpStatus = 200;
         String release = built.Release__c != null ? built.Request_Id__c : null;
@@ -60,6 +62,8 @@ public with sharing class RlyRunMonitorInbound {
         public String status;
         /** @description Values sent in a format that couldn't be read. */
         public List<String> warnings = new List<String>();
+        /** @description The run's release (requestId), with its check results, or null. */
+        public RLY_Release__c release;
 
         /**
          * @description Reads the key values.
@@ -70,6 +74,14 @@ public with sharing class RlyRunMonitorInbound {
             runId = RlyRunMonitorInput.whole(input.get('runId'));
             attempt = input.containsKey('attempt') ? RlyRunMonitorInput.whole(input.get('attempt')) : 1L;
             status = RlyRunMonitorInput.status(input.get('status'));
+        }
+
+        /**
+         * @description The GitHub run id.
+         * @return the id
+         */
+        public Long githubRunId() {
+            return runId;
         }
 
         /**
@@ -123,7 +135,8 @@ public with sharing class RlyRunMonitorInbound {
                 return;
             }
             row.Request_Id__c = requestId;
-            row.Release__c = RlyRunMonitorReleases.releaseIdByName(requestId);
+            release = RlyRunMonitorReleases.releaseByName(requestId);
+            row.Release__c = release == null ? null : release.Id;
             if (row.Release__c == null) {
                 warnings.add('No release ' + requestId + ' in this org.');
             }
@@ -162,6 +175,15 @@ public with sharing class RlyRunMonitorInbound {
             finish(row);
         }
         return row;
+    }
+
+    // A run GitHub ended green whose release's checks failed in it (the failure is in the result files): Failed, with why.
+    private static void failIfChecksFailed(RLY_Pipeline_Run__c row, Reader rd) {
+        String why = row.Status__c == RlyRunMonitorInput.SUCCEEDED ? RlyRunMonitorChecks.failedChecksOf(rd.release, rd.githubRunId()) : null;
+        if (why != null) {
+            row.Status__c = RlyRunMonitorInput.FAILED;
+            row.Failure_Message__c = why;
+        }
     }
 
     // A finished run gets its finish time (now when not sent) and its duration (when not sent).
