@@ -12,7 +12,7 @@ public with sharing class RlyEvidenceCsv {
     /** @description Releases per part. */
     public static final Integer PART_SIZE = 20;
 
-    private static final List<String> CSV_HEADER = new List<String>{ 'REL', 'Title', 'Route', 'Raised by', 'Raised on', 'Status',
+    private static final List<String> CSV_HEADER = new List<String>{ 'REL', 'Title', 'Tickets', 'Route', 'Raised by', 'Raised on', 'Status',
         'Approved by', 'Approved on', 'Via', 'Comment', 'Second approver', 'Deployed to', 'Deploy ids', 'PR url', 'Rolled back in', 'Rolled back on', 'Files' };
     private static final String DEPLOY_ID_KEY = '"deployId"';
 
@@ -116,7 +116,7 @@ public with sharing class RlyEvidenceCsv {
                 deployIds.add(one);
             }
         }
-        List<String> out = new List<String>{ r.Name, r.Title__c, nameOf(r.Source_Org__r) + ' → ' + nameOf(r.Target_Org__r),
+        List<String> out = new List<String>{ r.Name, r.Title__c, RlyWorkLinks.withLinks(r.Work_Items__c), nameOf(r.Source_Org__r) + ' → ' + nameOf(r.Target_Org__r),
             r.CreatedBy == null ? null : r.CreatedBy.Name, stamp(r.CreatedDate), rolledBack(r) ? 'Rolled back' : r.Status__c,
             r.Approved_By__r == null ? null : r.Approved_By__r.Name, stamp(r.Approved_On__c), r.Approved_Via__c, r.Approval_Comment__c,
             r.Second_Approved_By__r == null ? null : r.Second_Approved_By__r.Name,
@@ -146,7 +146,7 @@ public with sharing class RlyEvidenceCsv {
          * @return the releases by Id
          */
         public Map<Id, RLY_Release__c> details(Set<Id> ids) {
-            return new Map<Id, RLY_Release__c>([SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Target_Org__r.Name,
+            return new Map<Id, RLY_Release__c>([SELECT Id, Name, Title__c, Work_Items__c, Status__c, Source_Org__r.Name, Target_Org__r.Name,
                     CreatedBy.Name, CreatedDate, Approved_By__r.Name, Approved_On__c, Approved_Via__c, Approval_Comment__c,
                     Second_Approved_By__r.Name, PR_URL__c, Rollback_Status__c, Rollback_Org__r.Name, Rollback_On__c,
                     Carried_Releases__c

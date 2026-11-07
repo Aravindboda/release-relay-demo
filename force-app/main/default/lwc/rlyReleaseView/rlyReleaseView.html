@@ -206,6 +206,7 @@
                             <template lwc:if={hotfixReason}>
                                 <dt>Why it's a hotfix</dt><dd class="rr-break">{hotfixReason}</dd>
                             </template>
+                            <dt>Work items</dt><dd><c-rly-release-tickets compact release-id={rel.Id} status={rel.Status__c} onchanged={refresh}></c-rly-release-tickets></dd>
                             <template lwc:if={hasCarried}>
                                 <dt>Carries</dt>
                                 <dd>

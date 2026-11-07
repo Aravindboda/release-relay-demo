@@ -76,6 +76,10 @@
         <apexClass>RlySyncController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>RlyWorkItemsController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <customPermissions>
         <enabled>true</enabled>
         <name>RLY_Deploy_Team</name>
@@ -173,6 +177,11 @@
     <fieldPermissions>
         <editable>false</editable>
         <field>RLY_Release__c.Hotfix_Reason__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>RLY_Release__c.Work_Items__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -675,6 +684,23 @@
         <object>RLY_Sync_Check__c</object>
         <viewAllRecords>true</viewAllRecords>
     </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>RLY_Work_Item__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>RLY_Work_Tracking__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
     <tabSettings>
         <tab>RLY_Approvals</tab>
         <visibility>Visible</visibility>
@@ -705,6 +731,10 @@
     </tabSettings>
     <tabSettings>
         <tab>RLY_Sync_Status</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>RLY_Work_Items</tab>
         <visibility>Visible</visibility>
     </tabSettings>
 </PermissionSet>

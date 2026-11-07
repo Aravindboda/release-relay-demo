@@ -1,0 +1,69 @@
+<template>
+    <!-- design board: Work items (build 40, section 3) -->
+    <template lwc:if={statusRead}>
+        <c-rly-org-gate status={hubStatus}></c-rly-org-gate>
+        <template lwc:if={showPage}>
+            <div class="rr-page">
+                <section class="rr-card rr-head">
+                    <span class="rr-head-icon"><lightning-icon icon-name="utility:task" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
+                    <div class="rr-head-text">
+                        <p class="rr-kicker">{appName}</p>
+                        <h1 class="rr-title">Work items</h1>
+                        <p class="rr-kicker">{trackerLabel}: where each ticket is, from the releases that carry it</p>
+                    </div>
+                    <div class="rr-segs" role="group" aria-label="Show">
+                        <template for:each={filters} for:item="f">
+                            <button key={f.value} type="button" class={f.cls} aria-pressed={f.pressed} data-value={f.value} onclick={handleFilter}>{f.label}</button>
+                        </template>
+                    </div>
+                    <c-rly-search-box label="Search work items" placeholder="Search ticket, release, title, person" shown={shown} total={total}
+                        onsearch={handleSearch}></c-rly-search-box>
+                    <lightning-button label="Sync now" icon-name="utility:sync" onclick={syncNow} disabled={syncing}></lightning-button>
+                    <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Read again" title="Read again" onclick={load} disabled={loading}></lightning-button-icon>
+                </section>
+                <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+                <template lwc:if={notice}><div class="rr-msg rr-msg-info" role="status">{notice}</div></template>
+                <section class="rr-card rr-list" aria-label="Work items">
+                    <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+                    <div class="rr-scroll">
+                        <table class="rr-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Ticket</th>
+                                    <th scope="col">Releases</th>
+                                    <th scope="col">Raised</th>
+                                    <template for:each={orgs} for:item="o"><th key={o.key} scope="col">{o.label}</th></template>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Tracker</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={rows} for:item="r">
+                                    <tr key={r.ticket}>
+                                        <td>
+                                            <template lwc:if={r.link}><a class="rr-a rr-strong" href={r.link} target="_blank" rel="noopener noreferrer">{r.ticket}</a></template>
+                                            <template lwc:else><strong>{r.ticket}</strong></template>
+                                        </td>
+                                        <td>
+                                            <template for:each={r.releaseRefs} for:item="x">
+                                                <button key={x.id} type="button" class="rr-link rr-rel" data-id={x.id} onclick={openRelease}>{x.label}</button>
+                                            </template>
+                                        </td>
+                                        <td class="rr-weak">{r.raisedText}</td>
+                                        <template for:each={r.cellRows} for:item="c">
+                                            <td key={c.key}><span class={c.dotCls} aria-hidden="true"></span><span class={c.textCls}>{c.text}</span></td>
+                                        </template>
+                                        <td><span class={r.pillCls}>{r.status}</span></td>
+                                        <td><span class={r.syncCls} title={r.syncMessage}>{r.syncText}</span></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                        <template lwc:if={noRows}><p class="rr-empty">{emptyText}</p></template>
+                        <template lwc:if={truncated}><p class="rr-empty">Showing the newest tickets: search to find older ones.</p></template>
+                    </div>
+                </section>
+            </div>
+        </template>
+    </template>
+</template>

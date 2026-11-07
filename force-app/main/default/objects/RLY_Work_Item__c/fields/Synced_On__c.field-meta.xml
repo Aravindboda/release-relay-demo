@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Synced_On__c</fullName>
+    <description>When the tracker was last updated (or tried) for this ticket and release.</description>
+    <externalId>false</externalId>
+    <label>Synced On</label>
+    <required>false</required>
+    <type>DateTime</type>
+</CustomField>

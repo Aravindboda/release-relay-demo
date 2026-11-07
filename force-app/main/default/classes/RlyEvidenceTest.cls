@@ -93,7 +93,7 @@ private class RlyEvidenceTest {
             Test.stopTest();
             List<String> lines = csv.split('\r\n');
             System.assertEquals(2, lines.size(), 'Header and the deployed release: ' + csv);
-            System.assert(lines[0].startsWith('"REL","Title","Route"'), 'Header');
+            System.assert(lines[0].startsWith('"REL","Title","Tickets","Route"'), 'Header');
             System.assert(lines[1].contains('"' + rel.Name + '"') && lines[1].contains('0Af000000000001 0Af000000000002'), 'Row: ' + lines[1]);
             System.assertEquals('"\'=SUM(A1)","say ""hi""",""', RlyEvidenceController.csvLine(new List<String>{ '=SUM(A1)', 'say "hi"', null }),
                 'Quoted, formulas defused');
