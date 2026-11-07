@@ -60,6 +60,10 @@ public with sharing class RlyCompareFiles {
         @AuraEnabled public String status;
         /** @description Why it isn't compared, for unsupported. */
         @AuraEnabled public String reason;
+        /** @description A compare in the pipeline: the file's number (its text is read when it's opened), or null. */
+        @AuraEnabled public Integer n;
+        /** @description A compare in the pipeline: a file too large for both copies comes as a unified diff. */
+        @AuraEnabled public String patch;
     }
 
     /** @description One component: its status (its main file's) and its files, main file first. */

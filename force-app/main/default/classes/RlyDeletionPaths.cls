@@ -32,26 +32,6 @@ public with sharing class RlyDeletionPaths {
     private static final String OBJECTS = 'objects';
 
     /**
-     * @description The files of a Git tree answer (GitHub: {tree:[{path,type}]}) under a path.
-     * @param treeJson the parsed answer
-     * @param path the folder (blank: every file)
-     * @return the file paths
-     */
-    public static List<String> blobs(Object treeJson, String path) {
-        String prefix = String.isBlank(path) ? '' : path.trim().removeEnd('/') + '/';
-        Object tree = treeJson instanceof Map<String, Object> ? ((Map<String, Object>) treeJson).get('tree') : null;
-        List<String> out = new List<String>();
-        for (Object o : tree instanceof List<Object> ? (List<Object>) tree : new List<Object>()) {
-            Map<String, Object> entry = (Map<String, Object>) o;
-            String filePath = String.valueOf(entry.get('path'));
-            if (String.valueOf(entry.get('type')) == 'blob' && filePath.startsWith(prefix)) {
-                out.add(filePath);
-            }
-        }
-        return out;
-    }
-
-    /**
      * @description The components these repository files are, each once, in order. Files that aren't a supported
      * component (labels, anything else) are left out.
      * @param paths file paths in the repository
@@ -72,6 +52,15 @@ public with sharing class RlyDeletionPaths {
     }
 
     /**
+     * @description Whether a folder holds components this class maps (classes, lwc, objects…).
+     * @param folder the folder's name
+     * @return true for a component folder
+     */
+    public static Boolean isComponentFolder(String folder) {
+        return FLAT.containsKey(folder) || BUNDLES.containsKey(folder) || folder == OBJECTS;
+    }
+
+    /**
      * @description The component a file is, from its path below the source path.
      * @param relativePath for example main/default/classes/AccountService.cls
      * @return Type:Name, or null when it isn't a supported component
@@ -80,7 +69,7 @@ public with sharing class RlyDeletionPaths {
         List<String> segs = relativePath.split('/');
         for (Integer i = 0; i < segs.size(); i++) {
             String folder = segs[i];
-            if (FLAT.containsKey(folder) || BUNDLES.containsKey(folder) || folder == OBJECTS) {
+            if (isComponentFolder(folder)) {
                 List<String> rest = new List<String>();
                 for (Integer j = i + 1; j < segs.size(); j++) {
                     rest.add(segs[j]);

@@ -6,9 +6,10 @@
  */
 public with sharing class RlyReleaseStore {
 
-    // Saved only when the release carries them: an add to an open release changes them (RlyAppendRun).
+    // Saved only when the release carries them: an add to an open release changes them (RlyAppendRun), and a big
+    // release moves Retrieve_Id__c on to its next part (RlyRaiseParts).
     private static final List<String> ADD_FIELDS = new List<String>{ 'Append_State__c', 'Test_Classes__c', 'Deletions__c',
-        'Deletion_Count__c', 'Component_Count__c' };
+        'Deletion_Count__c', 'Component_Count__c', 'Retrieve_Id__c' };
 
     /**
      * @description A registered org with its sign-in fields (consumer key included: for Apex only, never sent to the page).

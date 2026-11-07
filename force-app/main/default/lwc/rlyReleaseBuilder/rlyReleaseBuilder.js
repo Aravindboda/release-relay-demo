@@ -5,13 +5,21 @@ import getStart from '@salesforce/apex/RlyChangesController.getStart';
 import { highlightParts, searchTerm } from 'c/rlyListSearch';
 import describeTypes from '@salesforce/apex/RlyChangesController.describeTypes';
 import listChanges from '@salesforce/apex/RlyChangesController.listChanges';
-import listFolderChanges from '@salesforce/apex/RlyChangesController.listFolderChanges';
-import listTracked from '@salesforce/apex/RlyChangesController.listTracked';
 import detectTests from '@salesforce/apex/RlyChangesController.detectTests';
-import findDeletions from '@salesforce/apex/RlyChangesController.findDeletions';
 import inactiveTriggers from '@salesforce/apex/RlyChangesController.inactiveTriggers';
 import raiseRelease from '@salesforce/apex/RlyReleasesController.raiseRelease';
 import flowVersions from '@salesforce/apex/RlyChangesController.flowVersions';
+import listTrackedPage from '@salesforce/apex/RlyChangePartsController.listTrackedPage';
+import listFolderPage from '@salesforce/apex/RlyChangePartsController.listFolderPage';
+import listFieldPage from '@salesforce/apex/RlyChangePartsController.listFieldPage';
+import deletionPlan from '@salesforce/apex/RlyChangePartsController.deletionPlan';
+import deletionPart from '@salesforce/apex/RlyChangePartsController.deletionPart';
+import presentNames from '@salesforce/apex/RlyChangePartsController.presentNames';
+import presentFields from '@salesforce/apex/RlyChangePartsController.presentFields';
+import {
+    PARALLEL, DELETION_PARALLEL, MAX_ITEMS, TEST_NAMES_PER_CALL, FLOW_NAMES_PER_CALL, KIND_FOLDER, KIND_FIELDS,
+    listingParts, afterFailure, mergeChanges, presenceKey, deletionCandidates, runPool
+} from './changeParts';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import getAppend from '@salesforce/apex/RlyAppendController.getAppend';
 import appendChanges from '@salesforce/apex/RlyAppendController.appendChanges';
@@ -19,8 +27,6 @@ import appendChanges from '@salesforce/apex/RlyAppendController.appendChanges';
 /** Modes of RlyHubGuard.getHubStatus in which the tab shows only the org gate. */
 const GATED_MODES = ['sandbox', 'copy', 'setup'];
 
-const TYPES_PER_CALL = 24;
-const PARALLEL = 4;
 const PAGE = 200;
 /** The release page's tab (Releases), where Cancel in append mode goes back to. */
 const RELEASES_TAB = 'RLY_My_Releases';
@@ -277,6 +283,9 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     scanDone = 0;
     scanTotal = 0;
     scanErrors = [];
+    /** Listing parts that still failed after their retries: { key, label, reason, part }, each with Try again. */
+    scanFailures = [];
+    retrying = false;
     cache = {};
     changes = [];
     tests = new Set();
@@ -296,6 +305,10 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     findingDeletions = false;
     deletionResult;
     deletionResultBad = false;
+    /** Find deleted components in parts: the plan, what each part and type gave, and what still failed. */
+    delState;
+    delDone = 0;
+    delTotal = 0;
 
     connectedCallback() {
         this.readHubStatus();
@@ -546,33 +559,34 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
             this.changes = this.cache[key].changes;
             this.tests = this.cache[key].tests;
             this.inactive = this.cache[key].inactive || new Set();
+            this.scanFailures = this.cache[key].failures || [];
             return;
         }
         this.scanning = true;
         this.scanErrors = [];
+        this.scanFailures = [];
         this.changes = [];
         this.deletionResult = undefined;
+        this.delState = undefined;
         this.scanDone = 0;
         const orgId = this.orgId;
-        const since = this.sinceIso;
         try {
             let found = [];
             if (this.sourceOrg && this.sourceOrg.Source_Tracking__c === 'Available') {
                 this.scanTotal = 1;
-                found = await listTracked({ orgId, sinceIso: since });
+                found = await this.readPages((cursor) => listTrackedPage({ orgId, sinceIso: this.sinceIso, cursor }));
                 this.scanDone = 1;
             } else {
                 const types = await describeTypes({ orgId });
                 this.allTypes = [...types.types, ...types.folderTypes].sort();
-                const jobs = chunks(types.types, TYPES_PER_CALL).map((c) => () => listChanges({ orgId, types: c, sinceIso: since }));
-                types.folderTypes.forEach((t) => jobs.push(() => listFolderChanges({ orgId, type: t, sinceIso: since })));
-                this.scanTotal = jobs.length;
-                found = await this.runAll(jobs);
+                const parts = listingParts(types.types, types.folderTypes);
+                this.scanTotal = parts.length;
+                found = await this.runParts(parts);
             }
-            this.changes = found.map(marked);
+            this.changes = mergeChanges([], found.map(marked));
             this.tests = new Set(await this.findTests(found.filter((c) => c.type === 'ApexClass' && !c.deleted).map((c) => c.name)));
             this.inactive = new Set(await this.findInactive(found.filter((c) => c.type === 'ApexTrigger' && !c.deleted).map((c) => c.name)));
-            this.cache[key] = { changes: this.changes, tests: this.tests, inactive: this.inactive };
+            this.cache[key] = { changes: this.changes, tests: this.tests, inactive: this.inactive, failures: this.scanFailures };
         } catch (e) {
             this.scanErrors = [...this.scanErrors, errorText(e)];
         } finally {
@@ -580,36 +594,89 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         }
     }
 
-    /** Runs the jobs PARALLEL at a time; a failed chunk is reported and the rest carry on. */
-    async runAll(jobs) {
+    /** Reads every page of a paged call, one after the other (each needs the previous page's cursor). */
+    readPages(call, cursor = null, out = []) {
+        return call(cursor).then((page) => {
+            out.push(...(page.changes || []));
+            return page.nextCursor ? this.readPages(call, page.nextCursor, out) : out;
+        });
+    }
+
+    /** One listing part: types (listMetadata), a folder type (runs of folders) or custom fields (Tooling pages). */
+    readPart(part) {
+        const orgId = this.orgId;
+        const sinceIso = this.sinceIso;
+        if (part.kind === KIND_FOLDER) {
+            return this.readPages((cursor) => listFolderPage({ orgId, type: part.types[0], pageJson: JSON.stringify({ sinceIso, cursor }) }));
+        }
+        if (part.kind === KIND_FIELDS) {
+            return this.readPages((cursor) => listFieldPage({ orgId, sinceIso, cursor }));
+        }
+        return listChanges({ orgId, types: part.types, sinceIso });
+    }
+
+    /**
+     * Runs the listing parts PARALLEL at a time. A failed part of several types is split into single types, a single type
+     * is tried once more (custom fields then a page at a time through the Tooling API), and what still fails is listed
+     * on the screen with Try again: never a silent gap.
+     */
+    async runParts(parts) {
         const results = [];
-        let next = 0;
-        // Each worker takes the next job when its last one is done.
-        const worker = () => {
-            if (next >= jobs.length) {
-                return Promise.resolve();
-            }
-            const job = jobs[next++];
-            return job()
+        const jobs = [];
+        const add = (part) => {
+            jobs.push(() => this.readPart(part)
                 .then((found) => {
                     results.push(...found);
+                    this.scanDone += 1;
                 })
                 .catch((e) => {
-                    this.scanErrors = [...this.scanErrors, errorText(e)];
-                })
-                .then(() => {
-                    this.scanDone += 1;
-                    return worker();
-                });
+                    const next = afterFailure(part);
+                    if (next) {
+                        this.scanTotal += next.length - 1;
+                        next.forEach(add);
+                    } else {
+                        this.scanDone += 1;
+                        this.scanFailures = [...this.scanFailures, { key: part.key, label: part.label, reason: errorText(e), part }];
+                    }
+                }));
         };
-        await Promise.all(Array.from({ length: Math.min(PARALLEL, jobs.length) }, worker));
+        parts.forEach(add);
+        await runPool(jobs, PARALLEL);
         return results;
     }
 
-    /** Which of these classes are tests, 100 names per call, one call after the other. */
+    get hasScanFailures() { return this.scanFailures.length > 0; }
+    get scanFailureRows() {
+        return this.scanFailures.map((f) => ({ key: f.key, text: 'Couldn\u2019t list ' + f.label + ': ' + f.reason }));
+    }
+
+    /** Try again on a listing part that failed: its changes join the list. */
+    async retryScanPart(event) {
+        const key = event.currentTarget.dataset.key;
+        const failure = this.scanFailures.find((f) => f.key === key);
+        if (!failure || this.retrying) {
+            return;
+        }
+        this.retrying = true;
+        this.scanFailures = this.scanFailures.filter((f) => f.key !== key);
+        const found = await this.runParts([{ ...failure.part, attempt: 0 }]);
+        this.changes = mergeChanges(this.changes, found.map(marked));
+        const classes = found.filter((c) => c.type === 'ApexClass' && !c.deleted).map((c) => c.name);
+        const triggers = found.filter((c) => c.type === 'ApexTrigger' && !c.deleted).map((c) => c.name);
+        (await this.findTests(classes)).forEach((n) => this.tests.add(n));
+        (await this.findInactive(triggers)).forEach((n) => this.inactive.add(n));
+        this.tests = new Set(this.tests);
+        this.inactive = new Set(this.inactive);
+        if (this.cache[this.cacheKey]) {
+            this.cache[this.cacheKey] = { changes: this.changes, tests: this.tests, inactive: this.inactive, failures: this.scanFailures };
+        }
+        this.retrying = false;
+    }
+
+    /** Which of these classes are tests, TEST_NAMES_PER_CALL names per call (their bodies are read), one after the other. */
     findTests(classNames) {
         const out = [];
-        return chunks(classNames, 100)
+        return chunks(classNames, TEST_NAMES_PER_CALL)
             .reduce((previous, c) => previous
                 .then(() => detectTests({ orgId: this.orgId, classNames: c }))
                 .then((found) => {
@@ -821,32 +888,167 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     get ownBranch() { return this.sourceBranch || (this.start && this.start.targetBranch) || 'the branch'; }
     get deletionResultCls() { return 'rr-msg rr-msg-inset ' + (this.deletionResultBad ? 'rr-msg-bad' : 'rr-msg-info'); }
 
+    /**
+     * Find deleted components in parts (build 36): the branch's plan (RlyChangePartsController.deletionPlan), then each
+     * part of the branch and each type in the org, DELETION_PARALLEL at a time, every part and type tried once more when
+     * it fails; what still fails is listed with Try again, and the candidates are shown once everything that could be
+     * read is in.
+     */
     async findDeleted() {
         this.findingDeletions = true;
         this.deletionResult = undefined;
         this.deletionResultBad = false;
+        this.delDone = 0;
+        this.delTotal = 1;
         try {
-            const found = (await findDeletions({ orgId: this.orgId })).map(asDeletion);
-            const known = new Set(this.changes.map((c) => c.key));
-            const fresh = found.filter((c) => !known.has(c.key));
-            this.changes = [...this.changes, ...fresh];
-            if (this.cache[this.cacheKey]) {
-                this.cache[this.cacheKey] = { ...this.cache[this.cacheKey], changes: this.changes };
-            }
-            const branch = this.ownBranch;
-            const org = this.sourceName;
-            if (found.length === 0) {
-                this.deletionResult = 'Everything in ' + branch + '\'s branch is in ' + org + '. Nothing to delete.';
-            } else {
-                this.deletionResult = 'In ' + branch + '\'s branch but not in ' + org
-                    + '. They may have been deleted in ' + org + ', or came from another org through the branch and were never deployed to ' + org
-                    + '. Tick only what you deleted.';
-                this.typeFilter = 'deleted';
-                this.shown = PAGE;
-            }
+            const plan = await deletionPlan({ orgId: this.orgId });
+            this.delState = { plan, branchKeys: new Map(), presence: new Map(), failedParts: [], failedTypes: [], truncated: plan.truncated };
+            this.delTotal = plan.parts.length;
+            await runPool(plan.parts.map((part) => () => this.readBranchPart(part, 0)), DELETION_PARALLEL);
+            await this.readOrgTypes(this.branchTypes().filter((t) => !this.delState.presence.has(t)));
+            this.showDeletions();
         } catch (e) {
             this.deletionResult = errorText(e);
             this.deletionResultBad = true;
+        } finally {
+            this.findingDeletions = false;
+        }
+    }
+
+    /** One part of the branch; a failure is tried once more, then listed. */
+    readBranchPart(part, attempt) {
+        return deletionPart({ orgId: this.orgId, partJson: JSON.stringify(part) })
+            .then((r) => {
+                this.delState.branchKeys.set(part.id, r.keys || []);
+                this.delState.truncated = this.delState.truncated || r.truncated;
+                this.delDone += 1;
+            })
+            .catch((e) => {
+                if (attempt < 1) {
+                    return this.readBranchPart(part, attempt + 1);
+                }
+                this.delDone += 1;
+                this.delState.failedParts = [...this.delState.failedParts, { key: part.id, label: part.label, reason: errorText(e), part }];
+                return undefined;
+            });
+    }
+
+    /** The types found on the branch so far. */
+    branchTypes() {
+        const types = new Set();
+        this.delState.branchKeys.forEach((keys) => keys.forEach((k) => types.add(k.substring(0, k.indexOf(':')))));
+        return [...types];
+    }
+
+    /** Every component of these types in the org, DELETION_PARALLEL at a time. */
+    async readOrgTypes(types) {
+        this.delTotal += types.length;
+        await runPool(types.map((t) => () => this.readOrgType(t, 0)), DELETION_PARALLEL);
+    }
+
+    /** One type in the org; tried once more, custom fields then a page at a time (Tooling API), then listed. */
+    readOrgType(type, attempt) {
+        return presentNames({ orgId: this.orgId, type })
+            .then((p) => this.keepPresence(type, p.names || []))
+            .catch((e) => {
+                if (attempt < 1) {
+                    return this.readOrgType(type, attempt + 1);
+                }
+                if (type === 'CustomField') {
+                    return this.readFieldPages(null, []).catch((e2) => this.failType(type, e2));
+                }
+                return this.failType(type, e);
+            });
+    }
+
+    readFieldPages(cursor, names) {
+        return presentFields({ orgId: this.orgId, cursor }).then((p) => {
+            names.push(...(p.names || []));
+            return p.nextCursor ? this.readFieldPages(p.nextCursor, names) : this.keepPresence('CustomField', names);
+        });
+    }
+
+    keepPresence(type, names) {
+        this.delState.presence.set(type, new Set(names.map((n) => presenceKey(type, n))));
+        this.delState.failedTypes = this.delState.failedTypes.filter((f) => f.key !== type);
+        this.delDone += 1;
+    }
+
+    failType(type, e) {
+        this.delDone += 1;
+        this.delState.failedTypes = [...this.delState.failedTypes.filter((f) => f.key !== type),
+            { key: type, label: type + ' in ' + this.sourceName, reason: errorText(e) }];
+    }
+
+    /** The candidates from everything read: added to the list, with a note of what couldn't be read. */
+    showDeletions() {
+        const st = this.delState;
+        const keys = [];
+        st.branchKeys.forEach((list) => keys.push(...list));
+        const all = deletionCandidates([...new Set(keys)], st.presence);
+        const found = all.slice(0, MAX_ITEMS).map(asDeletion);
+        this.changes = mergeChanges(this.changes, found);
+        if (this.cache[this.cacheKey]) {
+            this.cache[this.cacheKey] = { ...this.cache[this.cacheKey], changes: this.changes };
+        }
+        const branch = this.ownBranch;
+        const org = this.sourceName;
+        const notes = [];
+        if (all.length > MAX_ITEMS) {
+            notes.push('Showing the first ' + MAX_ITEMS + ' of ' + all.length + '.');
+        }
+        if (st.truncated) {
+            notes.push('GitHub cut a folder list short, so some components on the branch may be missing.');
+        }
+        if (st.failedParts.length || st.failedTypes.length) {
+            notes.push('Some parts couldn\u2019t be read (below); their components aren\u2019t in this list yet.');
+        }
+        const tail = notes.length ? ' ' + notes.join(' ') : '';
+        if (all.length === 0) {
+            this.deletionResult = 'Everything in ' + branch + '\'s branch is in ' + org + '. Nothing to delete.' + tail;
+        } else {
+            this.deletionResult = 'In ' + branch + '\'s branch but not in ' + org
+                + '. They may have been deleted in ' + org + ', or came from another org through the branch and were never deployed to ' + org
+                + '. Tick only what you deleted.' + tail;
+            this.typeFilter = 'deleted';
+            this.shown = PAGE;
+        }
+    }
+
+    get hasDeletionFailures() { return !!this.delState && (this.delState.failedParts.length + this.delState.failedTypes.length) > 0; }
+    get deletionFailureRows() {
+        if (!this.delState) {
+            return [];
+        }
+        const parts = this.delState.failedParts.map((f) => ({ key: 'part|' + f.key, text: 'Couldn\u2019t read ' + f.label + ' on ' + this.ownBranch + ': ' + f.reason }));
+        const types = this.delState.failedTypes.map((f) => ({ key: 'type|' + f.key, text: 'Couldn\u2019t read ' + f.label + ': ' + f.reason }));
+        return [...parts, ...types];
+    }
+    get delText() {
+        return 'Comparing ' + this.ownBranch + '\'s branch with ' + this.sourceName + ': ' + Math.min(this.delDone, this.delTotal) + ' of ' + this.delTotal + ' parts…';
+    }
+
+    /** Try again on a part of the branch or a type in the org, then show the candidates again. */
+    async retryDeletionPart(event) {
+        const [kind, key] = event.currentTarget.dataset.key.split('|');
+        if (!this.delState || this.findingDeletions) {
+            return;
+        }
+        this.findingDeletions = true;
+        this.delDone = 0;
+        this.delTotal = 1;
+        try {
+            if (kind === 'part') {
+                const failure = this.delState.failedParts.find((f) => f.key === key);
+                this.delState.failedParts = this.delState.failedParts.filter((f) => f.key !== key);
+                if (failure) {
+                    await this.readBranchPart(failure.part, 0);
+                }
+                await this.readOrgTypes(this.branchTypes().filter((t) => !this.delState.presence.has(t)));
+            } else {
+                await this.readOrgType(key, 0);
+            }
+            this.showDeletions();
         } finally {
             this.findingDeletions = false;
         }
@@ -1317,12 +1519,17 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         }
         this.flowsLoading = true;
         this.flowsError = undefined;
-        flowVersions({ orgId: this.orgId, names })
-            .then((list) => {
-                const next = {};
-                (list || []).forEach((f) => {
-                    next[f.name] = f;
-                });
+        const next = {};
+        // FLOW_NAMES_PER_CALL names per call (they go in the query), one call after the other.
+        chunks(names, FLOW_NAMES_PER_CALL)
+            .reduce((previous, c) => previous
+                .then(() => flowVersions({ orgId: this.orgId, names: c }))
+                .then((list) => {
+                    (list || []).forEach((f) => {
+                        next[f.name] = f;
+                    });
+                }), Promise.resolve())
+            .then(() => {
                 this.flowInfo = next;
             })
             .catch((e) => {

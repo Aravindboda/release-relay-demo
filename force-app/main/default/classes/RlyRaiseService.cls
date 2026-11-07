@@ -67,7 +67,7 @@ public with sharing class RlyRaiseService {
         List<RlyFlowChoices.FlowChoice> flowChoices = RlyFlowChoices.checked(req.flowChoices, flowNames(added));
         List<RLY_Manual_Step__c> steps = RlyManualStepRules.fromInputs(withFlowSteps(req.manualSteps, flowChoices));
 
-        String retrieveId = byType.isEmpty() ? null : RlyRetrieve.start(route.source, byType); // callout before any DML
+        String retrieveId = byType.isEmpty() ? null : RlyRaiseParts.startFirst(route.source, byType); // callout before any DML; a big release in parts
 
         RLY_Release__c rel = buildRelease(req, route, tests);
         rel.Retrieve_Id__c = retrieveId;

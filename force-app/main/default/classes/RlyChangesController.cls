@@ -152,8 +152,12 @@ public with sharing class RlyChangesController {
         }
     }
 
-    // The org to read: a registered developer org (hotfixes come from developer orgs too).
-    private static RLY_Org__c source(Id orgId) {
+    /**
+     * @description The org to read: a registered developer org (hotfixes come from developer orgs too).
+     * @param orgId the org
+     * @return the org, with its sign-in fields
+     */
+    public static RLY_Org__c source(Id orgId) {
         RLY_Org__c org = new Data().org(orgId);
         if (org == null || org.Role__c != 'Developer') {
             // Callers wrap it with handled(), which sets the message the page shows.
@@ -163,8 +167,12 @@ public with sharing class RlyChangesController {
         return org;
     }
 
-    @TestVisible
-    private static Datetime since(String sinceIso) {
+    /**
+     * @description The earliest change asked for.
+     * @param sinceIso an ISO date-time, or blank for any time
+     * @return the moment, or null
+     */
+    public static Datetime since(String sinceIso) {
         if (String.isBlank(sinceIso)) {
             return null;
         }
@@ -175,8 +183,12 @@ public with sharing class RlyChangesController {
         }
     }
 
-    // Every caller's exceptions are Apex ones (RlyReleaseException and callout errors), never AuraHandledException.
-    private static AuraHandledException handled(Exception e) {
+    /**
+     * @description The page's error for an exception (callers' exceptions are Apex ones, never AuraHandledException).
+     * @param e the exception
+     * @return the error the page shows
+     */
+    public static AuraHandledException handled(Exception e) {
         AuraHandledException ex = new AuraHandledException(e.getMessage());
         ex.setMessage(e.getMessage());
         return ex;
