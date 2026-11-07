@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomTab xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Move to another Git provider: copy or verify the repository, check every org against its new branch, switch the hub at once, and keep a Migration report. Admins only.</description>
+    <label>Migration</label>
+    <lwcComponent>rlyRepoMigration</lwcComponent>
+    <motif>Custom9: Lightning</motif>
+</CustomTab>
