@@ -1,0 +1,11 @@
+{
+ "request": "REL-91032",
+ "step": "merge",
+ "status": "Merged",
+ "pr": 188,
+ "sha": "600f686359cae5e3bb836aa2ad49da2cb645ff26",
+ "method": "merge",
+ "sync": [],
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42386553251",
+ "finishedAt": "2026-11-07T15:28:50.919Z"
+}
