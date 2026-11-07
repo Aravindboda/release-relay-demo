@@ -1,0 +1,5 @@
+.rr-wd { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 8px; }
+.rr-wd-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.rr-kicker { font-size: 12px; color: #5c5c5c; }
+.rr-msg { padding: 8px 10px; border-radius: 4px; font-size: 12.5px; }
+.rr-msg-bad { background: #feded8; color: #8c0000; }

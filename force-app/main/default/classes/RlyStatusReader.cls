@@ -20,7 +20,8 @@
 public with sharing class RlyStatusReader {
 
     /** @description Statuses in which something is running and the page keeps checking. */
-    public static final Set<String> OPEN_STATUSES = new Set<String>{ 'Submitted', 'Retrieving', 'Workflow running', 'Validating', 'Deploying' };
+    public static final Set<String> OPEN_STATUSES = new Set<String>{ 'Submitted', 'Retrieving', 'Workflow running', 'Validating', 'Deploying',
+        RlyWindowGate.WAITING };
 
     /**
      * @description Reads the latest status of a release and saves it, unless someone read it in the last
@@ -82,7 +83,9 @@ public with sharing class RlyStatusReader {
 
     private static void readLatest(RLY_Release__c rel, RlyGit git) {
         String relType = RlyPromotion.typeOf(rel);
-        if (relType == RlyPromotion.TYPE_BACK_PROMOTE) {
+        if (rel.Status__c == RlyWindowGate.WAITING) {
+            RlyWindowGate.resume(rel); // approved, waiting for the target's release window (build 39)
+        } else if (relType == RlyPromotion.TYPE_BACK_PROMOTE) {
             RlyBackPromoteRun.advanceSync(rel, git);
         } else if (RlyManualOnly.isManualOnly(rel)) {
             RlyManualOnly.advance(rel); // no pipeline: to approval, or Deployed when its manual steps are done
