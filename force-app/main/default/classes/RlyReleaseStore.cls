@@ -52,22 +52,11 @@ public with sharing class RlyReleaseStore {
     }
 
     /**
-     * @description The hub's Git connection: the active one, else the oldest (build 46: one active connection).
+     * @description The hub's Git connection.
      * @return the connection, or null
      */
     public static RLY_Git_Connection__c git() {
         return new SystemAccess().readGit();
-    }
-
-    /**
-     * @description The Git connection a release lives in (build 46): the one stamped on it at raise, else the active one.
-     * A release raised before a move to another provider keeps working against its old repository.
-     * @param rel the release
-     * @return the connection, or null when the hub has none
-     */
-    public static RLY_Git_Connection__c gitFor(RLY_Release__c rel) {
-        RLY_Git_Connection__c own = RlyGitConnections.byId(RlyGitConnections.connectionIdOf(rel));
-        return own == null ? git() : own;
     }
 
     /**
@@ -107,9 +96,6 @@ public with sharing class RlyReleaseStore {
      * @param items its items (Release__c is set here)
      */
     public static void insertRelease(RLY_Release__c rel, List<RLY_Release_Item__c> items) {
-        if (rel.Git_Connection__c == null) {
-            rel.Git_Connection__c = RlyGitConnections.activeId(); // build 46: the repository it starts in
-        }
         new SystemAccess().insertAll(rel, items);
     }
 
@@ -200,8 +186,8 @@ public with sharing class RlyReleaseStore {
          */
         public RLY_Git_Connection__c readGit() {
             List<RLY_Git_Connection__c> rows = [SELECT Id, Provider__c, Repository__c, Named_Credential__c, Pipeline__c, Pipeline_Branch__c,
-                                                       Source_Path__c, Code_Scan__c, Status__c, Back_Promote__c, Active__c
-                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC LIMIT 1];
+                                                       Source_Path__c, Code_Scan__c, Status__c, Back_Promote__c
+                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY CreatedDate ASC LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
         }
 
@@ -227,8 +213,7 @@ public with sharing class RlyReleaseStore {
                     Second_Approved_By__c, Second_Approved_By__r.Name, Second_Approved_On__c, Back_Merge_Result__c,
                     Target_Org__r.Role__c, Target_Org__r.Hotfix_Two_Approvers__c, Target_Org__r.Branch__c, Source_Org__r.Git_Environment__c,
                     Deletions__c, Deletion_Count__c, Target_Org__r.Approval_Rule__c, Target_Org__r.Approval_Types__c, Target_Org__r.Code_Scan__c,
-                    Flow_Actions__c, Flow_Results__c, Manual_Only__c, Append_State__c, Inactive_Triggers__c, Target_Org__r.Environment__c,
-                    Git_Connection__c
+                    Flow_Actions__c, Flow_Results__c, Manual_Only__c, Append_State__c, Inactive_Triggers__c, Target_Org__r.Environment__c
                 FROM RLY_Release__c WHERE Id = :releaseId WITH SYSTEM_MODE];
             return rows.isEmpty() ? null : rows[0];
         }

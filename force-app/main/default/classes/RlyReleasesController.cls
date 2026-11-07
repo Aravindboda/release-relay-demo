@@ -12,8 +12,6 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public Boolean isHotfix;
         /** @description Why it's a hotfix, or null. */
         @AuraEnabled public String hotfixReason;
-        /** @description The provider of an older repository this release lives in (build 46: after a move), or null. */
-        @AuraEnabled public String repo;
         /** @description Release, Promotion or Back_Promote. */
         @AuraEnabled public String releaseType;
         /** @description For a promotion: the release numbers it carries. */

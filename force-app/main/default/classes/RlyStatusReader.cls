@@ -55,7 +55,7 @@ public with sharing class RlyStatusReader {
         if (RlySharedRead.isFresh(rel, freshFor) || !RlySharedRead.claim(releaseId, freshFor)) {
             return RlyReleaseStore.release(releaseId);
         }
-        RlyGit git = RlyGit.forConnection(RlyReleaseStore.gitFor(rel));
+        RlyGit git = RlyGit.forConnection(RlyReleaseStore.git());
         String oldStatus = rel.Status__c;
         RLY_Release__c prior = rel.clone(true, true, true, true);
         try {

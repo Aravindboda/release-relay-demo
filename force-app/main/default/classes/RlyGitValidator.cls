@@ -37,7 +37,7 @@ public with sharing class RlyGitValidator {
             problems.add('Repository is required');
         }
         if (!matches(g.Named_Credential__c, NAME_PATTERN)) {
-            problems.add('Named Credential must be the API name of a Named Credential, for example RLY_Git_GitHub');
+            problems.add('Named Credential must be the API name of a Named Credential, for example RLY_GitHub');
         }
         return problems;
     }

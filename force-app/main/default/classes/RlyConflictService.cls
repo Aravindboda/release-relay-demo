@@ -32,7 +32,7 @@ public with sharing class RlyConflictService {
         }
         String body = RlyConflictRules.resolveFile(rel, requestJson);
         RLY_Release__c before = rel.clone(true, true, true, true);
-        RLY_Git_Connection__c conn = RlyReleaseStore.gitFor(rel);
+        RLY_Git_Connection__c conn = RlyReleaseStore.git();
         RlyGit git = RlyGit.forConnection(conn);
         git.putFile(new RlyGitFile('.relay-inbox/' + rel.Name + '-resolve.json', rel.Source_Branch__c)
             .withContent(EncodingUtil.base64Encode(Blob.valueOf(body)), rel.Name + ': conflict resolutions'));

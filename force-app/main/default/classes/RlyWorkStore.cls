@@ -1,13 +1,67 @@
 /**
  * @description Work items (build 40): every read and save of the work tracking settings (RLY_Work_Tracking__c, a
- * hierarchy custom setting: its org default row, read without a query), the tickets on releases (RLY_Work_Item__c)
- * and the release fields the work items read, in system mode: any Release Relay user sees the tickets of the releases
- * they can open, and only admins change the settings (checked by the callers).
+ * hierarchy custom setting: its org default row, read without a query), the trackers (RLY_Work_Tracker__c, build 47:
+ * one cached query per transaction), the tickets on releases (RLY_Work_Item__c) and the release fields the work items
+ * read, in system mode: any Release Relay user sees the tickets of the releases they can open, and only admins change
+ * the settings and trackers (checked by the callers).
+ * Existing data (build 47): with no tracker record yet, the tracker read returns one unsaved tracker made from the
+ * build 40 setting, so routing, posting and links work as before; adoptLegacy saves it, from the page reads that don't
+ * call out (the Pipeline tab card, the ticket input, the Work items tab) and before any tracker is saved.
  */
 public with sharing class RlyWorkStore {
 
     /** @description Most work item rows one read takes (the Work items tab, newest first). */
     public static final Integer MAX_ROWS = 2000;
+    /** @description Most trackers a hub keeps. */
+    public static final Integer MAX_TRACKERS = 50;
+
+    // The trackers read in this transaction (null until the first read).
+    private static List<RLY_Work_Tracker__c> cachedTrackers;
+
+    /**
+     * @description Every tracker in routing order (one query per transaction). With none saved yet, the one made from
+     * the build 40 setting (unsaved), or none.
+     * @return the trackers
+     */
+    public static List<RLY_Work_Tracker__c> trackers() {
+        if (cachedTrackers == null) {
+            cachedTrackers = new SystemAccess().trackers();
+            RLY_Work_Tracker__c legacy = cachedTrackers.isEmpty() ? RlyWorkSettings.fromLegacy(trackingSettings()) : null;
+            if (legacy != null) {
+                cachedTrackers.add(legacy);
+            }
+        }
+        return cachedTrackers;
+    }
+
+    /**
+     * @description Saves the tracker made from the build 40 setting, when it is the only one and not saved yet. Call it
+     * only where no callout follows in the same request.
+     * @return true when it was saved now
+     */
+    public static Boolean adoptLegacy() {
+        List<RLY_Work_Tracker__c> rows = trackers();
+        if (rows.size() != 1 || rows[0].Id != null) {
+            return false;
+        }
+        new SystemAccess().upsertTrackers(rows);
+        return true;
+    }
+
+    /**
+     * @description Saves trackers (insert or update) after keeping the one made from the build 40 setting.
+     * @param rows the trackers
+     */
+    public static void saveTrackers(List<RLY_Work_Tracker__c> rows) {
+        adoptLegacy();
+        new SystemAccess().upsertTrackers(rows);
+        forgetTrackers();
+    }
+
+    /** @description Reads the trackers again on the next call (after a save). */
+    public static void forgetTrackers() {
+        cachedTrackers = null;
+    }
 
     /**
      * @description The settings (the org default row, no query), or null before an admin saved them.
@@ -98,12 +152,30 @@ public with sharing class RlyWorkStore {
         }
 
         /**
+         * @description Every tracker in routing order.
+         * @return the trackers
+         */
+        public List<RLY_Work_Tracker__c> trackers() {
+            return [SELECT Id, Name, Type__c, Ticket_Pattern__c, Link_Pattern__c, Named_Credential__c, Post_Updates__c, State_Map__c,
+                           ServiceNow_Table__c, Active__c, Sort_Order__c
+                    FROM RLY_Work_Tracker__c WITH SYSTEM_MODE ORDER BY Sort_Order__c ASC NULLS LAST, CreatedDate ASC LIMIT :MAX_TRACKERS];
+        }
+
+        /**
+         * @description Inserts new trackers and updates the others.
+         * @param rows the trackers
+         */
+        public void upsertTrackers(List<RLY_Work_Tracker__c> rows) {
+            Database.upsert(rows, true, AccessLevel.SYSTEM_MODE);
+        }
+
+        /**
          * @description Rows of some releases.
          * @param releaseIds the releases
          * @return the rows
          */
         public List<RLY_Work_Item__c> forReleases(Set<Id> releaseIds) {
-            return [SELECT Id, Release__c, Ticket__c, Key__c, Posted_State__c, Sync_Status__c, Sync_Message__c, Synced_On__c
+            return [SELECT Id, Release__c, Ticket__c, Key__c, Tracker__c, Posted_State__c, Sync_Status__c, Sync_Message__c, Synced_On__c
                     FROM RLY_Work_Item__c WHERE Release__c IN :releaseIds WITH SYSTEM_MODE ORDER BY Ticket__c LIMIT :MAX_ROWS];
         }
 
@@ -112,7 +184,7 @@ public with sharing class RlyWorkStore {
          * @return the rows
          */
         public List<RLY_Work_Item__c> recent() {
-            return [SELECT Id, Release__c, Ticket__c, Key__c, Posted_State__c, Sync_Status__c, Sync_Message__c, Synced_On__c, CreatedDate,
+            return [SELECT Id, Release__c, Ticket__c, Key__c, Tracker__c, Posted_State__c, Sync_Status__c, Sync_Message__c, Synced_On__c, CreatedDate,
                            Release__r.Name, Release__r.Title__c, Release__r.Status__c, Release__r.Release_Type__c, Release__r.Is_Hotfix__c,
                            Release__r.Target_Org__c, Release__r.Target_Org__r.Name, Release__r.Source_Org__r.Name, Release__r.Error_Message__c,
                            Release__r.Approval_Status__c, Release__r.Rollback_Status__c, Release__r.CreatedDate, Release__r.LastModifiedDate,

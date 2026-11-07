@@ -18,7 +18,7 @@ public with sharing class RlyAutoApproval {
      * @return true when it was approved by rule
      */
     public static Boolean afterBypass(RLY_Release__c rel, String oldStatus) {
-        return rel.Status__c == READY && afterChecks(rel, RlyGit.forConnection(RlyReleaseStore.gitFor(rel)), oldStatus);
+        return rel.Status__c == READY && afterChecks(rel, RlyGit.forConnection(RlyReleaseStore.git()), oldStatus);
     }
 
     /**

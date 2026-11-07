@@ -15,12 +15,10 @@ public with sharing class RlyReleaseRows {
         Set<Id> ids = new Map<Id, RLY_Release__c>(rels).keySet();
         Map<Id, Integer> manualOpen = RlyManualStepStore.openCounts(ids);
         Map<Id, RLY_Release__c> rollbacks = RlyRollbackState.rowsOf(ids);
-        Map<Id, String> repos = RlyRepoBadges.olderRepositories(ids); // build 46: releases raised before a move
         for (RLY_Release__c r : rels) {
             RlyReleasesController.Row row = toRow(r);
             rollbackOf(row, rollbacks.get(r.Id));
             row.manualOpen = manualOpen.containsKey(r.Id) ? manualOpen.get(r.Id) : 0;
-            row.repo = repos.get(r.Id);
             for (Id carriedId : RlyCarried.ids(r)) {
                 if (names.containsKey(carriedId)) {
                     row.carried.add(names.get(carriedId));

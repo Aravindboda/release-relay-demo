@@ -6,7 +6,9 @@
  *   ServiceNow    GET /api/now/table/<table>?sysparm_query=number=<id>, PATCH /api/now/table/<table>/<sys_id>
  *                 (work_notes, and state when mapped)
  *   Other         POST to the Named Credential's address: {ticket, release, title, moment, org, url, at}
- * Callouts only, no DML.
+ *   Test          Jira GET /rest/api/2/myself, Azure Boards GET /_apis/wit/workitemtypes, ServiceNow GET one row of the
+ *                 table (build 47)
+ * Each call goes through the ticket's own tracker (build 47: a hub can have several). Callouts only, no DML.
  */
 public with sharing class RlyWorkCalls {
 
@@ -17,11 +19,11 @@ public with sharing class RlyWorkCalls {
 
     /**
      * @description Jira: a comment, then the transition named like the mapped state.
-     * @param s the settings
+     * @param s the tracker
      * @param m the message
      * @param o the outcome to fill
      */
-    public static void jira(RLY_Work_Tracking__c s, RlyWorkTypes.Message m, RlyWorkTypes.Outcome o) {
+    public static void jira(RLY_Work_Tracker__c s, RlyWorkTypes.Message m, RlyWorkTypes.Outcome o) {
         String issue = '/rest/api/2/issue/' + EncodingUtil.urlEncode(m.ticket, UTF8);
         check(send(withBody(request(s, 'POST', issue + '/comment'), new Map<String, Object>{ 'body' => m.text }, JSON_TYPE)), o, 'Comment added');
         if (!o.ok || String.isBlank(m.state)) {
@@ -38,11 +40,11 @@ public with sharing class RlyWorkCalls {
 
     /**
      * @description Azure Boards: the comment in System.History, and System.State when mapped.
-     * @param s the settings
+     * @param s the tracker
      * @param m the message
      * @param o the outcome to fill
      */
-    public static void azure(RLY_Work_Tracking__c s, RlyWorkTypes.Message m, RlyWorkTypes.Outcome o) {
+    public static void azure(RLY_Work_Tracker__c s, RlyWorkTypes.Message m, RlyWorkTypes.Outcome o) {
         String itemNo = m.ticket.replaceAll('[^0-9]', '');
         if (String.isBlank(itemNo)) {
             o.message = 'An Azure Boards work item is a number (for example 1234 or AB#1234).';
@@ -58,11 +60,11 @@ public with sharing class RlyWorkCalls {
 
     /**
      * @description ServiceNow: finds the record by number, then a work note (and the state when mapped).
-     * @param s the settings
+     * @param s the tracker
      * @param m the message
      * @param o the outcome to fill
      */
-    public static void serviceNow(RLY_Work_Tracking__c s, RlyWorkTypes.Message m, RlyWorkTypes.Outcome o) {
+    public static void serviceNow(RLY_Work_Tracker__c s, RlyWorkTypes.Message m, RlyWorkTypes.Outcome o) {
         String table = EncodingUtil.urlEncode(String.isBlank(s.ServiceNow_Table__c) ? 'change_request' : s.ServiceNow_Table__c.trim(), UTF8);
         Map<String, Object> rec = firstRecord(send(request(s, 'GET', '/api/now/table/' + table
             + '?sysparm_limit=1&sysparm_fields=sys_id&sysparm_query=number%3D' + EncodingUtil.urlEncode(m.ticket, UTF8))));
@@ -80,11 +82,11 @@ public with sharing class RlyWorkCalls {
 
     /**
      * @description Other: one JSON POST to the Named Credential's address.
-     * @param s the settings
+     * @param s the tracker
      * @param m the message
      * @param o the outcome to fill
      */
-    public static void webCall(RLY_Work_Tracking__c s, RlyWorkTypes.Message m, RlyWorkTypes.Outcome o) {
+    public static void webCall(RLY_Work_Tracker__c s, RlyWorkTypes.Message m, RlyWorkTypes.Outcome o) {
         Map<String, Object> body = new Map<String, Object>(m.data);
         body.putAll(new Map<String, Object>{ 'ticket' => m.ticket, 'moment' => m.moment, 'at' => System.now() });
         check(send(withBody(request(s, 'POST', ''), body, JSON_TYPE)), o, 'Sent to your tracker');
@@ -92,13 +94,42 @@ public with sharing class RlyWorkCalls {
 
     /**
      * @description A ServiceNow change request's number, approval, state and planned window.
-     * @param s the settings
+     * @param s the tracker
      * @param itemNo the change number
      * @return the record, or null when not found
      */
-    public static Map<String, Object> changeRecord(RLY_Work_Tracking__c s, String itemNo) {
+    public static Map<String, Object> changeRecord(RLY_Work_Tracker__c s, String itemNo) {
         return firstRecord(send(request(s, 'GET', '/api/now/table/change_request?sysparm_limit=1&sysparm_display_value=false'
             + '&sysparm_fields=number,approval,state,start_date,end_date&sysparm_query=number%3D' + EncodingUtil.urlEncode(itemNo, UTF8))));
+    }
+
+    /**
+     * @description Test: one read that needs the tracker's sign-in (who am I, the work item types, one row of the table).
+     * @param s the tracker
+     * @param o the outcome to fill
+     */
+    public static void ping(RLY_Work_Tracker__c s, RlyWorkTypes.Outcome o) {
+        if (s.Type__c == RlyWorkTracker.JIRA) {
+            HttpResponse res = send(request(s, 'GET', '/rest/api/2/myself'));
+            check(res, o, 'Signed in to Jira' + jiraUser(res) + '.');
+        } else if (s.Type__c == RlyWorkTracker.AZURE) {
+            check(send(request(s, 'GET', '/_apis/wit/workitemtypes?api-version=7.0')), o, 'Signed in to Azure Boards: work items can be read.');
+        } else {
+            String table = EncodingUtil.urlEncode(String.isBlank(s.ServiceNow_Table__c) ? 'change_request' : s.ServiceNow_Table__c.trim(), UTF8);
+            check(send(request(s, 'GET', '/api/now/table/' + table + '?sysparm_limit=1&sysparm_fields=sys_id')), o,
+                'Signed in to ServiceNow: ' + EncodingUtil.urlDecode(table, UTF8) + ' can be read.');
+        }
+    }
+
+    // " as <name>" from Jira's /myself, or empty.
+    private static String jiraUser(HttpResponse res) {
+        try {
+            Object body = JSON.deserializeUntyped(res.getBody());
+            Object found = body instanceof Map<String, Object> ? ((Map<String, Object>) body).get('displayName') : null;
+            return found == null ? '' : ' as ' + String.valueOf(found);
+        } catch (Exception e) {
+            return '';
+        }
     }
 
     private static String transitionId(HttpResponse res, String name) {
@@ -132,7 +163,7 @@ public with sharing class RlyWorkCalls {
         o.message = o.ok ? okText : ('The tracker answered ' + code + ': ' + String.valueOf(res.getBody()).left(180)).left(255);
     }
 
-    private static HttpRequest request(RLY_Work_Tracking__c s, String method, String path) {
+    private static HttpRequest request(RLY_Work_Tracker__c s, String method, String path) {
         HttpRequest req = new HttpRequest();
         req.setEndpoint('callout:' + s.Named_Credential__c.trim() + path);
         req.setMethod(method);

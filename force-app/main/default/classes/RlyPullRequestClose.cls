@@ -15,7 +15,7 @@ public with sharing class RlyPullRequestClose {
         List<String> problems = new List<String>();
         RlyGit git;
         try {
-            git = RlyGit.forConnection(RlyReleaseStore.gitFor(rel));
+            git = RlyGit.forConnection(RlyReleaseStore.git());
         } catch (Exception e) {
             problems.add('the pull request couldn\'t be closed: ' + e.getMessage());
             return problems;

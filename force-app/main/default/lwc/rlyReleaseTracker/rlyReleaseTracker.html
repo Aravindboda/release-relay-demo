@@ -77,7 +77,6 @@
                                         <template lwc:if={r.isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
                                         <template lwc:if={r.typeLabel}><span class="rr-pill rr-pill-run">{r.typeLabel}</span></template>
                                         <template lwc:if={r.manualOnly}><span class="rr-pill rr-pill-run">Manual steps only</span></template>
-                                        <template lwc:if={r.repo}><span class="rr-pill rr-pill-wait" title="Raised before the move: it lives in the old repository">{r.repo}</span></template>
                                         <span class="rr-no" title={r.name}><template for:each={r.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></span>
                                         <template lwc:if={r.deletesText}><span class="rr-pill rr-pill-bad">{r.deletesText}</span></template>
                                         <template lwc:if={r.manualText}><span class="rr-pill rr-pill-wait">{r.manualText}</span></template>

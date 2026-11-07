@@ -207,7 +207,6 @@
                             <template lwc:if={hotfixReason}>
                                 <dt>Why it's a hotfix</dt><dd class="rr-break">{hotfixReason}</dd>
                             </template>
-                            <dt>Work items</dt><dd><c-rly-release-tickets compact release-id={rel.Id} status={rel.Status__c} onchanged={refresh}></c-rly-release-tickets></dd>
                             <template lwc:if={hasCarried}>
                                 <dt>Carries</dt>
                                 <dd>
@@ -403,6 +402,9 @@
                         </section>
                     </div>
                 </template>
+
+                <!-- work items (build 47 board, 4): the tickets with their trackers, Add tickets until deployed -->
+                <c-rly-release-tickets release-id={rel.Id} status={rel.Status__c} onchanged={refresh}></c-rly-release-tickets>
 
                 <!-- manual steps (board HubManualSteps, 2): per org checklist for the deployment team -->
                 <c-rly-manual-steps release-id={releaseId} release-name={rel.Name} status={rel.Status__c} disabled={hubCopy} org-links={orgLinks} onstepschange={handleStepsChange}></c-rly-manual-steps>

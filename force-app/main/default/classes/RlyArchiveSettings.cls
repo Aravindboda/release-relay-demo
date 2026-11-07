@@ -113,7 +113,7 @@ public with sharing class RlyArchiveSettings {
             List<RLY_Git_Connection__c> rows = [SELECT Id, Retention_Days__c, Archive_Nightly__c, Retention_Changed_On__c,
                                                     Retention_Changed_By__c, Retention_Changed_By__r.Name, Retention_Previous_Days__c,
                                                     Last_Nightly_Call__c, Last_Nightly_Result__c
-                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC LIMIT 1];
+                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY CreatedDate ASC LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
         }
 

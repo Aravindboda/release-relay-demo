@@ -113,9 +113,6 @@
                                         <template lwc:if={filesNote}><p class="rr-small rr-weak">{filesNote}</p></template>
                                     </template>
                                 </template>
-                                <template lwc:if={hasGit}>
-                                    <template lwc:if={isAdmin}><p class="rr-small"><a class="rr-a" href="/lightning/n/RLY_Migration">Move to another provider…</a></p></template>
-                                </template>
                                 <template lwc:if={noGit}>
                                     <p class="rr-small rr-weak">No Git connection yet. Press Edit to choose the provider and repository.</p>
                                 </template>
