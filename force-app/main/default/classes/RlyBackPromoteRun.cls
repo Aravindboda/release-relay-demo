@@ -7,6 +7,8 @@ public with sharing class RlyBackPromoteRun {
 
     /** @description The pipeline mode (and Pending_Run__c) of a sync. */
     public static final String MODE = 'sync';
+    // A sync the org shows as Running: queued, waiting for the org's release window, or running.
+    private static final Set<String> RUNNING_STATES = new Set<String>{ RlyPromotion.QUEUED, 'Deploying', RlyWindowGate.WAITING };
 
     private static final Set<String> SUCCESS = new Set<String>{ 'Deployed', 'Nothing to deploy' };
 
@@ -17,7 +19,9 @@ public with sharing class RlyBackPromoteRun {
      * @param git the Git provider
      */
     public static void advanceSync(RLY_Release__c rel, RlyGit git) {
-        if (rel.Status__c == RlyPromotion.QUEUED) {
+        if (rel.Status__c == RlyWindowGate.WAITING) {
+            RlyWindowGate.resume(rel);
+        } else if (rel.Status__c == RlyPromotion.QUEUED) {
             startUnlessHeld(rel, git);
         } else {
             readSync(rel, git);
@@ -25,8 +29,9 @@ public with sharing class RlyBackPromoteRun {
     }
 
     // A queued sync waits while manual steps before deploy are still to do in its org (RlyManualStepGate).
+    // A queued sync also waits outside its org's release window (RlyWindowGate: Waiting for window).
     private static void startUnlessHeld(RLY_Release__c rel, RlyGit git) {
-        if (!RlyManualStepGate.blocks(rel)) {
+        if (!RlyManualStepGate.blocks(rel) && !RlyWindowGate.holds(rel)) {
             dispatch(rel, git);
         }
     }
@@ -130,7 +135,7 @@ public with sharing class RlyBackPromoteRun {
         if (rel.Target_Org__c == null) {
             return null;
         }
-        if (rel.Status__c == RlyPromotion.QUEUED || rel.Status__c == 'Deploying') {
+        if (RUNNING_STATES.contains(rel.Status__c)) {
             return new RLY_Org__c(Id = rel.Target_Org__c, Sync_Status__c = 'Running');
         }
         if (rel.Status__c == 'Deployed') {

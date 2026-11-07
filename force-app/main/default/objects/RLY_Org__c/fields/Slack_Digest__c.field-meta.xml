@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Slack_Digest__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>A daily digest in this org&apos;s Slack channel: deployed yesterday, waiting for approval, manual steps to do, failed.</description>
+    <label>Slack Daily Digest</label>
+    <type>Checkbox</type>
+</CustomField>

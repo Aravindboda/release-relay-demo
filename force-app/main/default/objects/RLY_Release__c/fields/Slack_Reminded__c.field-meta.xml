@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Slack_Reminded__c</fullName>
+    <description>Hub: when Release Relay last sent a Slack reminder for this release (one per reminder period).</description>
+    <label>Slack Reminded</label>
+    <required>false</required>
+    <type>DateTime</type>
+</CustomField>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Mask__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Mask personal data on the way (copy down: on by default).</description>
+    <externalId>false</externalId>
+    <label>Mask</label>
+    <type>Checkbox</type>
+</CustomField>

@@ -1,0 +1,31 @@
+<template>
+    <section class="rr-tk" aria-label="Work items">
+        <div class="rr-tk-head">
+            <template lwc:if={showHeading}><strong>Work items</strong></template>
+            <span class="rr-weak rr-small rr-grow">{trackerLabel}</span>
+            <template lwc:if={canEdit}><lightning-button label="Edit" variant="base" onclick={startEdit} disabled={busy}></lightning-button></template>
+        </div>
+        <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+        <template lwc:if={editing}>
+            <c-rly-ticket-input value={draft} onchange={handleDraft}></c-rly-ticket-input>
+            <div class="rr-tk-actions">
+                <lightning-button label="Cancel" onclick={cancelEdit} disabled={busy}></lightning-button>
+                <lightning-button label="Save" variant="brand" onclick={saveEdit} disabled={busy}></lightning-button>
+            </div>
+        </template>
+        <template lwc:elseif={hasTickets}>
+            <ul class="rr-tk-list">
+                <template for:each={rows} for:item="t">
+                    <li key={t.ticket} class="rr-tk-row">
+                        <template lwc:if={t.link}><a class="rr-a rr-strong" href={t.link} target="_blank" rel="noopener noreferrer">{t.ticket}</a></template>
+                        <template lwc:else><strong>{t.ticket}</strong></template>
+                        <span class="rr-small rr-weak rr-grow">{t.detail}</span>
+                        <span class={t.pillCls}>{t.statusText}</span>
+                        <template lwc:if={t.failed}><lightning-button label="Try again" onclick={sync} disabled={busy}></lightning-button></template>
+                    </li>
+                </template>
+            </ul>
+        </template>
+        <template lwc:if={showEmpty}><p class="rr-small rr-weak">No tickets on this release.</p></template>
+    </section>
+</template>

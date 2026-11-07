@@ -1511,6 +1511,9 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
 
     handleTitle(event) { this.title = event.target.value; }
     handleDescription(event) { this.description = event.target.value; }
+    /** The release's tickets (build 40, Work items). */
+    workItems = [];
+    handleWorkItems(event) { this.workItems = event.detail.value; }
 
     get testRunText() {
         if (this.manualOnly) {
@@ -1830,7 +1833,8 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
                 isHotfix: this.isHotfix,
                 hotfixReason: this.isHotfix ? this.hotfixReason.trim() : null,
                 manualSteps: this.manualSteps,
-                flowChoices: only ? [] : this.flowChoices
+                flowChoices: only ? [] : this.flowChoices,
+                workItems: this.workItems
             };
             this.raisedId = await raiseRelease({ requestJson: JSON.stringify(request) });
             this.step = 'raise';

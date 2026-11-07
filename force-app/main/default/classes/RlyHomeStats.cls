@@ -21,7 +21,7 @@ public with sharing class RlyHomeStats {
     private static final Long DAY_MS = 86400000L;
     /** @description Statuses of a release that is running (as the Releases tab polls them). */
     private static final Set<String> RUNNING_STATUSES = new Set<String>{ 'Submitted', 'Retrieving', 'Workflow running',
-        'Validating', 'Deploying' };
+        'Validating', 'Deploying', RlyWindowGate.WAITING };
 
     /** @description The KPI tiles. */
     public class Kpis {
