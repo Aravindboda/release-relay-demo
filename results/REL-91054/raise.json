@@ -1,19 +1,19 @@
 {
  "request": "REL-91054",
  "step": "raise",
- "status": "Failed",
+ "status": "Opened",
  "mode": "hub",
  "branch": "feature/rly-b47-check",
  "target": "rly-sit-install",
- "sha": null,
- "pr": null,
- "url": null,
+ "sha": "2412ff5d15e49ec4e03ef50f3c9850ef9266d4bd",
+ "pr": 213,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/213",
  "commits": [],
  "conflicts": [],
  "deleted": [],
  "valuesTokenized": 0,
  "appended": false,
- "message": ".relay-inbox/REL-91054.zip isn't on feature/rly-b47-check (nor a .relay-inbox/REL-91054.deletions listing deletions). Raise the release again from Release Relay.",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42417901731",
- "finishedAt": "2026-11-07T21:52:26.985Z"
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42418070276",
+ "finishedAt": "2026-11-07T21:54:48.051Z"
 }
