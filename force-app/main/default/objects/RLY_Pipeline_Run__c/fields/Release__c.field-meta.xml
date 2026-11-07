@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Release__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>The release the run belongs to, found from Request Id (the release number). Blank for the nightly archive or when the release has been archived.</description>
+    <label>Release</label>
+    <referenceTo>RLY_Release__c</referenceTo>
+    <relationshipLabel>Pipeline Runs</relationshipLabel>
+    <relationshipName>Pipeline_Runs</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

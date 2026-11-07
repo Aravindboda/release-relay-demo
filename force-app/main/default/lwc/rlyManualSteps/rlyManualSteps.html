@@ -143,6 +143,10 @@
                                 </div>
                                 <lightning-textarea label="Instructions" value={form.instructions} max-length="32768" data-field="instructions" onchange={handleText}
                                     placeholder="What exactly to do, for example: Profile Sales User: Account.Region__c read/edit"></lightning-textarea>
+                                <template lwc:if={showFormFiles}>
+                                    <c-rly-step-files label="" files={formFileRows} record-id={formFileRecordId} can-attach={formCanAttach} disabled={busy}
+                                        upload-label="Attach files" onuploaded={handleFormFiles} onremove={handleFormFileRemove}></c-rly-step-files>
+                                </template>
                                 <lightning-input type="toggle" label="Also in back promote orgs" checked={form.backPromote} data-field="backPromote" onchange={handleField}
                                     message-toggle-active="" message-toggle-inactive=""></lightning-input>
                                 <lightning-radio-group type="button" label="Orgs" value={form.scopeMode} options={scopeOptions} data-field="scopeMode" onchange={handleField}></lightning-radio-group>

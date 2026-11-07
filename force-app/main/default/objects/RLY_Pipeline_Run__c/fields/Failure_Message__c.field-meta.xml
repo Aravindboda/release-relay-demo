@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Failure_Message__c</fullName>
+    <description>Why the run failed: the failed job and step and the error the pipeline logged, when it could collect them.</description>
+    <label>Failure Message</label>
+    <length>32768</length>
+    <required>false</required>
+    <type>LongTextArea</type>
+    <visibleLines>5</visibleLines>
+</CustomField>

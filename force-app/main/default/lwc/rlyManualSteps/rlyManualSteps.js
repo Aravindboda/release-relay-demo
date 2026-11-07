@@ -75,7 +75,7 @@ function whereText(step) {
 }
 
 function blankForm() {
-    return { id: null, key: null, title: '', category: 'Permissions', timing: 'After_Deploy', instructions: '', backPromote: true, scopeMode: 'all', scopeOrgs: [] };
+    return { id: null, key: null, title: '', category: 'Permissions', timing: 'After_Deploy', instructions: '', backPromote: true, scopeMode: 'all', scopeOrgs: [], files: [] };
 }
 
 function fileIds(list) {
@@ -93,6 +93,9 @@ function fileIds(list) {
  * Files (board HubStepFiles, build 34, c-rly-step-files): each step's files (the raiser or an admin, until approval; then
  * locked) and each run's proof (the deployment team). On New Release a step has no Id yet, so its files upload to the
  * raiser's own user record and travel as StepInput.files; Raise links them to the saved steps.
+ * Build 35: on New Release the Add a manual step and Edit step forms hold the Attach files upload themselves; the files
+ * belong to the step when it is added or saved, and Cancel deletes the files uploaded in that form (removeDraftFile).
+ * The step rows list their files (Remove ×) without a second upload.
  */
 export default class RlyManualSteps extends LightningElement {
     @api draft = false;
@@ -141,6 +144,8 @@ export default class RlyManualSteps extends LightningElement {
     _emitted;
     /** Bumped when draft file details arrive, so the draft steps re-render with them. */
     draftFilesSeen = 0;
+    /** New Release: files uploaded while the open form was open (Cancel deletes them). */
+    formUploads = [];
 
     @api
     get releaseId() {
@@ -551,8 +556,8 @@ export default class RlyManualSteps extends LightningElement {
 
     get showDraftFilesNote() { return this.draft && this.drafts.length > 0; }
     get draftFilesNote() {
-        return 'Files upload straight to Salesforce Files when you drop them. Before the release is raised they wait on your draft; '
-            + 'Raise pull request links them to the saved steps. Remove × deletes the file (the raiser or an admin, until the release is approved).';
+        return 'Attach files in the Add or Edit step form: they upload straight to Salesforce Files and belong to the step once you add or save it '
+            + '(Cancel deletes them). Raise pull request links them to the saved steps. Remove × deletes the file (the raiser or an admin, until the release is approved).';
     }
 
     // ---------- the steps themselves (add, edit, reorder) ----------
@@ -600,9 +605,10 @@ export default class RlyManualSteps extends LightningElement {
         // draftFilesSeen is read here so the rows re-render when draft file details arrive
         if (this.draft && this.draftFilesSeen >= 0) {
             const rows = fileIds(s.files).map((id) => DRAFT_FILES.get(id) || { documentId: id, title: 'Reading…', canRemove: true });
+            // Files are attached in the Add / Edit step form; the row lists them (Remove ×) with no second upload.
             return {
-                showFiles: true, filesLabel: 'Attach files', fileRows: rows, fileRecordId: USER_ID,
-                fileCanAttach: !this.disabled, fileLocked: false, fileLockText: ''
+                showFiles: rows.length > 0, filesLabel: 'Step files', fileRows: rows, fileRecordId: USER_ID,
+                fileCanAttach: false, fileLocked: false, fileLockText: ''
             };
         }
         const rows = Array.isArray(s.files) ? s.files : [];
@@ -632,6 +638,7 @@ export default class RlyManualSteps extends LightningElement {
     }
 
     openForm() {
+        this.dropFormUploads();
         this.form = blankForm();
         this.formError = undefined;
         this.formOpen = true;
@@ -653,16 +660,85 @@ export default class RlyManualSteps extends LightningElement {
             instructions: s.instructions || '',
             backPromote: s.backPromote !== false,
             scopeMode: names.length ? 'pick' : 'all',
-            scopeOrgs: names
+            scopeOrgs: names,
+            files: this.draft ? fileIds(s.files) : []
         };
+        this.dropFormUploads();
         this.formError = undefined;
         this.formOpen = true;
         this.loadRoute();
     }
 
     cancelForm() {
+        this.dropFormUploads();
         this.formOpen = false;
         this.formError = undefined;
+    }
+
+    // ---------- New Release: Attach files inside the Add / Edit step form ----------
+
+    /** The form's upload shows on New Release only (a saved release attaches files on the step itself). */
+    get showFormFiles() { return this.draft; }
+    get formCanAttach() { return !this.disabled; }
+    get formFileRecordId() { return USER_ID; }
+    /** The form's files with their details (read by loadDraftFiles); draftFilesSeen re-renders them when details arrive. */
+    get formFileRows() {
+        const seen = this.draftFilesSeen;
+        return seen >= 0 ? fileIds(this.form.files).map((id) => DRAFT_FILES.get(id) || { documentId: id, title: 'Reading…', canRemove: true }) : [];
+    }
+
+    /** Files dropped in the form: they belong to the step once it is added or saved. */
+    handleFormFiles(event) {
+        const ids = ((event.detail && event.detail.files) || []).map((f) => f.documentId).filter((id) => id);
+        this.form = { ...this.form, files: [...new Set([...fileIds(this.form.files), ...ids])] };
+        this.formUploads = [...new Set([...this.formUploads, ...ids])];
+        return this.loadFiles(ids);
+    }
+
+    /** Remove × in the form deletes the file (as on a step row), and takes it off the step being edited too. */
+    async handleFormFileRemove(event) {
+        const id = event.detail && event.detail.documentId;
+        if (!id) {
+            return;
+        }
+        this.busy = true;
+        try {
+            await removeDraftFile({ contentDocumentId: id });
+            DRAFT_FILES.delete(id);
+            this.form = { ...this.form, files: fileIds(this.form.files).filter((x) => x !== id) };
+            this.formUploads = this.formUploads.filter((x) => x !== id);
+            if (this.form.key && this.drafts.some((s) => s.key === this.form.key && fileIds(s.files).includes(id))) {
+                this.drafts = this.drafts.map((s) => (s.key === this.form.key ? { ...s, files: fileIds(s.files).filter((x) => x !== id) } : s));
+                this.emitDrafts();
+            }
+            this.formError = undefined;
+        } catch (e) {
+            this.formError = errorText(e);
+        } finally {
+            this.busy = false;
+        }
+    }
+
+    /** Cancel (or a new form): deletes the files uploaded in the form that wasn't added or saved. */
+    dropFormUploads() {
+        const ids = this.formUploads;
+        this.formUploads = [];
+        this.dropDraftFiles({ files: ids });
+    }
+
+    /** Reads the details of files just uploaded (name, size, who). */
+    async loadFiles(ids) {
+        const missing = fileIds(ids).filter((id) => !DRAFT_FILES.has(id));
+        if (!missing.length) {
+            return;
+        }
+        try {
+            const rows = await draftFiles({ contentDocumentIds: missing });
+            (rows || []).forEach((f) => DRAFT_FILES.set(f.documentId, f));
+            this.draftFilesSeen++;
+        } catch (e) {
+            this.formError = errorText(e);
+        }
     }
 
     handleField(event) {
@@ -710,11 +786,14 @@ export default class RlyManualSteps extends LightningElement {
         }
         const own = this.ownSteps;
         if (this.draft) {
+            const files = fileIds(this.form.files);
             if (this.form.key) {
-                this.drafts = this.drafts.map((s) => (s.key === this.form.key ? { ...this.formInput(s.sequence), key: s.key, files: fileIds(s.files) } : s));
+                this.drafts = this.drafts.map((s) => (s.key === this.form.key ? { ...this.formInput(s.sequence), key: s.key, files } : s));
             } else {
-                this.drafts = [...this.drafts, { ...this.formInput(own.length + 1), key: 'd' + this.nextKey++, files: [] }];
+                this.drafts = [...this.drafts, { ...this.formInput(own.length + 1), key: 'd' + this.nextKey++, files }];
             }
+            // The form's files now belong to the step: Cancel no longer deletes them.
+            this.formUploads = [];
             this.formOpen = false;
             this.emitDrafts();
             return;

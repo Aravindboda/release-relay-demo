@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Run_Id__c</fullName>
+    <caseSensitive>false</caseSensitive>
+    <description>The GitHub Actions run id and run attempt, for example 12345678-1. The pipeline posts each run under this key, so a second post updates the same row.</description>
+    <externalId>true</externalId>
+    <label>Run Id</label>
+    <length>64</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>true</unique>
+</CustomField>

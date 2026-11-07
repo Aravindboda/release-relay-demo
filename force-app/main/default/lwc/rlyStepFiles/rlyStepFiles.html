@@ -1,12 +1,14 @@
 <template>
     <!-- board HubStepFiles 1-4: step files and proof per org; 6: narrow (icon buttons, no who column) -->
     <div class={wrapCls} role="group" aria-label={groupLabel}>
+        <template lwc:if={showHead}>
         <div class="rr-sf-hd">
-            <span class="rr-sf-label">{label}</span>
+            <template lwc:if={label}><span class="rr-sf-label">{label}</span></template>
             <template lwc:if={showCount}><span class="rr-pill rr-pill-none">{count}</span></template>
             <template lwc:if={locked}><span class="rr-pill rr-pill-lock" title={lockText} tabindex="0" aria-label={lockAria}>🔒 Locked: approved files</span></template>
             <template lwc:if={showEmpty}><span class="rr-hint">{emptyText}</span></template>
         </div>
+        </template>
         <template lwc:if={hasFiles}>
             <ul class="rr-sf-list">
                 <template for:each={rows} for:item="f">

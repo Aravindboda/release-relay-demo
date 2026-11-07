@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Request_Id__c</fullName>
+    <description>The release number the run was started for, for example REL-00031 (the pipeline&apos;s request_id input). Blank for the nightly archive.</description>
+    <externalId>false</externalId>
+    <label>Request Id</label>
+    <length>40</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

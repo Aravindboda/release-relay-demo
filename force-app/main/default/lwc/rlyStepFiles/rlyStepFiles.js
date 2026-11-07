@@ -19,7 +19,7 @@ export default class RlyStepFiles extends NavigationMixin(LightningElement) {
     @api recordId;
     /** Uploads (and the drop zone) are shown. */
     @api canAttach = false;
-    /** "Step files", "Proof in SIT", "Attach files". */
+    /** "Step files", "Proof in SIT"; empty for no heading (the upload's own label is then the only one). */
     @api label = 'Step files';
     /** The upload's own label. */
     @api uploadLabel = 'Upload files';
@@ -61,7 +61,9 @@ export default class RlyStepFiles extends NavigationMixin(LightningElement) {
     get showUpload() { return !!this.canAttach && !!this.recordId && !this.locked; }
     get uploadHint() { return 'Any type · Salesforce file size limit'; }
     get wrapCls() { return 'rr-sf' + (this.compact ? ' rr-sf-compact' : ''); }
-    get groupLabel() { return this.label; }
+    get groupLabel() { return this.label || this.uploadLabel; }
+    /** The heading row: hidden when it would be empty (no label, as inside the Add step form, and nothing else to say). */
+    get showHead() { return !!this.label || this.showCount || !!this.locked || this.showEmpty; }
     get lockAria() { return 'Locked: approved files. ' + (this.lockText || ''); }
 
     fileOf(id) {
