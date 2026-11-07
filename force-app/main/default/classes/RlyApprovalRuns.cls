@@ -29,6 +29,9 @@ public with sharing class RlyApprovalRuns {
             RlyManualOnly.startDeploy(rel); // nothing to merge: Deploying until its manual steps are done
             return;
         }
+        if (RlyWindowGate.holds(rel)) {
+            return; // outside the target's release window or in a freeze: Waiting for window (build 39)
+        }
         if (RlyPromotion.typeOf(rel) == RlyPromotion.TYPE_BACK_PROMOTE) {
             RlyBackPromoteRun.dispatch(rel, git);
         } else {
@@ -121,6 +124,18 @@ public with sharing class RlyApprovalRuns {
      * @param rel the release
      */
     public static void startAfterSteps(RLY_Release__c rel) {
+        startApproved(rel, 'The manual steps are done, but the deploy couldn\'t start: ');
+    }
+
+    /**
+     * @description Starts the deploy of a release that is approved and was waiting (for manual steps before deploy, or
+     * for its target's release window): the merge (or the queued sync run, or a release of only manual steps its manual
+     * steps), or the checks again when the target moved since they passed (the approval is then cleared). A failure to
+     * start is kept on the release with the prefix.
+     * @param rel the release
+     * @param failurePrefix the start of the message when the deploy couldn't start
+     */
+    public static void startApproved(RLY_Release__c rel, String failurePrefix) {
         try {
             RLY_Git_Connection__c conn = RlyReleaseStore.git();
             RlyGit git = RlyGit.forConnection(conn);
@@ -137,7 +152,7 @@ public with sharing class RlyApprovalRuns {
                 dispatchMerge(rel, git);
             }
         } catch (Exception e) {
-            rel.Error_Message__c = ('The manual steps are done, but the deploy couldn\'t start: ' + e.getMessage()).left(2000);
+            rel.Error_Message__c = (failurePrefix + e.getMessage()).left(2000);
         }
     }
 }

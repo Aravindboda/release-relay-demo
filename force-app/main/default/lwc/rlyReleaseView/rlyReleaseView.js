@@ -109,7 +109,9 @@ const EVENT_LOOK = {
     File_Attached: { title: 'Attached', icon: 'utility:attach' },
     File_Removed: { title: 'Removed', icon: 'utility:delete' },
     Proof_Added: { title: 'Proof added', icon: 'utility:upload' },
-    File_Downloaded: { title: 'Downloaded', icon: 'utility:download' }
+    File_Downloaded: { title: 'Downloaded', icon: 'utility:download' },
+    Window_Held: { title: 'Waiting for the window', icon: 'utility:clock' },
+    Window_Override: { title: 'Deployed outside the window', icon: 'utility:warning' }
 };
 /** File events on manual steps (build 34): the History card's Files chip shows only these. */
 const FILE_EVENTS = ['File_Attached', 'File_Removed', 'Proof_Added', 'File_Downloaded'];
@@ -118,12 +120,13 @@ const EVENT_TONE = {
     Deployed: 'ok', Approved: 'ok', Auto_Approved: 'ok', Manual_Step: 'ok', Merged_Back: 'ok', Back_Promoted: 'ok',
     Scan: 'ok', Validation: 'ok', Flow_Activated: 'ok', Proof_Added: 'ok',
     Rejected: 'bad', Deploy_Failed: 'bad', Rollback_Failed: 'bad',
-    Rolled_Back: 'wait'
+    Rolled_Back: 'wait', Window_Held: 'wait', Window_Override: 'wait'
 };
 /** Types whose title names the org: "Deployed to <org>", "Approved for <org>"… */
 const EVENT_ORG_WORD = {
     Approved: ' for ', Rejected: ' for ', Deployed: ' to ', Deploy_Failed: ' in ', Validation: ' in ', Manual_Step: ' in ',
-    Flow_Activated: ' in ', Auto_Approved: ' for ', Rolled_Back: ' in ', Rollback_Failed: ' in ', Proof_Added: ' in ', File_Downloaded: ' in '
+    Flow_Activated: ' in ', Auto_Approved: ' for ', Rolled_Back: ' in ', Rollback_Failed: ' in ', Proof_Added: ' in ', File_Downloaded: ' in ',
+    Window_Held: ' for ', Window_Override: ' to '
 };
 /** RLY_Release__c.Rollback_Status__c (RlyRollbackState): the header pill's tone per rollback state (board HubRollbackValuesGates 2). */
 const ROLLBACK_PILL = { Running: 'rr-pill rr-pill-info', Rolled_Back: 'rr-pill rr-pill-wait', Failed: 'rr-pill rr-pill-bad' };
@@ -752,6 +755,13 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     valuesText(result) {
         const n = result && result.values ? Number(result.values.replaced) || 0 : 0;
         return n ? ' · ' + n + (n === 1 ? ' per-org value' : ' per-org values') + ' filled in' : '';
+    }
+
+    /** Approved, waiting for the target's release window (build 39): admins get Deploy now anyway. */
+    get waitsForWindow() { return !!this.rel && this.rel.Status__c === 'Waiting for window'; }
+
+    handleWindowDeployed() {
+        this.load();
     }
 
     approvalStep() {

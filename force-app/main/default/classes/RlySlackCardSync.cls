@@ -4,7 +4,8 @@
  * notifyChange with the release as it was and as it is now, after its own callouts and before its save (a callout can't
  * follow DML in the same transaction); RlySlack.saveResults() then saves the Slack result. A change that is a selected
  * event posts or edits the card and sends the event's messages (RlySlack.deliverEvent); any other change the card shows
- * (RlySlackCardState) edits the card alone, whatever events are selected. Slack off, or no card yet: nothing is called.
+ * (RlySlackCardState) edits the card alone, whatever events are selected. A hotfix being raised also posts its alert in
+ * the target org's channel (RlySlackAlert, build 41). Slack off, or no card yet: nothing is called.
  */
 public with sharing class RlySlackCardSync {
 
@@ -24,6 +25,7 @@ public with sharing class RlySlackCardSync {
                 return;
             }
             String event = RlySlack.eventFor(prior.Status__c, rel.Status__c);
+            RlySlackAlert.hotfix(s, rel, event); // a hotfix being raised alerts its target org, whatever events are selected
             if (event != null && RlySlack.wanted(s, event)) {
                 RlySlack.deliverEvent(s, rel, event);
             } else if (RlySlackCardState.changed(prior, rel)) {

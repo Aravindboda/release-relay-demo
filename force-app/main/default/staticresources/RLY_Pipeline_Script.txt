@@ -1,5 +1,13 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 23
+// Release Relay pipeline files: version 24
+// Version 24 (the hub's data sets, request ids DAT-<13 digits>): MODE=data moves records between orgs.
+//   STEP=data-export (ENVIRONMENT, the source's environment) queries each object of options.dataSet and saves the
+//     records on release-relay-results at data-inbox/<id>/<ii>-<ppp>.json (a developer org's are sent there by the hub).
+//   STEP=data-load (TARGET_ENVIRONMENT) masks (options.mask) and swaps per-org values, matches every record with the
+//     target by its match key and counts insert / update / unchanged (options.dryRun), or loads parents then children
+//     with the data set's trigger bypass on. A key matching two or more target records, a record without a key or a
+//     missing parent blocks it. results/<id>/data.json; data runs older than 3 days are pruned.
+// Also in version 24: Slack reminders run in the workflow's slack-due job, which calls the hub directly (no script change).
 // Version 23 (the hub's Sync status tab, request ids SYN-<13 digits>):
 //   MODE=drift (STEP=drift): signs in to an org (ENVIRONMENT, the org's own GitHub environment), builds a manifest of
 //     everything in it (sf project generate manifest --from-org: managed packages left out; plus the hub's skipped
@@ -439,6 +447,14 @@ function runUrl() {
 }
 
 function checkCommonInputs() {
+    if (mode === 'data') {
+        // Data sets (version 24): id DAT-<13 digits>; the load needs TARGET_ENVIRONMENT.
+        if (!DATA_ID_RE.test(requestId)) { fail('REQUEST_ID must look like DAT-1762400000000 for data.'); }
+        if (!/^[A-Za-z0-9._-]{1,80}$/.test(targetEnv)) { fail('TARGET_ENVIRONMENT (the org to load) must be an environment name.'); }
+        if (sourceEnv && !/^[A-Za-z0-9._-]{1,80}$/.test(sourceEnv)) { fail('ENVIRONMENT (the org to read) must be an environment name.'); }
+        if (!['github', 'gitlab', 'bitbucket', 'azure'].includes(PROVIDER)) { fail('RELAY_PROVIDER must be github, gitlab, bitbucket or azure.'); }
+        return;
+    }
     if (mode === 'drift' || mode === 'routediff') {
         // Sync status (version 23): id SYN-<13 digits>; drift reads TARGET, routediff the branches in options.route.
         if (!SYNC_ID_RE.test(requestId)) { fail(`REQUEST_ID must look like SYN-1762400000000 for ${mode}.`); }
@@ -4555,16 +4571,621 @@ async function stepRouteDiff() {
     summary('**Down the route:** ' + pairs.map((p) => `${p.higher} → ${p.lower}: ${p.count}`).join(' · ') + `; ${files.length} file(s) for the hub.`);
 }
 
+// ---------- version 24: data sets (MODE=data, request ids DAT-<13 digits>) ----------
+//
+// The hub's Sync status tab, Data. A data set is options.dataSet: { title, objects: [{ objectName, fields, filter,
+// matchKey, parents: { field: parentObject }, masks: { field: rule } }], bypass: { kind, name, field } } (checked again
+// here). STEP=data-export (the source's environment) queries each object and saves the records to the results branch as
+// data-inbox/<id>/<ii>-<ppp>.json; a developer org's records are sent there by the hub instead (no export job).
+// STEP=data-load (the target's environment) reads them, masks (options.mask) and swaps per-org values (the source's
+// value of a name becomes the target's), matches each record with the target by its match key (a parent lookup in a
+// key stands for the parent's own key, so a child a trigger created is matched, not duplicated), and:
+//   options.dryRun = true   counts insert / update / unchanged per object, duplicate keys and records without a key
+//   options.dryRun = false  loads parents first, then children (Bulk API: import for new records, update for changed
+//                           ones), with the data set's trigger bypass switched on for this user and back after
+// A key that matches two or more target records, or a record without a key, blocks the run (nothing is loaded).
+// results/<id>/data.json: { status, dryRun, blocked, message, objects: [{ objectName, insert, update, unchanged, failed,
+// duplicates, missingKeys, triggers, errors }], counts }.
+
+const DATA_ID_RE = /^DAT-(\d{13})$/;
+const DATA_INBOX = 'data-inbox';
+const DATA_MAX_RECORDS = 10000;
+const DATA_MAX_TARGET = 50000;
+const DATA_PAGE = 2000;
+const DATA_NAME_RE = /^[A-Za-z][A-Za-z0-9_]{0,79}$/;
+const DATA_MASK_RULES = ['email', 'phone', 'name', 'blank'];
+let dataLabelSource = false;
+
+/** The org a data step talks about: the source (options.sourceLabel) in the export, else the target (options.label). */
+function dataOrgLabel() {
+    const label = String(options.sourceLabel || '');
+    return dataLabelSource && /^[A-Za-z0-9 ._-]{1,40}$/.test(label) ? label : orgLabel();
+}
+
+/** The data set from the options, checked like the hub checks it; fails the run when it isn't usable. */
+function dataSetOf() {
+    const d = options.dataSet;
+    const bad = (why) => { throw new Error(`The data set isn't usable: ${why}`); };
+    if (!d || !Array.isArray(d.objects) || !d.objects.length || d.objects.length > 20) { bad('it needs 1 to 20 objects.'); }
+    const seen = new Set();
+    const objects = d.objects.map((o) => {
+        const name = String((o && o.objectName) || '');
+        if (!DATA_NAME_RE.test(name) || seen.has(name.toLowerCase())) { bad(`"${name}" isn't an object API name, or is there twice.`); }
+        const fields = (Array.isArray(o.fields) ? o.fields : []).map(String);
+        const key = (Array.isArray(o.matchKey) ? o.matchKey : []).map(String);
+        const lower = new Set(fields.map((f) => f.toLowerCase()));
+        if (!fields.length || fields.some((f) => !DATA_NAME_RE.test(f))) { bad(`${name} needs field API names.`); }
+        if (!key.length || key.some((k) => !lower.has(k.toLowerCase()))) { bad(`${name} needs a match key made of its fields.`); }
+        const filter = String(o.filter || '').replace(/\s+/g, ' ').trim();
+        if (filter.length > 2000 || filter.includes(';') || /\s(limit|order\s+by)\s/i.test(' ' + filter + ' ')) { bad(`${name}'s record filter must be one condition.`); }
+        const parents = o.parents && typeof o.parents === 'object' ? o.parents : {};
+        for (const [f, p] of Object.entries(parents)) {
+            if (!lower.has(String(f).toLowerCase()) || !seen.has(String(p).toLowerCase())) { bad(`${name}.${f} must point at an earlier object.`); }
+        }
+        const masks = o.masks && typeof o.masks === 'object' ? o.masks : {};
+        for (const [f, r] of Object.entries(masks)) {
+            const rule = String(r);
+            if (!lower.has(String(f).toLowerCase()) || !(DATA_MASK_RULES.includes(rule) || rule.startsWith('fixed:'))) { bad(`${name}: mask ${f} isn't valid.`); }
+        }
+        seen.add(name.toLowerCase());
+        return { objectName: name, fields, matchKey: key, filter, parents, masks };
+    });
+    const b = d.bypass && typeof d.bypass === 'object' && d.bypass.kind ? d.bypass : null;
+    if (b && (!['setting', 'permissionSet'].includes(b.kind) || !DATA_NAME_RE.test(String(b.name || '')) || (b.kind === 'setting' && !DATA_NAME_RE.test(String(b.field || ''))))) {
+        bad('the trigger bypass needs a kind and API names.');
+    }
+    return { title: String(d.title || 'Data set').slice(0, 80), objects, bypass: b };
+}
+
+/** One object's export query (Id and its fields). */
+function dataQuery(o, withFilter = true) {
+    const fields = new Map([['id', 'Id']]);
+    o.fields.forEach((f) => fields.set(f.toLowerCase(), f));
+    return `SELECT ${[...fields.values()].join(', ')} FROM ${o.objectName}` + (withFilter && o.filter ? ` WHERE ${o.filter}` : '');
+}
+
+/** sf with --json: the result, or an error with the CLI's own message. */
+function sfJson(args) {
+    let out;
+    try {
+        out = execFileSync('sf', [...args, '--json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 512 * 1024 * 1024 });
+    } catch (e) {
+        out = e.stdout ? String(e.stdout) : '';
+        let parsed = null;
+        try {
+            parsed = JSON.parse(out);
+        } catch (x) {
+            parsed = null;
+        }
+        throw new Error((parsed && (parsed.message || parsed.name)) || String(e.stderr || e.message).trim().slice(0, 500));
+    }
+    const parsed = JSON.parse(out);
+    return parsed.result === undefined ? parsed : parsed.result;
+}
+
+/** A query's records (without "attributes"); fails when the CLI returned fewer than the query found. */
+function sfRecords(alias, soql, tooling = false) {
+    const res = sfJson(['data', 'query', '--query', soql, '--target-org', alias, ...(tooling ? ['--use-tooling-api'] : [])]);
+    const records = res.records || [];
+    if (typeof res.totalSize === 'number' && res.totalSize > records.length) {
+        throw new Error(`the query found ${res.totalSize} records but only ${records.length} came back.`);
+    }
+    return records.map((r) => {
+        const copy = { ...r };
+        delete copy.attributes;
+        return copy;
+    });
+}
+
+/** Writes data.json (and adds or removes inbox files) on the results branch in one commit, retried like the others. */
+function saveDataFiles(files, removals, message) {
+    if (env.RELAY_LOCAL_RESULTS === 'true') {
+        return;
+    }
+    for (let attempt = 1; attempt <= 4; attempt++) {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-data-'));
+        try {
+            if (remoteBranchExists(RESULTS_BRANCH)) {
+                fetchBranch(RESULTS_BRANCH);
+                git(['worktree', 'add', '-q', '--detach', dir, `refs/remotes/origin/${RESULTS_BRANCH}`]);
+            } else {
+                git(['worktree', 'add', '-q', '--detach', dir]);
+                git(['checkout', '-q', '--orphan', 'relay-results-' + Date.now()], { cwd: dir });
+                gitQuietIn(dir, ['rm', '-rf', '-q', '--cached', '.']);
+                for (const entry of fs.readdirSync(dir)) {
+                    if (entry !== '.git') {
+                        fs.rmSync(path.join(dir, entry), { recursive: true, force: true });
+                    }
+                }
+            }
+            for (const [rel, text] of Object.entries(files)) {
+                fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+                fs.writeFileSync(path.join(dir, rel), text);
+                git(['add', '--', rel], { cwd: dir });
+            }
+            const stale = staleData(dir);
+            if (removals.length || stale.length) {
+                gitQuietIn(dir, ['rm', '-r', '-q', '--ignore-unmatch', '--', ...removals, ...stale]);
+            }
+            git(['-c', 'user.name=Release Relay', '-c', 'user.email=release-relay@users.noreply.local',
+                'commit', '-q', '--allow-empty', '-m', message], { cwd: dir });
+            git(['push', '-q', 'origin', `HEAD:refs/heads/${RESULTS_BRANCH}`], { cwd: dir });
+            return;
+        } catch (e) {
+            console.log(`Saving the data run's files failed (attempt ${attempt}); retrying.`);
+        } finally {
+            gitQuiet(['worktree', 'remove', '--force', dir]);
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    }
+    fail(`Couldn't save the data run's files to the ${RESULTS_BRANCH} branch.`);
+}
+
+/** Data runs older than the compare keep days (results and inbox folders), never this run's. */
+function staleData(dir) {
+    const cutoff = Date.now() - COMPARE_KEEP_DAYS * 24 * 3600 * 1000;
+    const stale = [];
+    for (const parent of ['results', DATA_INBOX]) {
+        const full = path.join(dir, parent);
+        if (!fs.existsSync(full)) {
+            continue;
+        }
+        for (const name of fs.readdirSync(full)) {
+            const m = DATA_ID_RE.exec(name);
+            if (m && name !== requestId && Number(m[1]) < cutoff) {
+                stale.push(`${parent}/${name}`);
+            }
+        }
+    }
+    return stale;
+}
+
+/** Saves data.json (and, after a load or a failed export, removes this run's records). */
+function saveDataResult(data, removeInbox) {
+    const result = { request: requestId, step: 'data', ...data, runUrl: runUrl(), finishedAt: new Date().toISOString() };
+    if (runToken) {
+        result.attempt = runToken;
+    }
+    summary('```json\n' + JSON.stringify(result, null, 1).slice(0, 3000) + '\n```');
+    saveDataFiles({ [`results/${requestId}/data.json`]: JSON.stringify(result, null, 1) + '\n' },
+        removeInbox ? [`${DATA_INBOX}/${requestId}`] : [], `${requestId} data: ${result.status}`);
+}
+
+function dataFailed(message, objects = []) {
+    saveDataResult({ status: 'Failed', dryRun: options.dryRun !== false, blocked: false, message: String(message).slice(0, 1500), objects }, options.dryRun === false);
+    fail(message);
+}
+
+/** STEP=data-export: the source's records to data-inbox/<id>/. */
+async function stepDataExport() {
+    orgEnv = sourceEnv;
+    dataLabelSource = true;
+    if (mode !== 'data') { fail('STEP=data-export needs MODE=data.'); }
+    let set;
+    try {
+        set = dataSetOf();
+        login('data-src');
+    } catch (e) {
+        dataFailed(e.message);
+    }
+    const files = {};
+    let total = 0;
+    set.objects.forEach((o, i) => {
+        let records;
+        try {
+            records = sfRecords('data-src', dataQuery(o));
+        } catch (e) {
+            dataFailed(`Reading ${o.objectName} in ${dataOrgLabel()} failed: ${e.message}`);
+        }
+        if (records.length > DATA_MAX_RECORDS) {
+            dataFailed(`${o.objectName} has ${records.length} records in ${dataOrgLabel()}; a data set moves at most ${DATA_MAX_RECORDS} per object. Narrow its filter.`);
+        }
+        total += records.length;
+        for (let p = 0; p * DATA_PAGE < Math.max(records.length, 1); p++) {
+            const name = `${DATA_INBOX}/${requestId}/${String(i).padStart(2, '0')}-${String(p + 1).padStart(3, '0')}.json`;
+            files[name] = JSON.stringify({ objectName: o.objectName, index: i, records: records.slice(p * DATA_PAGE, (p + 1) * DATA_PAGE) });
+        }
+    });
+    saveDataFiles(files, [], `${requestId} data: ${total} records from ${dataOrgLabel()}`);
+    console.log(`Exported ${total} records of ${set.objects.length} objects from ${dataOrgLabel()}.`);
+}
+
+/** The saved records per object index, from the results branch. */
+function dataInboxRecords(count) {
+    if (!remoteBranchExists(RESULTS_BRANCH)) {
+        return null;
+    }
+    fetchBranch(RESULTS_BRANCH);
+    const ref = `refs/remotes/origin/${RESULTS_BRANCH}`;
+    const names = (gitQuiet(['ls-tree', '-r', '--name-only', ref, '--', `${DATA_INBOX}/${requestId}/`]) || '')
+        .split('\n').filter((n) => /\/\d{2}-\d{3}\.json$/.test(n)).sort();
+    if (!names.length) {
+        return null;
+    }
+    const byIndex = Array.from({ length: count }, () => []);
+    for (const n of names) {
+        const part = JSON.parse(gitQuiet(['show', `${ref}:${n}`]) || '{}');
+        const i = Number(part.index);
+        if (Number.isInteger(i) && i >= 0 && i < count && Array.isArray(part.records)) {
+            byIndex[i].push(...part.records);
+        }
+    }
+    return byIndex;
+}
+
+/** A masked value: the same shape, no personal data. */
+function maskValue(value, rule, n) {
+    if (value === null || value === undefined || value === '') {
+        return value;
+    }
+    if (rule === 'email') { return `masked.${n}@example.invalid`; }
+    if (rule === 'phone') { return `+1 555 01${String(n % 100).padStart(2, '0')}`; }
+    if (rule === 'name') { return `Masked ${n}`; }
+    if (rule === 'blank') { return null; }
+    return rule.startsWith('fixed:') ? rule.slice(6) : value;
+}
+
+/** The source's per-org values swapped for the target's in text values (names with a value in both). */
+function dataValueSwaps() {
+    const from = String(options.sourceValuesEnv || sourceEnv || '');
+    const swaps = [];
+    for (const [name, byEnv] of Object.entries(relayValues.values || {})) {
+        const s = byEnv && byEnv[from];
+        const t = byEnv && byEnv[targetEnv];
+        if (typeof s === 'string' && typeof t === 'string' && s.length >= MIN_REVERSE_LENGTH && s !== t) {
+            swaps.push([s, t, name]);
+        }
+    }
+    return swaps;
+}
+
+/** Masks and per-org values applied to one object's records (a copy). */
+function dataTransform(o, records, swaps) {
+    let n = 0;
+    return records.map((r) => {
+        n += 1;
+        const copy = { ...r };
+        if (options.mask === true) {
+            for (const [f, rule] of Object.entries(o.masks)) {
+                const key = Object.keys(copy).find((k) => k.toLowerCase() === f.toLowerCase());
+                if (key) {
+                    copy[key] = maskValue(copy[key], String(rule), n);
+                }
+            }
+        }
+        for (const [k, val] of Object.entries(copy)) {
+            if (typeof val === 'string') {
+                copy[k] = swaps.reduce((acc, [s, t]) => acc.split(s).join(t), val);
+            }
+        }
+        return copy;
+    });
+}
+
+/** A record's field value, case-insensitively. */
+function fieldOf(record, field) {
+    const key = Object.keys(record).find((k) => k.toLowerCase() === field.toLowerCase());
+    return key === undefined ? undefined : record[key];
+}
+
+/** A record's match key: its key fields, with a parent lookup standing for the parent's own key; '' when blank. */
+function keyOf(o, record, parentKeys) {
+    const parts = o.matchKey.map((f) => {
+        const value = fieldOf(record, f);
+        const parentObject = Object.keys(o.parents).find((p) => p.toLowerCase() === f.toLowerCase());
+        if (parentObject && value) {
+            const pk = (parentKeys[o.parents[parentObject].toLowerCase()] || new Map()).get(String(value));
+            return pk === undefined ? '#' + value : '[' + pk + ']';
+        }
+        return value === null || value === undefined ? '' : String(value).trim().toLowerCase();
+    });
+    return parts.every((p) => p === '') ? '' : parts.join('|');
+}
+
+/** Fields a load never writes: Id, system fields and the owner (users differ between orgs). */
+const DATA_SKIP_FIELDS = ['id', 'ownerid', 'createddate', 'createdbyid', 'lastmodifieddate', 'lastmodifiedbyid', 'systemmodstamp',
+    'isdeleted', 'lastvieweddate', 'lastreferenceddate'];
+/** A lookup whose parent is in the data set's records but not (yet) in the target: it's inserted first. */
+const DATA_PENDING = '(a new parent)';
+
+/** The fields the load writes. */
+function writableFields(o) {
+    return o.fields.filter((f) => !DATA_SKIP_FIELDS.includes(f.toLowerCase()));
+}
+
+/** The parent object a lookup field points at in the data set, or undefined. */
+function parentOf(o, field) {
+    const key = Object.keys(o.parents).find((p) => p.toLowerCase() === field.toLowerCase());
+    return key === undefined ? undefined : String(o.parents[key]);
+}
+
+/**
+ * One object's plan against the target: the records to insert, to update (all their written fields) and unchanged ones,
+ * with the problems that block a load: keys matching more than one target record, records without a key, and lookups to
+ * a parent that is neither in the data set's records nor in the target (orphans).
+ */
+function dataPlan(o, source, target, keys, idOf) {
+    const byKey = new Map();
+    for (const t of target) {
+        const k = keyOf(o, t, keys.tgt);
+        if (k) {
+            byKey.set(k, (byKey.get(k) || []).concat([t]));
+        }
+    }
+    const plan = { inserts: [], updates: [], unchanged: 0, duplicates: [], missingKeys: 0, orphans: 0 };
+    const fields = writableFields(o);
+    for (const r of source) {
+        const k = keyOf(o, r, keys.src);
+        if (!k) {
+            plan.missingKeys += 1;
+            continue;
+        }
+        const matches = byKey.get(k) || [];
+        if (matches.length > 1) {
+            plan.duplicates.push(k);
+            continue;
+        }
+        const values = {};
+        let orphan = false;
+        for (const f of fields) {
+            let val = fieldOf(r, f);
+            const parent = parentOf(o, f);
+            if (parent && val) {
+                val = idOf(parent, String(val));
+                orphan = orphan || val === null;
+            }
+            values[f] = val === undefined ? null : val;
+        }
+        if (orphan) {
+            plan.orphans += 1;
+        } else if (!matches.length) {
+            plan.inserts.push(values);
+        } else if (fields.some((f) => String(dataText(fieldOf(matches[0], f))) !== String(dataText(values[f])))) {
+            plan.updates.push({ Id: matches[0].Id, ...values });
+        } else {
+            plan.unchanged += 1;
+        }
+    }
+    return plan;
+}
+
+function dataText(value) {
+    return value === null || value === undefined ? '' : value;
+}
+
+/** Objects whose triggers are active in the target (empty when the org won't say). */
+function activeTriggerObjects(alias) {
+    for (const soql of ["SELECT EntityDefinition.QualifiedApiName FROM ApexTrigger WHERE Status = 'Active'",
+        "SELECT TableEnumOrId FROM ApexTrigger WHERE Status = 'Active'"]) {
+        try {
+            return new Set(sfRecords(alias, soql, true).map((r) => String((r.EntityDefinition && r.EntityDefinition.QualifiedApiName) || r.TableEnumOrId || '').toLowerCase()));
+        } catch (e) {
+            continue;
+        }
+    }
+    return new Set();
+}
+
+/** CSV for the Bulk API: a header and the rows; an empty value clears the field (#N/A). */
+function toCsv(rows, fields) {
+    const cell = (v) => {
+        if (v === null || v === undefined || v === '') {
+            return '#N/A';
+        }
+        const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    return [fields.join(','), ...rows.map((r) => fields.map((f) => cell(r[f])).join(','))].join('\n') + '\n';
+}
+
+/** A Bulk API load (import for new records, update for changed ones): the failed count and a note. */
+function bulkLoad(alias, o, kind, rows) {
+    if (!rows.length) {
+        return { failed: 0, errors: [] };
+    }
+    const fields = kind === 'update' ? ['Id', ...writableFields(o)] : writableFields(o);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-load-'));
+    const file = path.join(dir, `${o.objectName}-${kind}.csv`);
+    fs.writeFileSync(file, toCsv(rows, fields));
+    try {
+        const res = sfJson(['data', kind, 'bulk', '--sobject', o.objectName, '--file', file, '--wait', '30', '--target-org', alias]);
+        const failed = Number(res.failedRecords || res.numberRecordsFailed || 0);
+        return { failed, errors: failed ? [`${failed} ${kind === 'update' ? 'updates' : 'inserts'} failed (Bulk API job ${res.jobId || res.id || ''}).`] : [] };
+    } catch (e) {
+        return { failed: rows.length, errors: [`${kind === 'update' ? 'Updating' : 'Inserting'} failed: ${String(e.message).slice(0, 300)}`] };
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
+}
+
+/** The pipeline user's Id in the target. */
+function dataUserId(alias) {
+    const info = sfJson(['org', 'display', '--target-org', alias]);
+    const username = String(info.username || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const rows = sfRecords(alias, `SELECT Id FROM User WHERE Username = '${username}'`);
+    if (!rows.length) {
+        throw new Error(`the pipeline's user wasn't found in ${dataOrgLabel()}.`);
+    }
+    return rows[0].Id;
+}
+
+/** Switches the data set's trigger bypass on for the pipeline's user; returns what to undo. */
+function bypassOn(alias, b) {
+    const userId = dataUserId(alias);
+    if (b.kind === 'permissionSet') {
+        const had = sfRecords(alias, `SELECT Id FROM PermissionSetAssignment WHERE AssigneeId = '${userId}' AND PermissionSet.Name = '${b.name}'`);
+        if (had.length) {
+            return { kind: 'permissionSet', id: null };
+        }
+        const sets = sfRecords(alias, `SELECT Id FROM PermissionSet WHERE Name = '${b.name}'`);
+        if (!sets.length) {
+            throw new Error(`the trigger bypass permission set ${b.name} isn't in ${dataOrgLabel()}.`);
+        }
+        const made = sfJson(['data', 'create', 'record', '--sobject', 'PermissionSetAssignment', '--values',
+            `AssigneeId=${userId} PermissionSetId=${sets[0].Id}`, '--target-org', alias]);
+        return { kind: 'permissionSet', id: made.id };
+    }
+    const rows = sfRecords(alias, `SELECT Id, ${b.field} FROM ${b.name} WHERE SetupOwnerId = '${userId}'`);
+    if (rows.length) {
+        const was = fieldOf(rows[0], b.field) === true;
+        if (!was) {
+            sfJson(['data', 'update', 'record', '--sobject', b.name, '--record-id', rows[0].Id, '--values', `${b.field}=true`, '--target-org', alias]);
+        }
+        return { kind: 'setting', id: rows[0].Id, was, created: false };
+    }
+    const made = sfJson(['data', 'create', 'record', '--sobject', b.name, '--values', `SetupOwnerId=${userId} ${b.field}=true`, '--target-org', alias]);
+    return { kind: 'setting', id: made.id, was: false, created: true };
+}
+
+/** Puts the bypass back as it was; a warning when it can't. */
+function bypassOff(alias, b, state) {
+    try {
+        if (state.kind === 'permissionSet' && state.id) {
+            sfJson(['data', 'delete', 'record', '--sobject', 'PermissionSetAssignment', '--record-id', state.id, '--target-org', alias]);
+        } else if (state.kind === 'setting' && state.created) {
+            sfJson(['data', 'delete', 'record', '--sobject', b.name, '--record-id', state.id, '--target-org', alias]);
+        } else if (state.kind === 'setting' && !state.was) {
+            sfJson(['data', 'update', 'record', '--sobject', b.name, '--record-id', state.id, '--values', `${b.field}=false`, '--target-org', alias]);
+        }
+        console.log(`Trigger bypass (${b.name}) switched back off in ${dataOrgLabel()}.`);
+    } catch (e) {
+        console.log(`::warning::The trigger bypass (${b.name}) couldn't be switched back off in ${dataOrgLabel()}: ${e.message}`);
+        summary(`**Check ${dataOrgLabel()}:** the trigger bypass ${b.name} may still be on for the pipeline's user.`);
+    }
+}
+
+/** The target's records of one object (all of them: the match must see records outside the filter too). */
+function dataTarget(o) {
+    const records = sfRecords('data-tgt', dataQuery(o, false));
+    if (records.length > DATA_MAX_TARGET) {
+        throw new Error(`${o.objectName} has more than ${DATA_MAX_TARGET} records in ${dataOrgLabel()}: too many to match safely.`);
+    }
+    return records;
+}
+
+/**
+ * One pass over the objects in order (parents first). Without load it only counts; with load it inserts and updates
+ * each object, then reads its records again so the children's lookups find the new parents.
+ */
+function dataPass(set, saved, swaps, load, triggers) {
+    const keys = { src: {}, tgt: {}, ids: {} };
+    const rows = [];
+    for (let i = 0; i < set.objects.length; i++) {
+        const o = set.objects[i];
+        const name = o.objectName.toLowerCase();
+        const source = dataTransform(o, saved[i] || [], swaps);
+        let target = dataTarget(o);
+        const idOf = (parentObject, sourceId) => {
+            const p = parentObject.toLowerCase();
+            const key = (keys.src[p] || new Map()).get(sourceId);
+            const id = key ? (keys.ids[p] || new Map()).get(key) : undefined;
+            if (id) {
+                return id;
+            }
+            // Not in the target: a parent in the data set's records is inserted first (dry run); after the load it's missing.
+            return key && !load ? DATA_PENDING : null;
+        };
+        const plan = dataPlan(o, source, target, keys, idOf);
+        const row = { objectName: o.objectName, insert: plan.inserts.length, update: plan.updates.length, unchanged: plan.unchanged,
+            failed: 0, duplicates: plan.duplicates.slice(0, 50), missingKeys: plan.missingKeys,
+            triggers: triggers.has(name), errors: [] };
+        if (plan.orphans) {
+            row.errors.push(`${plan.orphans} records point at a parent that is neither in the data set's records nor in ${dataOrgLabel()}.`);
+        }
+        if (load) {
+            const a = bulkLoad('data-tgt', o, 'import', plan.inserts);
+            const b = bulkLoad('data-tgt', o, 'update', plan.updates);
+            row.failed = a.failed + b.failed + plan.orphans;
+            row.errors = row.errors.concat(a.errors, b.errors);
+            if (plan.inserts.length) {
+                target = dataTarget(o);
+            }
+        }
+        keys.src[name] = new Map(source.map((r) => [String(r.Id), keyOf(o, r, keys.src)]));
+        keys.tgt[name] = new Map(target.map((r) => [String(r.Id), keyOf(o, r, keys.tgt)]));
+        keys.ids[name] = new Map(target.map((r) => [keys.tgt[name].get(String(r.Id)), String(r.Id)]).filter(([k]) => k));
+        row.orphans = plan.orphans;
+        rows.push(row);
+    }
+    return rows;
+}
+
+/** What blocks a load: keys matching two or more target records, records without a key, orphans. */
+function dataBlockMessage(rows) {
+    const bad = rows.filter((r) => r.duplicates.length || r.missingKeys || r.orphans);
+    if (!bad.length) {
+        return '';
+    }
+    return 'Blocked: ' + bad.map((r) => r.objectName + ' (' + [
+        r.duplicates.length ? `${r.duplicates.length} keys match more than one record in ${dataOrgLabel()}: ${r.duplicates.slice(0, 5).join(', ')}` : '',
+        r.missingKeys ? `${r.missingKeys} records without a key` : '',
+        r.orphans ? `${r.orphans} records whose parent isn't there` : ''].filter(Boolean).join('; ') + ')').join(' · ') + '. Nothing was loaded.';
+}
+
+/** STEP=data-load: the dry run, or the load of the saved records into the target. */
+async function stepDataLoad() {
+    orgEnv = targetEnv;
+    if (mode !== 'data') {
+        fail('STEP=data-load needs MODE=data.');
+    }
+    let set;
+    try {
+        set = dataSetOf();
+    } catch (e) {
+        dataFailed(e.message);
+    }
+    const saved = dataInboxRecords(set.objects.length);
+    if (!saved) {
+        dataFailed(`The data set's records weren't found on ${RESULTS_BRANCH} (${DATA_INBOX}/${requestId}/). Start the run again from Release Relay.`);
+    }
+    const dryRun = options.dryRun !== false;
+    const swaps = dataValueSwaps();
+    let rows = [];
+    let blockMessage = '';
+    try {
+        login('data-tgt');
+        const triggers = set.bypass ? new Set() : activeTriggerObjects('data-tgt');
+        rows = dataPass(set, saved, swaps, false, triggers);
+        blockMessage = dataBlockMessage(rows);
+        if (!dryRun && !blockMessage) {
+            // The counts are checked again just before the load: the target may have changed since the dry run.
+            const state = set.bypass ? bypassOn('data-tgt', set.bypass) : null;
+            try {
+                rows = dataPass(set, saved, swaps, true, triggers);
+            } finally {
+                if (state) {
+                    bypassOff('data-tgt', set.bypass, state);
+                }
+            }
+        }
+    } catch (e) {
+        dataFailed(e.message, rows);
+    }
+    const failed = rows.filter((r) => r.failed);
+    let message = blockMessage;
+    if (!message && failed.length) {
+        message = 'Some records weren\'t saved: ' + failed.map((r) => `${r.objectName} ${r.failed}`).join(', ') + '.';
+    }
+    const status = message ? 'Failed' : 'Succeeded';
+    const counts = rows.reduce((c, r) => ({ insert: c.insert + r.insert, update: c.update + r.update, unchanged: c.unchanged + r.unchanged,
+        failed: c.failed + r.failed, duplicates: c.duplicates + r.duplicates.length }), { insert: 0, update: 0, unchanged: 0, failed: 0, duplicates: 0 });
+    saveDataResult({ status, dryRun, blocked: Boolean(blockMessage), message, objects: rows, counts }, !dryRun);
+    console.log(`${dryRun ? 'Dry run' : 'Load'} into ${dataOrgLabel()}: ${counts.insert} insert, ${counts.update} update, ${counts.unchanged} unchanged, ${counts.failed} failed.`);
+    if (status !== 'Succeeded' && !(dryRun && blockMessage)) {
+        fail(message); // a blocked dry run has done its job: the hub shows what blocks it
+    }
+}
+
 // ---------- step: monitor (version 20) ----------
 
 /** What a run does, by mode, as the hub's Pipeline Monitor shows it. */
 const MONITOR_STEPS = { org: 'Raise', branch: 'Raise', promote: 'Raise', hub: 'Raise', resolve: 'Resolve conflicts',
     check: 'Check-only deploy', merge: 'Merge', sync: 'Back promote', rollback: 'Rollback', archive: 'Archive', compare: 'Compare',
-    drift: 'Org vs branch', routediff: 'Down the route' };
+    drift: 'Org vs branch', routediff: 'Down the route', data: 'Data' };
 /** The pipeline's jobs whose outcomes make the run's status, with the names the hub shows. */
 const MONITOR_JOBS = { raise: 'Raise pull request', scan: 'Code scan', validate: 'Check-only deploy', merge: 'Merge',
     deploy: 'Deploy', sync: 'Back promote', 'sync-branch': 'Back promote (branch only)', rollback: 'Rollback', archive: 'Archive',
-    compare: 'Compare', drift: 'Org vs branch', routediff: 'Down the route' };
+    compare: 'Compare', drift: 'Org vs branch', routediff: 'Down the route', 'data-export': 'Data export', 'data-load': 'Data load' };
 
 function monitorWarn(message) {
     console.log('::warning::Pipeline Monitor: ' + message);
@@ -4696,7 +5317,8 @@ async function stepMonitor() {
 // ---------- main ----------
 
 const STEPS = { raise: stepRaise, scan: stepScan, validate: stepValidate, merge: stepMerge, deploy: stepDeploy, sync: stepSync,
-    rollback: stepRollback, auto: stepAuto, compare: stepCompare, drift: stepDrift, routediff: stepRouteDiff };
+    rollback: stepRollback, auto: stepAuto, compare: stepCompare, drift: stepDrift, routediff: stepRouteDiff,
+    'data-export': stepDataExport, 'data-load': stepDataLoad };
 
 async function main() {
     if (step === 'notify') {
@@ -4722,7 +5344,7 @@ async function main() {
         summary(`**Note:** selfUpdate is set but the target is ${target}; the hub's own updates belong on release-relay-hub.`);
     }
     if (!STEPS[step]) {
-        fail('STEP must be raise, scan, validate, merge, deploy, sync, rollback, auto, compare, drift or routediff.');
+        fail('STEP must be raise, scan, validate, merge, deploy, sync, rollback, auto, compare, drift, routediff, data-export or data-load.');
     }
     preparePush();
     await STEPS[step]();

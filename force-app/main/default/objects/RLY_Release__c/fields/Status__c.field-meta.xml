@@ -66,6 +66,11 @@
                 <label>Merged</label>
             </value>
             <value>
+                <fullName>Waiting for window</fullName>
+                <default>false</default>
+                <label>Waiting for the window</label>
+            </value>
+            <value>
                 <fullName>Deploying</fullName>
                 <default>false</default>
                 <label>Deploying</label>

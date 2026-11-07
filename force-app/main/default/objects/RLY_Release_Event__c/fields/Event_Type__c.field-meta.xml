@@ -114,6 +114,16 @@
                 <default>false</default>
                 <label>Downloaded</label>
             </value>
+            <value>
+                <fullName>Window_Held</fullName>
+                <default>false</default>
+                <label>Waiting for the window</label>
+            </value>
+            <value>
+                <fullName>Window_Override</fullName>
+                <default>false</default>
+                <label>Deployed outside the window</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

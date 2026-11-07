@@ -117,6 +117,7 @@
                         </ol>
 
                         <template lwc:if={detail.notice}><div class="rr-msg rr-msg-warn rr-notice" role="status">{detail.notice}</div></template>
+                        <template lwc:if={waitsForWindow}><c-rly-window-deploy release-id={releaseId} ondeployed={handleWindowDeployed}></c-rly-window-deploy></template>
                         <template lwc:if={secondApproverNotice}><div class="rr-msg rr-msg-info rr-notice" role="status">{secondApproverNotice}</div></template>
 
                         <template lwc:if={hasConflicts}>

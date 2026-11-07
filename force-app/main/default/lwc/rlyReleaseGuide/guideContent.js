@@ -867,6 +867,22 @@ const SETUP_SECTIONS = [
                                 links: [{ label: 'How to use: Pipeline tab', to: 'pipelinetab' }]
                             },
                             {
+                                title: 'Reminders, daily digest, mentions and hotfix alerts (optional, per org)',
+                                who: 'Release Relay admin',
+                                where: 'Release Relay → Pipeline → Connected orgs → click the org → Slack → Reminders and alerts → Edit',
+                                goal: 'Nudge people when a release waits, send one summary a day, tag the right person, and always flag a hotfix.',
+                                items: [
+                                    '**Reminders**: a nudge in the release\'s Slack thread when it has waited for approval (approvers) or still has manual steps to do after a deploy (deploy team) longer than the hours you set (4 when blank), then again every that many hours. Quiet between 8 PM and 7 AM.',
+                                    '**Daily digest**: one message in the org\'s channel from the hour you pick: deployed yesterday, waiting for approval, manual steps to do, failed. Nothing to say, no message.',
+                                    '**Mentions**: tags the developer when checks fail and the approvers when a release is ready (and in reminders). Only people linked to Slack (Approvers window) are tagged.',
+                                    '**Hotfix alerts** (on by default): "Hotfix in progress" in the org\'s channel when a hotfix into it is raised, even with reminders off.',
+                                    'With reminders and the digest off, nothing is checked or sent for that org.'
+                                ],
+                                text: ['Reminders and digests go out from the pipeline\'s hourly schedule (pipeline files version 24, job **slack-due**), which calls the production hub; times use the hub\'s time zone. Repository variable `RELAY_SLACK_DUE=off` stops it. Slack being busy (rate limited) just moves the rest to the next hour.'],
+                                check: 'With reminders on and a short wait (1 hour), a release waiting for approval gets a nudge in its thread within the next hour.',
+                                problems: [['Nothing arrives', 'The org needs a channel and Slack on; the pipeline files must be version 24 (Pipeline tab → Pipeline files); the run "Release Relay Slack reminders" in GitHub Actions logs what the hub answered.']]
+                            },
+                            {
                                 title: 'Approve in Slack: save the signing secret',
                                 who: 'Slack admin + Release Relay admin',
                                 where: 'Slack app settings → your app → Basic Information → App Credentials; then Release Relay → Pipeline → Slack connection → Edit',
@@ -1419,6 +1435,38 @@ const USE_SECTIONS = [
         ]
     },
     {
+        key: 'metrics',
+        group: 'daily',
+        label: 'Metrics',
+        cards: [
+            {
+                key: 'metrics-main',
+                title: 'Metrics: how releases are going',
+                blocks: [
+                    { type: 'text', paras: [
+                        '**Metrics** turns Release Relay\'s own history into numbers: the four **DORA** measures and two day-to-day ones. Everyone with a Release Relay permission set can open it; nothing is set up and nothing can be changed there.',
+                        'Pick the **Org** deploys go to (production first; **All orgs** adds them up), a **Developer org** (or all) and the period: **30 days**, **90 days**, **6 months** or **12 months**. Each tile compares the period with the one before it, in green when it got better and red when it got worse. Charts go by week up to 90 days and by month beyond; hover a bar for its number.'
+                    ] },
+                    { type: 'table', cols: ['Tile', 'What it measures'], rows: [
+                        ['Deploys (DORA)', 'Successful deploys to the org, and how many a week.'],
+                        ['Lead time (DORA)', 'From raising a release to it running in the org (median). A promotion counts each release it carries from the day that release was raised.'],
+                        ['Change failure rate (DORA)', 'Failed deploys, rollbacks and hotfixes deployed, over deploys tried.'],
+                        ['Time to restore (DORA)', 'From a failed deploy or a rollback to the next successful deploy in that org (median).'],
+                        ['Approval wait', 'From the check that made a release ready for approval to its approval (median).'],
+                        ['Checks failing', 'Check-only deploys and code scans that failed, over those run.']
+                    ] },
+                    { type: 'list', items: [
+                        '**Why checks fail** sorts the failed checks into test failures, deploy errors, conflicts with the branch, quality gates, code coverage and code scan, from each release\'s latest result (read ten releases at a time, so it fills in after the tiles). A release fixed since shows **Fixed since**. **Files that conflict most** lists the files in those conflicts.',
+                        'The **Developer org** filter applies to lead time, approvals and checks; deploys, failures and restores are per org.',
+                        '**Download CSV** saves every tile (this period and the one before), every chart point and the reasons.',
+                        'Numbers go back as far as the history does: the nightly archive removes releases older than the Retention days (Pipeline → Retention).'
+                    ] },
+                    { type: 'links', links: [{ label: 'Open Metrics', tab: 'RLY_Metrics' }] }
+                ]
+            }
+        ]
+    },
+    {
         key: 'sync',
         group: 'daily',
         label: 'Sync status',
@@ -1429,7 +1477,7 @@ const USE_SECTIONS = [
                 blocks: [
                     { type: 'text', paras: [
                         '**Sync status** answers three questions: is each org the same as its own branch, has everything a higher stage has come back down the route, and which managed packages are installed where. Everyone with a Release Relay permission set can open it and start a check; back promote and push need **Release Relay Admin**, like back promote on the Pipeline tab.',
-                        'Checks run in the Git pipeline (pipeline files version 23) and can take a few minutes on a big org; the tab reads again every few seconds while one runs and keeps the latest result of each, with when it was checked.'
+                        'Checks run in the Git pipeline (pipeline files version 23 or later) and can take a few minutes on a big org; the tab reads again every few seconds while one runs and keeps the latest result of each, with when it was checked.'
                     ] },
                     { type: 'table', cols: ['View', 'What it shows', 'What you can do'], rows: [
                         ['Org vs branch', 'One card per org on the route: **In sync**, or **Out of sync** with how many differ. Pick a card to list the differences by type: **Only in org** (changed in the org directly), **Only on branch** (in Git but not in the org) and **Different**. Open one for the side-by-side compare (branch left, org right).', '**Check now**. Pick components, then **Bring into the branch** (a New Release from that org with them selected; only-on-branch ones as deletions) or **Push to the org** (deploys the branch\'s files to a stage or the hub).'],
@@ -1443,6 +1491,31 @@ const USE_SECTIONS = [
                     ] },
                     { type: 'note', text: 'Release Relay never installs or uninstalls a package: Salesforce allows that only in Setup → Installed Packages, so it is a manual step with proof per org.' },
                     { type: 'links', links: [{ label: 'Open Sync status', tab: 'RLY_Sync_Status' }, { label: 'Pipeline files', to: 'pipelinetab', kind: 'neutral' }] }
+                ]
+            },
+            {
+                key: 'sync-data',
+                title: 'Data sets: send up, copy down, refill',
+                blocks: [
+                    { type: 'text', paras: [
+                        '**Sync status → Data** moves configuration records between orgs: claim types and their rules, price lists, settings kept as records. An admin defines each **data set**: its objects in load order (parents first), which records (a filter), the **match key** that finds the same record in the other org (an external ID field, or a combination of fields such as Claim type and Name), the parent lookups, and the fields to mask.',
+                        'Every run is a **dry run** first: the pipeline reads both orgs and counts what would be inserted, updated or left unchanged, per object. Nothing changes until someone presses **Load**. It needs pipeline files version 24.'
+                    ] },
+                    { type: 'table', cols: ['Direction', 'Who', 'How'], rows: [
+                        ['Send up', 'Anyone starts it; an approver or admin who didn\'t start it loads it', 'From a developer org or a stage to a higher org. Optionally linked to a release (REL-…). Masking is off unless you turn it on.'],
+                        ['Copy down', 'Admins', 'From production or a stage to a lower org. Personal data (emails, phones, names) is masked unless you turn **Mask personal data** off.'],
+                        ['Refill', 'Admins', 'Shown on an org whose Org Id changed since its last load (a sandbox refresh): repeats that load with the same data set.']
+                    ] },
+                    { type: 'list', items: [
+                        'No match key, no object: a data set can\'t include an object without one.',
+                        'A key that matches two or more records in the target, a record without a key, or a child whose parent isn\'t in either org **blocks** the run, with the keys listed. Fix the data (or the key) and start again.',
+                        'Parents load first, then children: a child\'s lookup is matched by its parent\'s key, so a child that a trigger already created is updated, not duplicated.',
+                        'Give the data set a **trigger bypass** (a custom setting checkbox or a permission set): it is switched on for the pipeline\'s user during the load and back off after. Without one, the dry run flags **Triggers fire** on objects with active triggers in the target.',
+                        'Per-org values (`{{relay:NAME}}` on the Pipeline tab) are swapped: the source org\'s value becomes the target\'s, for example a callback URL.',
+                        'The pipeline loads stage orgs and the hub (they have a sign-in in GitHub). A developer org can be a source: the page sends its records first, so keep it open until the dry run starts. At most 10,000 records per object.',
+                        'The owner field, Id and system fields are never written. Old runs leave with the nightly archive, after the Retention days.'
+                    ] },
+                    { type: 'note', text: 'OmniStudio DataPacks (OmniScripts, FlexCards, Integration Procedures and Data Mappers as DataPacks) are not moved by data sets yet: they need the OmniStudio migration tool and its own matching. Deploy their metadata form with a release, or move them with the OmniStudio tools.' }
                 ]
             }
         ]
@@ -2717,6 +2790,7 @@ const USE_SECTIONS = [
                             ['Resolving conflicts', 'Your conflict choices were committed; the pipeline merges the target and checks again.', 'Wait.'],
                             ['Checks failed', 'The code scan blocked it, the validation failed, a quality gate failed, or it conflicts with the target.', 'Add the fix (Add changes from …), resolve the conflict, ask an approver to bypass the scan, or Check again.'],
                             ['Ready for approval', 'All checks passed (or the scan was bypassed) and the target org\'s approval rule asks for an approver.', 'An approver approves or rejects, in Salesforce or Slack. When the rule needs no approver, the release is approved automatically and deploys.'],
+                            ['Waiting for the window', 'Approved, but the target org\'s release window is closed or it is frozen. The release says when it will deploy.', 'Wait; it deploys when the release is opened inside the window. An admin can Deploy now anyway, with a reason.'],
                             ['Deploying', 'Merging the pull request and deploying.', 'Wait.'],
                             ['Deployed', 'In the target org; developer branches updated; flows set to Activate activated.', 'Nothing. Download evidence (PDF) if the change request needs it.'],
                             ['Deploy failed', 'The merge or the deploy failed.', 'Read the reason; raise a new release.'],
@@ -2735,6 +2809,52 @@ const USE_SECTIONS = [
                         ]
                     },
                     { type: 'note', text: '**Manual steps only** releases skip Retrieving, Workflow running and Validating: Submitted → Ready for approval → Deploying while the deployment team does the manual steps in that org → Deployed when all of them are Done or Not needed.' }
+                ]
+            }
+        ]
+    }
+];
+
+// Build 39: release windows and freezes.
+const WINDOW_SECTIONS = [
+    {
+        key: 'windows',
+        group: 'daily',
+        label: 'Release windows and freezes',
+        cards: [
+            {
+                key: 'win-main',
+                title: 'Release windows and freezes',
+                blocks: [
+                    { type: 'text', paras: ['An org can have a **release window**: the days and hours deploys into it may run, in its own time zone. It can also have **freezes**: whole days (start and end included) when nothing deploys, each with a reason. An org without a window or freezes deploys any time, as before.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Set an org\'s window',
+                                who: 'Admin',
+                                where: 'Pipeline tab → the org\'s card',
+                                items: [
+                                    'Open the org\'s card. **Release window** shows the window in a few words (for example "Mon–Thu 6:00 PM–10:00 PM CST · next freeze 16 Nov 2026") and whether it is open now.',
+                                    'Press **Edit**. Pick the days, then From and To (leave both blank for the whole day; a To earlier than From runs past midnight), and the time zone.',
+                                    'Under **Freezes**, press **Add a freeze** for each period: start, end and why (for example Year-end close).',
+                                    'Press **Save**. Clearing every day and freeze removes the window.'
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        type: 'table',
+                        cols: ['When', 'What happens'],
+                        rows: [
+                            ['A release is approved outside the window', 'Checks and approval run as usual. It shows **Waiting for the window** with when it will deploy, and History says so. It deploys the first time anyone opens the release, the Releases list or Home inside the window.'],
+                            ['A release is approved during a freeze', 'It waits the same way: "Frozen until 2 Jan 2027 in PROD: Year-end close." It deploys when a window opens after the freeze.'],
+                            ['It can\'t wait', 'An admin presses **Deploy now anyway** on the release and says why. History, the evidence PDF and the Slack card record it.'],
+                            ['A freeze starts within 7 days', 'Home shows a warning.'],
+                            ['Rollbacks and branch-only back promotes', 'Never held.']
+                        ]
+                    },
+                    { type: 'note', text: 'The Releases tab\'s **Waiting for the window** filter lists the releases that are waiting. A release deploys inside the window only when a page reads it, so open it (or the Releases list) once the window opens.' }
                 ]
             }
         ]
@@ -2894,6 +3014,6 @@ const REF_SECTIONS = [
     }
 ];
 
-const SECTIONS = [...START_SECTIONS, ...SETUP_SECTIONS, ...USE_SECTIONS, ...REF_SECTIONS];
+const SECTIONS = [...START_SECTIONS, ...SETUP_SECTIONS, ...USE_SECTIONS, ...WINDOW_SECTIONS, ...REF_SECTIONS];
 
 export default SECTIONS;
