@@ -101,7 +101,7 @@ public with sharing class RlyCompareRun {
         asked.addAll(orEmpty(job.deleted));
         RlyCompareParts.checkKeys(asked);
         RLY_Org__c source = RlyRaiseRoute.source(job.sourceOrgId);
-        RLY_Org__c target = targetOf(job, source);
+        RLY_Org__c target = RlyCompareTarget.of(source, job.targetBranch);
         r.sourceName = source.Name;
         r.targetName = target.Name;
         r.targetBranch = target.Branch__c.trim();
@@ -114,21 +114,6 @@ public with sharing class RlyCompareRun {
             throw new RlyReleaseException('The Git connection isn\'t set up and checked yet (Pipeline tab).');
         }
         return new RlyCompareBranch(RlyGit.forConnection(conn), conn.Source_Path__c, r.targetBranch);
-    }
-
-    // The first stage, or the route org whose branch the page asked for (the same branch, written exactly).
-    private static RLY_Org__c targetOf(Job job, RLY_Org__c source) {
-        RLY_Org__c firstStage = RlyRaiseRoute.target(source);
-        String asked = String.isBlank(job.targetBranch) ? firstStage.Branch__c.trim() : job.targetBranch.trim();
-        if (asked.equals(firstStage.Branch__c.trim())) {
-            return firstStage;
-        }
-        for (RLY_Org__c o : RlyReleaseStore.routeOrgs()) {
-            if (String.isNotBlank(o.Branch__c) && asked.equals(o.Branch__c.trim())) {
-                return o;
-            }
-        }
-        throw new RlyReleaseException('Compare with the branch of a stage or the hub.');
     }
 
     // The zip's files once the retrieve has finished; done = false on the answer while it runs.

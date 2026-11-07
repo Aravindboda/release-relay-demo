@@ -475,8 +475,12 @@ export default class RlyPipelineMonitor extends NavigationMixin(LightningElement
             }
             const activity = b.lastActivity ? 'last activity ' + ago(b.lastActivity, this.nowMs) : '';
             const noRun = b.state === 'idle' && !b.runRecordId;
-            const tone = noRun ? (RELEASE_TONE[b.releaseStatus] || (b.releaseStatus ? 'running' : 'idle')) : b.state;
-            const stage = noRun ? (b.releaseStatus || 'Waiting') : (b.stage || 'Waiting');
+            // A release that needs attention (red or amber) shows its own status even after a green run, unless a run is
+            // going right now.
+            const releaseTone = RELEASE_TONE[b.releaseStatus];
+            const useRelease = noRun || (b.state !== 'running' && (releaseTone === 'failed' || releaseTone === 'warn'));
+            const tone = useRelease ? (releaseTone || (b.releaseStatus ? 'running' : 'idle')) : b.state;
+            const stage = useRelease ? (b.releaseStatus || 'Waiting') : (b.stage || 'Waiting');
             rows.push({
                 key: b.branch,
                 branch: b.branch,

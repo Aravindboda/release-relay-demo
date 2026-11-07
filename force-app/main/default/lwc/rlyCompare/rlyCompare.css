@@ -35,6 +35,22 @@
 .rr-tick { position: absolute; width: 1px; height: 1px; overflow: hidden; }
 .rr-tick-run { display: block; width: 1px; height: 1px; animation: rr-tick 2s linear forwards; }
 @keyframes rr-tick { from { opacity: 0.99; } to { opacity: 1; } }
+.rr-tick-slow { animation-duration: 5s; }
+
+/* build 36: progress of the parts, the pipeline offer, a large file's changed lines */
+.rr-prog { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; }
+.rr-bar { flex: 1 1 160px; min-width: 120px; height: 7px; border-radius: 4px; background: #e9e9e9; overflow: hidden; display: flex; }
+.rr-bar i { display: block; height: 100%; transition: width 0.3s; }
+.rr-bar-ok { background: #2e844a; }
+.rr-bar-run { background: #7db4ef; }
+.rr-offer { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border-radius: 4px; background: #f2ecfc; color: #3b0f78; font-size: 12.5px; }
+.rr-pill-run { background: #eef4ff; color: #0176d3; }
+.rr-patch-note { padding: 6px 10px 0; }
+.rr-patch { margin: 6px 0 0; max-height: 60vh; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; line-height: 1.45; background: #fff; }
+.rr-pl { display: block; padding: 0 10px; white-space: pre; }
+.rr-pl-add { background: #e3f5df; }
+.rr-pl-del { background: #fde7e4; }
+.rr-pl-hunk { background: #eef4ff; color: #014486; }
 
 /* layout: list 260px, the diff fills the rest */
 .rr-cmp { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 12px; align-items: start; min-width: 0; }
