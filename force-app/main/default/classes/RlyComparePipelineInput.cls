@@ -4,7 +4,7 @@
  */
 public with sharing class RlyComparePipelineInput {
 
-    private static final Pattern COMPARE_ID = Pattern.compile('^CMP-\\d{13}$');
+    private static final Pattern COMPARE_ID = Pattern.compile('^(CMP|SYN)-\\d{13}$');
     private static final Pattern KEY = Pattern.compile('^[A-Za-z]{2,80}:[^,:\\r\\n]{1,255}$');
     private static final Integer MAX_INPUT = 60000;
 
@@ -14,7 +14,7 @@ public with sharing class RlyComparePipelineInput {
      */
     public static void checkId(String compareId) {
         if (String.isBlank(compareId) || !COMPARE_ID.matcher(compareId).matches()) {
-            throw new RlyReleaseException('A compare id is CMP- and 13 digits.');
+            throw new RlyReleaseException('A compare id is CMP- (or SYN- for a sync check) and 13 digits.');
         }
     }
 

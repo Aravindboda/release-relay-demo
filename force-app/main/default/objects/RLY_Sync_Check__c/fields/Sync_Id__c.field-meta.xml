@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Sync_Id__c</fullName>
+    <caseSensitive>false</caseSensitive>
+    <description>The check&apos;s id, SYN- and 13 digits: its results are on the results branch under results/SYN-…/.</description>
+    <externalId>true</externalId>
+    <label>Sync Id</label>
+    <length>40</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>true</unique>
+</CustomField>

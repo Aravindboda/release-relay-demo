@@ -185,6 +185,9 @@ private class RlyRunMonitorControllerTest {
         System.runAs(RlyTestData.admin()) {
             insert new List<RLY_Pipeline_Run__c>{ run('1-1|Succeeded|sit', System.now().addDays(-40)),
                 run('2-1|Succeeded|sit', System.now().addDays(-41)), run('3-1|Failed|sit', System.now().addDays(-1)) };
+            insert new List<RLY_Sync_Check__c>{
+                new RLY_Sync_Check__c(Sync_Id__c = 'SYN-1700000000000', Kind__c = 'Route', Status__c = 'Succeeded', Checked_At__c = System.now().addDays(-45)),
+                new RLY_Sync_Check__c(Sync_Id__c = 'SYN-1700000000001', Kind__c = 'Route', Status__c = 'Succeeded', Checked_At__c = System.now()) };
             RlyRunMonitorRetention.perCall = 1;
             Test.startTest();
             Integer none = RlyRunMonitorRetention.prune(null);
@@ -198,6 +201,7 @@ private class RlyRunMonitorControllerTest {
             System.assertEquals(1, second, 'The rest at the next call');
             System.assertEquals(0, third, 'Nothing older left');
             System.assertEquals(1, [SELECT COUNT() FROM RLY_Pipeline_Run__c WHERE Id != null], 'The recent run stays');
+            System.assertEquals(1, [SELECT COUNT() FROM RLY_Sync_Check__c WHERE Id != null], 'An old Sync status check goes, the recent one stays');
         }
     }
 

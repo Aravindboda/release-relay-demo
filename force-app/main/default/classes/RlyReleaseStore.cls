@@ -202,7 +202,7 @@ public with sharing class RlyReleaseStore {
                     Target_Org__c, Target_Org__r.Name, Target_Org__r.Approval_In__c, Target_Org__r.Approve_In_Salesforce__c, Target_Org__r.Approve_In_Slack__c, Target_Org__r.Require_Git_Review__c, Target_Org__r.Slack_Channel__c,
                     Target_Org__r.Slack_Post__c, Check_Token__c, Slack_Channel_Id__c, Slack_Ts__c, Approved_Via__c,
                     Org_Label__c, Source_Branch__c, Target_Branch__c, Source_Environment__c,
-                    Target_Environment__c, Retrieve_Id__c, PR_Number__c, PR_URL__c, Run_ID__c, Run_URL__c, Pending_Run__c,
+                    Target_Environment__c, Retrieve_Id__c, PR_Number__c, PR_URL__c, Run_ID__c, Run_URL__c, Pending_Run__c, Sync_Paths__c,
                     Checks_Requested__c, Last_Synced__c, Error_Message__c, Component_Count__c, Test_Classes__c,
                     Scan_Status__c, Scan_Violations__c, Scan_Blocking__c, Scan_Result__c, Scan_Bypassed_By__c, Scan_Bypassed_By__r.Name,
                     Scan_Bypass_Reason__c, Validation_Status__c, Validation_Result__c,

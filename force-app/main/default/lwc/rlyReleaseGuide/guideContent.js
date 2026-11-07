@@ -1419,6 +1419,35 @@ const USE_SECTIONS = [
         ]
     },
     {
+        key: 'sync',
+        group: 'daily',
+        label: 'Sync status',
+        cards: [
+            {
+                key: 'sync-main',
+                title: 'Sync status: are the orgs and branches in step?',
+                blocks: [
+                    { type: 'text', paras: [
+                        '**Sync status** answers three questions: is each org the same as its own branch, has everything a higher stage has come back down the route, and which managed packages are installed where. Everyone with a Release Relay permission set can open it and start a check; back promote and push need **Release Relay Admin**, like back promote on the Pipeline tab.',
+                        'Checks run in the Git pipeline (pipeline files version 23) and can take a few minutes on a big org; the tab reads again every few seconds while one runs and keeps the latest result of each, with when it was checked.'
+                    ] },
+                    { type: 'table', cols: ['View', 'What it shows', 'What you can do'], rows: [
+                        ['Org vs branch', 'One card per org on the route: **In sync**, or **Out of sync** with how many differ. Pick a card to list the differences by type: **Only in org** (changed in the org directly), **Only on branch** (in Git but not in the org) and **Different**. Open one for the side-by-side compare (branch left, org right).', '**Check now**. Pick components, then **Bring into the branch** (a New Release from that org with them selected; only-on-branch ones as deletions) or **Push to the org** (deploys the branch\'s files to a stage or the hub).'],
+                        ['Down the route', 'Each branch against the one below it (production over the last stage, … the first stage over each developer org): how many components the higher branch has that the lower one doesn\'t, such as hotfixes. **Different in <org> too** means the lower branch changed the same file.', '**Check the route**. Pick components and **Back promote N picked**, or **Back promote all**: a back promote release with the usual checks, approval rule and conflict screen. A developer org gets the files on its branch only.'],
+                        ['Installed packages', 'Each managed package with its version in every route org, and whether they match.', '**Add upgrade step** (a New Release with a Managed package manual step, before deploy) or **Uninstall…**: lists your own components that still use the package (where Salesforce reports it) and starts a release that deletes them first, with an uninstall manual step after deploy.']
+                    ] },
+                    { type: 'list', items: [
+                        'Stages and the hub are read by the pipeline with their own login. A developer org is read by the hub: the tab lists its components and sends them to Git a few at a time first, so keep the page open until the run starts.',
+                        'Release Relay\'s own components, managed-package components and org values on the Pipeline tab (per-org values) don\'t count as differences.',
+                        'Old checks leave with the nightly archive, after the Retention days.'
+                    ] },
+                    { type: 'note', text: 'Release Relay never installs or uninstalls a package: Salesforce allows that only in Setup → Installed Packages, so it is a manual step with proof per org.' },
+                    { type: 'links', links: [{ label: 'Open Sync status', tab: 'RLY_Sync_Status' }, { label: 'Pipeline files', to: 'pipelinetab', kind: 'neutral' }] }
+                ]
+            }
+        ]
+    },
+    {
         key: 'built',
         group: 'daily',
         label: 'What\'s built',
