@@ -9,12 +9,18 @@ public with sharing class RlyWorkStore {
     /** @description Most work item rows one read takes (the Work items tab, newest first). */
     public static final Integer MAX_ROWS = 2000;
 
+    // The settings, read once per request (raise, approval and deploy each ask).
+    private static List<RLY_Work_Tracking__c> cachedSettings;
+
     /**
-     * @description The settings, or null before an admin saved them.
+     * @description The settings, or null before an admin saved them (read once per request).
      * @return the record
      */
     public static RLY_Work_Tracking__c trackingSettings() {
-        return new SystemAccess().settings();
+        if (cachedSettings == null) {
+            cachedSettings = new List<RLY_Work_Tracking__c>{ new SystemAccess().settings() };
+        }
+        return cachedSettings[0];
     }
 
     /**
@@ -23,6 +29,7 @@ public with sharing class RlyWorkStore {
      */
     public static void saveSettings(RLY_Work_Tracking__c row) {
         new SystemAccess().upsertSettings(row);
+        cachedSettings = null;
     }
 
     /**
