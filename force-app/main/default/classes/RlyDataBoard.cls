@@ -15,8 +15,10 @@ public with sharing class RlyDataBoard {
         @AuraEnabled public List<RunRow> runs = new List<RunRow>();
         /** @description Admins edit data sets and copy data down. */
         @AuraEnabled public Boolean isAdmin = false;
-        /** @description Approvers load data sent up. */
+        /** @description Approvers and the deployment team load data sent up. */
         @AuraEnabled public Boolean isApprover = false;
+        /** @description Copies data down and refills (admins and the deployment team, build 49). */
+        @AuraEnabled public Boolean canMoveDown = false;
         /** @description The viewer. */
         @AuraEnabled public Id userId;
     }
@@ -92,7 +94,8 @@ public with sharing class RlyDataBoard {
     public static Board read() {
         Board b = new Board();
         b.isAdmin = RlyOrgController.isAdmin();
-        b.isApprover = b.isAdmin || FeatureManagement.checkPermission('RLY_Approver');
+        b.isApprover = RlyDataRules.mayLoadUp();
+        b.canMoveDown = RlyDataRules.mayMoveDown();
         b.userId = UserInfo.getUserId();
         for (RLY_Data_Set__c s : RlyDataStore.sets()) {
             b.sets.add(setRow(s));

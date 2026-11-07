@@ -3,6 +3,7 @@
  * until it is deployed, rejected or closed. Tickets already on the release keep their tracker; new ones are matched to
  * a tracker (RlyWorkRouting). The tickets added and removed get a line in the release's history (RlyWorkHistory); an
  * added ticket's first post is the release's current moment, not Raised (RlyWorkSync posts what it hasn't had).
+ * Build 48: only the release's raiser or a Release Relay admin changes its tickets (RlyReleaseAccess).
  */
 public with sharing class RlyWorkItemEdits {
 
@@ -53,11 +54,14 @@ public with sharing class RlyWorkItemEdits {
         return replace(releaseId, all);
     }
 
-    // The release, while its tickets can still change.
+    // The release, while its tickets can still change, and only for its raiser or an admin.
     private static RLY_Release__c openRelease(Id releaseId) {
         RLY_Release__c rel = RlyWorkStore.release(releaseId);
         if (rel == null) {
             throw new RlyReleaseException('Release not found.');
+        }
+        if (!RlyReleaseAccess.mayEditTickets(rel)) {
+            throw new RlyReleaseException('Only the person who raised ' + rel.Name + ' or a Release Relay admin can change its tickets.');
         }
         if (RlyWorkItems.CLOSED.contains(rel.Status__c)) {
             throw new RlyReleaseException('The release is ' + rel.Status__c.toLowerCase() + ': its tickets stay as they are.');

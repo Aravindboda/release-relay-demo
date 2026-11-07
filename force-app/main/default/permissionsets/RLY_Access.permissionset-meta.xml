@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Credential access only (build 49): the Git and Slack principals. In every Release Relay group. Put RLY_Org_Self on your own set RLY_Org_Self_Access, not here: a deploy replaces this list.</description>
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal>RLY_Slack-Bot</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal>RLY_Git_GitHub-RLY_Git_GitHub</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal>RLY_Git_GitLab-RLY_Git_GitLab</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Release Relay Access</label>
+</PermissionSet>

@@ -3,6 +3,8 @@
  * v0=HMAC-SHA256('v0:' + timestamp + ':' + raw body) with the saved signing secret, and the timestamp
  * (X-Slack-Request-Timestamp) at most five minutes old. Apex REST hands a form post over as parameters, so when the
  * raw body is empty it's rebuilt from the payload parameter (with the encodings Slack may use).
+ * Build 48: signatures are compared in constant time, and the payload is read only from the body whose signature
+ * matched (verifiedBody, then payloadOf), never from another parameter (a query string can't swap it).
  */
 public with sharing class RlySlackSignature {
 
@@ -16,17 +18,29 @@ public with sharing class RlySlackSignature {
      * @return true when it is
      */
     public static Boolean isValid(RestRequest req, String secret) {
+        return verifiedBody(req, secret) != null;
+    }
+
+    /**
+     * @description The body whose signature matched (the raw body, or the form body rebuilt from the payload
+     * parameter when Apex REST gave no raw body), or null when the request isn't signed by the Slack app or is too old.
+     * @param req the request
+     * @param secret the saved signing secret
+     * @return the verified body, or null
+     */
+    public static String verifiedBody(RestRequest req, String secret) {
         String stamp = header(req, 'X-Slack-Request-Timestamp');
         String signature = header(req, 'X-Slack-Signature');
         if (String.isBlank(secret) || String.isBlank(signature) || !isRecent(stamp)) {
-            return false;
+            return null;
         }
+        String found = null;
         for (String body : bodies(req)) {
-            if (sign(secret, stamp, body).equals(signature.trim())) {
-                return true;
+            if (RlyRunSigning.same(sign(secret, stamp, body), signature.trim()) && found == null) {
+                found = body;
             }
         }
-        return false;
+        return found;
     }
 
     /**
@@ -42,15 +56,12 @@ public with sharing class RlySlackSignature {
     }
 
     /**
-     * @description The payload JSON of a Slack interaction (form field payload).
-     * @param req the request
+     * @description The payload JSON of a Slack interaction (form field payload), from a verified body only.
+     * @param body the body verifiedBody returned
      * @return the JSON, or null
      */
-    public static String payload(RestRequest req) {
-        if (req.params != null && req.params.containsKey('payload')) {
-            return req.params.get('payload');
-        }
-        for (String pair : rawBody(req).split('&')) {
+    public static String payloadOf(String body) {
+        for (String pair : (body == null ? '' : body).split('&')) {
             if (pair.startsWith('payload=')) {
                 return EncodingUtil.urlDecode(pair.substringAfter('payload='), 'UTF-8');
             }
@@ -76,7 +87,7 @@ public with sharing class RlySlackSignature {
         if (String.isNotBlank(raw)) {
             return new List<String>{ raw };
         }
-        String payloadJson = payload(req);
+        String payloadJson = req.params == null ? null : req.params.get('payload');
         if (payloadJson == null) {
             return new List<String>();
         }

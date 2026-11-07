@@ -57,6 +57,7 @@ public with sharing class RlyApprovalService {
         if (rel == null || (rel.Status__c != 'Checks failed' && rel.Status__c != 'Ready for approval') || rel.PR_Number__c == null) {
             throw new RlyReleaseException('Checks can run again on an open pull request that isn\'t approved yet.');
         }
+        RlyReleaseAccess.requireRerun(rel); // build 48: the raiser, an approver, the deployment team or an admin
         RLY_Release__c before = rel.clone(true, true, true, true);
         RlyApprovalRuns.startChecks(rel, RlyReleaseStore.gitFor(rel), 'check');
         saveAndNotify(before, rel);
@@ -89,6 +90,7 @@ public with sharing class RlyApprovalService {
         if (rel == null || rel.Status__c != 'Ready for approval') {
             throw new RlyReleaseException('Only a release that\'s ready for approval can be approved.');
         }
+        RlyProdApproval.require(rel, who); // build 49: production needs the Production Approver add-on when the hub says so
         RLY_Release__c before = rel.clone(true, true, true, true);
         if (RlyManualStepGate.waitsInstead(rel, who)) {
             saveAndNotify(before, rel); // the first of two approvals, or the deploy waits for manual steps: the card says so

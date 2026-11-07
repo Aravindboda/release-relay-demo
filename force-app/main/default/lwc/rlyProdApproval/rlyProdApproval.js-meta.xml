@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>65.0</apiVersion>
+    <isExposed>false</isExposed>
+    <description>Pipeline tab card (build 49): Approvals, the hub setting Production approval needs the add-on (admins toggle it), who holds the Production Approver add-on, and the admins' banner while it is off.</description>
+</LightningComponentBundle>

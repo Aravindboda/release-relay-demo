@@ -113,10 +113,19 @@ public abstract with sharing class RlyGit extends RlyGitCore {
     }
 
     /**
-     * @description Starts the pipeline with these inputs.
+     * @description Starts the pipeline with these inputs, signed with the run-signing key when the hub has one
+     * (RlyRunSigning, build 48): every run the hub starts goes through here.
      * @param inputs the pipeline inputs
      */
-    public virtual void startPipeline(Map<String, String> inputs) {
+    public void startPipeline(Map<String, String> inputs) {
+        dispatchPipeline(RlyRunSigning.sign(inputs));
+    }
+
+    /**
+     * @description The provider's call that starts the pipeline with inputs already signed (only startPipeline calls it).
+     * @param inputs the pipeline inputs, as sent
+     */
+    protected virtual void dispatchPipeline(Map<String, String> inputs) {
         failUnsupported('Starting the pipeline');
     }
 

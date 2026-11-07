@@ -35,14 +35,15 @@ public with sharing class RlyComparePipelineResult {
         RlyComparePipeline.checkId(compareId);
         RlyGit git = RlyComparePipeline.gitHub();
         Result r = new Result();
-        Map<String, Object> summary = parsed(git.getFileRaw('results/' + compareId + '/compare.json', RlyPipelineRun.RESULTS_BRANCH));
+        Map<String, Object> summary = RlyResultSignature.lenient(git.getFileRaw('results/' + compareId + '/compare.json', RlyPipelineRun.RESULTS_BRANCH),
+            compareId, 'compare');
         Boolean fromThisRun = summary != null && String.isNotBlank(token) && token.equals(String.valueOf(summary.get('attempt')));
         if (!fromThisRun) {
             readRun(git, compareId, r);
             return r;
         }
         r.done = true;
-        r.runUrl = summary.get('runUrl') == null ? null : String.valueOf(summary.get('runUrl'));
+        r.runUrl = RlyRunMonitorInput.url(summary.get('runUrl'));
         if (String.valueOf(summary.get('status')) != 'Succeeded') {
             r.failed = true;
             r.message = summary.get('message') == null ? 'The compare run failed. Open the run for the reason.' : String.valueOf(summary.get('message'));
@@ -65,8 +66,9 @@ public with sharing class RlyComparePipelineResult {
         if (n == null || n < 1 || n > 100000) {
             throw new RlyReleaseException('That file isn\'t part of the compare.');
         }
-        Map<String, Object> f = parsed(RlyComparePipeline.gitHub().getFileRaw('results/' + compareId + '/f/' + n + '.json',
-            RlyPipelineRun.RESULTS_BRANCH));
+        // Signed pages (pipeline v27) come wrapped: unwrapped and checked like the summary (step = the page number).
+        Map<String, Object> f = RlyResultSignature.lenient(RlyComparePipeline.gitHub().getFileRaw('results/' + compareId + '/f/' + n + '.json',
+            RlyPipelineRun.RESULTS_BRANCH), compareId, String.valueOf(n));
         if (f == null) {
             throw new RlyReleaseException('That file isn\'t on the results branch any more: compare again.');
         }
@@ -118,18 +120,6 @@ public with sharing class RlyComparePipelineResult {
         f.n = n == null ? null : Integer.valueOf(String.valueOf(n));
         f.status = f.n == null && f.reason != null ? RlyCompareFiles.UNSUPPORTED : text(m.get('status'));
         return f;
-    }
-
-    private static Map<String, Object> parsed(String raw) {
-        if (String.isBlank(raw)) {
-            return null;
-        }
-        try {
-            Object o = JSON.deserializeUntyped(raw);
-            return o instanceof Map<String, Object> ? (Map<String, Object>) o : null;
-        } catch (JSONException e) {
-            return null;
-        }
     }
 
     private static List<Object> asList(Object o) {

@@ -47,7 +47,9 @@ public with sharing class RlyWorkItemsController {
     public static RlyWorkTypes.Board board() {
         try {
             RlyWorkStore.adoptLegacy();
-            return RlyWorkBoard.build();
+            RlyWorkTypes.Board b = RlyWorkBoard.build();
+            b.canSync = !RlyRoles.isReadOnly();
+            return b;
         } catch (Exception e) {
             throw handled(e);
         }
@@ -61,6 +63,9 @@ public with sharing class RlyWorkItemsController {
     public static Integer syncRecent() {
         try {
             RlyHubGuard.requireHub();
+            if (RlyRoles.isReadOnly()) {
+                throw new RlyReleaseException('Sync now is for people with a Release Relay role; the Auditor reads only.');
+            }
             return RlyWorkSync.postRecent();
         } catch (Exception e) {
             throw handled(e);
@@ -139,7 +144,7 @@ public with sharing class RlyWorkItemsController {
         RLY_Release__c rel = RlyWorkStore.release(releaseId);
         RlyWorkTypes.ReleaseTickets out = new RlyWorkTypes.ReleaseTickets();
         out.trackerLabel = RlyWorkBoard.trackerLabel();
-        out.canEdit = rel != null && !RlyWorkItems.CLOSED.contains(rel.Status__c);
+        out.canEdit = rel != null && !RlyWorkItems.CLOSED.contains(rel.Status__c) && RlyReleaseAccess.mayEditTickets(rel);
         for (RLY_Work_Item__c w : RlyWorkStore.forRelease(releaseId)) {
             RlyWorkTypes.TicketView t = new RlyWorkTypes.TicketView();
             RLY_Work_Tracker__c tracker = RlyWorkRouting.trackerOf(w);

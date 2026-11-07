@@ -55,6 +55,9 @@
                         <template lwc:if={isAdmin}><button type="button" class="rr-link" onclick={openPipeline}>Pipeline ›</button></template>
                     </section>
 
+                    <!-- Credentials (build 49): anything expiring or failing, or All credentials OK -->
+                    <c-rly-credential-tile></c-rly-credential-tile>
+
                     <!-- KPI tiles -->
                     <div class="rr-kpis">
                         <template for:each={tiles} for:item="t">

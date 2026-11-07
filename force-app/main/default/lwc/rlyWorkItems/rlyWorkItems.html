@@ -20,7 +20,7 @@
                         onchange={handleTrackerFilter}></lightning-combobox>
                     <c-rly-search-box label="Search work items" placeholder="Search ticket, release, title, person" shown={shown} total={total}
                         onsearch={handleSearch}></c-rly-search-box>
-                    <lightning-button label="Sync now" icon-name="utility:sync" onclick={syncNow} disabled={syncing}></lightning-button>
+                    <template lwc:if={canSync}><lightning-button label="Sync now" icon-name="utility:sync" onclick={syncNow} disabled={syncing}></lightning-button></template>
                     <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Read again" title="Read again" onclick={load} disabled={loading}></lightning-button-icon>
                 </section>
                 <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>

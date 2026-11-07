@@ -1550,7 +1550,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     // ---------- actions ----------
 
     get isApprover() { return !!(this.detail && this.detail.isApprover); }
-    get canApprove() { return this.isApprover && this.approveHere && this.rel.Status__c === 'Ready for approval'; }
+    get canApprove() { return this.isApprover && this.approveHere && this.rel.Status__c === 'Ready for approval' && !this.prodAddonNote; }
+    /** Build 49: production needs the Production Approver add-on and this approver hasn't got it. */
+    get prodAddonNote() { return (this.detail && this.detail.prodAddonNote) || ''; }
     /** Ready for approval, but approved from the Slack card rather than here. */
     get approvedElsewhere() { return !this.approveHere && this.rel.Status__c === 'Ready for approval'; }
     get canReject() { return this.isApprover && (this.rel.Status__c === 'Ready for approval' || this.rel.Status__c === 'Checks failed'); }
@@ -1558,13 +1560,16 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         return this.isApprover && this.rel.Status__c === 'Checks failed'
             && (this.rel.Scan_Status__c === 'Failed' || this.rel.Scan_Status__c === 'Error');
     }
-    get canCheckAgain() { return ['Checks failed', 'Ready for approval'].includes(this.rel.Status__c) && !!this.rel.PR_Number__c; }
+    get canCheckAgain() {
+        return ['Checks failed', 'Ready for approval'].includes(this.rel.Status__c) && !!this.rel.PR_Number__c
+            && !(this.detail && this.detail.canRerun === false);
+    }
     get validationBlocks() { return ['Failed', 'Error'].includes(this.rel.Validation_Status__c); }
     get showDecision() { return !this.running && (this.canBypass || this.canReject); }
 
     /** While the checks run the bar shows the actions disabled; after that, the ones this user can take. */
     get waitingForChecks() { return this.running && ['Retrieving', 'Workflow running', 'Validating'].includes(this.rel.Status__c); }
-    get showCheckAgain() { return this.waitingForChecks || this.canCheckAgain; }
+    get showCheckAgain() { return (this.waitingForChecks && !(this.detail && this.detail.canRerun === false)) || this.canCheckAgain; }
     get showReject() { return (this.waitingForChecks && this.isApprover) || this.canReject; }
     get showApprove() { return (this.waitingForChecks && this.isApprover && this.approveHere) || this.canApprove; }
     get checkAgainDisabled() { return this.actBusy || !this.canCheckAgain; }
@@ -1579,6 +1584,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         }
         if (this.approvedElsewhere) {
             return 'Approved from the Slack card.';
+        }
+        if (this.prodAddonNote) {
+            return this.prodAddonNote;
         }
         if (this.needsApproverNote) {
             return 'An approver approves or rejects it on the Approvals tab.';

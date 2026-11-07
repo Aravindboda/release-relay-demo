@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSetGroup xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Raise and track releases: New Release, Releases, Pipeline Monitor, Work items, Guide. Add the Hotfix add-on for people who raise hotfixes.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Release Relay Developer</label>
+    <permissionSets>RLY_Developer</permissionSets>
+    <permissionSets>RLY_Access</permissionSets>
+    <status>Updated</status>
+</PermissionSetGroup>

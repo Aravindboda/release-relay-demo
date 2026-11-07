@@ -57,6 +57,9 @@ public with sharing class RlySlackAlert {
                 return '';
             }
             Set<Id> people = event == 'Checks failed' ? new Set<Id>{ rel.CreatedById } : RlySlackDueReads.holders(APPROVER_SETS);
+            if (event != 'Checks failed' && RlyProdApproval.needsAddon(rel)) {
+                people.retainAll(RlyRoles.holdersOf(RlyProdApproval.PERMISSION, people)); // build 49: only those who may approve production
+            }
             return RlySlackNudge.mentions(RlySlackDueReads.memberIds(people).values());
         } catch (Exception e) {
             return ''; // mentions are a nicety: the reply goes out without them

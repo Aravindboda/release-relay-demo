@@ -828,6 +828,13 @@
                         </section>
                     </template>
 
+                    <!-- Run signing and Repository security (build 48): the hub's run-signing key and a read-only repository check -->
+                    <c-rly-run-security></c-rly-run-security>
+
+                    <!-- Approvals and Credentials (build 49): production approval's add-on rule, and every credential the hub depends on -->
+                    <c-rly-prod-approval></c-rly-prod-approval>
+                    <c-rly-credentials></c-rly-credentials>
+
                     <!-- Connected orgs: tabs by Salesforce environment, compact cards; a card opens the org's window -->
                     <section class="rr-sec" aria-label="Connected orgs">
                         <template lwc:if={fold.orgs.open}>

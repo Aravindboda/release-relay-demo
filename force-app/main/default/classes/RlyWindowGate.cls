@@ -4,7 +4,7 @@
  * becomes Waiting for window (History: Window_Held) and its checks and approval stay as they are. Every read of the
  * release (RlyStatusReader: the release page, the Releases list, Home) tries again; once the window is open the deploy
  * starts as the approval would have started it, or the checks run again when the target branch moved meanwhile. An admin
- * can start it at once with a reason (deployNow: History Window_Override, which the evidence PDF lists, and the Slack
+ * (build 49: anyone with the Release Window Bypass add-on) can start it at once with a reason (deployNow: History Window_Override, which the evidence PDF lists, and the Slack
  * card's thread). Not held: rollbacks (they don't come through here), branch-only back promotes (no deploy), releases of
  * only manual steps, and orgs without a window. Callouts only in resume and deployNow; callers save the release.
  */
@@ -16,6 +16,10 @@ public with sharing class RlyWindowGate {
     public static final String EVENT_HELD = 'Window_Held';
     /** @description History: deployed outside the window by an admin. */
     public static final String EVENT_OVERRIDE = 'Window_Override';
+    /** @description The custom permission of Deploy now anyway (build 49: add-on RLY_Window_Bypass_Addon). */
+    public static final String BYPASS_PERMISSION = 'RLY_Window_Bypass';
+    /** @description Said to someone without it. */
+    public static final String BYPASS_NEEDED = 'Deploying outside the release window needs the Release Window Bypass add-on.';
 
     @TestVisible
     private static Datetime nowForTest;
@@ -30,7 +34,7 @@ public with sharing class RlyWindowGate {
         @AuraEnabled public String text;
         /** @description The window in a few words. */
         @AuraEnabled public String windowText;
-        /** @description Whether the current user may deploy now anyway (admins). */
+        /** @description Whether the current user may deploy now anyway (the Release Window Bypass add-on). */
         @AuraEnabled public Boolean canDeployNow = false;
     }
 
@@ -81,13 +85,14 @@ public with sharing class RlyWindowGate {
     }
 
     /**
-     * @description An admin starts a waiting release's deploy now, outside the window, with a reason.
+     * @description Someone with the Release Window Bypass add-on starts a waiting release's deploy now, outside the
+     * window, with a reason.
      * @param rel the release (Waiting for window)
      * @param reason why it can't wait (required)
      */
     public static void deployNow(RLY_Release__c rel, String reason) {
-        if (!RlyOrgController.isAdmin()) {
-            throw new RlyReleaseException('Only a Release Relay admin can deploy outside the release window.');
+        if (!mayBypass()) {
+            throw new RlyReleaseException(BYPASS_NEEDED);
         }
         if (rel == null || rel.Status__c != WAITING) {
             throw new RlyReleaseException('Only a release waiting for the window can be deployed now.');
@@ -108,6 +113,14 @@ public with sharing class RlyWindowGate {
     }
 
     /**
+     * @description Whether the current user may Deploy now anyway (the Release Window Bypass add-on, build 49).
+     * @return true with RLY_Window_Bypass
+     */
+    public static Boolean mayBypass() {
+        return FeatureManagement.checkPermission(BYPASS_PERMISSION);
+    }
+
+    /**
      * @description Where a release stands against its target's window.
      * @param rel the release
      * @return the notice (kind none when it isn't waiting)
@@ -123,7 +136,7 @@ public with sharing class RlyWindowGate {
         n.kind = w.freezeAt(at) != null ? 'frozen' : 'waiting';
         n.text = text(org, w, at);
         n.windowText = RlyWindowText.summary(w, at);
-        n.canDeployNow = RlyOrgController.isAdmin();
+        n.canDeployNow = mayBypass();
         return n;
     }
 

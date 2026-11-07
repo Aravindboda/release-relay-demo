@@ -26,6 +26,8 @@ public with sharing class RlySlackLink {
     public static final String NOT_APPROVER = 'notApprover';
     /** @description The Slack ID is linked to the signed-in user (already, or just now). */
     public static final String LINKED = 'linked';
+    /** @description What an unlinked Slack user whose Slack email or SSO matches no user is told (build 48: no link). */
+    public static final String ASK_ADMIN = 'You\'re not linked to ' + System.Label.RLY_App_Name + ' yet, so this wasn\'t counted. Ask an admin to link you.';
     /** @description What an unlinked Slack user who isn't an approver is told. */
     public static final String CANT_APPROVE = 'You can\'t approve releases. Ask a ' + System.Label.RLY_App_Name + ' admin.';
 
@@ -104,7 +106,7 @@ public with sharing class RlySlackLink {
             return null;
         }
         String body = String.join(new List<String>{ parts[0], parts[1], parts[2], parts[3] }, '.');
-        if (!mac(body, secret).equals(parts[4].toLowerCase())) {
+        if (!RlyRunSigning.same(mac(body, secret), parts[4].toLowerCase())) {
             return null;
         }
         Claim c = new Claim();

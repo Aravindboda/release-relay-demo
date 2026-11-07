@@ -12,6 +12,8 @@ public with sharing class RlySlackPresser {
     public User toSave;
     /** @description The person is a Salesforce user who isn't an approver. */
     public Boolean notApprover = false;
+    /** @description Build 48: their Slack email matched a user's Federation ID or email (only then may they get a Link my account token). */
+    public Boolean matched = false;
 
     /**
      * @description Matches a Slack user who pressed a button. Never throws.
@@ -29,6 +31,7 @@ public with sharing class RlySlackPresser {
             RlySlackPeople.Person p = how == RlySlackMatch.MANUAL || String.isBlank(memberId) ? null
                 : RlySlackPeople.byId(memberId.trim().toUpperCase());
             List<User> users = p == null ? new List<User>() : RlySlackDirectory.usersWith(p.email, how);
+            out.matched = !users.isEmpty();
             if (users.size() == 1) {
                 out.take(users[0], p.memberId, how);
             }
