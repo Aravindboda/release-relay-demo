@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Branch__c</fullName>
+    <description>The branch the run works on (the release branch, the back promote branch, or the pipeline branch for the nightly archive).</description>
+    <externalId>false</externalId>
+    <label>Branch</label>
+    <length>255</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>
