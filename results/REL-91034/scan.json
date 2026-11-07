@@ -1,0 +1,91 @@
+{
+ "request": "REL-91034",
+ "step": "scan",
+ "status": "Failed",
+ "total": 4,
+ "blocking": 1,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "High": 1,
+  "Moderate": 2,
+  "Info": 1
+ },
+ "files": [
+  "force-app/main/default/classes/RlyCompareController.cls",
+  "force-app/main/default/classes/RlyComparePipeline.cls",
+  "force-app/main/default/classes/RlyComparePipelineInput.cls",
+  "force-app/main/default/classes/RlyPipelineOptions.cls",
+  "force-app/main/default/classes/RlyReleaseStore.cls",
+  "force-app/main/default/classes/RlyRunMonitorRetention.cls",
+  "force-app/main/default/classes/RlySyncBoard.cls",
+  "force-app/main/default/classes/RlySyncController.cls",
+  "force-app/main/default/classes/RlySyncPackages.cls",
+  "force-app/main/default/classes/RlySyncParse.cls",
+  "force-app/main/default/classes/RlySyncPaths.cls",
+  "force-app/main/default/classes/RlySyncPicks.cls",
+  "force-app/main/default/classes/RlySyncPromote.cls",
+  "force-app/main/default/classes/RlySyncResult.cls",
+  "force-app/main/default/classes/RlySyncRoute.cls",
+  "force-app/main/default/classes/RlySyncRuns.cls",
+  "force-app/main/default/classes/RlySyncStore.cls",
+  "force-app/main/default/classes/RlySyncTest.cls",
+  "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js",
+  "force-app/main/default/lwc/rlySyncStatus/rlySyncStatus.html",
+  "force-app/main/default/lwc/rlySyncStatus/rlySyncStatus.js",
+  "force-app/main/default/lwc/rlySyncStatus/syncHelpers.js"
+ ],
+ "violations": [
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "no-unused-vars",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+   "line": 106,
+   "message": "'e' is defined but never used.",
+   "url": "https://eslint.org/docs/latest/rules/no-unused-vars"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc/no-api-reassignments",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+   "line": 170,
+   "message": "Invalid reassignment of public property \"appendTo\"",
+   "url": "https://github.com/salesforce/eslint-plugin-lwc/blob/v3.5.0/docs/rules/no-api-reassignments.md"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlySyncStatus/rlySyncStatus.js",
+   "line": 273,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  },
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "NoTrailingWhitespace",
+   "engine": "regex",
+   "file": "force-app/main/default/classes/RlyComparePipeline.cls",
+   "line": 20,
+   "message": "Found trailing whitespace at the end of a line of code.",
+   "url": null
+  }
+ ],
+ "message": "1 violation(s) at High or above.",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42389034019",
+ "finishedAt": "2026-11-07T16:00:32.723Z"
+}
