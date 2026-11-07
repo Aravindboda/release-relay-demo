@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Slack_Digest_Hour__c</fullName>
+    <description>The hour (0 to 23, the hub&apos;s time zone) the daily digest goes out; blank means 8.</description>
+    <externalId>false</externalId>
+    <label>Slack Digest Hour</label>
+    <precision>2</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

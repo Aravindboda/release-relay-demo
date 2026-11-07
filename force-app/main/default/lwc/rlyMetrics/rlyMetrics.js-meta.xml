@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>65.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Release Relay: Metrics</masterLabel>
+    <description>Read-only metrics from Release Relay's history: deploys, lead time, change failure rate, time to restore (DORA), approval wait and checks failing, with why checks fail, the files that conflict most and a CSV download.</description>
+    <targets>
+        <target>lightning__Tab</target>
+    </targets>
+</LightningComponentBundle>

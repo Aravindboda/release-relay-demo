@@ -136,3 +136,6 @@
     .rr-row > :last-child { display: none; }
     .rr-pkg { grid-template-columns: 1fr; }
 }
+
+/* the Data view (build 43) fills the rest of the page */
+.rr-data-view { display: block; flex: 1 1 auto; min-height: 0; }

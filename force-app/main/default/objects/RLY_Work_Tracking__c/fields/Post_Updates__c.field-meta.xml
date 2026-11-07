@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Post_Updates__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>On: Release Relay posts each release moment to the ticket (a comment, and the mapped state).</description>
+    <label>Post Updates</label>
+    <type>Checkbox</type>
+</CustomField>

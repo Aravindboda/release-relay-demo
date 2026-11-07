@@ -1,0 +1,88 @@
+<template>
+    <div class="rr-page">
+        <section class="rr-card rr-head" aria-label="Filters">
+            <div class="rr-title">
+                <p class="rr-eyebrow">Release Relay</p>
+                <h1 class="rr-h1">Metrics</h1>
+            </div>
+            <div class="rr-filters">
+                <lightning-combobox class="rr-pick" label="Org" value={orgId} options={orgOptions} onchange={handleOrg}></lightning-combobox>
+                <lightning-combobox class="rr-pick" label="Developer org" value={devOrgId} options={devOrgOptions} onchange={handleDevOrg}></lightning-combobox>
+                <div class="rr-segs" role="group" aria-label="Period">
+                    <template for:each={periodButtons} for:item="p">
+                        <button key={p.value} type="button" class={p.cls} data-value={p.value} aria-pressed={p.pressed} onclick={handlePeriod}>{p.label}</button>
+                    </template>
+                </div>
+                <span class="rr-small rr-weak" aria-live="polite">{busyText}</span>
+                <lightning-button label="Download CSV" icon-name="utility:download" onclick={downloadCsv} disabled={loading}></lightning-button>
+                <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Read again" title="Read again" onclick={refresh}></lightning-button-icon>
+                <template lwc:if={csvHref}><a class="rr-csv rr-small" href={csvHref} download={csvName}>{csvName}</a></template>
+            </div>
+        </section>
+
+        <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+        <template lwc:if={showSpinner}>
+            <div class="rr-card rr-pad rr-spin"><lightning-spinner alternative-text="Reading the metrics" size="small"></lightning-spinner></div>
+        </template>
+
+        <template lwc:if={hasData}>
+            <template lwc:if={truncated}>
+                <div class="rr-msg rr-msg-warn" role="status">A very busy period: some numbers cover the first 4,000 events only. Pick a shorter period for exact numbers.</div>
+            </template>
+            <div class="rr-tiles">
+                <template for:each={tiles} for:item="t">
+                    <div key={t.key} class="rr-card rr-tile">
+                        <p class="rr-tile-k">{t.label}<template lwc:if={t.dora}><span class="rr-dora" title="One of the four DORA measures">DORA</span></template></p>
+                        <p class="rr-tile-v">{t.value}</p>
+                        <p class="rr-small rr-weak">{t.detail}</p>
+                        <p class={t.trendCls}>{t.trend}</p>
+                    </div>
+                </template>
+            </div>
+
+            <div class="rr-charts">
+                <template for:each={charts} for:item="c">
+                    <section key={c.key} class="rr-card rr-chart" aria-label={c.title}>
+                        <div class="rr-chart-h"><h2 class="rr-h2">{c.title}</h2><template lwc:if={c.note}><span class="rr-dora">{c.note}</span></template></div>
+                        <template lwc:if={c.empty}><p class="rr-small rr-weak rr-pad">Nothing in this period.</p></template>
+                        <template lwc:else>
+                            <svg class="rr-svg" viewBox={c.viewBox} role="img" aria-label={c.ariaLabel}>
+                                <line x1="0" y1={c.baseY} x2={c.baseX2} y2={c.baseY} class="rr-axis"></line>
+                                <template for:each={c.bars} for:item="b">
+                                    <g key={b.key}>
+                                        <rect x={b.x} y={b.y} width={b.width} height={b.height} fill={b.fill} rx="2"><title>{b.title}</title></rect>
+                                        <text x={b.cx} y={b.valueY} text-anchor="middle" class="rr-val">{b.valueText}</text>
+                                        <text x={b.cx} y={b.labelY} text-anchor="middle" class="rr-lab">{b.axisText}</text>
+                                    </g>
+                                </template>
+                            </svg>
+                        </template>
+                    </section>
+                </template>
+
+                <section class="rr-card rr-chart" aria-label="Why checks fail">
+                    <div class="rr-chart-h"><h2 class="rr-h2">Why checks fail · {orgName}</h2></div>
+                    <div class="rr-pad">
+                        <template lwc:if={noReasons}><p class="rr-small rr-weak">No failed checks in this period.</p></template>
+                        <template for:each={reasonBars} for:item="b">
+                            <div key={b.key} class="rr-hb" title={b.label}>
+                                <span class="rr-hb-l">{b.label}</span><span class="rr-hb-t"><i style={b.style}></i></span><b>{b.value}</b>
+                            </div>
+                        </template>
+                        <template lwc:if={hasFiles}>
+                            <h3 class="rr-h3">Files that conflict most</h3>
+                            <template for:each={fileBars} for:item="b">
+                                <div key={b.key} class="rr-hb" title={b.label}>
+                                    <span class="rr-hb-l rr-mono">{b.label}</span><span class="rr-hb-t"><i style={b.style}></i></span><b>{b.value}</b>
+                                </div>
+                            </template>
+                        </template>
+                        <p class="rr-small rr-weak rr-note">{reasonsProgress}</p>
+                        <template lwc:if={reasonsError}><p class="rr-msg rr-msg-bad">{reasonsError}</p></template>
+                    </div>
+                </section>
+            </div>
+            <p class="rr-small rr-weak rr-foot">From Release Relay's own history: deploys, failed deploys, rollbacks, checks and approvals. Lead time counts each release a promotion carries from the day it was raised. The developer org filter applies to lead time, approvals and checks. The archive's retention limits how far back the numbers go.</p>
+        </template>
+    </div>
+</template>

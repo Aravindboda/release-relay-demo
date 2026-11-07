@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Window_Freezes__c</fullName>
+    <description>Release window: freeze periods as JSON [{from: yyyy-MM-dd, to: yyyy-MM-dd, reason}] (dates in the window&apos;s time zone, both included). No deploy runs in a freeze.</description>
+    <label>Window Freezes</label>
+    <length>32768</length>
+    <trackHistory>false</trackHistory>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>
