@@ -126,8 +126,8 @@ public with sharing class RlyMigrationRepo {
         if (parsed instanceof List<Object>) {
             return (List<Object>) parsed;
         }
-        Object inner = ((Map<String, Object>) parsed).get(provider == 'AzureDevOps' ? 'value' : 'values');
-        return inner instanceof List<Object> ? (List<Object>) inner : new List<Object>();
+        Object listed = ((Map<String, Object>) parsed).get(provider == 'AzureDevOps' ? 'value' : 'values');
+        return listed instanceof List<Object> ? (List<Object>) listed : new List<Object>();
     }
 
     private static OpenRequest requestOf(Map<String, Object> m, String provider, RlyGit git) {

@@ -47,13 +47,13 @@ public with sharing class RlyMigrationMethods {
      */
     public static List<Method> forPair(RLY_Git_Connection__c current, RLY_Git_Connection__c target, Integer targetBranches) {
         String fromProvider = current == null ? '' : current.Provider__c;
-        String to = target == null ? '' : target.Provider__c;
+        String toProvider = target == null ? '' : target.Provider__c;
         String noJob = RUNS_MIGRATE.contains(fromProvider) ? null
             : 'The copy runs in the current pipeline, and ' + labelOf(fromProvider) + ' pipeline files have no migrate job yet.';
         String notEmpty = targetBranches != null && targetBranches > 0
             ? 'The new repository already holds ' + targetBranches + ' branch(es): this needs an empty one.' : null;
         List<Method> out = new List<Method>{ lift(noJob, notEmpty), importer(current, target, noJob), fresh(noJob, notEmpty) };
-        if (String.isBlank(to)) {
+        if (String.isBlank(toProvider)) {
             for (Method m : out) {
                 m.possible = false;
                 m.why = 'Configure the new connection first.';
@@ -89,35 +89,35 @@ public with sharing class RlyMigrationMethods {
     }
 
     private static Method importer(RLY_Git_Connection__c current, RLY_Git_Connection__c target, String noJob) {
-        String to = target == null ? '' : target.Provider__c;
+        String toProvider = target == null ? '' : target.Provider__c;
         String fromLabel = current == null ? '' : labelOf(current.Provider__c);
         String source = current == null ? '' : current.Repository__c;
-        Method m = method(IMPORTER, labelOf(to) + '\'s own importer', new List<String>{
-            'You import the repository in ' + labelOf(to) + ' with the clicks below; then the hub verifies that every '
+        Method m = method(IMPORTER, labelOf(toProvider) + '\'s own importer', new List<String>{
+            'You import the repository in ' + labelOf(toProvider) + ' with the clicks below; then the hub verifies that every '
             + 'branch and tag matches (nothing is pushed).',
             'The provider does the copy; it also fits a repository that already holds the content.',
-            'Done by hand in ' + labelOf(to) + '; anything changed in ' + fromLabel + ' since the import shows as a difference.' });
-        m.clicks = clicks(current, to, source);
+            'Done by hand in ' + labelOf(toProvider) + '; anything changed in ' + fromLabel + ' since the import shows as a difference.' });
+        m.clicks = clicks(current, toProvider, source);
         if (m.clicks.isEmpty()) {
             m.label = 'Verify a copy you made';
-            m.summary = labelOf(to) + ' has no importer the hub can guide for ' + fromLabel + '. If you copied the '
+            m.summary = labelOf(toProvider) + ' has no importer the hub can guide for ' + fromLabel + '. If you copied the '
                 + 'repository another way (for example git clone --mirror, then git push --mirror), the hub verifies it.';
         }
         return blocked(m, noJob);
     }
 
-    private static List<String> clicks(RLY_Git_Connection__c current, String to, String source) {
+    private static List<String> clicks(RLY_Git_Connection__c current, String toProvider, String source) {
         String fromProvider = current == null ? '' : current.Provider__c;
         String cloneUrl = current == null ? '' : RlyMigrationRepo.pushUrl(RlyGit.forConnection(current));
-        if (to == 'GitLab') {
+        if (toProvider == 'GitLab') {
             return gitLabClicks(fromProvider, source, cloneUrl);
         }
-        if (to == 'AzureDevOps') {
+        if (toProvider == 'AzureDevOps') {
             return new List<String>{ 'In Azure DevOps: Repos → the repository list → Import repository.',
                 'Clone URL: ' + cloneUrl + '. Tick Requires authentication and give a user name and a token that can read it.',
                 'Name the repository as in the new connection, then Import.' };
         }
-        if (to == RlyGit.BITBUCKET) {
+        if (toProvider == RlyGit.BITBUCKET) {
             return new List<String>{ 'In Bitbucket: Create → Import repository.',
                 'URL: ' + cloneUrl + '. Tick Requires authorization and give a user name and a token that can read it.',
                 'Pick the workspace, project and repository name as in the new connection, then Import repository.' };

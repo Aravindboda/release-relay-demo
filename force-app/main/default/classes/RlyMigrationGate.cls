@@ -56,8 +56,8 @@ public with sharing class RlyMigrationGate {
         g.conditions.add(orgsCondition(v, state));
         g.conditions.add(openCondition(v));
         g.ready = m.Status__c == RlyMigrationStore.OPEN;
-        for (RlyMigrationView.Condition c : g.conditions) {
-            g.ready = g.ready && c.ok;
+        for (RlyMigrationView.Condition cond : g.conditions) {
+            g.ready = g.ready && cond.ok;
         }
         return g;
     }
