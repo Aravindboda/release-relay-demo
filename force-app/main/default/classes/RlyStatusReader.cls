@@ -66,7 +66,9 @@ public with sharing class RlyStatusReader {
         RlyFlowActivation.afterRead(rel, oldStatus); // flows chosen Activate, in the org just deployed to (callouts)
         rel.Last_Synced__c = System.now();
         RlySlackCardSync.notifyChange(prior, rel); // the Slack callouts (the card is kept current) come before any DML
-        return RlySharedRead.save(rel, oldStatus); // a row lock held by another viewer returns the release as saved
+        RLY_Release__c saved = RlySharedRead.save(rel, oldStatus); // a row lock held by another viewer returns the release as saved
+        RlyRunMonitorChecks.afterRead(saved, oldStatus); // a check run GitHub ended green turns Failed on the Pipeline Monitor
+        return saved;
     }
 
     /**
