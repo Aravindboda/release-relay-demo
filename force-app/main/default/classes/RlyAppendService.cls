@@ -116,7 +116,7 @@ public with sharing class RlyAppendService {
         rel.Pending_Run__c = null;
         rel.Error_Message__c = null;
         rel.Checks_Requested__c = System.now();
-        rel.Scan_Status__c = RlyScanRule.statusFor(RlyReleaseStore.git(), RlyScanRule.targetOf(rel));
+        rel.Scan_Status__c = RlyScanRule.statusFor(RlyReleaseStore.gitFor(rel), RlyScanRule.targetOf(rel));
         rel.Validation_Status__c = String.isBlank(rel.Target_Environment__c) ? 'Not configured' : 'Pending';
         rel.Scan_Bypassed_By__c = null;
         rel.Scan_Bypass_Reason__c = null;

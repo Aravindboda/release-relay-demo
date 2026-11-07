@@ -159,7 +159,7 @@ public with sharing class RlyHomeHealth {
          */
         public RLY_Git_Connection__c git() {
             List<RLY_Git_Connection__c> rows = [SELECT Id, Status__c, Status_Message__c, Last_Checked__c, Code_Scan__c
-                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY CreatedDate ASC LIMIT 1];
+                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
         }
 
