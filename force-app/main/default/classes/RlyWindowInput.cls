@@ -43,7 +43,7 @@ public with sharing class RlyWindowInput {
     private List<String> dayList() {
         Set<String> picked = new Set<String>(days == null ? new List<String>() : days);
         List<String> out = new List<String>();
-        for (String d : RlyReleaseWindow.DAYS) {
+        for (String d : RlyReleaseWindow.DAY_CODES) {
             if (picked.contains(d)) {
                 out.add(d);
             }
@@ -64,7 +64,7 @@ public with sharing class RlyWindowInput {
 
     private String zoneName() {
         String z = String.isBlank(timeZone) ? RlyReleaseWindow.DEFAULT_ZONE : timeZone.trim();
-        if (TimeZone.getTimeZone(z).getID() != z) {
+        if (!RlyReleaseWindow.knownZone(z)) {
             throw new RlyReleaseException('"' + z + '" isn\'t a time zone Salesforce knows (for example America/Chicago).');
         }
         return z;

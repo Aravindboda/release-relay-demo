@@ -134,7 +134,7 @@ public with sharing class RlyWindowController {
                 RlyReleaseWindow w = new RlyReleaseWindow(o);
                 String line = RlyWindowText.soon(o.Name, w, at);
                 if (line != null) {
-                    out.add(upcoming(o.Name, line, w.freezeAt(at) != null));
+                    out.add(upcomingRow(o.Name, line, w.freezeAt(at) != null));
                 }
             }
             return out;
@@ -167,7 +167,7 @@ public with sharing class RlyWindowController {
         return v;
     }
 
-    private static Upcoming upcoming(String orgName, String text, Boolean running) {
+    private static Upcoming upcomingRow(String orgName, String text, Boolean running) {
         Upcoming u = new Upcoming();
         u.orgName = orgName;
         u.text = text;

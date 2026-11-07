@@ -129,7 +129,7 @@ private class RlyWindowGateTest {
                 }
             }
             RlyWindowController.WindowView saved = RlyWindowController.saveWindow(JSON.serialize(input));
-            List<RlyWindowController.WindowView> all = RlyWindowController.windows();
+            List<RlyWindowController.WindowView> views = RlyWindowController.windows();
             List<RlyWindowController.Upcoming> soon = RlyWindowController.upcomingFreezes();
             Test.stopTest();
             System.assertEquals(2, errors.size(), 'Both refused: ' + errors);
@@ -143,7 +143,7 @@ private class RlyWindowGateTest {
             System.assert(saved.stateText.startsWith('Closed: deploys'), saved.stateText);
             System.assert(saved.canEdit, 'Admins edit');
             Boolean listed = false;
-            for (RlyWindowController.WindowView v : all) {
+            for (RlyWindowController.WindowView v : views) {
                 listed = listed || v.orgId == sitId;
             }
             System.assert(listed, 'SIT is listed');

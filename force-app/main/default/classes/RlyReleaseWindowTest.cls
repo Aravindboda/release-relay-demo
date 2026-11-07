@@ -95,14 +95,14 @@ private class RlyReleaseWindowTest {
             Datetime inFreeze = utc('2026-12-30 01:00'); // Tue 29 Dec 7:00 PM CST
             Boolean open = weekdays.isOpen(inFreeze);
             RlyWindowFreezes.Freeze f = weekdays.freezeAt(inFreeze);
-            Datetime after = weekdays.nextOpen(inFreeze);
+            Datetime afterFreeze = weekdays.nextOpen(inFreeze);
             Datetime midnight = nightly.nextOpen(utc('2027-01-01 05:00')); // Thu 31 Dec 11:00 PM CST
             Test.stopTest();
             System.assertEquals(2, weekdays.freezes.size(), 'The unreadable freeze is dropped');
             System.assertEquals(Date.newInstance(2026, 11, 16), weekdays.freezes[0].fromDate, 'Earliest first');
             System.assert(!open, 'Frozen');
             System.assertEquals('Year-end close', f.reason, 'Which freeze');
-            System.assertEquals(utc('2027-01-05 00:00'), after, 'Monday 4 Jan 6 PM, the first window after the freeze');
+            System.assertEquals(utc('2027-01-05 00:00'), afterFreeze, 'Monday 4 Jan 6 PM, the first window after the freeze');
             System.assertEquals(utc('2027-01-01 06:00'), midnight, 'The freeze ends at midnight, inside the night window');
             System.assert(RlyWindowText.summary(weekdays, inFreeze).contains('frozen until 2 Jan 2027'), 'Summary: ' + RlyWindowText.summary(weekdays, inFreeze));
             System.assert(RlyWindowText.summary(weekdays, utc('2026-11-10 18:00')).contains('next freeze 16 Nov 2026'), 'Next freeze named');

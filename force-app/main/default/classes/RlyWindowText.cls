@@ -85,20 +85,20 @@ public with sharing class RlyWindowText {
      */
     public static String dayText(RlyReleaseWindow w) {
         List<Integer> idx = new List<Integer>();
-        for (Integer i = 0; i < RlyReleaseWindow.DAYS.size(); i++) {
-            if (w.days.contains(RlyReleaseWindow.DAYS[i])) {
+        for (Integer i = 0; i < RlyReleaseWindow.DAY_CODES.size(); i++) {
+            if (w.days.contains(RlyReleaseWindow.DAY_CODES[i])) {
                 idx.add(i);
             }
         }
-        if (idx.size() == RlyReleaseWindow.DAYS.size()) {
+        if (idx.size() == RlyReleaseWindow.DAY_CODES.size()) {
             return 'Every day';
         }
         if (idx.size() > 2 && idx[idx.size() - 1] - idx[0] == idx.size() - 1) {
-            return RlyReleaseWindow.DAYS[idx[0]] + '–' + RlyReleaseWindow.DAYS[idx[idx.size() - 1]];
+            return RlyReleaseWindow.DAY_CODES[idx[0]] + '–' + RlyReleaseWindow.DAY_CODES[idx[idx.size() - 1]];
         }
         List<String> names = new List<String>();
         for (Integer i : idx) {
-            names.add(RlyReleaseWindow.DAYS[i]);
+            names.add(RlyReleaseWindow.DAY_CODES[i]);
         }
         return String.join(names, ', ');
     }

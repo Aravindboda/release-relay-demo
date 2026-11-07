@@ -138,11 +138,11 @@ public with sharing class RlyWindowGate {
     public static String text(RLY_Org__c org, RlyReleaseWindow w, Datetime at) {
         RlyWindowFreezes.Freeze f = w.freezeAt(at);
         Datetime next = w.nextOpen(at);
-        String when = next == null ? '' : ' Deploys ' + RlyWindowText.momentText(w, next) + '.';
+        String deploysAt = next == null ? '' : ' Deploys ' + RlyWindowText.momentText(w, next) + '.';
         if (f != null) {
             return 'Frozen until ' + RlyWindowText.dateText(f.toDate) + ' in ' + org.Name
-                + (String.isBlank(f.reason) ? '.' : ': ' + f.reason + '.') + when;
+                + (String.isBlank(f.reason) ? '.' : ': ' + f.reason + '.') + deploysAt;
         }
-        return 'Waiting for ' + org.Name + '\'s release window (' + RlyWindowText.dayText(w) + ' ' + RlyWindowText.hoursText(w) + ').' + when;
+        return 'Waiting for ' + org.Name + '\'s release window (' + RlyWindowText.dayText(w) + ' ' + RlyWindowText.hoursText(w) + ').' + deploysAt;
     }
 }

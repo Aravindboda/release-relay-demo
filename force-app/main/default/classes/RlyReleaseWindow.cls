@@ -8,7 +8,7 @@
 public with sharing class RlyReleaseWindow {
 
     /** @description The day codes, Monday first. */
-    public static final List<String> DAYS = new List<String>{ 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun' };
+    public static final List<String> DAY_CODES = new List<String>{ 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun' };
     /** @description The time zone when the org has none. */
     public static final String DEFAULT_ZONE = 'America/Chicago';
     private static final Integer LOOK_AHEAD_DAYS = 400;
@@ -34,7 +34,7 @@ public with sharing class RlyReleaseWindow {
         days = new Set<String>();
         for (String d : (String.isBlank(o.Window_Days__c) ? '' : o.Window_Days__c).split(',')) {
             String code = d.trim().left(3).toLowerCase().capitalize();
-            if (DAYS.contains(code)) {
+            if (DAY_CODES.contains(code)) {
                 days.add(code);
             }
         }
@@ -114,6 +114,15 @@ public with sharing class RlyReleaseWindow {
     }
 
     /**
+     * @description Whether Salesforce knows a time zone id (America/Chicago).
+     * @param zoneName the id
+     * @return true when known
+     */
+    public static Boolean knownZone(String zoneName) {
+        return TimeZone.getTimeZone(zoneName).getID() == zoneName;
+    }
+
+    /**
      * @description A time HH:mm as minutes after midnight.
      * @param value HH:mm (or HH:mm:ss…)
      * @return the minutes, or null when it isn't a time
@@ -172,6 +181,6 @@ public with sharing class RlyReleaseWindow {
      */
     public static String dayCode(Date d) {
         Integer index = Math.mod(Date.newInstance(1900, 1, 1).daysBetween(d), 7);
-        return DAYS[index < 0 ? index + 7 : index];
+        return DAY_CODES[index < 0 ? index + 7 : index];
     }
 }
