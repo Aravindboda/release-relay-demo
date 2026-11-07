@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/objects/FinanceTransaction/fields/ChargeAmount.field-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>ChargeAmount</fullName>\n    <inlineHelpText>The charge contributing to the transaction&apos;s subtotal</inlineHelpText>\n</CustomField>\n"}

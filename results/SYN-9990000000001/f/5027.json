@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/settings/MCETransformations.settings-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<MCETransformationsSettings xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <enableMcetSendToEmail>false</enableMcetSendToEmail>\n    <enableMcetTriggerJourney>false</enableMcetTriggerJourney>\n</MCETransformationsSettings>\n"}
