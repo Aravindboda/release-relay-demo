@@ -1,4 +1,23 @@
-# Release Relay pipeline files: version 14
+# Release Relay pipeline files: version 25
+# Version 25 (GitLab, hub build 45): every mode of the GitHub workflow, at the same version as it and the script.
+# - Run name (workflow:name): "Release Relay $REQUEST_ID ($MODE)", plus " · $TITLE" when TITLE is set. The hub finds its
+#   run by that name (hubs from build 45 read GitLab pipelines). The GitHub run name's " · by <name>" is left out here:
+#   workflow:name can't read a value inside the OPTIONS JSON. Archive and Slack runs by hand are named
+#   "Release Relay nightly archive" and "Release Relay Slack reminders", like on GitHub.
+# - Org sign-in: each job that signs in to an org runs in that org's GitLab environment (environment: dev1, sit, prod...),
+#   so the CI/CD variables scoped to it apply: SF_USERNAME, SF_CLIENT_ID, SF_INSTANCE_URL, SF_JKS_ALIAS, ORG_LABEL,
+#   DEPLOY_TEST_LEVEL (per environment), SF_JKS and SF_JKS_PASSWORD (or SF_JWT_KEY), and RELAY_TOKEN (all environments).
+#   Prefixed variables (SIT_SF_USERNAME) still work, as in earlier versions.
+# - Pipeline Monitor: release-relay-monitor-start (when the pipeline starts) and release-relay-monitor-end (after every
+#   other job) sign in to the hub's environment (variable RELAY_HUB_ENVIRONMENT, default prod) and post to
+#   /services/apexrest/rly/pipeline-run like the GitHub jobs, with the GitLab pipeline id and web_url; the end reads the
+#   jobs' outcomes and the first failure with RELAY_TOKEN. They never fail the pipeline. Variable RELAY_MONITOR=off
+#   skips both.
+# - No schedules: GitLab pipelines here start only from the hub (the API) or by hand. The hourly Slack reminders and the
+#   nightly archive stay with the hub's main (oldest) Git connection's pipeline; MODE=archive and MODE=slack run them
+#   by hand here too.
+# - Modes added since version 14: compare (22), drift, routediff and sync with branchOnly (sync-branch job) or picked
+#   paths (23), data (24, data-export then data-load), archive and slack (by hand), and the monitor jobs (20).
 # Version 14: a promotion can take each changed file as it is in the previous stage (options.stageBranch) and stops on
 # a hotfix the stage doesn't have (raise.json "clash"); changes can be added to an open release (mode hub with
 # options.append and options.appendZip; raise.json "appended"). See pipelines/README.md.
@@ -6,53 +25,77 @@
 # deploy (release-relay-snapshots branch) and MODE=rollback, and a cached Salesforce CLI. See pipelines/README.md.
 # Release Relay's own metadata (its components by exact name, plus .relay/exclude) is never validated, deployed or deleted;
 # options {"selfUpdate":true} (the hub updating itself, from the release-relay-hub branch) ignores the list.
-# Release Relay for GitLab CI/CD. Started only from Salesforce (the Release Relay hub creates a
-# pipeline on the default branch through the API, with the release in pipeline variables).
-#   MODE=org     retrieve the selected components from the source org, apply deletions, commit to a
-#                new branch, open a merge request into the target branch, then scan and validate it.
-#   MODE=branch  open a merge request from a branch that already exists, then scan and validate it.
-#   MODE=promote make a promote/ branch from the target with each file the merge commits listed in
-#                COMPONENTS changed, as it is in OPTIONS.stageBranch (the previous stage; without it the commits
-#                are cherry-picked), open a merge request, then scan and validate it.
-#   MODE=hub     the hub committed its retrieve (a Metadata API zip) to the branch: convert it to
-#                source format (none for a release with only deletions,
-#                a .relay-inbox/<id>.deletions marker instead), remove the deleted components' files,
-#                open a merge request into the target, scan and validate.
-#                OPTIONS {"append":true,"appendZip":".relay-inbox/<id>-add-<k>.zip"}: add that zip's changes to
-#                the open release's branch (no new merge request), then scan and validate again.
-#   MODE=resolve merge the target into the branch with the conflict choices the hub committed, then
-#                scan and validate again.
-#   MODE=check   scan and validate an open merge request again.
-#   MODE=merge   merge the merge request approved in Salesforce, then deploy it to the target org.
-#   MODE=sync    back promote: merge BRANCH (the hub's production branch) into TARGET (a back-promote
-#                org's branch, made from BRANCH when missing), deploy what changed to the org in
-#                TARGET_ENVIRONMENT, and push TARGET only when that deploy worked.
-#   MODE=rollback deploy a snapshot taken before an earlier deploy back into the org in TARGET_ENVIRONMENT
-#                (OPTIONS.snapshotPath, else the latest for the release and environment); Git isn't changed.
+# Release Relay for GitLab CI/CD. Started from Salesforce (the Release Relay hub creates a pipeline on the pipeline
+# branch through the API, with the request in pipeline variables).
+#   MODE=org       retrieve the selected components from the source org, apply deletions, commit to a
+#                  new branch, open a merge request into the target branch, then scan and validate it.
+#   MODE=branch    open a merge request from a branch that already exists, then scan and validate it.
+#   MODE=promote   make a promote/ branch from the target with each file the merge commits listed in
+#                  COMPONENTS changed, as it is in OPTIONS.stageBranch (the previous stage; without it the commits
+#                  are cherry-picked), open a merge request, then scan and validate it.
+#   MODE=hub       the hub committed its retrieve (a Metadata API zip) to the branch: convert it to
+#                  source format (none for a release with only deletions,
+#                  a .relay-inbox/<id>.deletions marker instead), remove the deleted components' files,
+#                  open a merge request into the target, scan and validate.
+#                  OPTIONS {"append":true,"appendZip":".relay-inbox/<id>-add-<k>.zip"}: add that zip's changes to
+#                  the open release's branch (no new merge request), then scan and validate again.
+#   MODE=resolve   merge the target into the branch with the conflict choices the hub committed, then
+#                  scan and validate again.
+#   MODE=check     scan and validate an open merge request again.
+#   MODE=merge     merge the merge request approved in Salesforce, then deploy it to the target org, then merge the
+#                  target into the branches in OPTIONS.syncBranches.
+#   MODE=sync      back promote: merge BRANCH (the hub's production branch) into TARGET (a back-promote
+#                  org's branch, made from BRANCH when missing), deploy what changed to the org in
+#                  TARGET_ENVIRONMENT, and push TARGET only when that deploy worked. OPTIONS.paths: only the picked
+#                  files; BRANCH = TARGET: push the picked components from the branch to the org. Without
+#                  TARGET_ENVIRONMENT and with OPTIONS.branchOnly (a developer org): only TARGET is updated.
+#   MODE=rollback  deploy a snapshot taken before an earlier deploy back into the org in TARGET_ENVIRONMENT
+#                  (OPTIONS.snapshotPath, else the latest for the release and environment); Git isn't changed.
+#   MODE=compare   (REQUEST_ID CMP-<13 digits>) convert the zips the hub left on release-relay-results
+#                  (compare-inbox/<id>/) on top of TARGET and write results/<id>/compare.json. No org, no environment.
+#   MODE=drift     (SYN-<13 digits>) read the whole org in ENVIRONMENT and compare it with its branch TARGET.
+#   MODE=routediff (SYN-<13 digits>) Git only: what each higher branch in OPTIONS.route has that the next one doesn't.
+#   MODE=data      (DAT-<13 digits>) export a data set from the org in ENVIRONMENT (skipped when the hub already sent
+#                  the records) and dry-run or load it into the org in TARGET_ENVIRONMENT.
+#   MODE=archive   (by hand) ask the hub to archive finished releases older than its Retention days.
+#   MODE=slack     (by hand) send the hub's due Slack reminders and digests.
 # Validation and deployment run only when TARGET_ENVIRONMENT is set. Each step writes its result as
 # JSON to the release-relay-results branch, where Salesforce reads it.
 #
 # Pipeline variables from the hub: REQUEST_ID, MODE, ENVIRONMENT, TARGET_ENVIRONMENT, BRANCH, TARGET,
-# TITLE, COMPONENTS, DELETIONS, OPTIONS (JSON, for example {"hub":true,"tests":[],"scan":"off"}).
-# Project CI/CD variables: see pipelines/README.md (RELAY_TOKEN, and each org's SF_* login either
-# scoped to its environment or prefixed with it: SIT_SF_USERNAME).
+# TITLE, COMPONENTS, DELETIONS, OPTIONS (JSON, for example {"hub":true,"tests":[],"scan":"off"}); blank ones are left
+# out. The project access token (RELAY_TOKEN) needs the Maintainer role, api and write_repository, and the project's
+# Settings > CI/CD > Variables > "Minimum role to use pipeline variables" must let a Maintainer set them.
 #
 # If you already have a .gitlab-ci.yml, save this file as release-relay.gitlab-ci.yml, add
-# "include: [{ local: release-relay.gitlab-ci.yml }]" to yours, and add the five relay-* stages to
+# "include: [{ local: release-relay.gitlab-ci.yml }]" to yours, and add the relay-* stages to
 # your stages: list. Your own jobs also run in the hub's pipelines unless their rules leave them out:
-#   rules: [ { if: '$REQUEST_ID', when: never }, { when: on_success } ]
+#   rules: [ { if: '$MODE', when: never }, { when: on_success } ]
 
 workflow:
   name: '$RELAY_RUN_NAME'
   rules:
-    # Result pushes never start pipelines.
-    - if: '$CI_COMMIT_BRANCH == "release-relay-results"'
+    # Result and snapshot pushes never start pipelines.
+    - if: '$CI_COMMIT_BRANCH == "release-relay-results" || $CI_COMMIT_BRANCH == "release-relay-snapshots"'
       when: never
-    # The hub finds its run by this name: "Release Relay REL-00042 (hub)".
+    - if: '$MODE == "archive"'
+      variables:
+        RELAY_RUN_NAME: 'Release Relay nightly archive'
+    - if: '$MODE == "slack"'
+      variables:
+        RELAY_RUN_NAME: 'Release Relay Slack reminders'
+    # The hub finds its run by this name: "Release Relay REL-00042 (hub) · REL-00042: Region field".
+    - if: '$REQUEST_ID && $MODE && $TITLE'
+      variables:
+        RELAY_RUN_NAME: 'Release Relay $REQUEST_ID ($MODE) · $TITLE'
     - if: '$REQUEST_ID && $MODE'
       variables:
         RELAY_RUN_NAME: 'Release Relay $REQUEST_ID ($MODE)'
     - when: always
+
+variables:
+  # The hub's own environment (its sign-in), for the monitor, archive and Slack jobs. A project variable overrides it.
+  RELAY_HUB_ENVIRONMENT: prod
 
 stages:
   - relay-raise
@@ -67,7 +110,7 @@ stages:
     RELAY_PROVIDER: gitlab
     GIT_DEPTH: "0"
   # The release branch may hold an older copy of the script: always run the pipeline's own
-  # (the default branch's commit this pipeline runs on).
+  # (the pipeline branch's commit this pipeline runs on).
   before_script:
     - git show "$CI_COMMIT_SHA:scripts/release-relay.js" > /tmp/release-relay.js
     # relay_install_sf: the Salesforce CLI (major version 2) from the job cache (.relay-sf, see .relay-sf-cache),
@@ -83,9 +126,9 @@ stages:
         fi
         export PATH="$CI_PROJECT_DIR/.relay-sf/bin:$PATH"
       }
-    # keytool turns an SF_JKS keystore into the key; only needed when a keystore is set.
+    # keytool turns an SF_JKS keystore into the key; only needed by jobs that sign in (RELAY_NO_ORG unset).
     - |
-      if env | grep -Eq '^([A-Z0-9_]+_)?SF_JKS=.'; then
+      if [ -z "${RELAY_NO_ORG:-}" ] && env | grep -Eq '^([A-Z0-9_]+_)?SF_JKS=.'; then
         apt-get update -qq && apt-get install -y -qq openjdk-17-jre-headless > /dev/null
       fi
 
@@ -100,6 +143,8 @@ release-relay-raise:
   extends: [.release-relay, .relay-sf-cache]
   stage: relay-raise
   timeout: 30m
+  # One raise at a time per release branch.
+  resource_group: release-relay-$BRANCH
   environment:
     name: $ENVIRONMENT
     action: prepare
@@ -116,6 +161,8 @@ release-relay-scan:
   extends: [.release-relay, .relay-sf-cache]
   stage: relay-check
   timeout: 30m
+  variables:
+    RELAY_NO_ORG: "true"
   needs:
     - job: release-relay-raise
       optional: true
@@ -150,6 +197,7 @@ release-relay-merge:
   extends: .release-relay
   stage: relay-merge
   timeout: 15m
+  resource_group: release-relay-$BRANCH
   environment:
     name: $ENVIRONMENT
     action: prepare
@@ -186,12 +234,28 @@ release-relay-sync:
   stage: relay-sync
   timeout: 2h
   needs: []
+  resource_group: release-relay-sync-$TARGET
   environment:
     name: $TARGET_ENVIRONMENT
   rules:
     - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $REQUEST_ID && $MODE == "sync" && $TARGET_ENVIRONMENT && $TARGET_ENVIRONMENT != "-"'
   script:
     - relay_install_sf
+    - STEP=sync node /tmp/release-relay.js
+
+# Back promote into a developer org's branch only (version 23): a developer org has no sign-in here, so no environment
+# and no deploy; the lower branch gets the merge or the picked files.
+release-relay-sync-branch:
+  extends: .release-relay
+  stage: relay-sync
+  timeout: 20m
+  needs: []
+  resource_group: release-relay-sync-$TARGET
+  variables:
+    RELAY_NO_ORG: "true"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $REQUEST_ID && $MODE == "sync" && ($TARGET_ENVIRONMENT == null || $TARGET_ENVIRONMENT == "" || $TARGET_ENVIRONMENT == "-") && $OPTIONS =~ /"branchOnly"\s*:\s*true/'
+  script:
     - STEP=sync node /tmp/release-relay.js
 
 # Rollback: deploys a snapshot (taken before an earlier deploy) back into the org. A real deployment to the target
@@ -201,6 +265,7 @@ release-relay-rollback:
   stage: relay-deploy
   timeout: 2h
   needs: []
+  resource_group: release-relay-rollback-$TARGET_ENVIRONMENT
   variables:
     GIT_DEPTH: "1"
   environment:
@@ -210,6 +275,81 @@ release-relay-rollback:
   script:
     - relay_install_sf
     - STEP=rollback node /tmp/release-relay.js
+
+# Compare (version 22): converts the zips the hub left on release-relay-results on top of TARGET. No org, no environment.
+release-relay-compare:
+  extends: [.release-relay, .relay-sf-cache]
+  stage: relay-check
+  timeout: 20m
+  needs: []
+  variables:
+    RELAY_NO_ORG: "true"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $REQUEST_ID && $MODE == "compare"'
+  script:
+    - relay_install_sf
+    - STEP=compare node /tmp/release-relay.js
+
+# Sync status, Org vs branch (version 23): reads the whole org in its own environment and compares it with its branch.
+# Nothing is pushed except the result on release-relay-results.
+release-relay-drift:
+  extends: [.release-relay, .relay-sf-cache]
+  stage: relay-check
+  timeout: 60m
+  needs: []
+  environment:
+    name: $ENVIRONMENT
+    action: prepare
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $REQUEST_ID && $MODE == "drift" && $ENVIRONMENT && $ENVIRONMENT != "-"'
+  script:
+    - relay_install_sf
+    - STEP=drift node /tmp/release-relay.js
+
+# Sync status, Down the route (version 23): Git only, no environment and no org.
+release-relay-routediff:
+  extends: .release-relay
+  stage: relay-check
+  timeout: 15m
+  needs: []
+  variables:
+    RELAY_NO_ORG: "true"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $REQUEST_ID && $MODE == "routediff"'
+  script:
+    - STEP=routediff node /tmp/release-relay.js
+
+# Data sets (version 24): the source's records, saved to release-relay-results (data-inbox/<id>/). Not created when
+# the hub already sent them (a developer org has no sign-in here: no ENVIRONMENT).
+release-relay-data-export:
+  extends: [.release-relay, .relay-sf-cache]
+  stage: relay-raise
+  timeout: 30m
+  environment:
+    name: $ENVIRONMENT
+    action: prepare
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $REQUEST_ID && $MODE == "data" && $ENVIRONMENT && $ENVIRONMENT != "-"'
+  script:
+    - relay_install_sf
+    - STEP=data-export node /tmp/release-relay.js
+
+# Data sets (version 24): dry run (counts only) or load into the target, from the saved records.
+release-relay-data-load:
+  extends: [.release-relay, .relay-sf-cache]
+  stage: relay-deploy
+  timeout: 60m
+  needs:
+    - job: release-relay-data-export
+      optional: true
+  environment:
+    name: $TARGET_ENVIRONMENT
+    action: prepare
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $REQUEST_ID && $MODE == "data" && $TARGET_ENVIRONMENT && $TARGET_ENVIRONMENT != "-"'
+  script:
+    - relay_install_sf
+    - STEP=data-load node /tmp/release-relay.js
 
 # Tells the Salesforce org named in OPTIONS.notify to read the results now. Its login is read as
 # <NOTIFY>_SF_USERNAME etc. (prefixed variables). A failure here never fails the pipeline.
@@ -234,3 +374,134 @@ release-relay-notify:
         }
         require("child_process").execFileSync("node", ["/tmp/release-relay.js"], { stdio: "inherit", env: e });
       '
+
+# The hub's archive and Slack calls (by hand only: MODE=archive or MODE=slack; the schedules stay with the hub's main
+# connection). Sign in to the hub with its environment's login and call its endpoint once per pass until it says done.
+.relay-hub-call:
+  image: node:22
+  variables:
+    GIT_STRATEGY: none
+  environment:
+    name: $RELAY_HUB_ENVIRONMENT
+    action: prepare
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq jq openssl > /dev/null
+    - |
+      if env | grep -Eq '^SF_JKS=.'; then
+        apt-get install -y -qq openjdk-17-jre-headless > /dev/null
+      fi
+    - npm install --global @salesforce/cli@2 --silent --no-audit --no-fund
+    # Secrets reach the shell only as environment variables. The key is written like the script does it:
+    # SF_JKS (keystore, base64) with SF_JKS_PASSWORD and SF_JKS_ALIAS, or SF_JWT_KEY (base64 PEM private key).
+    - |
+      for name in SF_USERNAME SF_CLIENT_ID SF_INSTANCE_URL; do
+        if [ -z "${!name:-}" ]; then
+          echo "$name isn't set for the hub's environment ($RELAY_HUB_ENVIRONMENT)."
+          exit 1
+        fi
+      done
+      key="$(mktemp)"
+      if [ -n "${SF_JKS:-}" ]; then
+        if [ -z "${SF_JKS_PASSWORD:-}" ] || [ -z "${SF_JKS_ALIAS:-}" ]; then
+          echo "SF_JKS is set, so SF_JKS_PASSWORD and SF_JKS_ALIAS are needed too."
+          exit 1
+        fi
+        dir="$(mktemp -d)"
+        printf '%s' "$SF_JKS" | base64 -d > "$dir/store.jks"
+        export RELAY_PW="$SF_JKS_PASSWORD"
+        keytool -importkeystore -noprompt -srckeystore "$dir/store.jks" -srcstoretype JKS -srcstorepass:env RELAY_PW \
+          -srckeypass:env RELAY_PW -srcalias "$SF_JKS_ALIAS" -destkeystore "$dir/store.p12" -deststoretype PKCS12 \
+          -deststorepass:env RELAY_PW -destkeypass:env RELAY_PW > /dev/null
+        openssl pkcs12 -in "$dir/store.p12" -nocerts -nodes -passin env:RELAY_PW -out "$key" 2> /dev/null
+        rm -rf "$dir"
+      elif [ -n "${SF_JWT_KEY:-}" ]; then
+        printf '%s' "$SF_JWT_KEY" | base64 -d > "$key"
+      else
+        echo "Set SF_JKS (keystore from Salesforce) or SF_JWT_KEY (private key) for the hub's environment."
+        exit 1
+      fi
+      chmod 600 "$key"
+      sf org login jwt --client-id "$SF_CLIENT_ID" --username "$SF_USERNAME" --jwt-key-file "$key" \
+        --instance-url "$SF_INSTANCE_URL" --alias relay-hub > /dev/null
+      rm -f "$key"
+
+release-relay-archive:
+  extends: .relay-hub-call
+  stage: relay-raise
+  timeout: 30m
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $MODE == "archive"'
+  script:
+    - |
+      run_id=""
+      for call in $(seq 1 25); do
+        body="$(jq -n --arg runUrl "$CI_PIPELINE_URL" --arg runId "$run_id" \
+          '{runUrl: $runUrl} + (if $runId == "" then {} else {runId: $runId} end)')"
+        answer="$(sf api request rest /services/apexrest/rly/archive --method POST --body "$body" --target-org relay-hub)"
+        if [ "$(printf '%s' "$answer" | jq -r '.skipped')" = "true" ]; then
+          echo "Call $call: $(printf '%s' "$answer" | jq -r '.reason')"
+          break
+        fi
+        printf '%s' "$answer" | jq -r '"Pass \(.pass): \(.removed) releases, \(.records) records removed, \(.remaining // "?") eligible left, \(.pipelineRuns // 0) old monitor runs removed. \(.reason // "")"'
+        run_id="$(printf '%s' "$answer" | jq -r '.runId // ""')"
+        if [ "$(printf '%s' "$answer" | jq -r '.done')" = "true" ]; then
+          break
+        fi
+      done
+
+release-relay-slack-due:
+  extends: .relay-hub-call
+  stage: relay-raise
+  timeout: 15m
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $MODE == "slack" && $RELAY_SLACK_DUE != "off"'
+  script:
+    - |
+      for call in $(seq 1 10); do
+        body="$(jq -n --arg runUrl "$CI_PIPELINE_URL" --argjson pass "$call" '{runUrl: $runUrl, pass: $pass}')"
+        answer="$(sf api request rest /services/apexrest/rly/slack-due --method POST --body "$body" --target-org relay-hub)"
+        printf '%s' "$answer" | jq -r '"Pass \(.pass // 0): \(.sent // 0) sent, \(.skipped // 0) skipped. \(.reason // "")"'
+        if [ "$(printf '%s' "$answer" | jq -r '.done // true')" = "true" ]; then
+          break
+        fi
+      done
+
+# Pipeline Monitor (version 20; GitLab from version 25): tells the hub this pipeline started. Signs in with the hub
+# environment's login and posts to /services/apexrest/rly/pipeline-run. It runs beside the other jobs (needs: []) and
+# never fails the pipeline. Variable RELAY_MONITOR=off skips it.
+release-relay-monitor-start:
+  extends: [.release-relay, .relay-sf-cache]
+  stage: relay-raise
+  timeout: 10m
+  needs: []
+  allow_failure: true
+  variables:
+    GIT_DEPTH: "1"
+  environment:
+    name: $RELAY_HUB_ENVIRONMENT
+    action: prepare
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $MODE && $MODE != "slack" && $RELAY_MONITOR != "off"'
+  script:
+    - relay_install_sf
+    - STEP=monitor MONITOR_STATUS=in_progress node /tmp/release-relay.js || echo "Pipeline Monitor couldn't tell the hub this pipeline started; the pipeline isn't affected."
+
+# Pipeline Monitor: after every other job (always, also when one failed) tells the hub how the pipeline ended:
+# Succeeded, Failed or Cancelled from the jobs' outcomes (read with RELAY_TOKEN), the finished time and duration, each
+# job's outcome and the first failure. Never fails the pipeline.
+release-relay-monitor-end:
+  extends: [.release-relay, .relay-sf-cache]
+  stage: .post
+  timeout: 10m
+  allow_failure: true
+  variables:
+    GIT_DEPTH: "1"
+  environment:
+    name: $RELAY_HUB_ENVIRONMENT
+    action: prepare
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $MODE && $MODE != "slack" && $RELAY_MONITOR != "off"'
+      when: always
+  script:
+    - relay_install_sf
+    - STEP=monitor MONITOR_STATUS=end node /tmp/release-relay.js || echo "Pipeline Monitor couldn't tell the hub how this pipeline ended; the pipeline isn't affected."
