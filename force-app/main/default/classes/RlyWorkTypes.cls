@@ -29,6 +29,36 @@ public with sharing class RlyWorkTypes {
         @AuraEnabled public String trackerLabel;
         /** @description The viewer can change the settings. */
         @AuraEnabled public Boolean isAdmin = false;
+        /** @description Every tracker in routing order (build 47); the fields above describe the first active one. */
+        @AuraEnabled public List<TrackerView> trackers = new List<TrackerView>();
+    }
+
+    /** @description One work tracker (build 47) as the pages read and save it (no secrets). */
+    public class TrackerView {
+        /** @description The record, or null for a new one. */
+        @AuraEnabled public Id id;
+        /** @description For example Claims stories. */
+        @AuraEnabled public String name;
+        /** @description Jira, Azure_Boards, ServiceNow, None or Other. */
+        @AuraEnabled public String kind;
+        /** @description The kind in words. */
+        @AuraEnabled public String kindLabel;
+        /** @description Ticket patterns (regular expressions, space separated); blank takes the rest. */
+        @AuraEnabled public String ticketPattern;
+        /** @description Link with {id}. */
+        @AuraEnabled public String linkPattern;
+        /** @description The Named Credential's API name. */
+        @AuraEnabled public String namedCredential;
+        /** @description Post each moment to the ticket. */
+        @AuraEnabled public Boolean postUpdates = false;
+        /** @description Moment to state JSON. */
+        @AuraEnabled public String stateMap;
+        /** @description ServiceNow table for work notes. */
+        @AuraEnabled public String serviceNowTable;
+        /** @description New tickets go to it and moments are posted. */
+        @AuraEnabled public Boolean active = true;
+        /** @description The routing order (1 first). */
+        @AuraEnabled public Integer position;
     }
 
     /** @description A ticket on a release. */
@@ -45,6 +75,10 @@ public with sharing class RlyWorkTypes {
         @AuraEnabled public String message;
         /** @description When. */
         @AuraEnabled public Datetime syncedOn;
+        /** @description The ticket's tracker by name, or null (build 47). */
+        @AuraEnabled public String tracker;
+        /** @description Its type (Jira, ServiceNow…), or null. */
+        @AuraEnabled public String trackerType;
     }
 
     /** @description A release's tickets. */
@@ -67,6 +101,8 @@ public with sharing class RlyWorkTypes {
         @AuraEnabled public String trackerLabel;
         /** @description More rows than one read takes. */
         @AuraEnabled public Boolean truncated = false;
+        /** @description The trackers by name, for the Tracker filter (build 47). */
+        @AuraEnabled public List<String> trackers = new List<String>();
     }
 
     /** @description One ticket on the tab. */
@@ -95,6 +131,10 @@ public with sharing class RlyWorkTypes {
         @AuraEnabled public String syncMessage;
         /** @description Lower-cased text the search looks in. */
         @AuraEnabled public String searchText;
+        /** @description The ticket's tracker by name, or null when untracked (build 47). */
+        @AuraEnabled public String tracker;
+        /** @description Its type in words, for example Jira. */
+        @AuraEnabled public String trackerType;
     }
 
     /** @description A release on a ticket. */
@@ -134,9 +174,9 @@ public with sharing class RlyWorkTypes {
     /** @description What one post came to. */
     public class Outcome {
         /** @description It worked. */
-        public Boolean ok = false;
+        @AuraEnabled public Boolean ok = false;
         /** @description What the tracker said, or why it failed. */
-        public String message;
+        @AuraEnabled public String message;
     }
 
     /** @description A ServiceNow change request. */

@@ -1,31 +1,41 @@
 <template>
+    <!-- design board: several trackers (build 47, section 4) -->
     <section class="rr-tk" aria-label="Work items">
         <div class="rr-tk-head">
-            <template lwc:if={showHeading}><strong>Work items</strong></template>
-            <span class="rr-weak rr-small rr-grow">{trackerLabel}</span>
-            <template lwc:if={canEdit}><lightning-button label="Edit" variant="base" onclick={startEdit} disabled={busy}></lightning-button></template>
+            <h2 class="rr-h2">Work items</h2>
+            <span class="rr-weak rr-small rr-grow">{summary}</span>
+            <template lwc:if={showAdd}><lightning-button label="Add tickets" icon-name="utility:add" onclick={startAdd} disabled={busy}></lightning-button></template>
         </div>
         <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
-        <template lwc:if={editing}>
-            <c-rly-ticket-input value={draft} onchange={handleDraft}></c-rly-ticket-input>
-            <div class="rr-tk-actions">
-                <lightning-button label="Cancel" onclick={cancelEdit} disabled={busy}></lightning-button>
-                <lightning-button label="Save" variant="brand" onclick={saveEdit} disabled={busy}></lightning-button>
-            </div>
-        </template>
-        <template lwc:elseif={hasTickets}>
+        <template lwc:if={notice}><div class="rr-msg rr-msg-ok" role="status">{notice}</div></template>
+        <template lwc:if={hasTickets}>
             <ul class="rr-tk-list">
                 <template for:each={rows} for:item="t">
                     <li key={t.ticket} class="rr-tk-row">
-                        <template lwc:if={t.link}><a class="rr-a rr-strong" href={t.link} target="_blank" rel="noopener noreferrer">{t.ticket}</a></template>
-                        <template lwc:else><strong>{t.ticket}</strong></template>
+                        <span class="rr-tk-id">
+                            <template lwc:if={t.link}><a class="rr-a rr-strong" href={t.link} target="_blank" rel="noopener noreferrer">{t.ticket}</a></template>
+                            <template lwc:else><strong>{t.ticket}</strong></template>
+                        </span>
+                        <span class="rr-small rr-weak rr-tk-tracker">{t.trackerText}</span>
                         <span class="rr-small rr-weak rr-grow">{t.detail}</span>
                         <span class={t.pillCls}>{t.statusText}</span>
                         <template lwc:if={t.failed}><lightning-button label="Try again" onclick={sync} disabled={busy}></lightning-button></template>
+                        <template lwc:if={canEdit}>
+                            <lightning-button label="Remove" variant="base" data-ticket={t.ticket} onclick={removeTicket} disabled={busy}></lightning-button>
+                        </template>
                     </li>
                 </template>
             </ul>
         </template>
-        <template lwc:if={showEmpty}><p class="rr-small rr-weak">No tickets on this release.</p></template>
+        <template lwc:if={showEmpty}><p class="rr-small rr-weak">{emptyText}</p></template>
+        <template lwc:if={adding}>
+            <div class="rr-tk-add">
+                <c-rly-ticket-input label="Add tickets" value={draft} known-tickets={knownTickets} onchange={handleDraft} disabled={busy}></c-rly-ticket-input>
+                <div class="rr-tk-actions">
+                    <lightning-button label="Cancel" onclick={cancelAdd} disabled={busy}></lightning-button>
+                    <lightning-button label="Add" variant="brand" onclick={saveAdd} disabled={busy}></lightning-button>
+                </div>
+            </div>
+        </template>
     </section>
 </template>

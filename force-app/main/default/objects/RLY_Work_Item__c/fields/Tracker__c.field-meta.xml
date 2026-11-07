@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Tracker__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>The tracker this ticket went to (build 47), by its ticket pattern when it was added. Blank on tickets from before build 47: they are matched by pattern when read.</description>
+    <externalId>false</externalId>
+    <label>Tracker</label>
+    <referenceTo>RLY_Work_Tracker__c</referenceTo>
+    <relationshipLabel>Work Items</relationshipLabel>
+    <relationshipName>Work_Items</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

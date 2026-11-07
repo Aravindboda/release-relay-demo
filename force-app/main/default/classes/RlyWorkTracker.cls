@@ -2,7 +2,7 @@
  * @description Work items (build 40): the work tracker, through the Named Credential the admin set up (callout:<name>/…;
  * Release Relay never holds the tracker's password or token). Posts a moment to a ticket (RlyWorkCalls makes the
  * calls for Jira, Azure Boards, ServiceNow or a web call) and reads a ServiceNow change request for the production gate
- * (RlyWorkGate). Callouts only, no DML.
+ * (RlyWorkGate). Each ticket uses its own tracker (build 47). Callouts only, no DML.
  */
 public with sharing class RlyWorkTracker {
 
@@ -20,30 +20,53 @@ public with sharing class RlyWorkTracker {
     public static final Set<String> TRACKERS = new Set<String>{ JIRA, AZURE, SERVICENOW, NONE, OTHER };
 
     /**
-     * @description Whether the settings post to a tracker.
-     * @param s the settings, or null
-     * @return true with a tracker, a Named Credential and Post updates on
+     * @description Whether the tracker takes posts.
+     * @param s the tracker, or null
+     * @return true when active, with a Named Credential and Post updates on
      */
-    public static Boolean posts(RLY_Work_Tracking__c s) {
-        return s != null && s.Post_Updates__c == true && String.isNotBlank(s.Named_Credential__c) && s.Tracker__c != NONE
-            && TRACKERS.contains(s.Tracker__c);
+    public static Boolean posts(RLY_Work_Tracker__c s) {
+        return s != null && s.Active__c == true && s.Post_Updates__c == true && String.isNotBlank(s.Named_Credential__c) && s.Type__c != NONE
+            && TRACKERS.contains(s.Type__c);
+    }
+
+    /**
+     * @description Test on the Pipeline tab: a read that needs the tracker's sign-in. No integration and Other have
+     * nothing to read: their link is shown instead.
+     * @param s the tracker
+     * @return the outcome
+     */
+    public static RlyWorkTypes.Outcome signIn(RLY_Work_Tracker__c s) {
+        RlyWorkTypes.Outcome o = new RlyWorkTypes.Outcome();
+        if (s.Type__c == NONE || s.Type__c == OTHER || String.isBlank(s.Named_Credential__c)) {
+            o.ok = true;
+            o.message = (s.Type__c == NONE ? 'Tracked in Release Relay: nothing to sign in to.' : 'Nothing to sign in to.')
+                + (String.isBlank(s.Link_Pattern__c) ? '' : ' A ticket links to ' + s.Link_Pattern__c.replace('{id}', 'TICKET-1') + '.');
+            return o;
+        }
+        try {
+            RlyWorkCalls.ping(s, o);
+        } catch (Exception e) {
+            o.ok = false;
+            o.message = ('Couldn\'t reach the tracker: ' + e.getMessage()).left(255);
+        }
+        return o;
     }
 
     /**
      * @description Posts one moment to a ticket.
-     * @param s the settings
+     * @param s the tracker
      * @param m the ticket, moment, comment and release details
      * @return the outcome
      */
-    public static RlyWorkTypes.Outcome post(RLY_Work_Tracking__c s, RlyWorkTypes.Message m) {
+    public static RlyWorkTypes.Outcome post(RLY_Work_Tracker__c s, RlyWorkTypes.Message m) {
         RlyWorkTypes.Outcome o = new RlyWorkTypes.Outcome();
         try {
             m.state = stateFor(s, m.moment);
-            if (s.Tracker__c == JIRA) {
+            if (s.Type__c == JIRA) {
                 RlyWorkCalls.jira(s, m, o);
-            } else if (s.Tracker__c == AZURE) {
+            } else if (s.Type__c == AZURE) {
                 RlyWorkCalls.azure(s, m, o);
-            } else if (s.Tracker__c == SERVICENOW) {
+            } else if (s.Type__c == SERVICENOW) {
                 RlyWorkCalls.serviceNow(s, m, o);
             } else {
                 RlyWorkCalls.webCall(s, m, o);
@@ -57,11 +80,11 @@ public with sharing class RlyWorkTracker {
 
     /**
      * @description Reads a ServiceNow change request: approved, and now inside its planned start and end.
-     * @param s the settings
+     * @param s the tracker
      * @param changeNo the change number
      * @return the change
      */
-    public static RlyWorkTypes.Change change(RLY_Work_Tracking__c s, String changeNo) {
+    public static RlyWorkTypes.Change change(RLY_Work_Tracker__c s, String changeNo) {
         RlyWorkTypes.Change c = new RlyWorkTypes.Change();
         try {
             Map<String, Object> rec = RlyWorkCalls.changeRecord(s, changeNo);
@@ -95,7 +118,7 @@ public with sharing class RlyWorkTracker {
     }
 
     // The state or transition the admin mapped to this moment ({"Deployed to SIT":"In QA"}), or null.
-    private static String stateFor(RLY_Work_Tracking__c s, String moment) {
+    private static String stateFor(RLY_Work_Tracker__c s, String moment) {
         if (String.isBlank(s.State_Map__c)) {
             return null;
         }
