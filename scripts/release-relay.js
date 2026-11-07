@@ -3636,8 +3636,9 @@ async function stepMonitor() {
     // The CLI signs the call itself: newer CLIs hide the access token in "sf org display".
     const bodyFile = path.join(os.tmpdir(), 'relay-monitor-body.json');
     fs.writeFileSync(bodyFile, JSON.stringify(body));
+    console.log('Pipeline Monitor body: ' + JSON.stringify(body));
     const out = run('sf', ['api', 'request', 'rest', '/services/apexrest/rly/pipeline-run', '--method', 'POST',
-        '--body', bodyFile, '--target-org', 'relay-hub']);
+        '--body', JSON.stringify(body), '--target-org', 'relay-hub']);
     let json = null;
     try { json = JSON.parse(out); } catch (ignore) { json = null; }
     if (json && json.ok === true) {
