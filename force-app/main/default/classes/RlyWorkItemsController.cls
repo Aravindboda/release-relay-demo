@@ -2,6 +2,8 @@
  * @description Work items (build 40) for the pages: the work tracking settings (Pipeline tab card; admins save), the
  * Work items tab, a release's tickets (release page and Approvals: read, edit, post to the tracker) and the ticket
  * input on New Release (the settings tell it the format and whether tickets are required).
+ * Build 47: Add tickets on a raised release; the trackers themselves are RlyWorkTrackersController's. The reads that
+ * make no callout save the tracker made from the build 40 setting (RlyWorkStore.adoptLegacy).
  */
 public with sharing class RlyWorkItemsController {
 
@@ -12,6 +14,7 @@ public with sharing class RlyWorkItemsController {
     @AuraEnabled
     public static RlyWorkTypes.Settings settings() {
         try {
+            RlyWorkStore.adoptLegacy();
             return RlyWorkSettings.viewOf(RlyWorkStore.trackingSettings());
         } catch (Exception e) {
             throw handled(e);
@@ -26,10 +29,7 @@ public with sharing class RlyWorkItemsController {
     @AuraEnabled
     public static RlyWorkTypes.Settings saveSettings(String settingsJson) {
         try {
-            RlyHubGuard.requireHub();
-            if (!RlyOrgController.isAdmin()) {
-                throw new RlyReleaseException('Only a Release Relay admin changes work tracking.');
-            }
+            requireAdmin();
             RlyWorkTypes.Settings v = String.isBlank(settingsJson) ? new RlyWorkTypes.Settings()
                 : (RlyWorkTypes.Settings) JSON.deserialize(settingsJson, RlyWorkTypes.Settings.class);
             RlyWorkStore.saveSettings(RlyWorkSettings.checked(v));
@@ -46,6 +46,7 @@ public with sharing class RlyWorkItemsController {
     @AuraEnabled
     public static RlyWorkTypes.Board board() {
         try {
+            RlyWorkStore.adoptLegacy();
             return RlyWorkBoard.build();
         } catch (Exception e) {
             throw handled(e);
@@ -74,6 +75,7 @@ public with sharing class RlyWorkItemsController {
     @AuraEnabled
     public static RlyWorkTypes.ReleaseTickets releaseTickets(Id releaseId) {
         try {
+            RlyWorkStore.adoptLegacy();
             return ticketsOf(releaseId);
         } catch (Exception e) {
             throw handled(e);
@@ -90,7 +92,25 @@ public with sharing class RlyWorkItemsController {
     public static RlyWorkTypes.ReleaseTickets setReleaseTickets(Id releaseId, List<String> tickets) {
         try {
             RlyHubGuard.requireHub();
-            RlyWorkItems.replace(releaseId, tickets);
+            RlyWorkItemEdits.replace(releaseId, tickets);
+            return ticketsOf(releaseId);
+        } catch (Exception e) {
+            throw handled(e);
+        }
+    }
+
+    /**
+     * @description Adds tickets to a raised release (until it is deployed, rejected or closed), with a line in its
+     * history. The page then calls syncRelease, which posts the release's current moment to the new tickets.
+     * @param releaseId the release
+     * @param tickets the tickets to add
+     * @return the tickets as saved
+     */
+    @AuraEnabled
+    public static RlyWorkTypes.ReleaseTickets addReleaseTickets(Id releaseId, List<String> tickets) {
+        try {
+            RlyHubGuard.requireHub();
+            RlyWorkItemEdits.add(releaseId, tickets);
             return ticketsOf(releaseId);
         } catch (Exception e) {
             throw handled(e);
@@ -116,15 +136,17 @@ public with sharing class RlyWorkItemsController {
     }
 
     private static RlyWorkTypes.ReleaseTickets ticketsOf(Id releaseId) {
-        RLY_Work_Tracking__c s = RlyWorkStore.trackingSettings();
         RLY_Release__c rel = RlyWorkStore.release(releaseId);
         RlyWorkTypes.ReleaseTickets out = new RlyWorkTypes.ReleaseTickets();
-        out.trackerLabel = RlyWorkBoard.trackerLabel(s);
+        out.trackerLabel = RlyWorkBoard.trackerLabel();
         out.canEdit = rel != null && !RlyWorkItems.CLOSED.contains(rel.Status__c);
         for (RLY_Work_Item__c w : RlyWorkStore.forRelease(releaseId)) {
             RlyWorkTypes.TicketView t = new RlyWorkTypes.TicketView();
+            RLY_Work_Tracker__c tracker = RlyWorkRouting.trackerOf(w);
             t.ticket = w.Ticket__c;
-            t.link = RlyWorkLinks.linkOf(w.Ticket__c, s);
+            t.link = RlyWorkLinks.linkOf(w.Ticket__c, tracker);
+            t.tracker = tracker == null ? null : tracker.Name;
+            t.trackerType = tracker == null ? null : RlyWorkRouting.kindLabel(tracker.Type__c);
             t.status = w.Sync_Status__c;
             t.posted = w.Posted_State__c;
             t.message = w.Sync_Message__c;
@@ -132,6 +154,10 @@ public with sharing class RlyWorkItemsController {
             out.tickets.add(t);
         }
         return out;
+    }
+
+    private static void requireAdmin() {
+        RlyWorkTrackersController.requireAdmin();
     }
 
     private static AuraHandledException handled(Exception e) {

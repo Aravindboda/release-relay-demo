@@ -2,5 +2,5 @@
 <LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
     <apiVersion>65.0</apiVersion>
     <isExposed>false</isExposed>
-    <description>A release's tickets (Work items) on the release page and in Approvals: links, what was posted to the tracker, Try again, and Edit until the release is deployed.</description>
+    <description>A release's Work items card: each ticket with its tracker and link, what was posted to that tracker, Try again, and Add tickets / Remove until the release is deployed (recorded in History).</description>
 </LightningComponentBundle>

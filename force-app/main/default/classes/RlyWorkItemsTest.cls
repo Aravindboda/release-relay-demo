@@ -3,7 +3,8 @@
  * the release; the settings (admins, every value checked); the Work items tab worked out from the releases; posting
  * moments to Jira, Azure Boards, ServiceNow or a web call (and "tracked here" without an integration), a failed post
  * kept for Try again; the ServiceNow change gate holding a production deploy and letting it go once the change is
- * approved. Trackers answer through RlyHttpMock; nothing depends on org data. Each test runs as an active System
+ * approved. Build 47: the tracker is an RLY_Work_Tracker__c record (RlyWorkTrackersTest covers several). Trackers answer
+ * through RlyHttpMock; nothing depends on org data. Each test runs as an active System
  * Administrator through System.runAs.
  */
 @IsTest
@@ -14,13 +15,23 @@ private class RlyWorkItemsTest {
         RlyTestData.assignPermissionSet('RLY_Admin');
     }
 
-    private static RLY_Work_Tracking__c settings(String tracker, Boolean post) {
-        RLY_Work_Tracking__c s = new RLY_Work_Tracking__c(SetupOwnerId = UserInfo.getOrganizationId(), Tracker__c = tracker, Post_Updates__c = post,
-            Named_Credential__c = 'Tracker_NC', Ticket_Pattern__c = '[A-Z][A-Z0-9]+-\\d+ CHG\\d{7}',
-            Link_Pattern__c = 'https://tracker.example.com/browse/{id}', State_Map__c = '{"Deployed to SIT":"In QA"}',
-            Change_Pattern__c = 'CHG\\d{7}');
-        insert s;
-        return s;
+    // One tracker (build 47) taking every ticket of the old single-tracker tests, saved; the trackers are read again.
+    private static RLY_Work_Tracker__c settings(String kind, Boolean post) {
+        RLY_Work_Tracker__c t = unsaved(kind, post);
+        insert t;
+        RlyWorkStore.forgetTrackers();
+        return t;
+    }
+
+    private static RLY_Work_Tracker__c unsaved(String kind, Boolean post) {
+        return new RLY_Work_Tracker__c(Name = kind + ' tickets', Type__c = kind, Post_Updates__c = post, Named_Credential__c = 'Tracker_NC',
+            Ticket_Pattern__c = '[A-Z][A-Z0-9]+-\\d+ CHG\\d{7}', Link_Pattern__c = 'https://tracker.example.com/browse/{id}',
+            State_Map__c = '{"Deployed to SIT":"In QA"}', Active__c = true, Sort_Order__c = 1);
+    }
+
+    // The global switch: an approved ServiceNow change before production.
+    private static void requireChange() {
+        insert new RLY_Work_Tracking__c(SetupOwnerId = UserInfo.getOrganizationId(), Require_Change__c = true, Change_Pattern__c = 'CHG\\d{7}');
     }
 
     // A release into an org of the route (RlyReleaseTestData.route() already run), with its tickets.
@@ -53,7 +64,12 @@ private class RlyWorkItemsTest {
     @IsTest
     static void ticketsAreCheckedAgainstTheFormat() {
         System.runAs(RlyTestData.admin()) {
-            RLY_Work_Tracking__c s = new RLY_Work_Tracking__c(Ticket_Pattern__c = '[A-Z]+-\\d+ CHG\\d{7}', Required__c = true);
+            List<String> free = RlyWorkItems.checked(new List<String>{ 'anything-1' }, null);
+            RLY_Work_Tracker__c t = unsaved('Jira', false);
+            t.Ticket_Pattern__c = '[A-Z]+-\\d+ CHG\\d{7}';
+            insert t;
+            RlyWorkStore.forgetTrackers();
+            RLY_Work_Tracking__c s = new RLY_Work_Tracking__c(Required__c = true);
             Test.startTest();
             List<String> ok = RlyWorkItems.checked(new List<String>{ ' claims-412 ', 'CLAIMS-412', 'CHG0012345', '' }, s);
             List<String> errors = new List<String>();
@@ -65,13 +81,12 @@ private class RlyWorkItemsTest {
                     errors.add(e.getMessage());
                 }
             }
-            List<String> free = RlyWorkItems.checked(new List<String>{ 'anything-1' }, null);
             Test.stopTest();
             System.assertEquals(new List<String>{ 'CLAIMS-412', 'CHG0012345' }, ok, 'Trimmed, upper-cased, no repeats, blanks skipped');
             System.assert(errors[0].contains('isn\'t a ticket number'), 'Spaces refused: ' + errors[0]);
             System.assertEquals(RlyWorkItems.REQUIRED, errors[1], 'Required');
-            System.assert(errors[2].contains('expected'), 'Format named: ' + errors[2]);
-            System.assertEquals(new List<String>{ 'ANYTHING-1' }, free, 'No settings: any ticket');
+            System.assert(errors[2].contains('No tracker matches') && errors[2].contains('Jira tickets'), 'Patterns named: ' + errors[2]);
+            System.assertEquals(new List<String>{ 'ANYTHING-1' }, free, 'No tracker: any ticket');
         }
     }
 
@@ -94,6 +109,12 @@ private class RlyWorkItemsTest {
                 'The list follows the rows');
             System.assertEquals(0, [SELECT COUNT() FROM RLY_Work_Item__c WHERE Release__c = :rel.Id AND Ticket__c = 'CLAIMS-412'], 'A removed ticket goes');
             System.assert(edited.canEdit, 'Still editable before deploy');
+            List<String> details = new List<String>();
+            for (RLY_Release_Event__c e : [SELECT Detail__c FROM RLY_Release_Event__c WHERE Release__c = :rel.Id AND Event_Type__c = :RlyWorkHistory.EVENT_TYPE]) {
+                details.add(e.Detail__c);
+            }
+            System.assert(String.join(details, '|').contains('Tickets added: CHG0012345, at Ready for approval in SIT'), 'History: added ' + details);
+            System.assert(details.contains('Tickets removed: CLAIMS-412'), 'History: removed ' + details);
         }
     }
 
@@ -117,32 +138,29 @@ private class RlyWorkItemsTest {
     @IsTest
     static void settingsAreCheckedAndSaved() {
         System.runAs(RlyTestData.admin()) {
-            Map<String, Object> good = new Map<String, Object>{ 'tracker' => 'ServiceNow', 'required' => true, 'ticketPattern' => 'CHG\\d{7}',
-                'linkPattern' => 'https://acme.service-now.com/nav_to.do?uri=change_request.do?sysparm_query=number={id}',
-                'namedCredential' => 'ServiceNow_NC', 'postUpdates' => true, 'requireChange' => true, 'stateMap' => '{"Deployed to PROD":"3"}' };
-            List<Map<String, Object>> bads = new List<Map<String, Object>>{
-                new Map<String, Object>{ 'tracker' => 'Trello' },
-                new Map<String, Object>{ 'tracker' => 'Jira', 'ticketPattern' => '[A-Z' },
-                new Map<String, Object>{ 'tracker' => 'Jira', 'linkPattern' => 'http://x/{id}' },
-                new Map<String, Object>{ 'tracker' => 'Jira', 'postUpdates' => true },
-                new Map<String, Object>{ 'tracker' => 'Jira', 'namedCredential' => 'has space' },
-                new Map<String, Object>{ 'tracker' => 'Jira', 'stateMap' => '[1]' } };
-            Test.startTest();
-            RlyWorkTypes.Settings saved = RlyWorkItemsController.saveSettings(JSON.serialize(good));
+            Map<String, Object> good = new Map<String, Object>{ 'required' => true, 'requireChange' => true, 'changePattern' => 'CHG\\d{7}' };
             List<String> errors = new List<String>();
-            for (Map<String, Object> b : bads) {
-                try {
-                    RlyWorkItemsController.saveSettings(JSON.serialize(b));
-                } catch (AuraHandledException e) {
-                    errors.add(e.getMessage());
-                }
+            Test.startTest();
+            try {
+                RlyWorkItemsController.saveSettings(JSON.serialize(good));
+            } catch (AuraHandledException e) {
+                errors.add(e.getMessage());
+            }
+            settings('ServiceNow', false);
+            RlyWorkTypes.Settings saved = RlyWorkItemsController.saveSettings(JSON.serialize(good));
+            try {
+                RlyWorkItemsController.saveSettings(JSON.serialize(new Map<String, Object>{ 'changePattern' => '[A' }));
+            } catch (AuraHandledException e) {
+                errors.add(e.getMessage());
             }
             RlyWorkTypes.Settings read = RlyWorkItemsController.settings();
             Test.stopTest();
-            System.assertEquals('ServiceNow', saved.tracker, 'Saved');
-            System.assert(saved.requireChange && saved.postUpdates && saved.required, 'Toggles kept');
-            System.assertEquals(6, errors.size(), 'Every bad value refused: ' + errors);
-            System.assertEquals('ServiceNow', read.trackerLabel, 'Read back');
+            System.assert(saved.requireChange && saved.required, 'Switches kept');
+            System.assertEquals(2, errors.size(), 'The gate needs a ServiceNow tracker; a bad format is refused: ' + errors);
+            System.assert(errors[0].contains('ServiceNow tracker'), 'Says why: ' + errors[0]);
+            System.assertEquals('ServiceNow tickets', read.trackerLabel, 'Read back');
+            System.assertEquals('ServiceNow', read.tracker, 'The first tracker for older pages');
+            System.assertEquals(1, read.trackers.size(), 'One tracker');
             System.assertEquals(1, [SELECT COUNT() FROM RLY_Work_Tracking__c WHERE Id != null], 'One record');
         }
     }
@@ -190,7 +208,9 @@ private class RlyWorkItemsTest {
             System.assertEquals('In PROD', byTicket.get('CLAIMS-3').status, 'Deployed to the hub');
             System.assertEquals('inprod', byTicket.get('CLAIMS-3').bucket, 'The filter');
             System.assertEquals('https://tracker.example.com/browse/CLAIMS-3', byTicket.get('CLAIMS-3').link, 'Link from the pattern');
-            System.assertEquals('Jira', b.trackerLabel, 'Tracker named');
+            System.assertEquals('Jira tickets', b.trackerLabel, 'Tracker named');
+            System.assertEquals('Jira tickets', byTicket.get('CLAIMS-3').tracker, 'Each ticket\'s tracker (matched by pattern: saved before it)');
+            System.assertEquals(new List<String>{ 'Jira tickets' }, b.trackers, 'The filter\'s trackers');
         }
     }
 
@@ -212,6 +232,9 @@ private class RlyWorkItemsTest {
             System.assert(m.bodyFor('/comment').contains('Deployed to SIT'), 'The moment in the comment');
             System.assert(m.bodyFor('/transitions').contains('"31"'), 'The mapped transition');
             System.assert(m.calls[0].contains('callout:Tracker_NC'), 'Through the Named Credential: ' + m.calls[0]);
+            System.assertEquals('Jira tickets', t.tickets[0].tracker, 'The ticket\'s tracker');
+            System.assertNotEquals(null, [SELECT Tracker__c FROM RLY_Work_Item__c WHERE Release__c = :rel.Id].Tracker__c,
+                'A ticket from before its tracker gets it on the first post');
         }
     }
 
@@ -220,7 +243,7 @@ private class RlyWorkItemsTest {
         System.runAs(RlyTestData.admin()) {
             RlyReleaseTestData.route();
             RLY_Release__c rel = make('Checks failed', 'SIT', new List<String>{ 'AB-1234' });
-            RLY_Work_Tracking__c s = settings('Azure_Boards', true);
+            RLY_Work_Tracker__c s = unsaved('Azure_Boards', true);
             Test.setMock(HttpCalloutMock.class, new RlyHttpMock()
                 .match('PATCH', '/_apis/wit/workitems/1234').reply(200, '{"id":1234}')
                 .match('GET', '/api/now/table/change_request').reply(200, '{"result":[{"sys_id":"abc"}]}')
@@ -228,11 +251,11 @@ private class RlyWorkItemsTest {
                 .match('POST', 'callout:Tracker_NC').reply(202, ''));
             Test.startTest();
             RlyWorkTypes.Outcome azure = RlyWorkTracker.post(s, msg('AB-1234', 'Checks failed in SIT', new Map<String, Object>()));
-            s.Tracker__c = 'ServiceNow';
+            s.Type__c = 'ServiceNow';
             RlyWorkTypes.Outcome now = RlyWorkTracker.post(s, msg('CHG0012345', 'Deployed to SIT', new Map<String, Object>()));
-            s.Tracker__c = 'Other';
+            s.Type__c = 'Other';
             RlyWorkTypes.Outcome other = RlyWorkTracker.post(s, msg('X-1', 'Raised', new Map<String, Object>{ 'release' => rel.Name }));
-            s.Tracker__c = 'Azure_Boards';
+            s.Type__c = 'Azure_Boards';
             RlyWorkTypes.Outcome noNumber = RlyWorkTracker.post(s, msg('ABC', 'Raised', new Map<String, Object>()));
             Test.stopTest();
             System.assert(azure.ok, 'Azure Boards: ' + azure.message);
@@ -263,9 +286,8 @@ private class RlyWorkItemsTest {
         System.runAs(RlyTestData.admin()) {
             RlyReleaseTestData.route();
             RLY_Release__c rel = make('Ready for approval', 'PROD', new List<String>{ 'CHG0012345' });
-            RLY_Work_Tracking__c s = settings('ServiceNow', false);
-            s.Require_Change__c = true;
-            update s;
+            settings('ServiceNow', false);
+            requireChange();
             String pending = '{"result":[{"number":"CHG0012345","approval":"requested","state":"-3","start_date":"","end_date":""}]}';
             Test.setMock(HttpCalloutMock.class, new RlyHttpMock().match('GET', '/api/now/table/change_request').reply(200, pending));
             RLY_Release__c full = RlyReleaseStore.release(rel.Id);
@@ -284,9 +306,8 @@ private class RlyWorkItemsTest {
             RlyReleaseTestData.route();
             RLY_Release__c rel = make('Ready for approval', 'PROD', new List<String>{ 'CHG0012345' });
             update new RLY_Release__c(Id = rel.Id, Approval_Status__c = 'Approved', Error_Message__c = RlyWorkGate.WAITING + ' CHG0012345 isn\'t approved yet.');
-            RLY_Work_Tracking__c s = settings('ServiceNow', false);
-            s.Require_Change__c = true;
-            update s;
+            settings('ServiceNow', false);
+            requireChange();
             String start = Datetime.now().addHours(-1).formatGmt('yyyy-MM-dd HH:mm:ss');
             String ends = Datetime.now().addHours(2).formatGmt('yyyy-MM-dd HH:mm:ss');
             RlyHttpMock m = new RlyHttpMock()
@@ -309,9 +330,8 @@ private class RlyWorkItemsTest {
         System.runAs(RlyTestData.admin()) {
             RlyReleaseTestData.route();
             RLY_Release__c rel = make('Ready for approval', 'PROD', new List<String>{ 'CLAIMS-1' });
-            RLY_Work_Tracking__c s = settings('ServiceNow', false);
-            s.Require_Change__c = true;
-            update s;
+            settings('ServiceNow', false);
+            requireChange();
             RLY_Release__c full = RlyReleaseStore.release(rel.Id);
             Test.startTest();
             Boolean held = RlyWorkGate.holds(full);
@@ -352,7 +372,7 @@ private class RlyWorkItemsTest {
     @IsTest
     static void changeWindowsAndMissingRecordsAreExplained() {
         System.runAs(RlyTestData.admin()) {
-            RLY_Work_Tracking__c s = settings('ServiceNow', true);
+            RLY_Work_Tracker__c s = unsaved('ServiceNow', true);
             String later = Datetime.now().addHours(3).formatGmt('yyyy-MM-dd HH:mm:ss');
             String earlier = Datetime.now().addHours(-3).formatGmt('yyyy-MM-dd HH:mm:ss');
             Test.setMock(HttpCalloutMock.class, new RlyHttpMock()
@@ -375,7 +395,7 @@ private class RlyWorkItemsTest {
     @IsTest
     static void jiraWithoutTheMappedTransitionKeepsTheComment() {
         System.runAs(RlyTestData.admin()) {
-            RLY_Work_Tracking__c s = settings('Jira', true);
+            RLY_Work_Tracker__c s = unsaved('Jira', true);
             Test.setMock(HttpCalloutMock.class, new RlyHttpMock()
                 .match('POST', '/comment').reply(201, '{}')
                 .match('GET', '/transitions').reply(200, '{"transitions":[{"id":"11","name":"Done"}]}'));

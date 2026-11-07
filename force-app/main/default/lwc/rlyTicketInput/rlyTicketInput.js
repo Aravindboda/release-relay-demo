@@ -1,13 +1,17 @@
 import { LightningElement, api } from 'lwc';
 import settings from '@salesforce/apex/RlyWorkItemsController.settings';
+import { routeTicket } from 'c/rlyWorkRoute';
 
 /**
- * Ticket entry (build 40): chips for the tickets, a box to add one (Enter or comma), the admin's format checked as you
- * add (the hub checks again on save). Fires "change" with detail { value: [tickets] }.
+ * Ticket entry (build 40): chips for the tickets, a box to add one (Enter or comma), each ticket matched to its tracker
+ * as you add it (build 47: the first active tracker whose pattern matches; the chip names it), the hub checks again on
+ * save. Fires "change" with detail { value: [tickets] }.
  */
 export default class RlyTicketInput extends LightningElement {
     @api label = 'Work items';
     @api disabled = false;
+    /** Tickets already saved (Add tickets on a release): not matched again. */
+    @api knownTickets = [];
     _value = [];
     text = '';
     problem;
@@ -30,7 +34,13 @@ export default class RlyTicketInput extends LightningElement {
         }
         return 'The tickets this release delivers. Promotions carry them on; ' + (this.config ? this.config.trackerLabel : 'Release Relay') + ' shows where each one is.';
     }
-    get chips() { return this._value.map((t) => ({ key: t, label: t })); }
+    get trackers() { return this.config && this.config.trackers ? this.config.trackers : []; }
+    get chips() {
+        return this._value.map((t) => {
+            const r = routeTicket(this.trackers, t);
+            return { key: t, label: t, tracker: r.tracker ? r.tracker.name : undefined };
+        });
+    }
 
     handleText(event) { this.text = event.target.value; }
 
@@ -48,8 +58,9 @@ export default class RlyTicketInput extends LightningElement {
         this.problem = undefined;
         const next = [...this._value];
         for (const p of parts) {
-            if (!this.fits(p)) {
-                this.problem = '"' + p + '" isn’t a ticket number' + (this.config && this.config.ticketPattern ? ' (expected: ' + this.config.ticketPattern + ')' : '') + '.';
+            const problem = this.problemOf(p);
+            if (problem) {
+                this.problem = problem;
                 return;
             }
             if (!next.includes(p)) {
@@ -60,21 +71,16 @@ export default class RlyTicketInput extends LightningElement {
         this.setValue(next);
     }
 
-    fits(ticket) {
+    /** Why a ticket can't be added, or undefined. */
+    problemOf(ticket) {
         if (!/^[A-Za-z0-9][A-Za-z0-9#._:/-]{0,79}$/.test(ticket)) {
-            return false;
+            return '"' + ticket + '" isn’t a ticket number.';
         }
-        const formats = this.config && this.config.ticketPattern ? this.config.ticketPattern.trim().split(/\s+/) : [];
-        if (!formats.length) {
-            return true;
+        if ((this.knownTickets || []).includes(ticket)) {
+            return undefined;
         }
-        return formats.some((f) => {
-            try {
-                return new RegExp('^(?:' + f + ')$', 'i').test(ticket);
-            } catch (e) {
-                return true;
-            }
-        });
+        const r = routeTicket(this.trackers, ticket);
+        return r.ok ? undefined : r.problem;
     }
 
     remove(event) {

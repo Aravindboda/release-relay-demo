@@ -1,21 +1,32 @@
 /**
- * @description Work items (build 40): tickets as links, from the admin's link pattern (https://…{id}): one ticket's
- * address, and a release's ticket list with links for the CSV, the evidence PDF and Slack messages.
+ * @description Work items (build 40): tickets as links, from the link pattern (https://…{id}) of the ticket's own
+ * tracker (build 47): one ticket's address, and a release's ticket list with links for the CSV, the evidence PDF and
+ * Slack messages.
  */
 public with sharing class RlyWorkLinks {
 
     /**
-     * @description A ticket's link from the admin's pattern ({id}), or null.
+     * @description A ticket's link from the tracker its pattern matches, or null.
      * @param ticket the ticket
-     * @param settings the settings, or null
      * @return the address
      */
-    public static String linkOf(String ticket, RLY_Work_Tracking__c settings) {
-        String pattern = settings == null ? null : settings.Link_Pattern__c;
+    public static String linkOf(String ticket) {
+        return linkOf(ticket, RlyWorkRouting.routeForLink(ticket));
+    }
+
+    /**
+     * @description A ticket's link from a tracker's pattern ({id}; Azure Boards: the number only, AB#123 → 123), or null.
+     * @param ticket the ticket
+     * @param tracker the tracker, or null
+     * @return the address
+     */
+    public static String linkOf(String ticket, RLY_Work_Tracker__c tracker) {
+        String pattern = tracker == null ? null : tracker.Link_Pattern__c;
         if (String.isBlank(pattern) || !pattern.startsWith('https://') || !pattern.contains('{id}')) {
             return null;
         }
-        return pattern.replace('{id}', EncodingUtil.urlEncode(ticket, 'UTF-8'));
+        String idText = tracker.Type__c == RlyWorkTracker.AZURE && ticket.replaceAll('[^0-9]', '') != '' ? ticket.replaceAll('[^0-9]', '') : ticket;
+        return pattern.replace('{id}', EncodingUtil.urlEncode(idText, 'UTF-8'));
     }
 
     /**
@@ -29,7 +40,7 @@ public with sharing class RlyWorkLinks {
         }
         List<String> out = new List<String>();
         for (String t : joined.split(',\\s*')) {
-            String link = linkOf(t.trim(), RlyWorkStore.trackingSettings());
+            String link = linkOf(t.trim());
             out.add(link == null ? t.trim() : t.trim() + ' (' + link + ')');
         }
         return String.join(out, ', ');
@@ -46,7 +57,7 @@ public with sharing class RlyWorkLinks {
         }
         List<String> out = new List<String>();
         for (String t : joined.split(',\\s*')) {
-            String link = linkOf(t.trim(), RlyWorkStore.trackingSettings());
+            String link = linkOf(t.trim());
             String label = RlySlackMessage.esc(t.trim());
             out.add(link == null ? label : '<' + link + '|' + label + '>');
         }
