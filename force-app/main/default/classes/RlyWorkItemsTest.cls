@@ -37,6 +37,10 @@ private class RlyWorkItemsTest {
         return rel;
     }
 
+    private static Id orgId(String name) {
+        return [SELECT Id FROM RLY_Org__c WHERE Name = :name LIMIT 1].Id;
+    }
+
     private static RlyWorkTypes.Message msg(String ticket, String moment, Map<String, Object> data) {
         RlyWorkTypes.Message m = new RlyWorkTypes.Message();
         m.ticket = ticket;
