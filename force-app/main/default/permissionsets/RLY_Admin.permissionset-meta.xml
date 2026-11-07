@@ -129,6 +129,10 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
+        <apexClass>RlyMetricsController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>RlyRunMonitorController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
@@ -1229,6 +1233,10 @@
     </tabSettings>
     <tabSettings>
         <tab>RLY_Archive</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>RLY_Metrics</tab>
         <visibility>Visible</visibility>
     </tabSettings>
     <tabSettings>
