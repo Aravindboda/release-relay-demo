@@ -828,6 +828,9 @@
                         </section>
                     </template>
 
+                    <!-- Run signing and Repository security (build 48): the hub's run-signing key and a read-only repository check -->
+                    <c-rly-run-security></c-rly-run-security>
+
                     <!-- Connected orgs: tabs by Salesforce environment, compact cards; a card opens the org's window -->
                     <section class="rr-sec" aria-label="Connected orgs">
                         <template lwc:if={fold.orgs.open}>

@@ -3239,6 +3239,172 @@ const MIGRATION_SECTIONS = [
         ]
     },
     {
+        key: 'security',
+        group: 'setup',
+        label: 'K. Security',
+        adminOnly: true,
+        cards: [
+            {
+                key: 'sec-signing',
+                title: 'K. Run signing: only the hub starts runs that deploy',
+                aside: 'Build 48. Until the key is set, nothing changes',
+                blocks: [
+                    { type: 'text', paras: ['Anyone who can write to the repository could otherwise start the pipeline by hand and deploy to an org. With a **run-signing key**, the hub signs every run it starts and the pipeline refuses any run without the hub\'s signature before it signs in to an org. The pipeline signs every result it writes, and the hub only trusts signed results.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Generate the key',
+                                who: 'Release Relay admin',
+                                where: 'Release Relay → Pipeline → Run signing → Generate key',
+                                items: ['The key is shown **once**, with Copy. It isn\'t saved yet.'],
+                                check: 'The card shows "New run-signing key · Not saved yet".'
+                            },
+                            {
+                                title: 'Put the key in the repository',
+                                who: 'Repository admin',
+                                where: 'GitHub: Settings → Environments · GitLab: Settings → CI/CD → Variables',
+                                items: [
+                                    'GitHub: in **each org environment** (dev1, sit, prod… as on the Pipeline tab) → **Add environment secret** `RELAY_RUN_KEY` = the key, and limit each environment\'s deployment branches to the pipeline branch. Not a repository secret: a workflow on any branch can read those.',
+                                    'GitLab: **Add variable** `RELAY_RUN_KEY` = the key, **Masked** and **Protected**, environments `*`.'
+                                ],
+                                check: 'Pipeline → Repository security → Check shows the key in every org environment.'
+                            },
+                            {
+                                title: 'Save the key in the hub',
+                                who: 'Release Relay admin',
+                                where: 'Release Relay → Pipeline → Run signing → Save key',
+                                items: ['Do it right after the previous step: runs started in between are refused by the pipeline. Start them again after saving.', 'The key is never shown again. **Replace key** makes a new one the same way (repository first, then Save).'],
+                                check: 'Run signing shows **On**, when and by whom.'
+                            }
+                        ]
+                    },
+                    {
+                        type: 'table',
+                        stack: true,
+                        cols: ['What you may see', 'What it means'],
+                        rows: [
+                            ['"This run wasn\'t started by the Release Relay hub (missing or wrong signature)" in a pipeline run', 'Someone started the run by hand, or the repository\'s RELAY_RUN_KEY isn\'t the key saved in the hub. Start it from the hub; if it still happens, Replace the key in both places.'],
+                            ['"Result rejected: not signed by the pipeline" on a release', 'A result file on release-relay-results wasn\'t signed with the hub\'s key. The release stays where it was. Check that both keys match, then run the checks again.'],
+                            ['"The release branch changed after it was approved; run the checks again."', 'Someone pushed to the release branch after its checks passed. The approval is pinned to the commit the checks validated: run the checks again and approve again.'],
+                            ['A pipeline warning that RELAY_RUN_KEY isn\'t set', 'The repository has no key yet: runs aren\'t checked. Set it up as above.']
+                        ]
+                    },
+                    { type: 'note', text: 'Protect the key: require a reviewed pull request on the pipeline branch and limit each environment\'s deployment branches to it, so a change to the pipeline file can\'t read the secret from another branch. The Repository security card checks this.' },
+                    { type: 'note', text: 'Releases whose checks passed before the key was set: Approve says "Run the checks again". Press Run checks again once; the new check pins the commit it validated, and its validation can then be quick-deployed.' }
+                ]
+            },
+            {
+                key: 'sec-repo',
+                title: 'K. Repository security check',
+                aside: 'Pipeline → Repository security → Check (admins)',
+                blocks: [
+                    { type: 'text', paras: ['**Check** reads the repository through the active Git connection and lists each protection with ✓ (in place), ! (missing, with How to fix) or ? (couldn\'t be read: the token lacks a permission). It changes nothing; secrets and variables are read by name only.'] },
+                    {
+                        type: 'table',
+                        stack: true,
+                        cols: ['Row', 'GitHub', 'GitLab'],
+                        rows: [
+                            ['Pipeline branch protected and reviewed', 'Branch protection or a ruleset requiring a pull request with 1+ approvals (token: Administration: read)', 'Protected branch with Allowed to push = No one; merge request approvals 1+ (approval rules need GitLab Premium)'],
+                            ['Run-signing key', 'Environment secret RELAY_RUN_KEY in every org environment; a repository-level copy is flagged "Move it to the environments" (token: Environments: read, Secrets: read)', 'CI/CD variable RELAY_RUN_KEY, masked, protected, environments *'],
+                            ['Each org\'s environment', 'Deployment branches: the pipeline branch only, or protected branches only (token: Environments: read)', 'A protected environment (GitLab Premium)']
+                        ]
+                    }
+                ]
+            },
+            {
+                key: 'sec-more',
+                title: 'K. Other protections in build 48',
+                blocks: [
+                    {
+                        type: 'list',
+                        items: [
+                            '**Tickets**: only the release\'s raiser or a Release Relay admin can add or remove its tickets.',
+                            '**Run checks again**: the raiser, an approver, the deployment team or an admin.',
+                            '**ServiceNow change gate**: the change request must name the release (for example REL-00052) in its short description or description. It is the tracker\'s **Change must mention the release** chip, on for new trackers; **trackers that existed before this update have it on too**: turn it off on the tracker if your changes don\'t name releases.',
+                            '**Links** from pipeline results (Open the run) are shown only when they start with https://.',
+                            '**Slack**: requests are checked in constant time and their payload is read only from the signed body. Testing or saving the Slack connection records the workspace (team) ID, after which presses from any other workspace are refused. **Link my account** is offered only to someone whose Slack email matches a user\'s Federation ID or email; anyone else is told to ask an admin to link them.',
+                            '**Manual steps**: the Release Relay Developer permission set reads steps and their runs; every save goes through Release Relay\'s own pages.',
+                            '**GitLab**: pipeline variables are sent raw, so a `$NAME` in a release title is never expanded.'
+                        ]
+                    },
+                    { type: 'links', links: [{ label: 'Open the Pipeline tab', tab: 'RLY_Pipeline' }] }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'pipeline-security',
+        group: 'setup',
+        label: 'L. Pipeline security (pipeline files version 27)',
+        adminOnly: true,
+        cards: [
+            {
+                key: 'ps-main',
+                title: 'K. Lock down the pipeline: run-signing key, protected main, pinned tools',
+                aside: 'Once, when you copy pipeline files version 27 into the repository',
+                blocks: [
+                    { type: 'text', text: 'From version 27 the pipeline only runs what the hub signed, signs every result it writes, merges only the approved head and deploys only what the check passed. It needs the run-signing key from the Pipeline tab (Run signing card) in your Git provider, and a protected pipeline branch.' },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Add the run-signing key to your Git provider',
+                                who: 'Repository admin',
+                                where: 'GitHub: Settings → Environments; GitLab: Settings → CI/CD → Variables',
+                                goal: 'Only pipeline runs on the protected main branch can read the key, so nobody can sign a run of their own.',
+                                items: ['Pick your provider:'],
+                                providers: {
+                                    GitHub: [
+                                        'Environment secret `RELAY_RUN_KEY` = the key the Pipeline tab showed, in every environment the pipeline uses: each org\'s (`dev1`, `sit`, `prod`...), the hub\'s, and a new environment `relay-signing` (for the jobs that have no org: scan-save, sync-branch, compare, routediff, migrate).',
+                                        'Each of those environments → Deployment branches and tags → **Selected branches** → `main` only.',
+                                        'Don\'t keep a repository secret `RELAY_RUN_KEY`: anyone who can push a branch can read repository secrets from their own workflow.',
+                                        'When every environment has it: repository variable `RELAY_SIGNING` = `required` (a job that can\'t see the key then fails instead of warning).'
+                                    ],
+                                    GitLab: [
+                                        'Variable `RELAY_RUN_KEY` = the key, **Masked**, **Protected**, environment scope `*` (All).',
+                                        'When it\'s in place: variable `RELAY_SIGNING` = `required`.',
+                                        'Keep **Use separate caches for protected branches** on (Settings → CI/CD → General pipelines; the default).'
+                                    ],
+                                    Bitbucket: ['Repository variable `RELAY_RUN_KEY` (Secured). Running releases from the hub on Bitbucket comes in a later version.'],
+                                    AzureDevOps: ['Pipeline secret variable `RELAY_RUN_KEY`. Running releases from the hub on Azure DevOps comes in a later version.']
+                                },
+                                check: 'The next run\'s log says "The run\'s signature is the hub\'s." and has no RELAY_RUN_KEY warning.'
+                            },
+                            {
+                                title: 'Protect the pipeline branch',
+                                who: 'Repository admin',
+                                where: 'GitHub → Settings → Branches (or Rules → Rulesets); GitLab → Settings → Repository → Protected branches',
+                                goal: 'The pipeline file and its key settings can only change through a reviewed pull or merge request.',
+                                items: [
+                                    'GitHub: `main` requires a pull request with at least one approval, no force pushes, no deletions, and admins included.',
+                                    'GitLab: `main` allowed to merge: Maintainers; allowed to push and merge: No one; merge requests need an approval.',
+                                    '`release-relay-results`: let only the pipeline push if your plan allows it. The signatures are the real control: the hub ignores results it can\'t verify.'
+                                ],
+                                check: 'The Pipeline tab\'s Repository security check lists nothing missing.'
+                            }
+                        ]
+                    },
+                    {
+                        type: 'table',
+                        stack: true,
+                        cols: ['What changed in version 27', 'Why'],
+                        rows: [
+                            ['Every job that signs in or pushes checks the hub\'s signature first (15 minutes from the run\'s start)', 'A repository writer can\'t start a deployment the hub didn\'t ask for'],
+                            ['Result files are `{"payload": ..., "sig": ...}`', 'A pushed fake Passed or Deployed result is rejected'],
+                            ['Merge needs the approved head; deploy fails when the branch changed after the check', 'Commits added after approval are never deployed'],
+                            ['Quick deploy asks the org about the validation first', 'A forged validate.json can\'t quick deploy someone else\'s validation'],
+                            ['The Salesforce CLI never sees a secret; the branch\'s sfdx-project.json `replacements` and Code Analyzer or ESLint settings are ignored', 'Branch content can\'t leak keys into metadata or run code in the scan'],
+                            ['Actions pinned by commit, `@salesforce/cli@2.135.7`, `@salesforce/plugin-code-analyzer@5.13.0`, `node:22.22.3`', 'A changed tag upstream can\'t change the pipeline'],
+                            ['Archive and Slack runs started by hand need a signature too', 'The schedules still run unsigned']
+                        ]
+                    },
+                    { type: 'note', text: 'Until `RELAY_RUN_KEY` is set, runs go on with a warning so nothing breaks while you set it up. Releases checked by an older pipeline need their checks run again before they deploy.' }
+                ]
+            }
+        ]
+    },
+    {
         key: 'naming',
         group: 'ref',
         label: 'Naming',

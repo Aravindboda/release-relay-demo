@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Validated_Head__c</fullName>
+    <description>Build 48: the release branch&apos;s head commit the last passing validation checked (validate.json headSha). The approval is pinned to it: the merge sends it as options.expectHead and the pipeline refuses a branch that changed since. Cleared when the checks run again.</description>
+    <label>Validated Head</label>
+    <length>40</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>
