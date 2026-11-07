@@ -140,7 +140,7 @@ public with sharing class RlyApprovalRuns {
      */
     public static void startApproved(RLY_Release__c rel, String failurePrefix) {
         try {
-            RLY_Git_Connection__c conn = RlyReleaseStore.git();
+            RLY_Git_Connection__c conn = RlyReleaseStore.gitFor(rel);
             RlyGit git = RlyGit.forConnection(conn);
             if (RlyPromotion.typeOf(rel) == RlyPromotion.TYPE_BACK_PROMOTE && rel.Status__c == RlyPromotion.QUEUED) {
                 RlyBackPromoteRun.dispatch(rel, git);

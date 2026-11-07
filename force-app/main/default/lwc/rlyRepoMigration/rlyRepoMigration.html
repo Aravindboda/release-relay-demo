@@ -1,0 +1,287 @@
+<template>
+    <div class="rr-page">
+        <div class="rr-card rr-head">
+            <div class="rr-head-row">
+                <div class="rr-grow">
+                    <h1 class="rr-h1">Move to another provider</h1>
+                    <p class="rr-weak rr-small">A hub has one Git provider at a time. Copy or verify the repository, check every org against it, then switch the whole hub at once.</p>
+                </div>
+                <template lwc:if={hasMigration}>
+                    <span class="rr-pill rr-pill-none">{statusText}</span>
+                    <lightning-button label="Cancel migration" onclick={handleCancel} disabled={cantCancel}></lightning-button>
+                </template>
+            </div>
+            <template lwc:if={busy}><lightning-spinner alternative-text="Working" size="small"></lightning-spinner></template>
+        </div>
+
+        <template lwc:if={error}><p class="rr-msg rr-msg-bad" role="alert">{error}</p></template>
+        <template lwc:if={notAdmin}><p class="rr-msg">Moving to another Git provider is for Release Relay admins.</p></template>
+
+        <!-- No migration yet: what the current connection holds, and Start -->
+        <template lwc:if={noMigration}>
+            <section class="rr-card" aria-label="Start">
+                <div class="rr-bar"><span class="rr-strong">Current: {current.providerLabel}</span><span class="rr-mono">{current.repository}</span><span class="rr-grow"></span><span class="rr-pill rr-pill-ok">Active</span></div>
+                <div class="rr-pad">
+                    <p class="rr-small rr-weak">Orgs and their branches</p>
+                    <ul class="rr-inline">
+                        <template for:each={holds.orgs} for:item="o"><li key={o.id}>{o.name} → <span class="rr-mono">{o.branch}</span></li></template>
+                    </ul>
+                    <template lwc:if={hasOpen}><p class="rr-note">{openCount} release(s) still open. They have to be finished or closed before the switch (not before the copy).</p></template>
+                    <p class="rr-small rr-weak">What doesn't move: open pull or merge requests, pipeline run history, comments, secrets and variables, protected branches, environments and approvals, webhooks. Every branch, tag and commit can.</p>
+                    <div class="rr-foot"><lightning-button variant="brand" label="Start" onclick={handleStart} disabled={busy}></lightning-button></div>
+                </div>
+            </section>
+        </template>
+
+        <template lwc:if={hasMigration}>
+            <nav class="rr-card rr-steps" aria-label="Steps">
+                <template for:each={steps} for:item="s">
+                    <button key={s.key} type="button" class={s.cls} data-n={s.n} aria-current={s.current} onclick={handleStep} disabled={busy}>
+                        <span class="rr-step-n">{s.n}</span><span>{s.label}</span>
+                    </button>
+                </template>
+            </nav>
+
+            <!-- 1 · Current → New -->
+            <template lwc:if={isStep1}>
+                <section class="rr-card" aria-label="Current and new">
+                    <div class="rr-bar"><span class="rr-strong">Current: {current.providerLabel}</span><span class="rr-mono">{current.repository}</span><span class="rr-grow"></span>
+                        <lightning-button label="Read the branches again" onclick={handleReadCurrent} disabled={busy}></lightning-button></div>
+                    <table class="rr-table">
+                        <tbody>
+                            <tr><th scope="row">Branches</th><td class="rr-mono rr-wrap">{branchesText}</td></tr>
+                            <tr><th scope="row">Orgs and branches</th><td><template for:each={holds.orgs} for:item="o"><span key={o.id} class="rr-tag">{o.name} → <span class="rr-mono">{o.branch}</span></span></template></td></tr>
+                            <tr><th scope="row">Open releases</th><td>
+                                <template lwc:if={hasOpen}>
+                                    <template for:each={holds.open} for:item="r"><span key={r.id} class="rr-tag"><template lwc:if={r.url}><a class="rr-a" href={r.url} target="_blank" rel="noopener">{r.name}</a></template><template lwc:else>{r.name}</template> · {r.status}</span></template>
+                                    <p class="rr-small rr-weak">Finish or close them before the switch.</p>
+                                </template>
+                                <template lwc:else>None</template>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                    <div class="rr-pad">
+                        <p class="rr-strong">New provider</p>
+                        <div class="rr-tiles" role="group" aria-label="New provider">
+                            <template for:each={providerTiles} for:item="p">
+                                <button key={p.value} type="button" class={p.cls} data-value={p.value} aria-pressed={p.pressed} onclick={handleProvider} disabled={p.off}>{p.text}</button>
+                            </template>
+                        </div>
+                        <template lwc:if={showForm}>
+                            <div class="rr-form">
+                                <lightning-input label="Repository" value={form.repository} placeholder={hint.repo} data-field="repository" onchange={handleField}></lightning-input>
+                                <lightning-input label="Named Credential" value={form.namedCredential} placeholder={hint.cred} data-field="namedCredential" onchange={handleField}></lightning-input>
+                                <lightning-input label="Pipeline file" value={form.pipelineFile} placeholder={hint.pipe} data-field="pipelineFile" onchange={handleField}></lightning-input>
+                                <lightning-input label="Pipeline branch" value={form.pipelineBranch} placeholder="main" data-field="pipelineBranch" onchange={handleField}></lightning-input>
+                                <lightning-button label="Save" onclick={handleSaveTarget} disabled={cantSaveTarget}></lightning-button>
+                                <lightning-button label="Check" onclick={handleCheckTarget} disabled={cantCheckTarget}></lightning-button>
+                            </div>
+                            <p class="rr-small rr-weak">Saved as an inactive connection until Switch now. Grey text is a hint, not a value.</p>
+                        </template>
+                        <template lwc:if={targetCheck}><p><span class={targetCheckCls}>{targetCheck}</span></p></template>
+                    </div>
+                </section>
+            </template>
+
+            <!-- 2 · How -->
+            <template lwc:if={isStep2}>
+                <section class="rr-card" aria-label="How">
+                    <div class="rr-bar"><span class="rr-strong">Choose how: only what works for {sourceLabel} → {targetLabel}</span></div>
+                    <div class="rr-rcards" role="radiogroup" aria-label="Method">
+                        <template for:each={methods} for:item="m">
+                            <button key={m.key} type="button" role="radio" class={m.cls} aria-checked={m.checked} data-key={m.key} onclick={handleMethod} disabled={m.off}>
+                                <span class="rr-strong">{m.label}</span>
+                                <span class="rr-small">{m.summary}</span>
+                                <span class="rr-small"><span class="rr-pro">+ {m.pros}</span> · <span class="rr-con">− {m.cons}</span></span>
+                                <template lwc:if={m.why}><span class="rr-small rr-weak">{m.why}</span></template>
+                                <template lwc:if={m.hasClicks}>
+                                    <span class="rr-clicks"><template for:each={m.clickRows} for:item="c"><span key={c.key} class="rr-block rr-small">{c.n}. {c.text}</span></template></span>
+                                </template>
+                            </button>
+                        </template>
+                    </div>
+                </section>
+            </template>
+
+            <!-- 3 · Dry run -->
+            <template lwc:if={isStep3}>
+                <section class="rr-card" aria-label="Dry run">
+                    <div class="rr-bar"><span class="rr-strong">Dry run</span><span class="rr-small rr-weak">nothing is pushed</span><span class="rr-grow"></span>
+                        <template lwc:if={run.status}><span class={runPill}>{run.status}</span></template>
+                        <template lwc:if={run.runUrl}><a class="rr-a" href={run.runUrl} target="_blank" rel="noopener">Open run</a></template>
+                        <lightning-button variant="brand" label={dryLabel} onclick={handleDry} disabled={cantDry}></lightning-button></div>
+                    <p class="rr-note">{tokenHint}</p>
+                    <template lwc:if={dry}>
+                        <table class="rr-table">
+                            <tbody>
+                                <tr><th scope="row">Result</th><td><span class={dryPill}>{dryReadyText}</span> {dry.message}</td></tr>
+                                <tr><th scope="row">Would move</th><td>{dry.counts}</td></tr>
+                                <tr><th scope="row">New repository</th><td>{dry.targetState}</td></tr>
+                                <tr><th scope="row">Access</th><td>{dry.access}</td></tr>
+                                <tr><th scope="row">Release Relay branches</th><td><template for:each={dryNamed} for:item="n"><span key={n.key} class={n.cls}>{n.text}</span> </template></td></tr>
+                            </tbody>
+                        </table>
+                        <template lwc:if={hasDryProblems}>
+                            <ul class="rr-problems"><template for:each={dryProblems} for:item="p"><li key={p.key}>{p.text}</li></template></ul>
+                        </template>
+                    </template>
+                    <template lwc:if={isImporter}><template lwc:if={hasMoved}><p class="rr-pad rr-small">The verify is the copy's check: see What moved on step 4.</p></template></template>
+                </section>
+            </template>
+
+            <!-- 4 · Run, What moved, What didn't move -->
+            <template lwc:if={isStep4}>
+                <section class="rr-card" aria-label="Run">
+                    <div class="rr-bar"><span class="rr-strong">Run</span><span class="rr-grow"></span>
+                        <template lwc:if={run.status}><span class={runPill}>{run.status}</span></template>
+                        <template lwc:if={run.runUrl}><a class="rr-a" href={run.runUrl} target="_blank" rel="noopener">Open run</a></template>
+                        <template lwc:if={isImporter}><span class="rr-small rr-weak">The importer's copy is verified by the dry run.</span></template>
+                        <template lwc:else><lightning-button variant="brand" label="Start the run" onclick={handleRun} disabled={cantRun}></lightning-button></template></div>
+                    <template lwc:if={showProgress}>
+                        <div class="rr-pad"><p class="rr-small">{result.phase}</p><lightning-progress-bar value={progress} size="large" class="rr-progress"></lightning-progress-bar></div>
+                    </template>
+                    <template lwc:if={hasMoved}>
+                        <div class="rr-bar"><span class="rr-strong">What moved</span><span class="rr-small">{moved.counts}</span><span class="rr-grow"></span><span class={movedPill}>{moved.matched}</span></div>
+                        <div class="rr-scroll">
+                            <table class="rr-table">
+                                <thead><tr><th>Branch / tag</th><th>Role</th><th>{sourceLabel}</th><th>{targetLabel}</th><th></th></tr></thead>
+                                <tbody>
+                                    <template for:each={movedRows} for:item="r">
+                                        <tr key={r.key}>
+                                            <td class="rr-mono"><template lwc:if={r.hasUrl}><a class="rr-a" href={r.url} target="_blank" rel="noopener">{r.name}</a></template><template lwc:else>{r.name}</template> <span class="rr-weak">{r.kind}</span></td>
+                                            <td class="rr-small">{r.role}</td>
+                                            <td class="rr-mono" title={r.source}>{r.src}</td>
+                                            <td class="rr-mono" title={r.target}>{r.tgt}</td>
+                                            <td><span class={r.markCls}>{r.markText}</span></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                        <template lwc:if={hasMore}><p class="rr-pad rr-small rr-weak">{moved.more} more not listed (the report lists them).</p></template>
+                        <template lwc:if={moved.fresh}><p class="rr-pad rr-small rr-weak">Fresh start: each branch has its files in one new commit, so the commits differ; ✓ means the seeded commit is there.</p></template>
+                    </template>
+                    <div class="rr-bar"><span class="rr-strong">What didn't move</span></div>
+                    <div class="rr-pad">
+                        <template lwc:if={hasRequests}>
+                            <p class="rr-small">Open in {sourceLabel}:</p>
+                            <ul class="rr-inline"><template for:each={requests} for:item="q"><li key={q.key}><a class="rr-a" href={q.url} target="_blank" rel="noopener">{q.label}</a> {q.title} <span class="rr-weak rr-mono">{q.branches}</span></li></template></ul>
+                        </template>
+                        <ul class="rr-inline"><template for:each={stays} for:item="s"><li key={s.key} class="rr-small rr-weak">{s.text}</li></template></ul>
+                    </div>
+                </section>
+            </template>
+
+            <!-- 5 · New setup -->
+            <template lwc:if={isStep5}>
+                <section class="rr-card" aria-label="New setup">
+                    <div class="rr-bar"><span class="rr-strong">Do in the new setup ({targetLabel})</span><span class="rr-grow"></span><span class="rr-pill rr-pill-warn">{newCount}</span></div>
+                    <table class="rr-table">
+                        <thead><tr><th>Do</th><th>Where</th><th></th></tr></thead>
+                        <tbody>
+                            <template for:each={newItems} for:item="i">
+                                <tr key={i.key}>
+                                    <td>{i.label}<template lwc:if={i.hasAction}> <lightning-button class="rr-inline-btn" label={i.actionLabel} data-action={i.action} onclick={handleItemAction} disabled={i.off}></lightning-button></template></td>
+                                    <td class="rr-small rr-weak">{i.place}</td>
+                                    <td class="rr-chip-cell"><button type="button" class={i.chipCls} aria-pressed={i.pressed} data-key={i.key} onclick={handleChip} disabled={i.off}>{i.chipText}</button><span class="rr-block rr-small rr-weak">{i.byText}</span></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <template lwc:if={optionalNames}><p class="rr-pad rr-small rr-weak">Only if the old setup has them: {optionalNames}</p></template>
+                    <p class="rr-pad rr-small rr-weak">Values can never be read back out of a provider: copy them from where you keep them.</p>
+                </section>
+            </template>
+
+            <!-- 6 · Orgs in sync -->
+            <template lwc:if={isStep6}>
+                <section class="rr-card" aria-label="Orgs in sync">
+                    <div class="rr-bar"><span class="rr-strong">Each org against its branch in {targetLabel}</span><span class="rr-grow"></span>
+                        <lightning-button variant="brand" label="Check every org" onclick={handleCheckAll} disabled={cantCheckAll}></lightning-button></div>
+                    <table class="rr-table">
+                        <thead><tr><th>Org</th><th>Branch</th><th>How</th><th>Result</th><th></th></tr></thead>
+                        <tbody>
+                            <template for:each={orgRows} for:item="o">
+                                <tr key={o.id}>
+                                    <td class="rr-strong">{o.name}</td>
+                                    <td class="rr-mono">{o.branch}</td>
+                                    <td class="rr-small rr-weak">{o.how}</td>
+                                    <td><span class={o.pill}>{o.statusText}</span> <span class="rr-small">{o.detail}</span></td>
+                                    <td><lightning-button label={o.buttonLabel} data-id={o.id} onclick={handleOrgCheck} disabled={o.off}></lightning-button></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div class="rr-form">
+                        <lightning-input class="rr-reason" label="Why the listed differences are fine" value={acceptReason} placeholder="For example: SIT has a hotfix in flight" onchange={handleReason}></lightning-input>
+                        <button type="button" class={acceptChipCls} aria-pressed={acceptPressed} onclick={handleAcceptChip} disabled={busy}>{acceptText}</button>
+                    </div>
+                </section>
+            </template>
+
+            <!-- 7 · Switch now -->
+            <template lwc:if={isStep7}>
+                <section class="rr-card" aria-label="Switch now">
+                    <div class="rr-bar"><span class="rr-strong">Switch now</span></div>
+                    <table class="rr-table">
+                        <tbody>
+                            <template for:each={conditions} for:item="c">
+                                <tr key={c.key}><td><span class={c.pill}>{c.mark}</span></td><td>{c.label}<span class="rr-block rr-small rr-weak">{c.detail}</span></td></tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div class="rr-foot">
+                        <lightning-button variant="brand" label={switchLabel} onclick={handleSwitch} disabled={cantSwitch}></lightning-button>
+                        <template lwc:if={switchedOn}><span class="rr-pill rr-pill-ok">Switched <lightning-formatted-date-time value={switchedOn} year="numeric" month="short" day="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></span></template>
+                    </div>
+                    <p class="rr-pad rr-small rr-weak">One click: the new connection becomes the active one for everything, and new releases start there. Old releases keep their own repository.</p>
+                </section>
+            </template>
+
+            <!-- 8 · Old setup, Finish -->
+            <template lwc:if={isStep8}>
+                <section class="rr-card" aria-label="Old setup">
+                    <div class="rr-bar"><span class="rr-strong">Do in the old setup ({sourceLabel})</span><span class="rr-grow"></span><span class="rr-pill rr-pill-warn">{oldCount}</span></div>
+                    <table class="rr-table">
+                        <thead><tr><th>Do</th><th>Where</th><th></th></tr></thead>
+                        <tbody>
+                            <template for:each={oldItems} for:item="i">
+                                <tr key={i.key}>
+                                    <td>{i.label}</td>
+                                    <td class="rr-small rr-weak">{i.place}</td>
+                                    <td class="rr-chip-cell"><button type="button" class={i.chipCls} aria-pressed={i.pressed} data-key={i.key} onclick={handleChip} disabled={i.off}>{i.chipText}</button><span class="rr-block rr-small rr-weak">{i.byText}</span></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div class="rr-foot">
+                        <lightning-button variant="brand" label="Finish and save the Migration report" onclick={handleFinish} disabled={cantFinish}></lightning-button>
+                        <template lwc:if={reportUrl}><a class="rr-a" href={reportUrl} target="_blank" rel="noopener">Download the Migration report (PDF)</a></template>
+                    </div>
+                </section>
+            </template>
+
+            <div class="rr-foot">
+                <lightning-button label="Back" onclick={handleBack} disabled={cantBack}></lightning-button>
+                <lightning-button label="Next" onclick={handleNext} disabled={cantNext}></lightning-button>
+            </div>
+
+            <template lwc:if={hasEvents}>
+                <section class="rr-card" aria-label="Who did what">
+                    <div class="rr-bar"><span class="rr-strong">Who did what</span><span class="rr-small rr-weak">newest first · the report keeps all of it</span></div>
+                    <table class="rr-table">
+                        <tbody>
+                            <template for:each={events} for:item="e">
+                                <tr key={e.key}><td class="rr-small rr-nowrap"><lightning-formatted-date-time value={e.stamp} month="short" day="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></td><td class="rr-small">{e.who}</td><td class="rr-small rr-strong">{e.step}</td><td class="rr-small">{e.what}</td></tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </section>
+            </template>
+        </template>
+
+        <span class="rr-ticks" aria-hidden="true">
+            <template for:each={ticks} for:item="t"><span key={t.key} class={t.cls} data-id={t.id} onanimationend={handleTick}></span></template>
+        </span>
+    </div>
+</template>

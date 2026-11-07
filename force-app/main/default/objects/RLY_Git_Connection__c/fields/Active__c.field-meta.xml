@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Active__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>The hub&apos;s one active connection (build 46): every new release starts in its repository. Set by the Migration tab&apos;s Switch now. When none is active, the oldest connection counts.</description>
+    <externalId>false</externalId>
+    <label>Active</label>
+    <type>Checkbox</type>
+</CustomField>

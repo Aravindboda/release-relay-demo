@@ -4,6 +4,8 @@
  */
 public with sharing class RlyComparePipelineInput {
 
+    private static RLY_Git_Connection__c connectionForRequest;
+
     private static final Pattern COMPARE_ID = Pattern.compile('^(CMP|SYN)-\\d{13}$');
     private static final Pattern KEY = Pattern.compile('^[A-Za-z]{2,80}:[^,:\\r\\n]{1,255}$');
     private static final Integer MAX_INPUT = 60000;
@@ -53,11 +55,20 @@ public with sharing class RlyComparePipelineInput {
     }
 
     /**
+     * @description Build 46: the Migration tab checks each org against its branch in the NEW repository before the switch,
+     * with Sync status's own checks. It names that connection for the rest of this request; gitHub() then uses it.
+     * @param conn the connection (null: the hub's active one again)
+     */
+    public static void useConnection(RLY_Git_Connection__c conn) {
+        connectionForRequest = conn;
+    }
+
+    /**
      * @description The hub's Git connection, checked: connected, on GitHub.
      * @return the provider
      */
     public static RlyGit gitHub() {
-        RLY_Git_Connection__c conn = RlyReleaseStore.git();
+        RLY_Git_Connection__c conn = connectionForRequest != null ? connectionForRequest : RlyReleaseStore.git();
         if (conn == null || conn.Status__c != 'Connected') {
             throw new RlyReleaseException('The Git connection isn\'t set up and checked yet (Pipeline tab).');
         }
