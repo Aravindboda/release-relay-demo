@@ -1,0 +1,19 @@
+{
+ "request": "REL-91036",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rly-int-check",
+ "target": "rly-sit-install",
+ "sha": "fedf047d9dad79c1d43f84cb4992a16e53120f30",
+ "pr": 198,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/198",
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "appended": false,
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42396862040",
+ "finishedAt": "2026-11-07T17:33:20.644Z"
+}
