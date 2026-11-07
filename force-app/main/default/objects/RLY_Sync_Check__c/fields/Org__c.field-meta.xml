@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Org__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Org checks: the org compared with its branch.</description>
+    <externalId>false</externalId>
+    <label>Org</label>
+    <referenceTo>RLY_Org__c</referenceTo>
+    <relationshipLabel>Sync Checks</relationshipLabel>
+    <relationshipName>Sync_Checks</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>One row per Sync status check (Sync status tab): an org against its own branch, each branch against the one below it on the route, or the managed packages installed in each org. The tab shows the latest of each; removed by the nightly archive after the Retention days.</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>false</enableHistory>
+    <enableReports>false</enableReports>
+    <enableSearch>false</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <label>RLY Sync Check</label>
+    <nameField>
+        <displayFormat>SYC-{000000}</displayFormat>
+        <label>Sync Check Number</label>
+        <trackHistory>false</trackHistory>
+        <type>AutoNumber</type>
+    </nameField>
+    <pluralLabel>RLY Sync Checks</pluralLabel>
+    <searchLayouts></searchLayouts>
+    <sharingModel>ReadWrite</sharingModel>
+</CustomObject>

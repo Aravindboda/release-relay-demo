@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>65.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Release Relay: Sync status</masterLabel>
+    <description>Is each org the same as its branch, has everything a higher stage has come back down the route, and which managed packages are installed where. Back promote or push picked components; bring an org's changes into its branch.</description>
+    <targets>
+        <target>lightning__Tab</target>
+    </targets>
+</LightningComponentBundle>
