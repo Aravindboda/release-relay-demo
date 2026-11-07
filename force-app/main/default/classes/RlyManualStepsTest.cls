@@ -60,24 +60,28 @@ private class RlyManualStepsTest {
             req.title = 'Region field';
             req.items = new List<RlyRaiseService.Item>{ RlyReleaseTestData.item('Layout', 'Account-Account Layout') };
             req.testClasses = new List<String>();
+            RlyManualSteps.StepInput pkg = input('Upgrade Health Cloud', 'Before_Deploy', null);
+            pkg.category = 'Managed_Package';
             req.manualSteps = new List<RlyManualSteps.StepInput>{
-                input('Grant Region access', 'Before_Deploy', null), input('Load regions', null, ' prod ') };
+                input('Grant Region access', 'Before_Deploy', null), input('Load regions', null, ' prod '), pkg };
             Test.startTest();
             Id relId = RlyReleasesController.raiseRelease(JSON.serialize(req));
             Test.stopTest();
-            List<RLY_Manual_Step__c> steps = [SELECT Title__c, Sequence__c, Timing__c, Org_Scope__c, Back_Promote__c
+            List<RLY_Manual_Step__c> steps = [SELECT Title__c, Sequence__c, Timing__c, Org_Scope__c, Back_Promote__c, Category__c
                                               FROM RLY_Manual_Step__c WHERE Release__c = :relId ORDER BY Sequence__c];
-            System.assertEquals(2, steps.size(), 'Both saved');
+            System.assertEquals(3, steps.size(), 'All saved');
+            System.assertEquals('Managed_Package', steps[2].Category__c, 'A managed package install is a manual step');
             System.assertEquals(1, steps[0].Sequence__c, 'In order');
             System.assertEquals('After_Deploy', steps[1].Timing__c, 'After deploy by default');
             System.assertEquals('prod', steps[1].Org_Scope__c, 'Scope trimmed');
             System.assert(steps[1].Back_Promote__c, 'Back promote by default');
             List<RLY_Manual_Step_Run__c> runs = [SELECT Org__c, Status__c, Order__c, Step__r.Title__c FROM RLY_Manual_Step_Run__c
                                                  WHERE Release__c = :relId];
-            System.assertEquals(1, runs.size(), 'Only the step for every org runs in SIT');
-            System.assertEquals(orgId('SIT'), runs[0].Org__c, 'In the first stage');
-            System.assertEquals('To_Do', runs[0].Status__c, 'To do');
-            System.assertEquals(1, runs[0].Order__c, 'First');
+            System.assertEquals(2, runs.size(), 'Only the steps for every org run in SIT');
+            for (RLY_Manual_Step_Run__c r : runs) {
+                System.assertEquals(orgId('SIT'), r.Org__c, 'In the first stage');
+                System.assertEquals('To_Do', r.Status__c, 'To do');
+            }
         }
     }
 

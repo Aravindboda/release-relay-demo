@@ -25,6 +25,11 @@
                 <label>Setup configuration</label>
             </value>
             <value>
+                <fullName>Managed_Package</fullName>
+                <default>false</default>
+                <label>Managed package</label>
+            </value>
+            <value>
                 <fullName>Other</fullName>
                 <default>false</default>
                 <label>Other</label>

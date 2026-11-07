@@ -4,7 +4,11 @@
  *   build     walks to the source path (one tree per folder level, not the whole repository), lists its component folders
  *         (classes, lwc, flows…) and the object folders under objects, and returns one part per component folder and
  *         one per OBJECTS_PER_PART objects, each with its folders' tree shas
- *   readPart  reads one part's folders (each tree by its sha, recursively) and returns the components on the branch
+ *   readPart  reads one part's folders (each tree by its sha, recursively) and returns the components on the branch,
+ *             with those a deploy can't delete (RlyDeletable: Salesforce's own, settings, managed packages…)
+ * Which folder holds which type comes from the developer org's describeMetadata (RlyPathRules, build 37.1): the plan
+ * carries the rules and the org's namespace, and the page sends them back with each part. The plan reads the org's own
+ * branch (Find deleted components) or the target's branch (Delete from the branch, buildFor).
  * GitHub only (the other providers can't list files from the hub yet). A tree GitHub cut short sets truncated, and
  * the page says so. The org side is RlyDeletionPresence; the page compares the two.
  */
@@ -25,6 +29,10 @@ public with sharing class RlyDeletionPlan {
         @AuraEnabled public List<Part> parts = new List<Part>();
         /** @description GitHub cut a folder list short: some folders may be missing. */
         @AuraEnabled public Boolean truncated = false;
+        /** @description Which folder holds which type (RlyPathRules). */
+        @AuraEnabled public List<RlyPathRules.Rule> rules = new List<RlyPathRules.Rule>();
+        /** @description The developer org's own namespace (blank for most orgs). */
+        @AuraEnabled public String namespace = '';
     }
 
     /** @description One part: some folders of the branch. */
@@ -35,6 +43,10 @@ public with sharing class RlyDeletionPlan {
         @AuraEnabled public String label;
         /** @description Its folders. */
         @AuraEnabled public List<Folder> folders = new List<Folder>();
+        /** @description The plan's rules, sent back by the page (blank: the fixed rules). */
+        @AuraEnabled public List<RlyPathRules.Rule> rules;
+        /** @description The plan's namespace, sent back by the page. */
+        @AuraEnabled public String namespace;
     }
 
     /** @description One folder: where it is below the source path and its tree's sha. */
@@ -51,17 +63,32 @@ public with sharing class RlyDeletionPlan {
         @AuraEnabled public List<String> keys = new List<String>();
         /** @description GitHub cut a folder short: some files may be missing. */
         @AuraEnabled public Boolean truncated = false;
+        /** @description The components a deploy can't delete, with the reason. */
+        @AuraEnabled public List<RlyDeletable.Blocked> blocked = new List<RlyDeletable.Blocked>();
     }
 
     /**
-     * @description The parts of the org's branch.
+     * @description The parts of the org's own branch (Find deleted components).
      * @param org the developer org
      * @return the plan (no parts when the source path isn't on the branch)
      */
     public static Plan build(RLY_Org__c org) {
+        return buildFor(org, RlyDeletionFinder.branchOf(org));
+    }
+
+    /**
+     * @description The parts of a branch, with the developer org's folder rules.
+     * @param org the developer org
+     * @param branch the branch to read
+     * @return the plan (no parts when the source path isn't on the branch)
+     */
+    public static Plan buildFor(RLY_Org__c org, String branch) {
         RlyGitTreeReader git = reader();
         Plan p = new Plan();
-        p.branch = RlyDeletionFinder.branchOf(org);
+        p.branch = branch;
+        RlyPathRules.Described d = RlyPathRules.forOrgWithNamespace(org);
+        p.rules = d.rules;
+        p.namespace = d.namespace;
         RlyGitTree.Tree level = git.own(p.branch);
         String sourcePath = RlyDeletionFinder.sourcePath();
         for (String segment : String.isBlank(sourcePath) ? new List<String>() : sourcePath.split('/')) {
@@ -72,7 +99,7 @@ public with sharing class RlyDeletionPlan {
             }
             level = git.own(next.sha);
         }
-        new RlyDeletionWalk(git, p).collect(level, '', 1);
+        new RlyDeletionWalk(git, p, RlyPathRules.byDir(p.rules)).collect(level, '', 1);
         Integer n = 1;
         for (Part pt : p.parts) {
             pt.id = 'p' + n++;
@@ -88,6 +115,7 @@ public with sharing class RlyDeletionPlan {
     public static PartResult readPart(Part given) {
         checkPart(given);
         RlyGitTreeReader git = reader();
+        Map<String, RlyPathRules.Rule> rules = RlyPathRules.byDir(RlyPathRules.checked(given.rules));
         PartResult r = new PartResult();
         Set<String> seen = new Set<String>();
         for (Folder f : given.folders) {
@@ -99,12 +127,13 @@ public with sharing class RlyDeletionPlan {
                     paths.add(f.prefix + e.path);
                 }
             }
-            for (String k : RlyDeletionPaths.keysOf(paths, '')) {
+            for (String k : RlyDeletionPaths.keysOf(paths, '', rules)) {
                 if (seen.add(k)) {
                     r.keys.add(k);
                 }
             }
         }
+        r.blocked = RlyDeletable.blockedOf(r.keys, String.isBlank(given.namespace) ? '' : given.namespace.left(15));
         return r;
     }
 

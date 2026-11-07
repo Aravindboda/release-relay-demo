@@ -116,19 +116,26 @@ export function presenceKey(type, name) {
 
 /**
  * The deletion candidates: components on the branch (Type:Name keys) the org doesn't have, for the types the org was
- * read for (presence: type => Set of presenceKey). Standard objects and fields are left out.
+ * read for (presence: type => Set of presenceKey). Standard objects and fields, and what a deploy can't delete
+ * (blocked: Set of keys from RlyDeletable, managed packages among them) are left out.
  */
-export function deletionCandidates(branchKeys, presence) {
+export function deletionCandidates(branchKeys, presence, blocked) {
     const out = [];
+    const skip = blocked || new Set();
     branchKeys.forEach((k) => {
         const type = k.substring(0, k.indexOf(':'));
         const name = decodeName(k.substring(k.indexOf(':') + 1));
         const inOrg = presence.get(type);
-        if (inOrg && !isStandard(type, name) && !inOrg.has(presenceKey(type, name))) {
+        if (inOrg && !skip.has(k) && !isStandard(type, name) && !inOrg.has(presenceKey(type, name))) {
             out.push({ key: type + ':' + name, type, name, standard: false, deleted: true });
         }
     });
     return out;
+}
+
+/** The types listMetadata can't list without a folder (rule kind folder: reports, dashboards, email templates). */
+export function folderTypesOf(rules) {
+    return new Set((rules || []).filter((r) => r.kind === 'folder').map((r) => r.type));
 }
 
 /**
