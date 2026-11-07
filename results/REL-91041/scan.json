@@ -1,0 +1,39 @@
+{
+ "request": "REL-91041",
+ "step": "scan",
+ "status": "Passed",
+ "total": 0,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {},
+ "files": [
+  "force-app/main/default/classes/RlySlackAlert.cls",
+  "force-app/main/default/classes/RlySlackCardSync.cls",
+  "force-app/main/default/classes/RlySlackDelivery.cls",
+  "force-app/main/default/classes/RlySlackDue.cls",
+  "force-app/main/default/classes/RlySlackDueReads.cls",
+  "force-app/main/default/classes/RlySlackDueRest.cls",
+  "force-app/main/default/classes/RlySlackDueStore.cls",
+  "force-app/main/default/classes/RlySlackDueTest.cls",
+  "force-app/main/default/classes/RlySlackNudge.cls",
+  "force-app/main/default/classes/RlySlackPoster.cls",
+  "force-app/main/default/classes/RlySlackReminderController.cls",
+  "force-app/main/default/classes/RlySlackReminders.cls",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js",
+  "force-app/main/default/lwc/rlySlackOrgReminders/rlySlackOrgReminders.html",
+  "force-app/main/default/lwc/rlySlackOrgReminders/rlySlackOrgReminders.js"
+ ],
+ "violations": [],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42393019542",
+ "finishedAt": "2026-11-07T16:47:53.685Z"
+}
