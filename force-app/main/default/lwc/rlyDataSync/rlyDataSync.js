@@ -233,7 +233,7 @@ export default class RlyDataSync extends LightningElement {
                 let page = 1;
                 do {
                     // eslint-disable-next-line no-await-in-loop
-                    const p = await exportPart({ partJson: JSON.stringify({ runId: s.runId, index, page, cursor }) });
+                    const p = await exportPart({ partJson: JSON.stringify({ runId: s.runId, index, pageNo: page, cursor }) });
                     records += p.count;
                     cursor = p.nextCursor;
                     page += 1;

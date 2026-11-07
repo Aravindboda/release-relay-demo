@@ -28,11 +28,11 @@ private class RlyDataTest {
     private static String definition() {
         Map<String, Object> rule = obj('Claim_Rule__c', new List<String>{ 'Name', 'Claim_Type__c', 'Limit__c' }, new List<String>{ 'Claim_Type__c', 'Name' });
         rule.put('parents', new Map<String, Object>{ 'Claim_Type__c' => 'Claim_Type__c' });
-        Map<String, Object> contact = obj('Contact', new List<String>{ 'LastName', 'Email', 'Ext_Id__c' }, new List<String>{ 'Ext_Id__c' });
-        contact.put('masks', new Map<String, Object>{ 'Email' => 'email', 'LastName' => 'name' });
+        Map<String, Object> contactObj = obj('Contact', new List<String>{ 'LastName', 'Email', 'Ext_Id__c' }, new List<String>{ 'Ext_Id__c' });
+        contactObj.put('masks', new Map<String, Object>{ 'Email' => 'email', 'LastName' => 'name' });
         Map<String, Object> claimType = obj('Claim_Type__c', new List<String>{ 'Name', 'Code__c' }, new List<String>{ 'Code__c' });
         claimType.put('filter', 'Active__c = true');
-        return JSON.serialize(new Map<String, Object>{ 'objects' => new List<Object>{ claimType, rule, contact },
+        return JSON.serialize(new Map<String, Object>{ 'objects' => new List<Object>{ claimType, rule, contactObj },
             'bypass' => new Map<String, Object>{ 'kind' => 'setting', 'name' => 'Claims_Settings__c', 'field' => 'Bypass_Triggers__c' } });
     }
 
@@ -221,16 +221,16 @@ private class RlyDataTest {
             // Saving the run is DML: the page's later calls (callouts) come in their own requests.
             RlyDataRuns.Started st = RlyDataController.startRun(JSON.serialize(req));
             Test.startTest();
-            RlyDataExport.Part first = RlyDataController.exportPart(JSON.serialize(new Map<String, Object>{ 'runId' => st.runId, 'index' => 0, 'page' => 1 }));
-            RlyDataExport.Part second = RlyDataController.exportPart(JSON.serialize(new Map<String, Object>{ 'runId' => st.runId, 'index' => 0,
-                'page' => 2, 'cursor' => first.nextCursor }));
+            RlyDataExport.Part firstPart = RlyDataController.exportPart(JSON.serialize(new Map<String, Object>{ 'runId' => st.runId, 'index' => 0, 'pageNo' => 1 }));
+            RlyDataExport.Part secondPart = RlyDataController.exportPart(JSON.serialize(new Map<String, Object>{ 'runId' => st.runId, 'index' => 0,
+                'pageNo' => 2, 'cursor' => firstPart.nextCursor }));
             String title = RlyDataController.runExported(st.runId);
             Test.stopTest();
             System.assertEquals('export', st.next, 'A developer org is sent by the hub');
             System.assertEquals(3, st.queries.size(), 'One query per object');
-            System.assertEquals(1, first.count, 'First page');
-            System.assertEquals('/services/data/v65.0/query/01gXX-2000', first.nextCursor, 'More to come');
-            System.assertEquals(null, second.nextCursor, 'Done');
+            System.assertEquals(1, firstPart.count, 'First page');
+            System.assertEquals('/services/data/v65.0/query/01gXX-2000', firstPart.nextCursor, 'More to come');
+            System.assertEquals(null, secondPart.nextCursor, 'Done');
             String put = m.bodyFor('/contents/data-inbox/' + st.runId + '/00-001.json');
             System.assert(put != null, 'Saved as the export job would: ' + m.callLog());
             String saved = EncodingUtil.base64Decode((String) ((Map<String, Object>) JSON.deserializeUntyped(put)).get('content')).toString();

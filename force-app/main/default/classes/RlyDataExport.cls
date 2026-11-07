@@ -11,13 +11,13 @@ public with sharing class RlyDataExport {
     private static final Integer PAGE_SIZE = 2000;
 
     /** @description What the page asks for. */
-    public class Page {
+    public class Ask {
         /** @description The run. */
         public String runId;
         /** @description The object's position in the data set (from 0). */
         public Integer index;
         /** @description The page's number for this object (from 1). */
-        public Integer page;
+        public Integer pageNo;
         /** @description The next page's address from the last call, or blank for the first page. */
         public String cursor;
     }
@@ -32,10 +32,10 @@ public with sharing class RlyDataExport {
 
     /**
      * @description Sends one page of one object's records from a developer org to the results branch.
-     * @param p the page
+     * @param p which object and page
      * @return the sent part
      */
-    public static Part send(Page p) {
+    public static Part send(Ask p) {
         RLY_Data_Run__c run = RlyDataRules.requireStatus(p == null ? null : p.runId, RlyDataStore.EXPORTING);
         RlyDataRules.requireRequester(run);
         RlyDataSet.Definition d = RlyDataSet.parse(run.Data_Set__r.Definition__c);
@@ -48,11 +48,11 @@ public with sharing class RlyDataExport {
         List<Object> records = withoutAttributes(res.get('records'));
         Part part = new Part();
         part.count = records.size();
-        part.nextCursor = res.get('done') == true || p.page * PAGE_SIZE >= RlyDataRuns.MAX_RECORDS ? null : (String) res.get('nextRecordsUrl');
+        part.nextCursor = res.get('done') == true || p.pageNo * PAGE_SIZE >= RlyDataRuns.MAX_RECORDS ? null : (String) res.get('nextRecordsUrl');
         String body = JSON.serialize(new Map<String, Object>{ 'objectName' => item.objectName, 'index' => p.index, 'records' => records });
         RlyComparePipelineInput.gitHub().putFile(new RlyGitFile(RlyDataRuns.INBOX + p.runId + '/' + String.valueOf(p.index).leftPad(2, '0')
-            + '-' + String.valueOf(p.page).leftPad(3, '0') + '.json', RlyPipelineRun.RESULTS_BRANCH)
-            .withContent(EncodingUtil.base64Encode(Blob.valueOf(body)), p.runId + ': ' + item.objectName + ' part ' + p.page));
+            + '-' + String.valueOf(p.pageNo).leftPad(3, '0') + '.json', RlyPipelineRun.RESULTS_BRANCH)
+            .withContent(EncodingUtil.base64Encode(Blob.valueOf(body)), p.runId + ': ' + item.objectName + ' part ' + p.pageNo));
         return part;
     }
 
@@ -87,8 +87,8 @@ public with sharing class RlyDataExport {
     }
 
     // An object of the set, and a page within the most records sent per object.
-    private static Boolean isValid(Page p, Integer objectCount) {
+    private static Boolean isValid(Ask p, Integer objectCount) {
         Boolean indexOk = p.index != null && p.index >= 0 && p.index < objectCount;
-        return indexOk && p.page != null && p.page >= 1 && p.page <= RlyDataRuns.MAX_RECORDS / PAGE_SIZE;
+        return indexOk && p.pageNo != null && p.pageNo >= 1 && p.pageNo <= RlyDataRuns.MAX_RECORDS / PAGE_SIZE;
     }
 }

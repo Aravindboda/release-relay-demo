@@ -80,14 +80,14 @@ public with sharing class RlyDataController {
 
     /**
      * @description Sends one page of a developer org's records.
-     * @param partJson {runId, index, page, cursor}
+     * @param partJson {runId, index, pageNo, cursor}
      * @return the page
      */
     @AuraEnabled
     public static RlyDataExport.Part exportPart(String partJson) {
         try {
             RlyHubGuard.requireHub();
-            RlyDataExport.Page p = String.isBlank(partJson) ? null : (RlyDataExport.Page) JSON.deserialize(partJson, RlyDataExport.Page.class);
+            RlyDataExport.Ask p = String.isBlank(partJson) ? null : (RlyDataExport.Ask) JSON.deserialize(partJson, RlyDataExport.Ask.class);
             return RlyDataExport.send(p);
         } catch (Exception e) {
             throw handled(e);
