@@ -126,7 +126,7 @@ private class RlyDeletionFinderTest {
                 missingBranch = e.getMessage();
             }
             RLY_Git_Connection__c conn = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
-            conn.Provider__c = 'GitLab';
+            conn.Provider__c = 'Bitbucket';
             update conn;
             String unsupported;
             try {
@@ -136,7 +136,7 @@ private class RlyDeletionFinderTest {
             }
             Test.stopTest();
             System.assert(missingBranch != null && missingBranch.contains('Listing the files on dev1'), 'No such branch: ' + missingBranch);
-            System.assert(unsupported != null && unsupported.contains('isn\'t available for GitLab'), 'Other providers: ' + unsupported);
+            System.assert(unsupported != null && unsupported.contains('isn\'t available for Bitbucket'), 'Other providers: ' + unsupported);
         }
     }
 

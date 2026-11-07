@@ -34,6 +34,24 @@ public with sharing class RlyAzureRepos extends RlyGit {
     }
 
     /**
+     * @description The repository on dev.azure.com.
+     * @return https://dev.azure.com/organization/project/_git/repository
+     */
+    public override String webUrl() {
+        List<String> p = parts();
+        return 'https://dev.azure.com/' + enc(p[0]) + '/' + enc(p[1]) + '/_git/' + enc(p[2]);
+    }
+
+    /**
+     * @description A branch's files view (?version=GB and the branch).
+     * @param branch the branch name
+     * @return the link, or the repository's when the branch is blank
+     */
+    public override String branchUrl(String branch) {
+        return String.isBlank(branch) ? webUrl() : webUrl() + '?version=GB' + enc(branch.trim());
+    }
+
+    /**
      * @description The latest commit on a branch (GET git/refs?filter=heads/{name}, value[0].objectId).
      * @param branch the branch name
      * @return the commit SHA, or null when the branch isn't there

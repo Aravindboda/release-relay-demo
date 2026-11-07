@@ -158,7 +158,7 @@ private class RlyChangePartsTest {
             Test.startTest();
             RlyDeletionPlan.Plan empty = RlyChangePartsController.deletionPlan(devId);
             RLY_Git_Connection__c conn = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
-            conn.Provider__c = 'GitLab';
+            conn.Provider__c = 'Bitbucket';
             update conn;
             String gitLab;
             try {
@@ -169,7 +169,7 @@ private class RlyChangePartsTest {
             Test.stopTest();
             System.assert(empty.parts.isEmpty(), 'No source path on the branch: no parts');
             System.assertEquals(true, empty.truncated, 'Cut short noted');
-            System.assert(gitLab.contains('isn\'t available for GitLab'), 'Other providers: ' + gitLab);
+            System.assert(gitLab.contains('isn\'t available for Bitbucket'), 'Other providers: ' + gitLab);
         }
     }
 

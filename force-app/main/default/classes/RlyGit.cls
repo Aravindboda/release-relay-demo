@@ -2,10 +2,11 @@
  * @description Git provider for the Release Relay hub: GitHub, GitLab, Bitbucket Cloud or Azure DevOps,
  * called through the Named Credential on the hub's Git connection (the token never leaves it).
  *
- * Each provider is a small subclass with its endpoints; this class holds the factory, the shared
- * HTTP call and the release operations' defaults. Error advice lives in RlyGitAdvice.
+ * Each provider is a small subclass with its endpoints; this class holds the factory and the release operations'
+ * defaults, and RlyGitCore (its base, build 45) the repository checks, the names and links, and the shared HTTP call.
+ * Error advice lives in RlyGitAdvice.
  */
-public abstract with sharing class RlyGit {
+public abstract with sharing class RlyGit extends RlyGitCore {
 
     private static final String GITHUB = 'GitHub';
     private static final String GITLAB = 'GitLab';
@@ -15,13 +16,9 @@ public abstract with sharing class RlyGit {
     /** @description Every supported provider. */
     public static final Set<String> PROVIDERS = new Set<String>{ GITHUB, GITLAB, BITBUCKET, AZURE };
 
-    private static final Integer TIMEOUT_MS = 30000;
     private static final Map<String, String> IMPLEMENTATIONS = new Map<String, String>{
         GITHUB => 'RlyGitHub', GITLAB => 'RlyGitLab', BITBUCKET => 'RlyBitbucket', AZURE => 'RlyAzureRepos'
     };
-
-    protected RLY_Git_Connection__c conn;
-    protected String base;
 
     /** @description A Git call failed, or the connection isn't usable. */
     public class GitException extends Exception {}
@@ -84,76 +81,7 @@ public abstract with sharing class RlyGit {
         return git;
     }
 
-    // ---------- what each provider supplies ----------
-
-    /**
-     * @description The shape a repository name must have.
-     * @return the pattern
-     */
-    protected abstract Pattern repositoryPattern();
-
-    /**
-     * @description The shape a repository name must have, in words.
-     * @return for example owner/repository
-     */
-    public abstract String repositoryHint();
-
-    /**
-     * @description The repository's default branch. Throws when the repository can't be reached.
-     * @return the branch name
-     */
-    public abstract String defaultBranch();
-
-    /**
-     * @description The provider's name as people know it (the "In <provider>" approval option, Approved_Via__c).
-     * @return for example GitHub
-     */
-    public abstract String providerLabel();
-
-    /**
-     * @description The latest commit on a branch.
-     * @param branch the branch name
-     * @return the commit SHA, or null when the branch isn't there
-     */
-    public abstract String branchHead(String branch);
-
-    /**
-     * @description Whether a branch exists.
-     * @param branch the branch name
-     * @return true when it exists
-     */
-    public abstract Boolean branchExists(String branch);
-
-    /**
-     * @description Whether a file exists on a branch.
-     * @param path path in the repository
-     * @param ref the branch
-     * @return true when it exists
-     */
-    public abstract Boolean fileExists(String path, String ref);
-
-    /**
-     * @description Creates a branch at another branch's latest commit.
-     * @param branch the new branch
-     * @param fromRef the branch to start from
-     */
-    public abstract void createBranch(String branch, String fromRef);
-
-    /**
-     * @description Files the pipeline needs in the repository, to check they're there.
-     * @return the paths
-     */
-    public abstract List<String> pipelineFiles();
-
-    /**
-     * @description Checks the pipeline exists when it isn't a file (Azure DevOps). Where the pipeline is a file,
-     * pipelineFiles() covers it, so there is nothing more to check.
-     */
-    public virtual void checkPipeline() {
-        return;
-    }
-
-    // ---------- releases (GitHub today; the other providers follow) ----------
+    // ---------- releases (GitHub and GitLab; the other providers follow) ----------
 
     /**
      * @description Creates or replaces a file on a branch.
@@ -240,70 +168,11 @@ public abstract with sharing class RlyGit {
     }
 
     protected GitException unsupported(String what) {
-        return new GitException(what + ' isn\'t available for ' + conn.Provider__c + ' in the hub yet. Use GitHub for now.');
+        return new GitException(what + ' isn\'t available for ' + conn.Provider__c + ' in the hub yet. Use GitHub or GitLab for now.');
     }
 
     // Always throws: the default of the release operations a provider doesn't support yet.
     private Object failUnsupported(String what) {
         throw unsupported(what);
-    }
-
-    // ---------- shared HTTP ----------
-
-    protected HttpResponse send(String method, String path, String body) {
-        return send(new RlyGitRequest(method, path, body));
-    }
-
-    protected HttpResponse send(RlyGitRequest r) {
-        HttpRequest req = new HttpRequest();
-        req.setMethod(r.method);
-        req.setEndpoint(base + r.path);
-        req.setTimeout(TIMEOUT_MS);
-        req.setHeader('User-Agent', 'Release-Relay-Salesforce');
-        req.setHeader('Accept', 'application/json');
-        Map<String, String> extra = headers();
-        extra.putAll(r.headers);
-        for (String h : extra.keySet()) {
-            req.setHeader(h, extra.get(h));
-        }
-        if (r.body != null) {
-            req.setHeader('Content-Type', 'application/json');
-            req.setBody(r.body);
-        }
-        try {
-            return new Http().send(req);
-        } catch (CalloutException e) {
-            throw new GitException(RlyGitAdvice.forCallout(e.getMessage(), conn));
-        }
-    }
-
-    protected virtual Map<String, String> headers() {
-        return new Map<String, String>();
-    }
-
-    protected Object parse(HttpResponse res) {
-        return JSON.deserializeUntyped(res.getBody());
-    }
-
-    protected void assertOk(HttpResponse res, String action) {
-        RlyGitAdvice.requireSuccess(res, action, conn);
-    }
-
-    /**
-     * @description URL-encodes a value (spaces as %20).
-     * @param value the value
-     * @return the encoded value
-     */
-    protected String enc(String value) {
-        return RlyGitRequest.encode(value);
-    }
-
-    /**
-     * @description Encodes each path segment, keeping the slashes.
-     * @param path the path
-     * @return the encoded path
-     */
-    protected String encPath(String path) {
-        return RlyGitRequest.encodePath(path);
     }
 }

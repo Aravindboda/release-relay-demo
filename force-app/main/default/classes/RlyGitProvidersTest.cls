@@ -1,6 +1,6 @@
 /**
- * @description Tests for the four Git providers (RlyGit, RlyGitHub, RlyGitLab, RlyBitbucket, RlyAzureRepos) and
- * their error advice (RlyGitAdvice). Every test runs as an existing active System Administrator through System.runAs.
+ * @description Tests for the four Git providers (RlyGit, RlyGitHub, RlyGitLab, RlyBitbucket, RlyAzureRepos), their
+ * labels and web links (build 45) and their error advice (RlyGitAdvice). Every test runs as an existing active System Administrator through System.runAs.
  */
 @IsTest
 private class RlyGitProvidersTest {
@@ -88,6 +88,41 @@ private class RlyGitProvidersTest {
                 Named_Credential__c = 'RLY_Git')), 'A provider the hub doesn\'t know');
             System.assertEquals(null, RlyGitName.labelFor(new RLY_Git_Connection__c(Provider__c = 'GitHub', Repository__c = 'a/b')),
                 'No Named Credential');
+        }
+    }
+
+    @IsTest
+    static void labelsAndLinksPerProvider() {
+        System.runAs(RlyTestData.admin()) {
+            RlyGit gh = RlyGit.forConnection(new RLY_Git_Connection__c(Provider__c = 'GitHub', Repository__c = 'acme/release',
+                Named_Credential__c = 'RLY_GitHub', Pipeline__c = 'release-relay.yml'));
+            RlyGit gl = RlyGit.forConnection(new RLY_Git_Connection__c(Provider__c = 'GitLab', Repository__c = 'group/sub/project',
+                Named_Credential__c = 'RLY_GitLab'));
+            RlyGit bb = RlyGit.forConnection(new RLY_Git_Connection__c(Provider__c = 'Bitbucket', Repository__c = 'ws/repo',
+                Named_Credential__c = 'RLY_Bitbucket'));
+            RlyGit az = RlyGit.forConnection(new RLY_Git_Connection__c(Provider__c = 'AzureDevOps', Repository__c = 'org/My Project/repo',
+                Named_Credential__c = 'RLY_AzureDevOps', Pipeline__c = '12'));
+            System.assertEquals('Pull request', gh.changeRequestLabel(), 'GitHub');
+            System.assertEquals('Merge request', gl.changeRequestLabel(), 'GitLab');
+            System.assertEquals('Pull request', bb.changeRequestLabel(), 'Bitbucket');
+            System.assertEquals('https://github.com/acme/release', gh.webUrl(), 'GitHub link');
+            System.assertEquals('https://github.com/acme/release/tree/feature/rel-00001', gh.branchUrl('feature/rel-00001'), 'GitHub branch');
+            System.assertEquals('https://github.com/acme/release', gh.branchUrl(null), 'No branch');
+            System.assertEquals('https://gitlab.com/group/sub/project/-/tree/sit', gl.branchUrl('sit'), 'GitLab branch');
+            System.assertEquals('https://bitbucket.org/ws/repo/src/sit', bb.branchUrl('sit'), 'Bitbucket branch');
+            System.assertEquals('https://bitbucket.org/ws/repo', bb.branchUrl(''), 'Bitbucket repository');
+            System.assertEquals('https://dev.azure.com/org/My%20Project/_git/repo?version=GBsit', az.branchUrl('sit'), 'Azure branch');
+            System.assertEquals('https://dev.azure.com/org/My%20Project/_git/repo', az.branchUrl(' '), 'Azure repository');
+            RlyGitChanges ghChanges = RlyGitChanges.of(gh);
+            System.assert(ghChanges instanceof RlyGitHubChanges && RlyGitChanges.of(gl) instanceof RlyGitLabChanges, 'GitHub and GitLab list files');
+            System.assertEquals(null, RlyGitChanges.of(bb), 'Bitbucket doesn\'t');
+            System.assertEquals('https://github.com/acme/release/pull/4/files', ghChanges.filesUrl('https://github.com/acme/release/pull/4/'), 'Files view');
+            System.assertEquals(null, ghChanges.filesUrl(''), 'No link');
+            System.assertEquals(null, ghChanges.fileUrl(null, 'a.cls'), 'No files view');
+            System.assert(ghChanges.fileUrl('https://github.com/acme/release/pull/4/files', 'a.cls').contains('/files#diff-'), 'GitHub anchor');
+            String refused;
+            try { bb.openPullRequest('a', 'main', 'Title'); } catch (RlyGit.GitException e) { refused = e.getMessage(); }
+            System.assert(refused != null && refused.contains('Use GitHub or GitLab'), refused);
         }
     }
 

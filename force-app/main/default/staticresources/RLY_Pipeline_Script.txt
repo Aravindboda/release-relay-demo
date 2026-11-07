@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 // Release Relay pipeline files: version 25
+// Version 25 (GitLab, hub build 45): RELAY_PROVIDER=gitlab runs every step the GitHub workflow runs. STEP=monitor posts
+//   GitLab pipelines too (CI_PIPELINE_ID, CI_PIPELINE_URL; at the end the jobs' outcomes and the first failure from the
+//   GitLab API with RELAY_TOKEN, instead of NEEDS_JSON and GH_TOKEN). Messages name the run's provider (PROVIDER_NAME)
+//   instead of always GitHub. A fast-forward merge on GitLab hands on the merge request's head as the merge commit.
+//   The hub's GitLab credential (RLY_GitLab) and build 45's Git classes are in BUILT_IN_EXCLUDES.
 // Version 25: each step's result also goes to the run's summary page (GITHUB_STEP_SUMMARY; printed when it isn't set)
 //   as readable markdown instead of the raw JSON: request id and title, step and status, source → target, raised and
 //   approved by (options.by, options.approvedBy), components (count and the first 30), deletions, tests, scan findings,
@@ -498,10 +503,15 @@ const BUILT_IN_EXCLUDES = [ // RLY-EXCLUDES: generated from the hub package.xml,
     'staticresources/RLY_Pipeline_Script.*', 'staticresources/RLY_Pipeline_Script',
     'externalCredentials/RLY_Slack.externalCredential-meta.xml',
     'namedCredentials/RLY_Slack.namedCredential-meta.xml',
+    'externalCredentials/RLY_GitLab.externalCredential-meta.xml', 'namedCredentials/RLY_GitLab.namedCredential-meta.xml',
+    'classes/RlyGitCore.cls*', 'classes/RlyGitChanges.cls*', 'classes/RlyGitHubChanges.cls*', 'classes/RlyGitLabChanges.cls*',
+    'classes/RlyGitLabDiffs.cls*', 'classes/RlyGitLabRuns.cls*', 'classes/RlyGitLabTree.cls*', 'classes/RlyGitLabTest.cls*',
     'labels/CustomLabels.labels-meta.xml only-labels:RLY_App_Name', 'objects/RLY_Release__c',
     'objects/RLY_Release_Item__c'
 ];
 const PROVIDER = (env.RELAY_PROVIDER || 'github').toLowerCase();
+/** The provider's name for messages (version 25, GitLab): GitHub unless RELAY_PROVIDER says otherwise. */
+const PROVIDER_NAME = { gitlab: 'GitLab', bitbucket: 'Bitbucket', azure: 'Azure DevOps' }[PROVIDER] || 'GitHub';
 
 /** A plain input: empty for unset, '-' (Azure's empty marker) or an unexpanded $(NAME) macro. */
 function input(name) {
@@ -1934,7 +1944,8 @@ const providers = {
                 const res = await http('GET', `${this.base()}/merge_requests/${pr.id}`, this.headers());
                 mr = res.json || {};
             }
-            return mr.merge_commit_sha || mr.squash_commit_sha || '';
+            // A fast-forward merge (no merge commit, no squash) leaves the target at the merge request's head.
+            return mr.merge_commit_sha || mr.squash_commit_sha || (mr.state === 'merged' && mr.sha) || '';
         }
     },
 
@@ -3332,7 +3343,7 @@ async function pushPickedToOrg(result, stop, branchOnly) {
         stop({ message: 'Pushing to the org needs picked paths.' });
     }
     if (branchOnly || !targetEnv) {
-        stop({ message: `Pushing to the org needs its environment: ${target}'s org has no sign-in in GitHub.` });
+        stop({ message: `Pushing to the org needs its environment: ${target}'s org has no sign-in in ${PROVIDER_NAME}.` });
     }
     let head;
     let plan;
@@ -3454,7 +3465,7 @@ async function stepSync() {
         }
         const what = pickedPaths() ? `${pickedPaths().length} picked file(s)` : `everything from ${branch}`;
         result('Succeeded', { sha: head, message: oldHead === head ? `${target} already had ${what}; nothing changed.`
-            : `${target} was updated with ${what}. The org itself wasn't deployed to (a developer org has no sign-in in GitHub): `
+            : `${target} was updated with ${what}. The org itself wasn't deployed to (a developer org has no sign-in in ${PROVIDER_NAME}): `
                 + 'deploy to it from the branch, or raise from it again.' });
         return;
     }
@@ -4016,7 +4027,7 @@ function compareFile(file, deleted, files) {
     const chars = Math.max(left ? left.length : 0, right ? right.length : 0);
     const entry = { path: rel, status, chars };
     if (left === undefined || right === undefined) {
-        entry.reason = 'Binary file: open it in GitHub.';
+        entry.reason = `Binary file: open it in ${PROVIDER_NAME}.`;
         return entry;
     }
     if (chars <= COMPARE_TEXT_LIMIT) {
@@ -4028,7 +4039,7 @@ function compareFile(file, deleted, files) {
         files.push({ path: rel, patch });
         return { ...entry, n: files.length, kind: 'patch' };
     }
-    entry.reason = `Too large to show here (over ${COMPARE_TEXT_LIMIT.toLocaleString('en-US')} characters): open it in GitHub.`;
+    entry.reason = `Too large to show here (over ${COMPARE_TEXT_LIMIT.toLocaleString('en-US')} characters): open it in ${PROVIDER_NAME}.`;
     return entry;
 }
 
@@ -4616,7 +4627,7 @@ function routeFile(file, higher, lower, lowerChanged, files) {
     }
     const entry = { path: file, status, lowerChangedToo: lowerChanged };
     if (left === undefined || right === undefined) {
-        entry.reason = 'Binary file: open it in GitHub.';
+        entry.reason = `Binary file: open it in ${PROVIDER_NAME}.`;
         return entry;
     }
     const chars = Math.max(left ? left.length : 0, right ? right.length : 0);
@@ -4634,7 +4645,7 @@ function routeFile(file, higher, lower, lowerChanged, files) {
         files.push({ path: file, patch });
         return { ...entry, n: files.length, kind: 'patch' };
     }
-    entry.reason = `Too large to show here (over ${COMPARE_TEXT_LIMIT.toLocaleString('en-US')} characters): open it in GitHub.`;
+    entry.reason = `Too large to show here (over ${COMPARE_TEXT_LIMIT.toLocaleString('en-US')} characters): open it in ${PROVIDER_NAME}.`;
     return entry;
 }
 
@@ -5333,8 +5344,65 @@ function monitorWarn(message) {
     console.log('::warning::Pipeline Monitor: ' + message);
 }
 
+/** The pipeline's GitLab numbers and address (version 25), or null outside GitLab CI. */
+function monitorRunGitLab() {
+    const runId = String(env.CI_PIPELINE_ID || '');
+    if (!/^\d+$/.test(runId) || !env.CI_API_V4_URL || !env.CI_PROJECT_ID) {
+        return null;
+    }
+    return { runId, attempt: 1, url: env.CI_PIPELINE_URL || '', gitlab: true,
+        api: `${env.CI_API_V4_URL}/projects/${env.CI_PROJECT_ID}` };
+}
+
+/** GET from the GitLab API with RELAY_TOKEN: the JSON, or the text (asText); null when it can't be read. */
+async function monitorGitLabApi(url, asText) {
+    if (!input('RELAY_TOKEN')) {
+        return null;
+    }
+    try {
+        const res = await http('GET', url, { 'PRIVATE-TOKEN': input('RELAY_TOKEN') });
+        if (!res.ok) {
+            return null;
+        }
+        return asText ? res.text : res.json;
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
+ * GitLab (version 25): the finished main jobs (release-relay-<job>) as [{name, outcome, seconds}], the pipeline's status
+ * from them (Failed, Cancelled or Succeeded) and the first failures as text (job: the ::error:: lines of its log).
+ */
+async function monitorJobsGitLab(gl) {
+    const data = await monitorGitLabApi(`${gl.api}/pipelines/${gl.runId}/jobs?per_page=100`, false);
+    const outcomes = { success: 'success', failed: 'failure', canceled: 'cancelled', skipped: 'skipped' };
+    const jobs = (Array.isArray(data) ? data : []).map((j) => Object.assign({}, j, { key: String(j.name || '').replace(/^release-relay-/, '') }))
+        .filter((j) => MONITOR_JOBS[j.key] && outcomes[j.status]);
+    const steps = jobs.map((j) => ({ name: MONITOR_JOBS[j.key], outcome: outcomes[j.status],
+        seconds: typeof j.duration === 'number' ? Math.round(j.duration) : monitorSeconds(j.started_at, j.finished_at) }));
+    const failed = jobs.filter((j) => j.status === 'failed' && !j.allow_failure);
+    const logs = await Promise.all(failed.slice(0, 3).map((j) => monitorGitLabApi(`${gl.api}/jobs/${j.id}/trace`, true)));
+    const lines = failed.slice(0, 3).map((j, i) => {
+        const errors = String(logs[i] || '').split('\n').map((l) => (/::error::(.*)$/.exec(l) || [])[1]).filter(Boolean)
+            .map((m) => m.trim()).filter((m) => m && !/^Process completed with exit code/.test(m));
+        return `${MONITOR_JOBS[j.key]} failed` + (errors.length ? ': ' + errors.slice(0, 3).join(' | ')
+            : (j.failure_reason ? ` (${j.failure_reason})` : ''));
+    });
+    let status = 'Succeeded';
+    if (failed.length) {
+        status = 'Failed';
+    } else if (jobs.some((j) => j.status === 'canceled')) {
+        status = 'Cancelled';
+    }
+    return { steps, status, failure: lines.join('\n').slice(0, 30000) };
+}
+
 /** The run's GitHub numbers and address, or null outside GitHub Actions. */
 function monitorRun() {
+    if (PROVIDER === 'gitlab') {
+        return monitorRunGitLab(); // version 25
+    }
     const runId = String(env.GITHUB_RUN_ID || '');
     if (!/^\d+$/.test(runId) || !env.GITHUB_REPOSITORY) {
         return null;
@@ -5401,11 +5469,12 @@ async function stepMonitor() {
     orgEnv = ''; // this job's environment holds the hub's login
     const gh = monitorRun();
     if (!gh) {
-        monitorWarn('not a GitHub Actions run; nothing to post.');
+        monitorWarn(PROVIDER === 'gitlab' ? 'not a GitLab CI pipeline; nothing to post.' : 'not a GitHub Actions run; nothing to post.');
         return;
     }
-    if (/^(debug|test)\//.test(env.GITHUB_REF_NAME || '')) {
-        console.log('Pipeline Monitor: a debug or test run (' + env.GITHUB_REF_NAME + '); not shown on the monitor.');
+    const refName = env.GITHUB_REF_NAME || env.CI_COMMIT_REF_NAME || '';
+    if (/^(debug|test)\//.test(refName)) {
+        console.log('Pipeline Monitor: a debug or test run (' + refName + '); not shown on the monitor.');
         return;
     }
     const hasKey = (v('SF_JKS') && v('SF_JKS_PASSWORD') && v('SF_JKS_ALIAS')) || v('SF_JWT_KEY');
@@ -5417,7 +5486,8 @@ async function stepMonitor() {
     const runMode = scheduled ? 'archive' : mode;
     const ending = input('MONITOR_STATUS') === 'end';
     const now = new Date().toISOString();
-    const runInfo = await monitorApi(`${gh.api}/actions/runs/${gh.runId}/attempts/${gh.attempt}`);
+    const runInfo = gh.gitlab ? { run_started_at: env.CI_PIPELINE_CREATED_AT || null }
+        : await monitorApi(`${gh.api}/actions/runs/${gh.runId}/attempts/${gh.attempt}`);
     const startedAt = runInfo && runInfo.run_started_at ? runInfo.run_started_at : (ending ? null : now);
     let step = MONITOR_STEPS[runMode] || runMode || 'Run';
     if (runMode === 'merge' && targetEnv) {
@@ -5427,14 +5497,20 @@ async function stepMonitor() {
         runId: gh.runId, attempt: gh.attempt, mode: runMode, step,
         branch: runMode === 'sync' || runMode === 'compare' || runMode === 'drift' ? target
             : (runMode === 'routediff' ? (target || (Array.isArray(options.route) ? options.route.map(String).join(' → ').slice(0, 255) : null))
-                : (runMode === 'archive' ? env.GITHUB_REF_NAME : branch)) || null,
+                : (runMode === 'archive' ? refName : branch)) || null,
         targetOrg: targetEnv || sourceEnv || (runMode === 'archive' ? input('RELAY_HUB_ENVIRONMENT') || 'prod' : null),
         status: ending ? monitorEndStatus() : 'In progress',
-        started: startedAt, actor: scheduled ? 'Schedule' : (env.GITHUB_TRIGGERING_ACTOR || env.GITHUB_ACTOR || null),
+        started: startedAt, actor: scheduled ? 'Schedule' : (env.GITHUB_TRIGGERING_ACTOR || env.GITHUB_ACTOR || env.GITLAB_USER_LOGIN || null),
         runUrl: gh.url, requestId: /^REL-\d{5,}$/.test(requestId) ? requestId : null
     };
+    if (gh.gitlab) {
+        body.provider = 'gitlab'; // version 25: the hub ignores keys it doesn't know
+    }
     if (ending) {
-        const jobs = await monitorJobs(gh);
+        const jobs = gh.gitlab ? await monitorJobsGitLab(gh) : await monitorJobs(gh);
+        if (gh.gitlab) {
+            body.status = jobs.status; // GitLab has no NEEDS_JSON: the jobs' outcomes from its API
+        }
         body.finished = now;
         body.durationSeconds = monitorSeconds(startedAt, now);
         if (jobs.steps.length) {
