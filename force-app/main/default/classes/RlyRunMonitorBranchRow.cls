@@ -16,6 +16,7 @@ public with sharing class RlyRunMonitorBranchRow {
     public static void withRelease(RlyRunMonitorViews.BranchRow b, RLY_Release__c rel) {
         b.releaseId = rel.Id;
         b.releaseName = rel.Name;
+        b.releaseStatus = rel.Status__c;
         b.prNumber = rel.PR_Number__c == null ? null : rel.PR_Number__c.intValue();
         b.prUrl = rel.PR_URL__c;
         b.prState = b.prNumber == null ? null : prState(rel.Status__c);

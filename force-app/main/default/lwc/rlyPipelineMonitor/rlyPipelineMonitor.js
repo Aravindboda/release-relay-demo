@@ -28,8 +28,18 @@ const FILTERS = [
     { value: 'succeeded', label: 'Succeeded' }
 ];
 const FILTER_STATUSES = { running: ACTIVE, failed: ['Failed'], succeeded: ['Succeeded'] };
-const BRANCH_DOT = { running: 'rr-dot rr-d-run', failed: 'rr-dot rr-d-bad', ok: 'rr-dot rr-d-ok', idle: 'rr-dot rr-d-idle' };
-const BRANCH_BADGE = { running: 'rr-badge rr-b-run', failed: 'rr-badge rr-b-bad', ok: 'rr-badge rr-b-ok', idle: 'rr-badge rr-b-q' };
+const BRANCH_DOT = { running: 'rr-dot rr-d-run', failed: 'rr-dot rr-d-bad', ok: 'rr-dot rr-d-ok', warn: 'rr-dot rr-d-warn', idle: 'rr-dot rr-d-idle' };
+const BRANCH_BADGE = { running: 'rr-badge rr-b-run', failed: 'rr-badge rr-b-bad', ok: 'rr-badge rr-b-ok', warn: 'rr-badge rr-b-warn', idle: 'rr-badge rr-b-q' };
+/** A release's status as a colour, for branches with no pipeline run yet. */
+const RELEASE_TONE = {
+    'Checks failed': 'failed', Conflict: 'failed', Rejected: 'failed', Failed: 'failed', 'Deploy failed': 'failed',
+    'Ready for approval': 'warn', 'Waiting for approval': 'warn', 'Needs a second approver': 'warn',
+    Approved: 'ok', Deployed: 'ok', Merged: 'ok'
+};
+/** Space kept under the page inside the tab (the :host bottom padding plus a little air). */
+const PAGE_BOTTOM_GAP = 30;
+/** The page never gets shorter than this; below it the browser scrolls the tab. */
+const PAGE_MIN_HEIGHT = 480;
 const STEP_ICON = {
     success: { cls: 'rr-ic rr-ic-ok', mark: '✓' },
     failure: { cls: 'rr-ic rr-ic-bad', mark: '!' },
@@ -211,12 +221,33 @@ export default class RlyPipelineMonitor extends NavigationMixin(LightningElement
     connectedCallback() {
         this.visibilityHandler = () => this.handleVisibility();
         document.addEventListener('visibilitychange', this.visibilityHandler);
+        this.resizeHandler = () => this.fitToWindow();
+        window.addEventListener('resize', this.resizeHandler);
         this.readHubStatus();
     }
 
     disconnectedCallback() {
         this.stopCountdown();
         document.removeEventListener('visibilitychange', this.visibilityHandler);
+        window.removeEventListener('resize', this.resizeHandler);
+    }
+
+    renderedCallback() {
+        this.fitToWindow();
+    }
+
+    /** Sizes the page to the browser window: from its top edge to the bottom of the window, whatever the screen. */
+    fitToWindow() {
+        const page = this.template.querySelector('.rr-page');
+        if (!page) {
+            return;
+        }
+        const top = page.getBoundingClientRect().top + (window.scrollY || 0);
+        const height = Math.max(PAGE_MIN_HEIGHT, Math.floor(window.innerHeight - top - PAGE_BOTTOM_GAP));
+        if (this.pageHeight !== height) {
+            this.pageHeight = height;
+            page.style.height = height + 'px';
+        }
     }
 
     readHubStatus() {
@@ -423,7 +454,7 @@ export default class RlyPipelineMonitor extends NavigationMixin(LightningElement
             const st = statusOf(r);
             const parts = [r.releaseName, durationText(runSeconds(r, this.nowMs)), r.actor].filter((x) => x);
             return { ...row, runId: r.id, badge: st.label, badgeCls: st.cls, branch: r.branch || '', meta: parts.join(' · '),
-                segments: segments(r), chipCls: r.id === this.selectedId ? 'rr-chip rr-chip-sel' : 'rr-chip',
+                segments: segments(r), chipCls: 'rr-chip rr-chip-' + st.tone + (r.id === this.selectedId ? ' rr-chip-sel' : ''),
                 title: 'Open the run details: ' + (r.step || st.label) };
         }
         const last = l.lastRun;
@@ -443,14 +474,16 @@ export default class RlyPipelineMonitor extends NavigationMixin(LightningElement
                 return;
             }
             const activity = b.lastActivity ? 'last activity ' + ago(b.lastActivity, this.nowMs) : '';
-            const stage = b.state === 'idle' && !b.runRecordId ? 'Waiting' : (b.stage || 'Waiting');
+            const noRun = b.state === 'idle' && !b.runRecordId;
+            const tone = noRun ? (RELEASE_TONE[b.releaseStatus] || (b.releaseStatus ? 'running' : 'idle')) : b.state;
+            const stage = noRun ? (b.releaseStatus || 'Waiting') : (b.stage || 'Waiting');
             rows.push({
                 key: b.branch,
                 branch: b.branch,
                 meta: [pr, b.releaseName, activity].filter((x) => x).join(' · '),
-                dotCls: BRANCH_DOT[b.state] || BRANCH_DOT.idle,
+                dotCls: BRANCH_DOT[tone] || BRANCH_DOT.idle,
                 badge: stage,
-                badgeCls: BRANCH_BADGE[b.state] || BRANCH_BADGE.idle,
+                badgeCls: BRANCH_BADGE[tone] || BRANCH_BADGE.idle,
                 runId: b.runRecordId,
                 rowCls: b.runRecordId && b.runRecordId === this.selectedId ? 'rr-brl rr-brl-sel' : 'rr-brl',
                 stateText: b.state
