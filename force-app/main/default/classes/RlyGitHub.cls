@@ -187,7 +187,7 @@ public with sharing class RlyGitHub extends RlyGit {
         Object runs = ((Map<String, Object>) parse(res)).get('workflow_runs');
         for (Object o : runs == null ? new List<Object>() : (List<Object>) runs) {
             Map<String, Object> r = (Map<String, Object>) o;
-            if (String.valueOf(r.get('display_title')) == title) {
+            if (RlyRunTitles.matches(String.valueOf(r.get('display_title')), title)) {
                 return toRun(r); // newest first
             }
         }
