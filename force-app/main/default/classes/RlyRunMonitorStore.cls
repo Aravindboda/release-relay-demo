@@ -29,6 +29,26 @@ public with sharing class RlyRunMonitorStore {
     }
 
     /**
+     * @description The finished-green attempts of a GitHub run (its key starts with the run id).
+     * @param githubRunId the GitHub run id (digits)
+     * @return the runs
+     */
+    public static List<RLY_Pipeline_Run__c> succeededAttempts(String githubRunId) {
+        return String.isBlank(githubRunId) || !githubRunId.isNumeric() ? new List<RLY_Pipeline_Run__c>()
+            : new SystemAccess().succeededAttempts(githubRunId + '-%');
+    }
+
+    /**
+     * @description Saves runs that already exist (by Id).
+     * @param rows the runs
+     */
+    public static void updateAll(List<RLY_Pipeline_Run__c> rows) {
+        if (!rows.isEmpty()) {
+            new SystemAccess().updateAll(rows);
+        }
+    }
+
+    /**
      * @description The hub's Git connections, oldest first.
      * @return the connections
      */
@@ -69,6 +89,24 @@ public with sharing class RlyRunMonitorStore {
         public Id save(RLY_Pipeline_Run__c row) {
             Database.UpsertResult r = Database.upsert(row, RLY_Pipeline_Run__c.Run_Id__c, true, AccessLevel.SYSTEM_MODE);
             return r.getId();
+        }
+
+        /**
+         * @description Succeeded runs whose key matches a pattern.
+         * @param keyPattern the run id and a wildcard
+         * @return the runs
+         */
+        public List<RLY_Pipeline_Run__c> succeededAttempts(String keyPattern) {
+            return [SELECT Id, Run_Id__c, Status__c, Failure_Message__c FROM RLY_Pipeline_Run__c
+                    WHERE Run_Id__c LIKE :keyPattern AND Status__c = 'Succeeded' WITH SYSTEM_MODE LIMIT 20];
+        }
+
+        /**
+         * @description Updates runs.
+         * @param rows the runs
+         */
+        public void updateAll(List<RLY_Pipeline_Run__c> rows) {
+            Database.update(rows, true, AccessLevel.SYSTEM_MODE);
         }
 
         /**

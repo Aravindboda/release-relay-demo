@@ -163,4 +163,69 @@ private class RlyRunMonitorRestTest {
             System.assertEquals(false, RlyRunMonitorInput.isFinal('Queued'), 'Queued is not');
         }
     }
+
+    // A release whose checks failed in run 4871 (a test failed); GitHub ended that run green.
+    private static RLY_Release__c checksFailed(String runId) {
+        RLY_Release__c rel = RlyReleaseTestData.release('Validating', 'hub');
+        rel.Run_ID__c = runId;
+        rel.Status__c = RlyRunMonitorChecks.CHECKS_FAILED;
+        rel.Validation_Status__c = 'Failed';
+        rel.Validation_Result__c = JSON.serialize(new Map<String, Object>{ 'status' => 'Failed', 'message' => '1 test failure(s)',
+            'testFailures' => new List<Object>{ new Map<String, Object>{ 'name' => 'LabelFormatterTest', 'method' => 'formats', 'message' => 'x' } } });
+        rel.Scan_Status__c = 'Passed';
+        update rel;
+        return rel;
+    }
+
+    @IsTest
+    static void aGreenRunWhoseChecksFailedIsSavedFailed() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = checksFailed('4871');
+            Test.startTest();
+            Map<String, Object> answer = call(new Map<String, Object>{ 'runId' => '4871', 'status' => 'success', 'mode' => 'hub',
+                'requestId' => rel.Name });
+            Map<String, Object> other = call(new Map<String, Object>{ 'runId' => '4872', 'status' => 'success', 'requestId' => rel.Name });
+            Test.stopTest();
+            System.assertEquals('Failed', answer.get('status'), 'The run its checks failed in shows Failed');
+            RLY_Pipeline_Run__c row = saved('4871-1');
+            System.assert(row.Failure_Message__c.contains('1 test failed (LabelFormatterTest.formats)'), 'With why: ' + row.Failure_Message__c);
+            System.assertEquals('Succeeded', other.get('status'), 'Another run of the release stays as GitHub says');
+        }
+    }
+
+    @IsTest
+    static void aReleaseTurningChecksFailedFailsItsGreenRun() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = RlyReleaseTestData.release('Validating', 'hub');
+            call(new Map<String, Object>{ 'runId' => '4873', 'status' => 'success', 'requestId' => rel.Name });
+            RLY_Release__c failed = checksFailed('4873');
+            failed.Id = rel.Id;
+            Test.startTest();
+            Integer marked = RlyRunMonitorChecks.afterRead(failed, 'Validating');
+            Integer again = RlyRunMonitorChecks.afterRead(failed, RlyRunMonitorChecks.CHECKS_FAILED);
+            Test.stopTest();
+            System.assertEquals(1, marked, 'The green attempt is marked');
+            System.assertEquals(0, again, 'Only when the release has just turned Checks failed');
+            System.assertEquals('Failed', saved('4873-1').Status__c, 'Failed on the monitor');
+        }
+    }
+
+    @IsTest
+    static void theReasonNamesWhatFailed() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c conflict = new RLY_Release__c(Validation_Status__c = 'Failed', Target_Branch__c = 'sit',
+                Validation_Result__c = '{"conflicts":[{"file":"a"}]}', Scan_Status__c = 'Failed', Scan_Blocking__c = 2);
+            RLY_Release__c message = new RLY_Release__c(Validation_Status__c = 'Error', Validation_Result__c = 'not json');
+            RLY_Release__c bare = new RLY_Release__c(Validation_Status__c = 'Passed');
+            Test.startTest();
+            String a = RlyRunMonitorChecks.reasonFor(conflict);
+            String b = RlyRunMonitorChecks.reasonFor(message);
+            String c = RlyRunMonitorChecks.reasonFor(bare);
+            Test.stopTest();
+            System.assertEquals('Checks failed: conflicts with sit; code scan: 2 blocking findings.', a, 'Conflict and scan');
+            System.assertEquals('Checks failed: the check-only deploy failed.', b, 'No result to read');
+            System.assertEquals('Checks failed.', c, 'Nothing more to say');
+            System.assertEquals(null, RlyRunMonitorChecks.failedChecksOf(null, 1L), 'No release: GitHub\'s word stands');
+        }
+    }
 }

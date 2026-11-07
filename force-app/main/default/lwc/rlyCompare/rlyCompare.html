@@ -10,11 +10,24 @@
                 <p id="rr-cmp-intro" class="rr-small rr-weak">{intro}</p>
             </div>
             <div class="slds-modal__content rr-modal-body">
-                <template lwc:if={overCap}><div class="rr-msg rr-msg-info" role="status">{overCapText}</div></template>
-                <template lwc:if={waiting}>
+                <template lwc:if={showPipelineOffer}>
+                    <div class="rr-offer" role="status">
+                        <span class="rr-grow">{pipelineOfferText}</span>
+                        <lightning-button label="Compare all in the pipeline" onclick={startPipeline}></lightning-button>
+                    </div>
+                </template>
+                <template lwc:if={showProgress}>
+                    <div class="rr-prog" role="status">
+                        <strong>{progressText}</strong>
+                        <span class="rr-bar" aria-hidden="true"><i class="rr-bar-ok" style={barReadyStyle}></i><i class="rr-bar-run" style={barRunStyle}></i></span>
+                        <span class="rr-small rr-weak">{runningText}</span>
+                        <template lwc:if={pipeRunUrl}><a href={pipeRunUrl} target="_blank" rel="noopener noreferrer" class="rr-small">View run</a></template>
+                    </div>
+                </template>
+                <template lwc:if={hasTicks}>
                     <span class="rr-tick" aria-hidden="true">
-                        <template for:each={cycles} for:item="c">
-                            <span key={c.key} class="rr-tick-run" onanimationend={handleTick}></span>
+                        <template for:each={ticks} for:item="t">
+                            <span key={t.key} class={t.cls} data-part={t.part} onanimationend={handleTick}></span>
                         </template>
                     </span>
                 </template>
@@ -52,6 +65,27 @@
                     <div class="rr-c-pane">
                         <template lwc:if={error}>
                             <div class="rr-msg rr-msg-bad" role="alert">{error}</div>
+                        </template>
+                        <template lwc:elseif={pipeFailed}>
+                            <div class="rr-c-card">
+                                <div class="rr-c-cardh"><strong>Compare in the pipeline</strong></div>
+                                <div class="rr-c-empty">
+                                    <span class="rr-pill rr-pill-bad">Couldn&rsquo;t compare</span>
+                                    <p>{pipeMessage}</p>
+                                    <template lwc:if={pipeRunUrl}><a href={pipeRunUrl} target="_blank" rel="noopener noreferrer">Open the run</a></template>
+                                </div>
+                            </div>
+                        </template>
+                        <template lwc:elseif={selectedFailed}>
+                            <div class="rr-c-card">
+                                <div class="rr-c-cardh"><strong class="rr-mono">{unavailableName}</strong></div>
+                                <div class="rr-c-empty">
+                                    <span class="rr-pill rr-pill-bad">Couldn&rsquo;t read</span>
+                                    <p>{selectedError}</p>
+                                    <p class="rr-small rr-weak">Only this part stopped; the other components carry on.</p>
+                                    <lightning-button label="Try again" data-part={retryPartId} onclick={retryPart}></lightning-button>
+                                </div>
+                            </div>
                         </template>
                         <template lwc:elseif={loading}>
                             <div class="rr-c-wait" role="status">
@@ -97,6 +131,20 @@
                                     </template>
                                 </c-rly-diff-view>
                             </template>
+                            <template lwc:elseif={filePatchShown}>
+                                <div class="rr-c-card">
+                                    <div class="rr-c-cardh"><strong class="rr-mono">{diffTitle}</strong></div>
+                                    <template lwc:if={hasPicker}>
+                                        <div class="rr-fpick" role="group" aria-label="Files">
+                                            <template for:each={pickerFiles} for:item="f">
+                                                <button key={f.path} type="button" class={f.cls} aria-pressed={f.pressed} data-path={f.path} onclick={pickFile}>{f.label}</button>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <p class="rr-small rr-weak rr-patch-note">Too large to show both copies: the changed lines only (+ in {rightLabel}, &minus; on the {targetBranch} branch).</p>
+                                    <pre class="rr-patch"><template for:each={patchLines} for:item="l"><span key={l.key} class={l.cls}>{l.text}</span></template></pre>
+                                </div>
+                            </template>
                             <template lwc:else>
                                 <div class="rr-c-card">
                                     <div class="rr-c-cardh"><strong class="rr-mono">{diffTitle}</strong></div>
@@ -117,6 +165,9 @@
                                         <div class="rr-c-empty">
                                             <span class={fileChipCls}>{fileChipLabel}</span>
                                             <p>{fileReason}</p>
+                                            <template lwc:if={fileTooLarge}>
+                                                <lightning-button label="Compare all in the pipeline" onclick={startPipeline}></lightning-button>
+                                            </template>
                                         </div>
                                     </template>
                                 </div>

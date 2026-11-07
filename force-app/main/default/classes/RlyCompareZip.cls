@@ -73,7 +73,7 @@ public with sharing class RlyCompareZip {
 
     private static String overBudget(RlyCompareFiles.FileDiff f) {
         f.status = RlyCompareFiles.UNSUPPORTED;
-        f.reason = RlyCompareFiles.TOO_LARGE + ': compare fewer components at a time.';
+        f.reason = RlyCompareFiles.TOO_LARGE + ' with the rest of this part. ' + RlyCompareParts.PIPELINE_HINT;
         return null;
     }
 }

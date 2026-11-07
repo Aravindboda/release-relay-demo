@@ -1,5 +1,16 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 20
+// Release Relay pipeline files: version 22
+// Version 22: STEP=compare (MODE=compare, request id CMP-<13 digits>) compares a developer org's copy with a target
+// branch for the hub's Compare before raising, without the zip ever being read in Salesforce: the hub commits each
+// batch's Metadata API zip to release-relay-results at compare-inbox/<id>/<n>.zip (every zip there is read, in number
+// order; options.batches is only a hint), the step converts them to source format on top of TARGET, and writes results/<id>/compare.json (each component and file with its
+// status) plus results/<id>/f/<n>.json (a file's two sides, or its unified diff when a side is over 300,000
+// characters). The inbox is removed and compares older than 3 days are pruned in the same commit. No org is signed in to.
+// Also in version 22: a big release can come from the hub in parts (.relay-inbox/<REQUEST_ID>-part-<k>.zip, mode hub);
+// every part is unpacked in number order, like the single zip.
+// Version 21: step notify and the monitor send their JSON body inline. "sf api request rest --body <file>" sent the
+// file's path as the body, so the hub refused it (runId missing) or ignored it. Runs started from a debug/ or test/
+// workflow branch are not posted to the Pipeline Monitor.
 // Version 20: STEP=monitor tells the hub about this run for its Pipeline Monitor tab (POST
 // /services/apexrest/rly/pipeline-run, signed in with the hub environment's login through "sf api request rest"):
 // MONITOR_STATUS=in_progress when the run starts, MONITOR_STATUS=end when it ends (Succeeded, Failed or Cancelled from
@@ -408,8 +419,16 @@ function runUrl() {
 }
 
 function checkCommonInputs() {
+    if (mode === 'compare') {
+        // A compare (version 22) has no release: its id is CMP-<13 digits>, and it reads TARGET only (BRANCH isn't used).
+        if (!COMPARE_ID_RE.test(requestId)) { fail('REQUEST_ID must look like CMP-1762400000000 for a compare.'); }
+        if (!REF_RE.test(target) || target.includes('..') || target === RESULTS_BRANCH || target === SNAPSHOT_BRANCH) { fail(`Target "${target}" isn't a valid target branch.`); }
+        if (!/^[A-Za-z0-9_./-]+$/.test(sourcePath()) || sourcePath().includes('..')) { fail('SOURCE_PATH is invalid.'); }
+        if (!['github', 'gitlab', 'bitbucket', 'azure'].includes(PROVIDER)) { fail('RELAY_PROVIDER must be github, gitlab, bitbucket or azure.'); }
+        return;
+    }
     if (!/^REL-\d{5,}$/.test(requestId)) { fail('REQUEST_ID must look like REL-00042.'); }
-    if (!['org', 'branch', 'promote', 'hub', 'resolve', 'check', 'merge', 'sync', 'rollback'].includes(mode)) { fail('MODE must be org, branch, promote, hub, resolve, check, merge, sync or rollback.'); }
+    if (!['org', 'branch', 'promote', 'hub', 'resolve', 'check', 'merge', 'sync', 'rollback'].includes(mode)) { fail('MODE must be org, branch, promote, hub, resolve, check, merge, sync, rollback or compare.'); }
     if (mode === 'rollback') {
         // A rollback works on an org and the snapshots branch only: BRANCH and TARGET aren't used.
         if (!/^[A-Za-z0-9._-]{1,80}$/.test(targetEnv)) { fail('TARGET_ENVIRONMENT (the org to roll back) must be an environment name.'); }
@@ -2037,7 +2056,7 @@ function copyConverted(fromDir, toDir, wholeObjects) {
 
 /** MODE=hub: turn the hub's Metadata API zip on BRANCH into source files and open the PR/MR. */
 /** Converts the hub's metadata zip to source format. On failure the CLI's own message goes into raise.json, so the hub can show it. */
-function convertFromHub(mdapi, out) {
+function convertFromHub(mdapi, out, failWith = raiseFailed) {
     // Some types (custom labels, for example) are only converted inside a Salesforce DX project, so the output
     // folder is made one: a minimal sfdx-project.json whose package directory receives the files.
     fs.mkdirSync(out, { recursive: true });
@@ -2054,7 +2073,7 @@ function convertFromHub(mdapi, out) {
         } catch (ignored) {
             // not JSON: keep the raw output
         }
-        raiseFailed('Converting the files from the hub failed: ' + detail.replace(/\s+/g, ' ').trim().slice(0, 1500));
+        failWith('Converting the files from the hub failed: ' + detail.replace(/\s+/g, ' ').trim().slice(0, 1500));
     }
 }
 
@@ -2197,7 +2216,9 @@ async function raiseFromHub() {
     git(['checkout', '-q', '-B', branch, `refs/remotes/origin/${branch}`]);
     const deletions = hubDeletions(markerFile);
     const deleted = deletions.map((d) => d.entry);
-    const hasZip = fs.existsSync(zipFile);
+    // A big release comes in parts (version 22): .relay-inbox/<REQUEST_ID>-part-<k>.zip, unpacked in order.
+    const zips = (fs.existsSync(zipFile) ? [zipFile] : []).concat(hubPartZips());
+    const hasZip = zips.length > 0;
     if (!hasZip && !deletions.length) {
         raiseFailed(`${zipFile} isn't on ${branch} (nor a ${markerFile} listing deletions). Raise the release again from Release Relay.`);
     }
@@ -2209,7 +2230,8 @@ async function raiseFromHub() {
     // Deletions first, on the branch as the hub left it: each must be there to be removed.
     removeDeletions(deletions, deleted, false);
 
-    const copied = hasZip ? unpackHubZip(zipFile, components, deleted) : [];
+    const copied = [];
+    zips.forEach((z) => unpackHubZip(z, components, deleted).forEach((f) => copied.push(f)));
     // The developer org's own values go into the branch as {{relay:NAME}} placeholders.
     const tokens = tokenizeFiles(copied.map((r) => path.join(sourcePath(), r)), sourceEnv);
     if (tokens.error) {
@@ -2239,6 +2261,17 @@ async function raiseFromHub() {
         'Every item was selected and reviewed in Release Relay. Approve it in Salesforce; Release Relay merges it.'
     ].filter(Boolean).join('\n\n');
     await openAndRecord(body, { sha, deleted, valuesTokenized });
+}
+
+/** The parts of a big release the hub committed (.relay-inbox/<REQUEST_ID>-part-<k>.zip), in number order. */
+function hubPartZips() {
+    const dir = '.relay-inbox';
+    if (!fs.existsSync(dir)) {
+        return [];
+    }
+    const re = new RegExp('^' + requestId.replace(/[^A-Za-z0-9-]/g, '') + '-part-(\\d{1,4})\\.zip$');
+    return fs.readdirSync(dir).map((f) => [f, re.exec(f)]).filter((x) => x[1])
+        .sort((a, b) => Number(a[1][1]) - Number(b[1][1])).map((x) => path.join(dir, x[0]));
 }
 
 /** The zip the hub committed for changes added to an open release: .relay-inbox/<REQUEST_ID>-add-<k>.zip, or ''. */
@@ -2291,7 +2324,8 @@ async function appendToRelease() {
         raiseFailed(clash, { appended: true, deleted });
     }
     const skipped = removeDeletions(deletions, deleted, true);
-    const copied = hasZip ? unpackHubZip(zipFile, components, deleted) : [];
+    const copied = [];
+    zips.forEach((z) => unpackHubZip(z, components, deleted).forEach((f) => copied.push(f)));
     const tokens = tokenizeFiles(copied.map((r) => path.join(sourcePath(), r)), sourceEnv);
     if (tokens.error) {
         raiseFailed(tokens.error, { appended: true, deleted });
@@ -3503,10 +3537,9 @@ async function stepNotify() {
     try {
         login('relay-notify');
         // The CLI signs the call itself: newer CLIs hide the access token in "sf org display".
-        const bodyFile = path.join(os.tmpdir(), 'relay-notify-body.json');
-        fs.writeFileSync(bodyFile, JSON.stringify({ request: requestId }));
+
         const out = run('sf', ['api', 'request', 'rest', '/services/apexrest/release-relay/v1/status', '--method', 'POST',
-            '--body', bodyFile, '--target-org', 'relay-notify']);
+            '--body', JSON.stringify({ request: requestId }), '--target-org', 'relay-notify']);
         let json = null;
         try { json = JSON.parse(out); } catch (ignore) { json = null; }
         summary(`Salesforce updated ${requestId}: ${json && json.status ? json.status : 'done'}.`);
@@ -3516,14 +3549,307 @@ async function stepNotify() {
     }
 }
 
+// ---------- step: compare (version 22) ----------
+
+/** A compare's id: CMP- and the hub's clock in milliseconds. */
+const COMPARE_ID_RE = /^CMP-(\d{13})$/;
+/** Where the hub leaves a compare's zips on the results branch: compare-inbox/<id>/<n>.zip. */
+const COMPARE_INBOX = 'compare-inbox';
+/** The most characters a side (or a unified diff) can have to be shown by the hub. */
+const COMPARE_TEXT_LIMIT = 300000;
+/** Compares (results and inboxes) older than this are removed when a new compare saves its result. */
+const COMPARE_KEEP_DAYS = 3;
+
+/** The compare's result: results/<id>/compare.json (and the files' JSON), then the run fails with the message. */
+function compareFailed(message) {
+    writeCompareResults({ status: 'Failed', message: String(message).slice(0, 1500), targetBranch: target,
+        source: orgLabel(), components: [], counts: {} }, []);
+    fail(message);
+}
+
+/** A file's bytes at HEAD, or null when HEAD hasn't got it. */
+function headBytes(file) {
+    try {
+        return execFileSync('git', ['show', `HEAD:${file.split(path.sep).join('/')}`],
+            { stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024 });
+    } catch (e) {
+        return null;
+    }
+}
+
+/** Text from bytes, or null for a binary file (a NUL byte, or not UTF-8). */
+function compareText(buf) {
+    if (buf === null) {
+        return null;
+    }
+    if (buf.subarray(0, 8000).includes(0)) {
+        return undefined;
+    }
+    const text = buf.toString('utf8');
+    return Buffer.from(text, 'utf8').equals(buf) ? text : undefined;
+}
+
+/** The unified diff of one file between HEAD and the working tree (a new file against /dev/null). */
+function comparePatch(file, isNew) {
+    const args = isNew ? ['diff', '--no-color', '--no-index', '-U3', '--', '/dev/null', file]
+        : ['diff', '--no-color', '-U3', 'HEAD', '--', file];
+    try {
+        return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024 });
+    } catch (e) {
+        return String(e.stdout || ''); // git diff --no-index exits 1 when the files differ
+    }
+}
+
+/** The part numbers the hub left in compare-inbox/<id>/ (<n>.zip), in numeric order; numbers can have gaps. */
+function compareParts() {
+    const out = gitQuiet(['ls-tree', '--name-only', `refs/remotes/origin/${RESULTS_BRANCH}:${COMPARE_INBOX}/${requestId}`]);
+    return (out || '').split('\n').map((f) => /^(\d{1,6})\.zip$/.exec(f.trim())).filter(Boolean)
+        .map((m) => Number(m[1])).sort((a, b) => a - b);
+}
+
+/** Unzips one of the hub's parts, converts it to source format and copies it into SOURCE_PATH; the copied repo paths. */
+function unpackComparePart(n, tmp) {
+    const spec = `refs/remotes/origin/${RESULTS_BRANCH}:${COMPARE_INBOX}/${requestId}/${n}.zip`;
+    let bytes;
+    try {
+        bytes = execFileSync('git', ['show', spec], { stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 512 * 1024 * 1024 });
+    } catch (e) {
+        compareFailed(`Part ${n} of the compare (${COMPARE_INBOX}/${requestId}/${n}.zip) couldn't be read from ${RESULTS_BRANCH}. Compare again from Release Relay.`);
+    }
+    const zip = path.join(tmp, `${n}.zip`);
+    const mdapi = path.join(tmp, `mdapi-${n}`);
+    const out = path.join(tmp, `source-${n}`);
+    fs.writeFileSync(zip, bytes);
+    try {
+        execFileSync('unzip', ['-q', '-o', zip, '-d', mdapi], { stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (e) {
+        compareFailed(`Part ${n} of the compare couldn't be unzipped: ${String(e.stderr || e.message).trim().slice(0, 500)}`);
+    }
+    convertFromHub(mdapi, out, compareFailed);
+    const converted = [path.join(out, 'force-app', 'main', 'default'), path.join(out, 'force-app')].find((p) => fs.existsSync(p));
+    // A whole object is compared as the org has it; its fields come with it.
+    return converted ? copyConverted(converted, sourcePath(), new Set()).map((r) => path.join(sourcePath(), r)) : [];
+}
+
+/** Whether a repo file belongs to a component (a bundle or object: anything in its folder). */
+function belongsTo(file, c) {
+    if (FOLDER_TYPES[c.type]) {
+        const dir = path.join(sourcePath(), FOLDER_TYPES[c.type], c.name) + path.sep;
+        return file.startsWith(dir);
+    }
+    const owner = componentFor(file);
+    return !!owner && owner.type === c.type && owner.name.toLowerCase() === c.name.toLowerCase();
+}
+
+/** The files at HEAD of a component the release deletes, or null when its type can't be found by path. */
+function deletedFiles(c) {
+    const paths = pathsFor(sourcePath(), c.type, c.name);
+    if (paths === null) {
+        return null;
+    }
+    const out = paths.length ? git(['ls-tree', '-r', '--name-only', 'HEAD', '--', ...paths]) : '';
+    return out.split('\n').filter(Boolean);
+}
+
+/** One file: its status, and its content for the hub (two sides, or a diff) when it can be shown. */
+function compareFile(file, deleted, files) {
+    const leftBuf = headBytes(file);
+    const rightBuf = deleted ? null : fs.readFileSync(file);
+    const left = compareText(leftBuf);
+    const right = compareText(rightBuf);
+    const rel = file.split(path.sep).join('/');
+    let status;
+    if (deleted) {
+        status = 'deleted';
+    } else if (leftBuf === null) {
+        status = 'new';
+    } else if (left !== undefined && right !== undefined) {
+        status = left.replace(/\r\n/g, '\n') === right.replace(/\r\n/g, '\n') ? 'same' : 'changed';
+    } else {
+        status = leftBuf.equals(rightBuf) ? 'same' : 'changed';
+    }
+    const chars = Math.max(left ? left.length : 0, right ? right.length : 0);
+    const entry = { path: rel, status, chars };
+    if (left === undefined || right === undefined) {
+        entry.reason = 'Binary file: open it in GitHub.';
+        return entry;
+    }
+    if (chars <= COMPARE_TEXT_LIMIT) {
+        files.push({ path: rel, left, right });
+        return { ...entry, n: files.length, kind: 'text' };
+    }
+    const patch = status === 'same' ? '' : (deleted ? '' : comparePatch(file, status === 'new'));
+    if (patch && patch.length <= COMPARE_TEXT_LIMIT) {
+        files.push({ path: rel, patch });
+        return { ...entry, n: files.length, kind: 'patch' };
+    }
+    entry.reason = `Too large to show here (over ${COMPARE_TEXT_LIMIT.toLocaleString('en-US')} characters): open it in GitHub.`;
+    return entry;
+}
+
+/** A component's status from its files: new when all are new, same when all are the same, otherwise changed. */
+function componentStatus(files) {
+    if (files.every((f) => f.status === 'new')) {
+        return 'new';
+    }
+    return files.every((f) => f.status === 'same') ? 'same' : 'changed';
+}
+
+/** Main files first (a class before its -meta.xml), then by path. */
+function compareOrder(a, b) {
+    const ma = a.endsWith('-meta.xml') ? 1 : 0;
+    const mb = b.endsWith('-meta.xml') ? 1 : 0;
+    return ma - mb || a.localeCompare(b);
+}
+
+/**
+ * STEP=compare: the developer org's copy (the hub's zips) against TARGET, for the hub's Compare before raising.
+ * Nothing is committed to TARGET; only results go to the results branch.
+ */
+async function stepCompare() {
+    orgEnv = sourceEnv;
+    if (mode !== 'compare') { fail('STEP=compare needs MODE=compare.'); }
+    const components = parseList(input('COMPONENTS'), 'COMPONENTS');
+    const deletions = parseList(input('DELETIONS'), 'DELETIONS');
+    if (!components.length && !deletions.length) { compareFailed('Nothing to compare.'); }
+    if (!remoteBranchExists(target)) { compareFailed(`Branch ${target} doesn't exist.`); }
+    fetchBranch(target);
+    // Every <n>.zip in the inbox is read (options.batches is only a hint: a part the hub split gets new numbers).
+    let parts = [];
+    if (remoteBranchExists(RESULTS_BRANCH)) {
+        fetchBranch(RESULTS_BRANCH);
+        parts = compareParts();
+    }
+    if (components.length && !parts.length) {
+        compareFailed(`The parts of this compare weren't found on ${RESULTS_BRANCH} (${COMPARE_INBOX}/${requestId}/). Compare again from Release Relay.`);
+    }
+    git(['checkout', '-q', '--force', '--detach', `refs/remotes/origin/${target}`]);
+
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-compare-'));
+    let copied = [];
+    try {
+        for (const n of parts) {
+            copied = copied.concat(unpackComparePart(n, tmp));
+        }
+    } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+    }
+    copied = [...new Set(copied)].sort(compareOrder);
+    // The developer org's own values become {{relay:NAME}} placeholders, as a raise writes them.
+    const tokens = tokenizeFiles(copied, sourceEnv);
+    if (tokens.error) {
+        compareFailed(tokens.error);
+    }
+
+    const files = [];
+    const out = [];
+    for (const c of components) {
+        const mine = copied.filter((f) => belongsTo(f, c));
+        if (!mine.length) {
+            out.push({ key: c.entry, status: 'missing', reason: `Not in ${orgLabel()}'s copy (it may have been deleted or renamed).`, files: [] });
+            continue;
+        }
+        const entries = mine.map((f) => compareFile(f, false, files));
+        out.push({ key: c.entry, status: componentStatus(entries), files: entries });
+    }
+    for (const d of deletions) {
+        const at = deletedFiles(d);
+        if (at === null) {
+            out.push({ key: d.entry, status: 'missing', reason: `Deleting ${d.type} isn't compared.`, files: [] });
+        } else if (!at.length) {
+            out.push({ key: d.entry, status: 'missing', reason: `Not on ${target}, so there's nothing to delete.`, files: [] });
+        } else {
+            out.push({ key: d.entry, status: 'deleted', files: at.sort(compareOrder).map((f) => compareFile(f, true, files)) });
+        }
+    }
+    const counts = { changed: 0, new: 0, same: 0, deleted: 0, missing: 0 };
+    out.forEach((c) => { counts[c.status] = (counts[c.status] || 0) + 1; });
+    git(['checkout', '-q', '--force', '--detach', `refs/remotes/origin/${target}`]);
+    gitQuiet(['clean', '-fdq', '--', sourcePath()]);
+    writeCompareResults({ status: 'Succeeded', message: '', targetBranch: target, source: orgLabel(), components: out, counts }, files);
+    summary(`**Compare:** ${orgLabel()} with ${target}: ${counts.changed} changed, ${counts.new} new, ${counts.same} same, `
+        + `${counts.deleted} deleted, ${counts.missing} not found; ${files.length} file(s) for the hub.`);
+}
+
+/** The compare folders (results/CMP-… and compare-inbox/CMP-…) older than COMPARE_KEEP_DAYS in a results checkout. */
+function staleCompares(dir) {
+    const cutoff = Date.now() - COMPARE_KEEP_DAYS * 24 * 3600 * 1000;
+    const stale = [];
+    for (const parent of ['results', COMPARE_INBOX]) {
+        const full = path.join(dir, parent);
+        if (!fs.existsSync(full)) {
+            continue;
+        }
+        for (const name of fs.readdirSync(full)) {
+            const m = COMPARE_ID_RE.exec(name);
+            if (m && name !== requestId && Number(m[1]) < cutoff) {
+                stale.push(`${parent}/${name}`);
+            }
+        }
+    }
+    return stale;
+}
+
+/**
+ * Saves a compare's result in one commit on the results branch: results/<id>/compare.json and results/<id>/f/<n>.json,
+ * removes compare-inbox/<id> and prunes old compares. Pushes retry on races, as writeResult does.
+ */
+function writeCompareResults(data, files) {
+    const result = { request: requestId, step: 'compare', ...data, runUrl: runUrl(), finishedAt: new Date().toISOString() };
+    if (runToken) {
+        result.attempt = runToken;
+    }
+    const json = JSON.stringify(result, null, 1);
+    summary('```json\n' + JSON.stringify({ ...result, components: (result.components || []).length }, null, 1).slice(0, 2000) + '\n```');
+    if (env.RELAY_LOCAL_RESULTS === 'true') {
+        return;
+    }
+    const base = path.join('results', requestId);
+    for (let attempt = 1; attempt <= 4; attempt++) {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-results-'));
+        try {
+            if (remoteBranchExists(RESULTS_BRANCH)) {
+                fetchBranch(RESULTS_BRANCH);
+                git(['worktree', 'add', '-q', '--detach', dir, `refs/remotes/origin/${RESULTS_BRANCH}`]);
+            } else {
+                git(['worktree', 'add', '-q', '--detach', dir]);
+                git(['checkout', '-q', '--orphan', 'relay-results-' + Date.now()], { cwd: dir });
+                gitQuietIn(dir, ['rm', '-rf', '-q', '--cached', '.']);
+                for (const entry of fs.readdirSync(dir)) {
+                    if (entry !== '.git') {
+                        fs.rmSync(path.join(dir, entry), { recursive: true, force: true });
+                    }
+                }
+            }
+            fs.rmSync(path.join(dir, base), { recursive: true, force: true });
+            fs.mkdirSync(path.join(dir, base, 'f'), { recursive: true });
+            fs.writeFileSync(path.join(dir, base, 'compare.json'), json + '\n');
+            files.forEach((f, i) => fs.writeFileSync(path.join(dir, base, 'f', `${i + 1}.json`), JSON.stringify(f) + '\n'));
+            git(['add', '-A', '--', base], { cwd: dir });
+            const remove = [`${COMPARE_INBOX}/${requestId}`, ...staleCompares(dir)];
+            gitQuietIn(dir, ['rm', '-r', '-q', '--ignore-unmatch', '--', ...remove]);
+            git(['-c', 'user.name=Release Relay', '-c', 'user.email=release-relay@users.noreply.local',
+                'commit', '-q', '-m', `${requestId} compare: ${result.status}`], { cwd: dir });
+            git(['push', '-q', 'origin', `HEAD:refs/heads/${RESULTS_BRANCH}`], { cwd: dir });
+            return;
+        } catch (e) {
+            console.log(`Saving the compare result failed (attempt ${attempt}); retrying.`);
+        } finally {
+            gitQuiet(['worktree', 'remove', '--force', dir]);
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    }
+    fail(`Couldn't save the compare result to the ${RESULTS_BRANCH} branch. The pipeline needs permission to push to it, and it must not be protected.`);
+}
+
 // ---------- step: monitor (version 20) ----------
 
 /** What a run does, by mode, as the hub's Pipeline Monitor shows it. */
 const MONITOR_STEPS = { org: 'Raise', branch: 'Raise', promote: 'Raise', hub: 'Raise', resolve: 'Resolve conflicts',
-    check: 'Check-only deploy', merge: 'Merge', sync: 'Back promote', rollback: 'Rollback', archive: 'Archive' };
+    check: 'Check-only deploy', merge: 'Merge', sync: 'Back promote', rollback: 'Rollback', archive: 'Archive', compare: 'Compare' };
 /** The pipeline's jobs whose outcomes make the run's status, with the names the hub shows. */
 const MONITOR_JOBS = { raise: 'Raise pull request', scan: 'Code scan', validate: 'Check-only deploy', merge: 'Merge',
-    deploy: 'Deploy', sync: 'Back promote', rollback: 'Rollback', archive: 'Archive' };
+    deploy: 'Deploy', sync: 'Back promote', rollback: 'Rollback', archive: 'Archive', compare: 'Compare' };
 
 function monitorWarn(message) {
     console.log('::warning::Pipeline Monitor: ' + message);
@@ -3600,6 +3926,10 @@ async function stepMonitor() {
         monitorWarn('not a GitHub Actions run; nothing to post.');
         return;
     }
+    if (/^(debug|test)\//.test(env.GITHUB_REF_NAME || '')) {
+        console.log('Pipeline Monitor: a debug or test run (' + env.GITHUB_REF_NAME + '); not shown on the monitor.');
+        return;
+    }
     const hasKey = (v('SF_JKS') && v('SF_JKS_PASSWORD') && v('SF_JKS_ALIAS')) || v('SF_JWT_KEY');
     if (!v('SF_USERNAME') || !v('SF_CLIENT_ID') || !v('SF_INSTANCE_URL') || !hasKey) {
         monitorWarn('the hub environment\'s login (SF_USERNAME, SF_CLIENT_ID, SF_INSTANCE_URL and SF_JKS or SF_JWT_KEY) isn\'t set; nothing posted.');
@@ -3617,7 +3947,7 @@ async function stepMonitor() {
     }
     const body = {
         runId: gh.runId, attempt: gh.attempt, mode: runMode, step,
-        branch: runMode === 'sync' ? target : (runMode === 'archive' ? env.GITHUB_REF_NAME : branch) || null,
+        branch: runMode === 'sync' || runMode === 'compare' ? target : (runMode === 'archive' ? env.GITHUB_REF_NAME : branch) || null,
         targetOrg: targetEnv || sourceEnv || (runMode === 'archive' ? input('RELAY_HUB_ENVIRONMENT') || 'prod' : null),
         status: ending ? monitorEndStatus() : 'In progress',
         started: startedAt, actor: scheduled ? 'Schedule' : (env.GITHUB_TRIGGERING_ACTOR || env.GITHUB_ACTOR || null),
@@ -3634,10 +3964,8 @@ async function stepMonitor() {
     }
     login('relay-hub');
     // The CLI signs the call itself: newer CLIs hide the access token in "sf org display".
-    const bodyFile = path.join(os.tmpdir(), 'relay-monitor-body.json');
-    fs.writeFileSync(bodyFile, JSON.stringify(body));
     const out = run('sf', ['api', 'request', 'rest', '/services/apexrest/rly/pipeline-run', '--method', 'POST',
-        '--body', bodyFile, '--target-org', 'relay-hub']);
+        '--body', JSON.stringify(body), '--target-org', 'relay-hub']);
     let json = null;
     try { json = JSON.parse(out); } catch (ignore) { json = null; }
     if (json && json.ok === true) {
@@ -3651,7 +3979,7 @@ async function stepMonitor() {
 // ---------- main ----------
 
 const STEPS = { raise: stepRaise, scan: stepScan, validate: stepValidate, merge: stepMerge, deploy: stepDeploy, sync: stepSync,
-    rollback: stepRollback, auto: stepAuto };
+    rollback: stepRollback, auto: stepAuto, compare: stepCompare };
 
 async function main() {
     if (step === 'notify') {
@@ -3677,7 +4005,7 @@ async function main() {
         summary(`**Note:** selfUpdate is set but the target is ${target}; the hub's own updates belong on release-relay-hub.`);
     }
     if (!STEPS[step]) {
-        fail('STEP must be raise, scan, validate, merge, deploy, sync, rollback or auto.');
+        fail('STEP must be raise, scan, validate, merge, deploy, sync, rollback, auto or compare.');
     }
     preparePush();
     await STEPS[step]();
