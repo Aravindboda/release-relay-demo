@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/classes/LiveCompareProbe.cls","left":null,"right":"public with sharing class LiveCompareProbe {\n    public static Integer one() {\n        return 1;\n    }\n}\n"}

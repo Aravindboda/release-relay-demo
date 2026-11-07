@@ -1,0 +1,86 @@
+{
+ "request": "CMP-1794060852704",
+ "step": "compare",
+ "status": "Succeeded",
+ "message": "",
+ "targetBranch": "sit",
+ "source": "DEV1",
+ "components": [
+  {
+   "key": "ApexClass:InvoiceTotals",
+   "status": "changed",
+   "files": [
+    {
+     "path": "force-app/main/default/classes/InvoiceTotals.cls",
+     "status": "changed",
+     "chars": 765,
+     "n": 1,
+     "kind": "text"
+    },
+    {
+     "path": "force-app/main/default/classes/InvoiceTotals.cls-meta.xml",
+     "status": "same",
+     "chars": 174,
+     "n": 2,
+     "kind": "text"
+    }
+   ]
+  },
+  {
+   "key": "ApexClass:LiveCompareProbe",
+   "status": "new",
+   "files": [
+    {
+     "path": "force-app/main/default/classes/LiveCompareProbe.cls",
+     "status": "new",
+     "chars": 105,
+     "n": 3,
+     "kind": "text"
+    },
+    {
+     "path": "force-app/main/default/classes/LiveCompareProbe.cls-meta.xml",
+     "status": "new",
+     "chars": 174,
+     "n": 4,
+     "kind": "text"
+    }
+   ]
+  },
+  {
+   "key": "ApexClass:NotInTheZip",
+   "status": "missing",
+   "reason": "Not in DEV1's copy (it may have been deleted or renamed).",
+   "files": []
+  },
+  {
+   "key": "ApexClass:InvoiceDueDateTest",
+   "status": "deleted",
+   "files": [
+    {
+     "path": "force-app/main/default/classes/InvoiceDueDateTest.cls",
+     "status": "deleted",
+     "chars": 886,
+     "n": 5,
+     "kind": "text"
+    },
+    {
+     "path": "force-app/main/default/classes/InvoiceDueDateTest.cls-meta.xml",
+     "status": "deleted",
+     "chars": 174,
+     "n": 6,
+     "kind": "text"
+    }
+   ]
+  }
+ ],
+ "counts": {
+  "changed": 1,
+  "new": 1,
+  "same": 0,
+  "deleted": 1,
+  "missing": 1
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42380649317",
+ "finishedAt": "2026-11-07T14:14:31.473Z",
+ "attempt": "live1794060836"
+}
