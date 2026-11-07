@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Current_Connection__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>The connection the hub moves away from (active when the migration started).</description>
+    <externalId>false</externalId>
+    <label>Current Connection</label>
+    <referenceTo>RLY_Git_Connection__c</referenceTo>
+    <relationshipLabel>Migrations From</relationshipLabel>
+    <relationshipName>Migrations_From</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

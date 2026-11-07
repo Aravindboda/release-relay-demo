@@ -141,7 +141,7 @@ public with sharing class RlyPullRequestFiles {
         c.targetName = rel.Target_Org__r?.Name;
         c.targetBranch = rel.Target_Branch__c;
         c.sourceName = rel.Source_Org__r?.Name;
-        RLY_Git_Connection__c conn = RlyReleaseStore.git();
+        RLY_Git_Connection__c conn = RlyReleaseStore.gitFor(rel);
         if (rel.PR_Number__c == null || conn == null) {
             c.message = rel.PR_Number__c == null ? 'This release has no pull request yet.' : 'Set up the Git connection first.';
             return c;

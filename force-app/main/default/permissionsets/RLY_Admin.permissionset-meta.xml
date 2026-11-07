@@ -9,6 +9,14 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
+        <apexClass>RlyMigrationController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>RlyMigrationOrgController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>RlySlackLink</apexClass>
         <enabled>true</enabled>
     </classAccesses>
@@ -184,6 +192,14 @@
     <externalCredentialPrincipalAccesses>
         <enabled>true</enabled>
         <externalCredentialPrincipal>RLY_Slack-Bot</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal>RLY_Git_GitHub-RLY_Git_GitHub</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal>RLY_Git_GitLab-RLY_Git_GitLab</externalCredentialPrincipal>
     </externalCredentialPrincipalAccesses>
     <fieldPermissions>
         <editable>false</editable>
@@ -582,6 +598,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
+        <field>RLY_Release__c.Git_Connection__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>RLY_Release__c.Manual_Only__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -653,6 +674,11 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>RLY_Git_Connection__c.Back_Promote__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>RLY_Git_Connection__c.Active__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -1312,6 +1338,15 @@
         <object>RLY_Data_Set__c</object>
         <viewAllRecords>true</viewAllRecords>
     </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>RLY_Migration__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
     <tabSettings>
         <tab>RLY_Work_Items</tab>
         <visibility>Visible</visibility>
@@ -1358,6 +1393,10 @@
     </tabSettings>
     <tabSettings>
         <tab>RLY_Metrics</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>RLY_Migration</tab>
         <visibility>Visible</visibility>
     </tabSettings>
     <tabSettings>

@@ -698,6 +698,7 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
                 isHotfix,
                 manualOnly,
                 hotfixReason: isHotfix ? r.hotfixReason : '',
+                repo: r.repo || '',
                 deletesText: this.isApprovals && deletions ? 'Deletes ' + deletions : '',
                 manualText: manual ? manual + (manual === 1 ? ' manual step' : ' manual steps') : '',
                 typeLabel: TYPE_LABEL[r.releaseType] || '',

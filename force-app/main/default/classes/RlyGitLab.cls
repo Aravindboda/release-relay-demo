@@ -1,5 +1,5 @@
 /**
- * @description GitLab REST API v4, through the Named Credential (RLY_GitLab: URL https://gitlab.com/api/v4, or your own
+ * @description GitLab REST API v4, through the Named Credential (RLY_Git_GitLab: URL https://gitlab.com/api/v4, or your own
  * GitLab's /api/v4), which sends the token as Authorization: Bearer. Token: a project access token (Maintainer, api and
  * write_repository). Build 45: every release operation, like RlyGitHub. Merge requests stand for pull requests (iid is
  * the number), pipelines for runs (their name comes from the CI file's workflow:name, version 25), and the hub's inputs
