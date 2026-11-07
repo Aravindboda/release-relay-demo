@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 20
+// Release Relay pipeline files: version 21
+// Version 21: step notify and the monitor send their JSON body inline. "sf api request rest --body <file>" sent the
+// file's path as the body, so the hub refused it (runId missing) or ignored it.
 // Version 20: STEP=monitor tells the hub about this run for its Pipeline Monitor tab (POST
 // /services/apexrest/rly/pipeline-run, signed in with the hub environment's login through "sf api request rest"):
 // MONITOR_STATUS=in_progress when the run starts, MONITOR_STATUS=end when it ends (Succeeded, Failed or Cancelled from
@@ -3503,10 +3505,9 @@ async function stepNotify() {
     try {
         login('relay-notify');
         // The CLI signs the call itself: newer CLIs hide the access token in "sf org display".
-        const bodyFile = path.join(os.tmpdir(), 'relay-notify-body.json');
-        fs.writeFileSync(bodyFile, JSON.stringify({ request: requestId }));
+
         const out = run('sf', ['api', 'request', 'rest', '/services/apexrest/release-relay/v1/status', '--method', 'POST',
-            '--body', bodyFile, '--target-org', 'relay-notify']);
+            '--body', JSON.stringify({ request: requestId }), '--target-org', 'relay-notify']);
         let json = null;
         try { json = JSON.parse(out); } catch (ignore) { json = null; }
         summary(`Salesforce updated ${requestId}: ${json && json.status ? json.status : 'done'}.`);
@@ -3634,10 +3635,8 @@ async function stepMonitor() {
     }
     login('relay-hub');
     // The CLI signs the call itself: newer CLIs hide the access token in "sf org display".
-    const bodyFile = path.join(os.tmpdir(), 'relay-monitor-body.json');
-    fs.writeFileSync(bodyFile, JSON.stringify(body));
     const out = run('sf', ['api', 'request', 'rest', '/services/apexrest/rly/pipeline-run', '--method', 'POST',
-        '--body', bodyFile, '--target-org', 'relay-hub']);
+        '--body', JSON.stringify(body), '--target-org', 'relay-hub']);
     let json = null;
     try { json = JSON.parse(out); } catch (ignore) { json = null; }
     if (json && json.ok === true) {

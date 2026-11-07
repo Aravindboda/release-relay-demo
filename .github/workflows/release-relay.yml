@@ -1,4 +1,6 @@
-# Release Relay pipeline files: version 20
+# Release Relay pipeline files: version 21
+# Version 21: the archive call sends its JSON body inline (--body "$body"). "sf api request rest --body" sent the file's
+# path as the body, so the hub never saw the body.
 # Version 20: Pipeline Monitor. Two small jobs tell the hub about every run, signed in with the hub environment's login
 # (vars.RELAY_HUB_ENVIRONMENT, default prod) like the archive job, through "sf api request rest": monitor-start posts
 # "In progress" when the run starts, monitor-end (always, after every other job) posts how it ended (Succeeded, Failed
@@ -585,9 +587,8 @@ jobs:
             body="$(jq -n --arg runUrl "$RUN_URL" --arg runId "$run_id" \
               '{runUrl: $runUrl} + (if $runId == "" then {} else {runId: $runId} end)')"
             # The CLI signs the call itself (sf org display hides the access token since CLI 2.15x).
-            printf '%s' "$body" > "$RUNNER_TEMP/archive-body.json"
             answer="$(sf api request rest /services/apexrest/rly/archive --method POST \
-              --body "$RUNNER_TEMP/archive-body.json" --target-org relay-hub)"
+              --body "$body" --target-org relay-hub)"
             if [ "$(printf '%s' "$answer" | jq -r '.skipped')" = "true" ]; then
               echo "Call $call: $(printf '%s' "$answer" | jq -r '.reason')"
               echo "Nightly archive: $(printf '%s' "$answer" | jq -r '.reason')" >> "$GITHUB_STEP_SUMMARY"
