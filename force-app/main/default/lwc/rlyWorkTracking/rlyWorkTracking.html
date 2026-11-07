@@ -37,6 +37,7 @@
                         onchange={handleText} placeholder={stateHint} max-length="2000"></lightning-textarea>
                 </template>
                 <c-rly-choice-chips options={formChipOptions} value={formChipValue} onchange={handleFormChips}></c-rly-choice-chips>
+                <template lwc:if={isServiceNow}><p class="rr-small rr-weak">Change must mention the release: the change gate only accepts a change request whose short description or description names the release, for example REL-00052.</p></template>
                 <p class="rr-small rr-weak">Without an integration, Release Relay tracks each ticket itself (Work items tab). With one, the moments are posted to the ticket; a post that fails shows on the release with Try again.</p>
                 <div class="rr-wt-actions">
                     <lightning-button label="Cancel" onclick={cancel} disabled={busy}></lightning-button>

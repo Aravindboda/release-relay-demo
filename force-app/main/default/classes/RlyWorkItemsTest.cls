@@ -312,7 +312,7 @@ private class RlyWorkItemsTest {
             String ends = Datetime.now().addHours(2).formatGmt('yyyy-MM-dd HH:mm:ss');
             RlyHttpMock m = new RlyHttpMock()
                 .match('GET', '/api/now/table/change_request').reply(200, '{"result":[{"number":"CHG0012345","approval":"approved","state":"-1","start_date":"'
-                    + start + '","end_date":"' + ends + '"}]}')
+                    + start + '","end_date":"' + ends + '","short_description":"Deploy ' + rel.Name + ' to production"}]}')
                 .match('POST', '/dispatches').reply(204, '');
             Test.setMock(HttpCalloutMock.class, m);
             Test.startTest();

@@ -1,4 +1,33 @@
-# Release Relay pipeline files: version 26
+# Release Relay pipeline files: version 27
+# Version 27 (hub build 48, security): signed runs and results, and the release branch treated as untrusted.
+# - Signed runs: the hub signs every run it starts (options.iat and options.sig, HMAC-SHA256 with the run-signing key
+#   from the hub's Pipeline tab). Every job that signs in to an org or pushes checks the signature first, against the
+#   secret RELAY_RUN_KEY, and stops before any sign-in, push or result when it's missing, wrong or older than 15 minutes
+#   (counted from the run's creation, read with this run's token: actions: read). Without RELAY_RUN_KEY a job warns and
+#   goes on (until the key is added); repository variable RELAY_SIGNING=required makes that a failure. The schedules
+#   (nightly archive, hourly Slack) aren't signed; archive and Slack runs started by hand are.
+#   Where the key lives: an ENVIRONMENT secret RELAY_RUN_KEY in every environment the pipeline uses (each org's, the
+#   hub's, and "relay-signing", used by the jobs without an org: scan-save, sync-branch, compare, routediff, migrate,
+#   and raise or merge when no source environment is sent), each environment allowed to deploy from main only, and main
+#   protected (pull request review, no direct pushes). A repository secret works too, but anyone who can push a branch
+#   can read a repository secret from their own workflow.
+# - Signed results: with the key, every result file on release-relay-results is {"payload":"<json>","sig":"<hmac>"}
+#   (wrapper version 2); the hub rejects a result without a good signature once it has a key.
+# - Approved head: validate.json records headSha; mode merge refuses unless the pull request's head is options.expectHead
+#   (gh pr merge --match-head-commit). The deploy fails ("changed after validation") when the merged head or files
+#   aren't the validated ones (options.fullDeploy, sent by the hub after a fresh check, deploys in full instead). A quick
+#   deploy asks the org first (sf project deploy report): a succeeded check-only deployment with this release's
+#   components, from the approved check (attempt); otherwise a full deploy with tests.
+# - Untrusted branch: permissions are {} at the top and granted per job; the scan job is read-only, has no secrets and
+#   no persisted token, uses the pipeline's Code Analyzer config (--config-file; .relay/code-analyzer.yml on the
+#   pipeline commit, else a built-in one) and ignores the branch's code-analyzer.yml and ESLint files; its result is
+#   signed and saved by the new scan-save job. Every sf command runs with an allowlisted environment (no secrets) and
+#   without the branch's sfdx-project.json "replacements". selfUpdate with a target other than release-relay-hub fails
+#   (repository variable RELAY_SELF_UPDATE_BRANCHES lists more allowed branches, for example a hub test org's).
+# - Pinned: actions by commit (checkout v4.2.2, setup-node v4.4.0, cache v4.3.0, setup-java v4.7.1,
+#   create-github-app-token v1.12.0, upload-artifact v4.6.2, download-artifact v4.3.0), @salesforce/cli@2.135.7 and
+#   @salesforce/plugin-code-analyzer@5.13.0 (cache keys carry the versions).
+# (Version 26 notes follow.)
 # Version 26: mode "migrate" (the hub's Move repository wizard, request ids MIG-<13 digits>). The migrate job runs in
 # this (the SOURCE) repository: no environment and no org. It mirror-clones this repository and pushes every branch and
 # tag to the new, empty repository at options.targetUrl (https, never with credentials) with the repository secret
@@ -171,9 +200,8 @@ on:
         type: string
         default: '{}'
 
-permissions:
-  contents: write
-  pull-requests: write
+# Version 27: no permissions by default; each job asks for what it needs (the scan job: read only).
+permissions: {}
 
 # One run at a time per release branch; back promotes, one at a time per back-promote branch; rollbacks, one at
 # a time per org; the nightly archive, one at a time; each compare on its own.
@@ -190,49 +218,66 @@ env:
   BRANCH: ${{ inputs.branch }}
   TARGET: ${{ inputs.target }}
   TITLE: ${{ inputs.title }}
+  # Version 27: every input the hub signs reaches every job, so each one can check the run's signature.
+  COMPONENTS: ${{ inputs.components }}
+  DELETIONS: ${{ inputs.deletions }}
+  OPTIONS: ${{ inputs.options }}
+  # "required": a job that can't see RELAY_RUN_KEY fails instead of warning (set it once every environment has the key).
+  RELAY_SIGNING: ${{ vars.RELAY_SIGNING }}
+  # Branches besides release-relay-hub that may take selfUpdate runs (comma separated; for example a hub test org's).
+  RELAY_SELF_UPDATE_BRANCHES: ${{ vars.RELAY_SELF_UPDATE_BRANCHES }}
 
 jobs:
   raise:
     if: ${{ inputs.mode == 'org' || inputs.mode == 'branch' || inputs.mode == 'promote' || inputs.mode == 'hub' || inputs.mode == 'resolve' }}
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    # Version 27: a run without a source environment uses relay-signing (the run-signing key's environment).
+    environment: ${{ inputs.environment || 'relay-signing' }}
     timeout-minutes: 30
     steps:
       # Optional: a GitHub App token, so the new pull request triggers your own PR checks.
       - name: Create GitHub App token
         id: app
         if: ${{ vars.RELAY_APP_ID != '' }}
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
         with:
           app-id: ${{ vars.RELAY_APP_ID }}
           private-key: ${{ secrets.RELAY_APP_PRIVATE_KEY }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           token: ${{ steps.app.outputs.token || github.token }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      # The Salesforce CLI (pinned, version 27) is cached per runner OS and CLI version, so most runs skip the install.
       - name: Salesforce CLI cache key
         id: sfkey
         if: ${{ (inputs.mode == 'org' && inputs.components != '') || inputs.mode == 'hub' }}
-        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-cli-2.135.7-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI
         if: ${{ (inputs.mode == 'org' && inputs.components != '') || inputs.mode == 'hub' }}
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.relay-sf
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI
         if: ${{ (inputs.mode == 'org' && inputs.components != '') || inputs.mode == 'hub' }}
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
       # Inputs reach the script only as environment variables, never inside a shell command.
       - name: Raise pull request
         env:
           STEP: raise
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
           OPTIONS: ${{ inputs.options }}
           GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
           COMPONENTS: ${{ inputs.components }}
@@ -255,24 +300,29 @@ jobs:
     if: ${{ !cancelled() && fromJSON(inputs.options || '{}').scan != 'off' && (needs.raise.result == 'success' || inputs.mode == 'check') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Version 27: the scan reads the untrusted release branch, so it gets no secrets, a read-only token that isn't left
+    # in the checkout, and the pipeline's Code Analyzer settings. Its result goes to the scan-save job as an artifact.
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ inputs.branch }}
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
           java-version: '17'
       # The Salesforce CLI and the Code Analyzer plugin are cached per runner OS and month.
       - name: Salesforce CLI cache key
         id: sfkey
-        run: echo "key=relay-sf-scan-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-scan-cli-2.135.7-ca-5.13.0-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI and Code Analyzer
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             ~/.relay-sf
@@ -280,51 +330,102 @@ jobs:
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI and Code Analyzer
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           export PATH="$HOME/.relay-sf/bin:$PATH"
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
-          sf plugins 2>/dev/null | grep -q 'code-analyzer' || sf plugins install code-analyzer
+          sf plugins 2>/dev/null | grep -q 'code-analyzer 5.13.0' || sf plugins install @salesforce/plugin-code-analyzer@5.13.0
       - name: Code scan
         env:
           STEP: scan
           SOURCE_PATH: ${{ vars.SOURCE_PATH }}
           SCAN_RULES: ${{ vars.SCAN_RULES }}
           SCAN_BLOCK_SEVERITY: ${{ vars.SCAN_BLOCK_SEVERITY }}
+          RELAY_RESULT_FILE: ${{ runner.temp }}/relay-scan/scan.json
+          RELAY_NO_FETCH: 'true'
         # The release branch may hold an older copy of the script: always run the pipeline's own.
         run: |
+          mkdir -p "$RUNNER_TEMP/relay-scan"
           git show "$GITHUB_SHA:scripts/release-relay.js" > "$RUNNER_TEMP/release-relay.js"
           node "$RUNNER_TEMP/release-relay.js"
+      - name: Hand the result to scan-save
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: relay-scan-result
+          path: ${{ runner.temp }}/relay-scan/scan.json
+          retention-days: 1
+          if-no-files-found: ignore
+
+  # Version 27: signs the scan's result and saves it as scan.json on release-relay-results (the scan job can't push).
+  scan-save:
+    needs: scan
+    if: ${{ !cancelled() && needs.scan.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    environment: relay-signing
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Get the scan's result
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: relay-scan-result
+          path: ${{ runner.temp }}/relay-scan
+      - name: Save the scan result
+        env:
+          STEP: scan-save
+          RELAY_SCAN_FILE: ${{ runner.temp }}/relay-scan/scan.json
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
+        run: node scripts/release-relay.js
 
   validate:
     needs: raise
     if: ${{ !cancelled() && inputs.target_environment != '' && (needs.raise.result == 'success' || inputs.mode == 'check') }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
     environment: ${{ inputs.target_environment }}
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ inputs.branch }}
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      # The Salesforce CLI (pinned, version 27) is cached per runner OS and CLI version, so most runs skip the install.
       - name: Salesforce CLI cache key
         id: sfkey
-        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-cli-2.135.7-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.relay-sf
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
       - name: Validate against the target org
         env:
           STEP: validate
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
           OPTIONS: ${{ inputs.options }}
           SOURCE_PATH: ${{ vars.SOURCE_PATH }}
           DEPLOY_TEST_LEVEL: ${{ vars.DEPLOY_TEST_LEVEL }}
@@ -343,7 +444,12 @@ jobs:
   merge:
     if: ${{ inputs.mode == 'merge' }}
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    # Version 27: a run without a source environment uses relay-signing (the run-signing key's environment).
+    environment: ${{ inputs.environment || 'relay-signing' }}
     timeout-minutes: 15
     outputs:
       sha: ${{ steps.merge.outputs.sha }}
@@ -351,20 +457,22 @@ jobs:
       - name: Create GitHub App token
         id: app
         if: ${{ vars.RELAY_APP_ID != '' }}
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
         with:
           app-id: ${{ vars.RELAY_APP_ID }}
           private-key: ${{ secrets.RELAY_APP_PRIVATE_KEY }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
       - name: Merge the approved pull request
         id: merge
         env:
           STEP: merge
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
           OPTIONS: ${{ inputs.options }}
           GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
           ALLOWED_TARGETS: ${{ vars.ALLOWED_TARGETS }}
@@ -375,36 +483,43 @@ jobs:
     needs: merge
     if: ${{ inputs.target_environment != '' && needs.merge.result == 'success' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
     environment: ${{ inputs.target_environment }}
     timeout-minutes: 120
     steps:
       # The deploy needs only the merge commit and its parents (the diff it deploys), not the whole history,
       # plus the pipeline's own commit for the script and its .relay files.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ needs.merge.outputs.sha }}
           fetch-depth: 2
       - name: Fetch the pipeline's commit
         run: git cat-file -e "$GITHUB_SHA^{commit}" 2>/dev/null || git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      # The Salesforce CLI (pinned, version 27) is cached per runner OS and CLI version, so most runs skip the install.
       - name: Salesforce CLI cache key
         id: sfkey
-        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-cli-2.135.7-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.relay-sf
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
       - name: Deploy to the target org
         env:
           STEP: deploy
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
           OPTIONS: ${{ inputs.options }}
           MERGE_SHA: ${{ needs.merge.outputs.sha }}
           SOURCE_PATH: ${{ vars.SOURCE_PATH }}
@@ -426,6 +541,9 @@ jobs:
   sync:
     if: ${{ inputs.mode == 'sync' && inputs.target_environment != '' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
     environment: ${{ inputs.target_environment }}
     timeout-minutes: 120
     steps:
@@ -433,33 +551,37 @@ jobs:
       - name: Create GitHub App token
         id: app
         if: ${{ vars.RELAY_APP_ID != '' }}
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
         with:
           app-id: ${{ vars.RELAY_APP_ID }}
           private-key: ${{ secrets.RELAY_APP_PRIVATE_KEY }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           token: ${{ steps.app.outputs.token || github.token }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      # The Salesforce CLI (pinned, version 27) is cached per runner OS and CLI version, so most runs skip the install.
       - name: Salesforce CLI cache key
         id: sfkey
-        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-cli-2.135.7-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.relay-sf
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
       - name: Back promote to the target org
         env:
           STEP: sync
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
           OPTIONS: ${{ inputs.options }}
           ALLOWED_TARGETS: ${{ vars.ALLOWED_TARGETS }}
           SOURCE_PATH: ${{ vars.SOURCE_PATH }}
@@ -481,26 +603,33 @@ jobs:
   sync-branch:
     if: ${{ inputs.mode == 'sync' && inputs.target_environment == '' && fromJSON(inputs.options || '{}').branchOnly == true }}
     runs-on: ubuntu-latest
+    # Version 27: no org here, so the run-signing key comes from the relay-signing environment (main only).
+    environment: relay-signing
+    permissions:
+      contents: write
+      actions: read
     timeout-minutes: 20
     steps:
       # Optional: a GitHub App token, when branch rules only let the app push to the developer branch.
       - name: Create GitHub App token
         id: app
         if: ${{ vars.RELAY_APP_ID != '' }}
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
         with:
           app-id: ${{ vars.RELAY_APP_ID }}
           private-key: ${{ secrets.RELAY_APP_PRIVATE_KEY }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           token: ${{ steps.app.outputs.token || github.token }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
       - name: Back promote into the branch
         env:
           STEP: sync
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
           OPTIONS: ${{ inputs.options }}
           ALLOWED_TARGETS: ${{ vars.ALLOWED_TARGETS }}
           SOURCE_PATH: ${{ vars.SOURCE_PATH }}
@@ -514,32 +643,39 @@ jobs:
   rollback:
     if: ${{ inputs.mode == 'rollback' && inputs.target_environment != '' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
     environment: ${{ inputs.target_environment }}
     timeout-minutes: 120
     steps:
       # Only the pipeline's commit is needed: the snapshot is read from release-relay-snapshots.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      # The Salesforce CLI (pinned, version 27) is cached per runner OS and CLI version, so most runs skip the install.
       - name: Salesforce CLI cache key
         id: sfkey
-        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-cli-2.135.7-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.relay-sf
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
       - name: Roll back the target org
         env:
           STEP: rollback
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
           OPTIONS: ${{ inputs.options }}
           SOURCE_PATH: ${{ vars.SOURCE_PATH }}
           SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
@@ -559,30 +695,39 @@ jobs:
     needs: [raise, scan, validate, merge, deploy, sync, rollback]
     if: ${{ always() && fromJSON(inputs.options || '{}').notify != null && fromJSON(inputs.options || '{}').notify != '' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     environment: ${{ fromJSON(inputs.options || '{}').notify }}
     timeout-minutes: 10
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      # The Salesforce CLI (pinned, version 27) is cached per runner OS and CLI version, so most runs skip the install.
       - name: Salesforce CLI cache key
         id: sfkey
-        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-cli-2.135.7-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.relay-sf
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
       - name: Tell Salesforce the run finished
         env:
           STEP: notify
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
           SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
           SF_USERNAME: ${{ secrets.SF_USERNAME }}
           SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
@@ -598,31 +743,40 @@ jobs:
   compare:
     if: ${{ inputs.mode == 'compare' }}
     runs-on: ubuntu-latest
+    # Version 27: no org here, so the run-signing key comes from the relay-signing environment (main only).
+    environment: relay-signing
+    permissions:
+      contents: write
+      actions: read
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      # The Salesforce CLI (pinned, version 27) is cached per runner OS and CLI version, so most runs skip the install.
       - name: Salesforce CLI cache key
         id: sfkey
-        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-cli-2.135.7-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.relay-sf
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
       # Inputs reach the script only as environment variables, never inside a shell command.
       - name: Compare with the target branch
         env:
           STEP: compare
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
           OPTIONS: ${{ inputs.options }}
           COMPONENTS: ${{ inputs.components }}
           DELETIONS: ${{ inputs.deletions }}
@@ -635,32 +789,39 @@ jobs:
   drift:
     if: ${{ inputs.mode == 'drift' && inputs.environment != '' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
     environment: ${{ inputs.environment }}
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      # The Salesforce CLI (pinned, version 27) is cached per runner OS and CLI version, so most runs skip the install.
       - name: Salesforce CLI cache key
         id: sfkey
-        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-cli-2.135.7-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.relay-sf
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
       # Inputs reach the script only as environment variables, never inside a shell command.
       - name: Compare the org with its branch
         env:
           STEP: drift
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
           OPTIONS: ${{ inputs.options }}
           ORG_LABEL: ${{ vars.ORG_LABEL }}
           SOURCE_PATH: ${{ vars.SOURCE_PATH }}
@@ -677,17 +838,24 @@ jobs:
   routediff:
     if: ${{ inputs.mode == 'routediff' }}
     runs-on: ubuntu-latest
+    # Version 27: no org here, so the run-signing key comes from the relay-signing environment (main only).
+    environment: relay-signing
+    permissions:
+      contents: write
+      actions: read
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
       - name: Compare the branches down the route
         env:
           STEP: routediff
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
           OPTIONS: ${{ inputs.options }}
           SOURCE_PATH: ${{ vars.SOURCE_PATH }}
         run: node scripts/release-relay.js
@@ -698,17 +866,24 @@ jobs:
   migrate:
     if: ${{ inputs.mode == 'migrate' }}
     runs-on: ubuntu-latest
+    # Version 27: no org here, so the run-signing key comes from the relay-signing environment (main only).
+    environment: relay-signing
+    permissions:
+      contents: write
+      actions: read
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
       - name: Copy the repository to the new one
         env:
           STEP: migrate
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
           OPTIONS: ${{ inputs.options }}
           RELAY_MIGRATE_TOKEN: ${{ secrets.RELAY_MIGRATE_TOKEN }}
           RELAY_MIGRATE_USER: ${{ vars.RELAY_MIGRATE_USER }}
@@ -719,32 +894,39 @@ jobs:
   data-export:
     if: ${{ inputs.mode == 'data' && inputs.environment != '' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
     environment: ${{ inputs.environment }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      # The Salesforce CLI (pinned, version 27) is cached per runner OS and CLI version, so most runs skip the install.
       - name: Salesforce CLI cache key
         id: sfkey
-        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-cli-2.135.7-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.relay-sf
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
       # Inputs reach the script only as environment variables, never inside a shell command.
       - name: Export the data set's records
         env:
           STEP: data-export
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
           OPTIONS: ${{ inputs.options }}
           ORG_LABEL: ${{ vars.ORG_LABEL }}
           SOURCE_PATH: ${{ vars.SOURCE_PATH }}
@@ -762,31 +944,38 @@ jobs:
     needs: [data-export]
     if: ${{ always() && inputs.mode == 'data' && inputs.target_environment != '' && (needs.data-export.result == 'success' || needs.data-export.result == 'skipped') }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
     environment: ${{ inputs.target_environment }}
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      # The Salesforce CLI (pinned, version 27) is cached per runner OS and CLI version, so most runs skip the install.
       - name: Salesforce CLI cache key
         id: sfkey
-        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-cli-2.135.7-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.relay-sf
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
       - name: Dry run or load the data set
         env:
           STEP: data-load
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
           OPTIONS: ${{ inputs.options }}
           ORG_LABEL: ${{ vars.ORG_LABEL }}
           SOURCE_PATH: ${{ vars.SOURCE_PATH }}
@@ -807,23 +996,42 @@ jobs:
     if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 8 * * *') || inputs.mode == 'archive' }}
     runs-on: ubuntu-latest
     environment: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
+    permissions:
+      contents: read
+      actions: read
     timeout-minutes: 30
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      # Version 27: started by hand (not the schedule), the run must carry the hub's signature.
+      - name: Get the pipeline script
+        if: ${{ github.event_name != 'schedule' }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Check the run's signature
+        if: ${{ github.event_name != 'schedule' }}
+        env:
+          STEP: verify
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
+        run: node scripts/release-relay.js
+      # The Salesforce CLI (pinned, version 27) is cached per runner OS and CLI version, so most runs skip the install.
       - name: Salesforce CLI cache key
         id: sfkey
-        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-cli-2.135.7-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.relay-sf
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
       - name: Archive finished releases in the hub
         env:
@@ -901,22 +1109,41 @@ jobs:
     if: ${{ vars.RELAY_SLACK_DUE != 'off' && ((github.event_name == 'schedule' && github.event.schedule == '17 * * * *') || inputs.mode == 'slack') }}
     runs-on: ubuntu-latest
     environment: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
+    permissions:
+      contents: read
+      actions: read
     timeout-minutes: 15
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
+      # Version 27: started by hand (not the schedule), the run must carry the hub's signature.
+      - name: Get the pipeline script
+        if: ${{ github.event_name != 'schedule' }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Check the run's signature
+        if: ${{ github.event_name != 'schedule' }}
+        env:
+          STEP: verify
+          RELAY_RUN_KEY: ${{ secrets.RELAY_RUN_KEY }}
+          RELAY_RUN_READ_TOKEN: ${{ github.token }}
+        run: node scripts/release-relay.js
       - name: Salesforce CLI cache key
         id: sfkey
-        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-cli-2.135.7-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.relay-sf
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
       - name: Send due Slack reminders and digests
         env:
@@ -985,24 +1212,26 @@ jobs:
       actions: read
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      # The Salesforce CLI (pinned, version 27) is cached per runner OS and CLI version, so most runs skip the install.
       - name: Salesforce CLI cache key
         id: sfkey
-        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-cli-2.135.7-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.relay-sf
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
       - name: Tell the hub the run started
         env:
@@ -1024,7 +1253,7 @@ jobs:
   # the hub how the run ended: Succeeded, Failed or Cancelled from the jobs' results, the finished time and duration,
   # each job's outcome and the first failure (read from this run with its own token: actions and checks read). Never fails the run.
   monitor-end:
-    needs: [monitor-start, raise, scan, validate, merge, deploy, sync, sync-branch, rollback, notify, archive, compare, drift, routediff, data-export, data-load, migrate]
+    needs: [monitor-start, raise, scan, scan-save, validate, merge, deploy, sync, sync-branch, rollback, notify, archive, compare, drift, routediff, data-export, data-load, migrate]
     if: ${{ always() && vars.RELAY_MONITOR != 'off' && github.event.schedule != '17 * * * *' && inputs.mode != 'slack' }}
     runs-on: ubuntu-latest
     environment: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
@@ -1035,24 +1264,26 @@ jobs:
       checks: read
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      # The Salesforce CLI (pinned, version 27) is cached per runner OS and CLI version, so most runs skip the install.
       - name: Salesforce CLI cache key
         id: sfkey
-        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+        run: echo "key=relay-sf-cli-2.135.7-${RUNNER_OS}-node22" >> "$GITHUB_OUTPUT"
       - name: Cache Salesforce CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.relay-sf
           key: ${{ steps.sfkey.outputs.key }}
       - name: Install Salesforce CLI
         run: |
-          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          # Version 27: from outside the checkout, so a release branch's .npmrc never applies.
+          cd "$RUNNER_TEMP"
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2.135.7 --no-audit --no-fund
           echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
       - name: Tell the hub how the run ended
         env:

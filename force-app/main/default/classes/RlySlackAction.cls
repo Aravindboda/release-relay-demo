@@ -33,11 +33,16 @@ public with sharing class RlySlackAction {
         Reply out = new Reply();
         try {
             RLY_Notification__c s = RlySlack.settings();
-            if (s == null || !s.Enabled__c || !RlySlackSignature.isValid(req, s.Signing_Secret__c)) {
+            String body = s == null || !s.Enabled__c ? null : RlySlackSignature.verifiedBody(req, s.Signing_Secret__c);
+            if (body == null) {
                 out.status = 401;
                 return out;
             }
-            Map<String, Object> p = (Map<String, Object>) JSON.deserializeUntyped(RlySlackSignature.payload(req));
+            Map<String, Object> p = (Map<String, Object>) JSON.deserializeUntyped(RlySlackSignature.payloadOf(body));
+            if (!RlySlackTeam.isOurs(s, p)) { // build 48: another workspace
+                out.status = 401;
+                return out;
+            }
             String kind = RlySlackPayload.text(p, 'type');
             if (kind == 'block_actions') {
                 onButton(p);

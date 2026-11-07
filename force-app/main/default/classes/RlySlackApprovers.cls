@@ -31,6 +31,8 @@ public with sharing class RlySlackApprovers {
         @AuraEnabled public Integer attention = 0;
         /** @description What the last change did, or null. */
         @AuraEnabled public String message;
+        /** @description Build 49: the production approval line while the hub requires the add-on, or null. */
+        @AuraEnabled public String prodNote;
     }
 
     /**
@@ -48,6 +50,7 @@ public with sharing class RlySlackApprovers {
         w.matchBy = RlySlackMatch.matchBy();
         fromSettings(w, RlySlack.settings());
         w.rows = new RlySlackApproverRows(w.matchBy, admin ? RlySlackDirectory.access() : null).rows();
+        w.prodNote = RlyProdApproval.isOn() ? RlyProdApproval.NOTE + ' "Production" marks who holds it.' : null;
         for (RlySlackApproverRows.Row r : w.rows) {
             w.linked += r.memberId == null ? 0 : 1;
             w.attention += r.reasonCode == null ? 0 : 1;

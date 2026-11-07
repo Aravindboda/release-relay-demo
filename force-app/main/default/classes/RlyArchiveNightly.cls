@@ -6,7 +6,9 @@
  * caller who isn't an admin, with nightly off or no days, or while another run is going. Nothing eligible on the first
  * call leaves a Succeeded row "Nothing to remove". Otherwise the first call starts a Nightly run and makes pass 1;
  * later calls pass its runId. Build 35: every call that isn't skipped also removes pipeline runs (RLY_Pipeline_Run__c)
- * older than the Retention days (RlyRunMonitorRetention); the answer says how many in "pipelineRuns".
+ * older than the Retention days (RlyRunMonitorRetention); the answer says how many in "pipelineRuns". Build 49: the night's
+ * first call also refreshes the Credentials dashboard (RlyCredentialNightly: its callouts first, its saves last) and
+ * says what it found in "credentials".
  */
 public with sharing class RlyArchiveNightly {
 
@@ -31,6 +33,14 @@ public with sharing class RlyArchiveNightly {
      * @return the answer
      */
     public static Map<String, Object> handle(String body) {
+        RlyCredentialCheck.Pass credentials = RlyCredentialNightly.before(body); // build 49: callouts before any DML
+        Map<String, Object> out = archiveCall(body);
+        RlyCredentialNightly.after(credentials, out);
+        return out;
+    }
+
+    // One archive pass (or why the call is skipped).
+    private static Map<String, Object> archiveCall(String body) {
         Map<String, Object> input = parse(body);
         RLY_Git_Connection__c conn = RlyArchiveSettings.read();
         Id runId = toId(input.get('runId'));

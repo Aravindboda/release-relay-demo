@@ -53,6 +53,7 @@ public with sharing class RlyWorkSettings {
         x.stateMap = t.State_Map__c;
         x.serviceNowTable = t.ServiceNow_Table__c;
         x.active = t.Active__c == true;
+        x.changeMentionsRelease = t.Change_Mentions_Release__c != false;
         x.position = position;
         return x;
     }
@@ -88,7 +89,8 @@ public with sharing class RlyWorkSettings {
         }
         return new RLY_Work_Tracker__c(Name = RlyWorkRouting.kindLabel(s.Tracker__c), Type__c = s.Tracker__c, Ticket_Pattern__c = s.Ticket_Pattern__c,
             Link_Pattern__c = s.Link_Pattern__c, Named_Credential__c = s.Named_Credential__c, Post_Updates__c = s.Post_Updates__c == true,
-            State_Map__c = s.State_Map__c, ServiceNow_Table__c = s.ServiceNow_Table__c, Active__c = true, Sort_Order__c = 1);
+            State_Map__c = s.State_Map__c, ServiceNow_Table__c = s.ServiceNow_Table__c, Active__c = true, Sort_Order__c = 1,
+            Change_Mentions_Release__c = true);
     }
 
     /**

@@ -18,6 +18,7 @@ private class RlyWindowGateTest {
     static void setup() {
         RlyTestData.assignPermissionSet('RLY_Approver');
         RlyTestData.assignPermissionSet('RLY_Admin');
+        RlyTestData.assignPermissionSet('RLY_Window_Bypass_Addon'); // build 49: Deploy now anyway is an add-on
     }
 
     // SIT deploys only on Monday evenings, Chicago time.

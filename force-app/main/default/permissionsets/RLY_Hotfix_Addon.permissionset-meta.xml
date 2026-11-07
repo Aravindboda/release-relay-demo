@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>RLY_Hotfix</name>
+    </customPermissions>
+    <description>Add-on (build 49), assigned on top of a group: raise a hotfix from a developer org, with a reason.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Release Relay Hotfix</label>
+</PermissionSet>

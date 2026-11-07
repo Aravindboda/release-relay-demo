@@ -67,7 +67,8 @@ public with sharing class RlyMigrationRun {
             return false;
         }
         RlyGit git = RlyGit.forConnection(RlyGitConnections.byId(m.Current_Connection__c));
-        Map<String, Object> result = parsed(git.getFileRaw('results/' + m.Run_Id__c + '/migrate.json', RlyPipelineRun.RESULTS_BRANCH));
+        Map<String, Object> result = RlyResultSignature.lenient(git.getFileRaw('results/' + m.Run_Id__c + '/migrate.json', RlyPipelineRun.RESULTS_BRANCH),
+            m.Run_Id__c, 'migrate');
         Boolean fromThisRun = result != null && m.Run_Token__c != null && m.Run_Token__c.equals(String.valueOf(result.get('attempt')));
         if (fromThisRun) {
             settle(m, result);
@@ -123,7 +124,7 @@ public with sharing class RlyMigrationRun {
     // The result: progress while it goes, else the outcome; Verify's (the importer's) dry run is also What moved.
     private static void settle(RLY_Migration__c m, Map<String, Object> result) {
         String status = String.valueOf(result.get('status'));
-        m.Run_Url__c = result.get('runUrl') == null ? m.Run_Url__c : String.valueOf(result.get('runUrl')).left(255);
+        m.Run_Url__c = result.get('runUrl') == null ? m.Run_Url__c : RlyRunMonitorInput.url(result.get('runUrl'));
         m.Run_Status__c = statusOf(m.Run_Kind__c, result);
         String kept = compact(result);
         putResult(m, kept);

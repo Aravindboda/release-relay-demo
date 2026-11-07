@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSetGroup xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Deploy, roll back and move data: manual steps in each org, Open org, rollback, data loads and copy down.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Release Relay Deployment Team</label>
+    <permissionSets>RLY_Deploy_Team</permissionSets>
+    <permissionSets>RLY_Access</permissionSets>
+    <status>Updated</status>
+</PermissionSetGroup>

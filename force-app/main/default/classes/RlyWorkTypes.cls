@@ -57,6 +57,8 @@ public with sharing class RlyWorkTypes {
         @AuraEnabled public String serviceNowTable;
         /** @description New tickets go to it and moments are posted. */
         @AuraEnabled public Boolean active = true;
+        /** @description ServiceNow (build 48): the change gate needs the change to name the release. */
+        @AuraEnabled public Boolean changeMentionsRelease = true;
         /** @description The routing order (1 first). */
         @AuraEnabled public Integer position;
     }
@@ -101,6 +103,8 @@ public with sharing class RlyWorkTypes {
         @AuraEnabled public String trackerLabel;
         /** @description More rows than one read takes. */
         @AuraEnabled public Boolean truncated = false;
+        /** @description Build 49: the viewer may press Sync now (not the read-only Auditor). */
+        @AuraEnabled public Boolean canSync = true;
         /** @description The trackers by name, for the Tracker filter (build 47). */
         @AuraEnabled public List<String> trackers = new List<String>();
     }
@@ -185,5 +189,7 @@ public with sharing class RlyWorkTypes {
         public Boolean allowed = false;
         /** @description In words. */
         public String message;
+        /** @description The change request as ServiceNow sent it (build 48: RlyWorkChangeMention reads it), or null. */
+        public Map<String, Object> record;
     }
 }

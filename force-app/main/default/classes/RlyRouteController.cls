@@ -84,6 +84,9 @@ public with sharing class RlyRouteController {
             Status_Message__c = null
         );
         data.saveGit(row);
+        if (existing == null) {
+            RlyProdApproval.onNewHub(); // build 49: a new hub starts with production approval needing the add-on
+        }
         return row.Id;
     }
 

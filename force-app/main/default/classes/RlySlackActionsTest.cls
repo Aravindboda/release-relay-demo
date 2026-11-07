@@ -120,8 +120,9 @@ private class RlySlackActionsTest {
             send(button(RlySlackCard.APPROVE_ACTION, rel.Id, 'U0OTHER9'), 0, 'body');
             Test.stopTest();
             String whisper = mock.bodyFor('chat.postEphemeral');
-            System.assert(whisper != null && whisper.contains(RlySlackPress.notLinkedText('Approve')), 'Ephemeral: ' + mock.callLog());
-            System.assert(whisper.contains('Link my account') && whisper.contains('RLY_Slack_Link') && whisper.contains('c__t=U0OTHER9.'), whisper);
+            // Build 48: Slack gives no email that matches a user here, so no link token: "Ask an admin to link you".
+            System.assert(whisper != null && whisper.contains('Ask an admin to link you'), 'Ephemeral: ' + mock.callLog());
+            System.assert(!whisper.contains('Link my account') && !whisper.contains('c__t=U0OTHER9.'), whisper);
             System.assertEquals('Ready for approval', RlyReleaseTestData.reload(rel.Id).Status__c, 'Not approved');
         }
     }

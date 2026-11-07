@@ -104,6 +104,10 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public Boolean canAppend;
         /** @description Open org: the orgs on the release's route with their login addresses (admins and the deployment team only, else empty). */
         @AuraEnabled public List<RlyOrgLinks.OrgLink> orgLinks = new List<RlyOrgLinks.OrgLink>();
+        /** @description Build 49: why this approver can't approve it (production needs the add-on), or null. */
+        @AuraEnabled public String prodAddonNote;
+        /** @description Build 49: the current user may run its checks again (raiser, approver, deployment team, admin). */
+        @AuraEnabled public Boolean canRerun;
     }
 
     /** @description What a release page shows about the release's links to others (Detail extends it; RlyReleaseLinks fills it). */
@@ -386,6 +390,8 @@ public with sharing class RlyReleasesController {
         d.slackChannel = RlyReleasePhase.slackChannel(d.release);
         d.canAppend = RlyAppendRules.mayAppend(d.release);
         d.orgLinks = RlyOrgLinks.forRelease(d.release);
+        d.prodAddonNote = RlyProdApproval.noteFor(d.release);
+        d.canRerun = RlyReleaseAccess.mayRerunChecks(d.release);
         RlyRollbackView.fill(d);
         RlyReleaseLinks.fill(d);
         RlyReleaseHistory.fill(d);

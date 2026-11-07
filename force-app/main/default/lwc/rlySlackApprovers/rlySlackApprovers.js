@@ -151,6 +151,8 @@ export default class RlySlackApprovers extends LightningElement {
     // ---------- header ----------
 
     get isAdmin() { return !!(this.win && this.win.isAdmin); }
+    /** Build 49: production approval needs the add-on; rows say "· Production" for its holders. */
+    get prodNote() { return (this.win && this.win.prodNote) || ''; }
     get matchBy() { return (this.win && this.win.matchBy) || 'SSO'; }
     get isManual() { return this.matchBy === 'Manual'; }
     get matchLabel() { return MATCH_LABELS[this.matchBy] || this.matchBy; }

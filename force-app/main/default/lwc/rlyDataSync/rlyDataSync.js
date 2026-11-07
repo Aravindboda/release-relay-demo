@@ -51,7 +51,7 @@ export default class RlyDataSync extends LightningElement {
             if (!this.selectedSetId && this.data.sets.length) {
                 this.selectedSetId = this.data.sets[0].id;
             }
-            this.direction = this.data.isAdmin ? this.direction : 'Up';
+            this.direction = this.canMoveDown ? this.direction : 'Up';
             this.tickIfRunning();
         } catch (e) {
             this.error = errorText(e);
@@ -62,6 +62,8 @@ export default class RlyDataSync extends LightningElement {
 
     get loaded() { return !!this.data; }
     get isAdmin() { return !!this.data && this.data.isAdmin; }
+    /** Copy down and refill: admins and the deployment team (build 49). */
+    get canMoveDown() { return !!this.data && (this.data.canMoveDown === true || this.data.isAdmin === true); }
     get sets() {
         return (this.data ? this.data.sets : []).map((s) => ({ ...s, cls: 'rr-set' + (s.id === this.selectedSetId ? ' rr-set-on' : ''),
             sub: s.problem ? s.problem : s.objectCount + (s.objectCount === 1 ? ' object' : ' objects') }));
@@ -158,7 +160,7 @@ export default class RlyDataSync extends LightningElement {
     // ---------- start a run ----------
 
     get directionButtons() {
-        const allowed = this.isAdmin ? DIRECTIONS : DIRECTIONS.filter((d) => d.value === 'Up');
+        const allowed = this.canMoveDown ? DIRECTIONS : DIRECTIONS.filter((d) => d.value === 'Up');
         return allowed.map((d) => ({ ...d, cls: 'rr-seg' + (d.value === this.direction ? ' rr-seg-on' : ''), pressed: d.value === this.direction ? 'true' : 'false' }));
     }
     get isUp() { return this.direction === 'Up'; }
@@ -169,7 +171,7 @@ export default class RlyDataSync extends LightningElement {
         return (this.data ? this.data.orgs : []).filter((o) => o.canLoad).map((o) => ({ label: o.name, value: o.id }));
     }
     get refills() {
-        return (this.data ? this.data.orgs : []).filter((o) => o.refillDue && this.isAdmin).map((o) => ({ ...o, key: o.id,
+        return (this.data ? this.data.orgs : []).filter((o) => o.refillDue && this.canMoveDown).map((o) => ({ ...o, key: o.id,
             text: o.name + ' was refreshed since its last data load.' }));
     }
     get maskHint() {
@@ -256,7 +258,7 @@ export default class RlyDataSync extends LightningElement {
         const me = this.data ? this.data.userId : null;
         return (this.data ? this.data.runs : []).map((r) => {
             const pill = statusPill(r.status);
-            const canLoad = r.status === 'Ready' && (r.direction === 'Up' ? this.data.isApprover && r.requestedById !== me : this.isAdmin);
+            const canLoad = r.status === 'Ready' && (r.direction === 'Up' ? this.data.isApprover && r.requestedById !== me : this.canMoveDown);
             const d = this.details[r.runId];
             return { ...r, key: r.runId, detailKey: r.runId + '-detail', pillLabel: pill.label, pillCls: pill.cls, countsText: countsText(r.counts),
                 canLoad, open: this.openRunId === r.runId,

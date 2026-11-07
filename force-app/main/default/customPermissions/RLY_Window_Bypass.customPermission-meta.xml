@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomPermission xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Deploy now anyway: start a release waiting for its target's release window (or a freeze) at once, with a reason. Assigned with the add-on permission set Release Relay Release Window Bypass.</description>
+    <isLicensed>false</isLicensed>
+    <label>Release Relay Release Window Bypass</label>
+</CustomPermission>
