@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSetGroup xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Read only: Home, Releases, Pipeline Monitor, Metrics, Work items, Archive and Guide; releases, their history and evidence PDFs. No action buttons. RLY_Access lets the release pages read their changes from Git.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Release Relay Auditor</label>
+    <permissionSets>RLY_Auditor</permissionSets>
+    <permissionSets>RLY_Access</permissionSets>
+    <status>Updated</status>
+</PermissionSetGroup>

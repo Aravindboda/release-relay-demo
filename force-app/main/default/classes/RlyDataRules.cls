@@ -8,6 +8,8 @@
  */
 public with sharing class RlyDataRules {
 
+    /** @description The deployment team's custom permission. */
+    public static final String DEPLOY_TEAM = 'RLY_Deploy_Team';
     private static final Pattern RELEASE_PATTERN = Pattern.compile('^REL-\\d{5,10}$');
 
     /** @description A checked request: the set, its definition, the orgs. */
@@ -87,19 +89,36 @@ public with sharing class RlyDataRules {
     }
 
     /**
-     * @description Who may load: Up, an approver or admin who didn't start the run; Down and Refill, an admin.
+     * @description Whether the current user moves data both ways (copy down, refill): admins and, from build 49, the
+     * deployment team.
+     * @return true for them
+     */
+    public static Boolean mayMoveDown() {
+        return RlyOrgController.isAdmin() || FeatureManagement.checkPermission(DEPLOY_TEAM);
+    }
+
+    /**
+     * @description Whether the current user may load data sent up: an approver, the deployment team or an admin.
+     * @return true for them
+     */
+    public static Boolean mayLoadUp() {
+        return mayMoveDown() || FeatureManagement.checkPermission('RLY_Approver');
+    }
+
+    /**
+     * @description Who may load: Up, an approver, the deployment team or an admin who didn't start the run; Down and
+     * Refill, an admin or the deployment team.
      * @param run the run
      */
     public static void requireLoader(RLY_Data_Run__c run) {
-        Boolean admin = RlyOrgController.isAdmin();
         if (run.Direction__c != RlyDataRuns.UP) {
-            if (!admin) {
-                throw new RlyReleaseException('Loading data copied down is for Release Relay admins.');
+            if (!mayMoveDown()) {
+                throw new RlyReleaseException('Loading data copied down is for Release Relay admins and the deployment team.');
             }
             return;
         }
-        if (!admin && !FeatureManagement.checkPermission('RLY_Approver')) {
-            throw new RlyReleaseException('An approver loads data sent up, after reading the dry run.');
+        if (!mayLoadUp()) {
+            throw new RlyReleaseException('An approver or the deployment team loads data sent up, after reading the dry run.');
         }
         if (run.Requested_By__c == UserInfo.getUserId()) {
             throw new RlyReleaseException('Someone else approves the load: you started this run.');

@@ -99,7 +99,7 @@ public with sharing class RlyWindowController {
     }
 
     /**
-     * @description Starts a waiting release's deploy now, outside the window (admins, with a reason).
+     * @description Starts a waiting release's deploy now, outside the window (the Release Window Bypass add-on, with a reason).
      * @param releaseId the release
      * @param reason why it can't wait
      * @return the release's status afterwards

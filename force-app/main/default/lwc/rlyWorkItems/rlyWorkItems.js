@@ -84,6 +84,8 @@ export default class RlyWorkItems extends NavigationMixin(LightningElement) {
         }
     }
 
+    /** Build 49: the read-only Auditor doesn't get Sync now. */
+    get canSync() { return !this.data || this.data.canSync !== false; }
     get trackerLabel() { return this.data ? this.data.trackerLabel : ''; }
     get orgs() { return this.data ? this.data.orgs.map((o) => ({ key: o, label: o })) : []; }
     get filters() {

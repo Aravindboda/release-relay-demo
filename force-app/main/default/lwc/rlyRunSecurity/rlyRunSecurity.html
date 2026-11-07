@@ -1,0 +1,67 @@
+<template>
+    <!-- design board: b48 sections 1 and 2 -->
+    <section class="rr-rs" aria-label="Run signing">
+        <div class="rr-rs-head">
+            <div class="rr-grow">
+                <h2 class="rr-h2">Run signing</h2>
+                <p class="rr-small rr-weak">Only runs the hub starts can deploy; only results the pipeline signed are trusted</p>
+            </div>
+            <template lwc:if={status}><span class={signPillCls}>{signPill}</span></template>
+            <template lwc:if={showGenerate}><lightning-button label={generateLabel} onclick={generate} disabled={busy}></lightning-button></template>
+        </div>
+        <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+        <template lwc:if={saved}><div class="rr-msg rr-msg-ok" role="status">{saved}</div></template>
+
+        <template lwc:if={status}>
+            <dl class="rr-facts">
+                <div><dt>Run-signing key</dt><dd>{keyText}</dd></div>
+                <div><dt>Runs</dt><dd>{runsText}</dd></div>
+                <div><dt>Results</dt><dd>{resultsText}</dd></div>
+            </dl>
+            <template lwc:if={readOnly}><p class="rr-small rr-weak">Only Release Relay admins can change this.</p></template>
+        </template>
+
+        <template lwc:if={newKey}>
+            <div class="rr-new" aria-label="New run-signing key">
+                <div class="rr-rs-head"><p class="rr-strong rr-grow">New run-signing key</p><span class="rr-pill rr-pill-wait">Not saved yet</span></div>
+                <div class="rr-key" aria-label="The new key">{newKey}</div>
+                <ol class="rr-steps">
+                    <li>Copy the key.</li>
+                    <li>{whereText}</li>
+                    <li>Press Save key here. The key is never shown again.</li>
+                </ol>
+                <div class="rr-msg rr-msg-info">Runs started after step 2 and before step 3 are refused by the pipeline; start them again after saving.<template lwc:if={replacing}> Saving replaces the current key: put the new one in the repository first.</template></div>
+                <div class="rr-actions">
+                    <lightning-button label={copyLabel} onclick={copyKey} disabled={busy}></lightning-button>
+                    <lightning-button label="Cancel" onclick={cancelKey} disabled={busy}></lightning-button>
+                    <lightning-button variant="brand" label="Save key" onclick={saveNewKey} disabled={busy}></lightning-button>
+                </div>
+            </div>
+        </template>
+    </section>
+
+    <section class="rr-rs rr-pb" aria-label="Repository security">
+        <div class="rr-rs-head">
+            <div class="rr-grow">
+                <h2 class="rr-h2">Repository security</h2>
+                <p class="rr-small rr-weak">{reportSubtitle}</p>
+            </div>
+            <template lwc:if={report}><span class={reportPillCls}>{reportPill}</span></template>
+            <template lwc:if={canEdit}><lightning-button label={checkLabel} onclick={checkRepository} disabled={busy}></lightning-button></template>
+        </div>
+        <template lwc:if={checkError}><div class="rr-msg rr-msg-bad" role="alert">{checkError}</div></template>
+        <template lwc:if={report}>
+            <div class="rr-table" role="table" aria-label="Repository protections">
+                <template for:each={rows} for:item="r">
+                    <div key={r.key} class="rr-tr" role="row">
+                        <span role="cell"><span class={r.iconCls} aria-label={r.stateLabel} title={r.stateLabel}>{r.icon}</span></span>
+                        <span role="cell"><span class="rr-strong rr-block">{r.label}</span><span class="rr-small rr-weak rr-break">{r.detail}</span></span>
+                        <span role="cell" class="rr-small rr-break"><template lwc:if={r.fix}><span class="rr-strong">How to fix: </span>{r.fix}</template><template lwc:else><span class="rr-weak">—</span></template></span>
+                    </div>
+                </template>
+            </div>
+            <p class="rr-small rr-weak">Read-only: nothing is changed in the repository. Secrets and variables are read by name only.</p>
+        </template>
+        <template lwc:if={noReport}><p class="rr-small rr-weak">{noReportText}</p></template>
+    </section>
+</template>

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Status__c</fullName>
+    <description>OK; Expiring (30 days or less); Critical (7 days or less); Expired; Failed (the check failed); Unknown (it can&apos;t be read).</description>
+    <externalId>false</externalId>
+    <label>Status</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>OK</fullName>
+                <default>false</default>
+                <label>OK</label>
+            </value>
+            <value>
+                <fullName>Expiring</fullName>
+                <default>false</default>
+                <label>Expiring</label>
+            </value>
+            <value>
+                <fullName>Critical</fullName>
+                <default>false</default>
+                <label>Critical</label>
+            </value>
+            <value>
+                <fullName>Expired</fullName>
+                <default>false</default>
+                <label>Expired</label>
+            </value>
+            <value>
+                <fullName>Failed</fullName>
+                <default>false</default>
+                <label>Failed</label>
+            </value>
+            <value>
+                <fullName>Unknown</fullName>
+                <default>true</default>
+                <label>Unknown</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

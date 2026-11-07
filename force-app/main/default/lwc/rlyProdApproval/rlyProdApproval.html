@@ -1,0 +1,24 @@
+<template>
+    <!-- design board: b49 section 2 -->
+    <section class="rr-pa" aria-label="Approvals">
+        <div class="rr-pa-head">
+            <div class="rr-grow">
+                <h2 class="rr-h2">Approvals</h2>
+                <p class="rr-small rr-weak">Who may approve releases into production</p>
+            </div>
+            <template lwc:if={view}><span class={pillCls}>{pillText}</span></template>
+        </div>
+        <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+        <template lwc:if={banner}><div class="rr-msg rr-msg-wait" role="status"><strong>{banner}</strong> Until then every approver can still approve production. {holdersText}</div></template>
+        <template lwc:if={view}>
+            <div class="rr-pa-row">
+                <lightning-input type="toggle" label="Production approval needs the add-on" checked={isOn} disabled={toggleDisabled}
+                    message-toggle-active="On" message-toggle-inactive="Off" onchange={handleToggle}></lightning-input>
+                <p class="rr-small rr-weak rr-grow">On: only holders of the Release Relay Production Approver add-on approve releases into production, here and in Slack; the Approver group alone approves the other orgs.</p>
+            </div>
+            <template lwc:if={showHolders}><p class="rr-small">{holdersText}</p></template>
+            <template lwc:if={view.changedText}><p class="rr-small rr-weak">{view.changedText}</p></template>
+            <template lwc:if={readOnly}><p class="rr-small rr-weak">Only Release Relay admins can change this.</p></template>
+        </template>
+    </section>
+</template>

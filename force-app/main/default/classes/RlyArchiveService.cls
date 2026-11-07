@@ -2,7 +2,7 @@
  * @description Retention and the Archive tab, for RlyArchiveController; RlyArchiveRunner makes the runs. Works only in
  * the production hub (RlyHubGuard: the hub, not a sandbox, a copy or a sandbox with the admin override); elsewhere the
  * pages get the org gate and every action is refused. Admins (RLY_Admin) edit Retention and run the archive; approvers
- * (RLY_Approver) see the Archive tab. Counts come from RlyArchiveEligible, totals, months and health from
+ * (RLY_Approver) and auditors (RLY_Auditor, build 49) see the Archive tab. Counts come from RlyArchiveEligible, totals, months and health from
  * RlyArchiveStats, runs from RlyArchiveRuns. Shared records are read and changed in system mode only in the private
  * inner without sharing classes of those classes.
  */
@@ -150,7 +150,7 @@ public with sharing class RlyArchiveService {
         a.gateTitle = g.title;
         a.gateMessage = g.message;
         Boolean admin = RlyOrgController.isAdmin();
-        a.canView = admin || FeatureManagement.checkPermission(APPROVER_PERMISSION);
+        a.canView = admin || FeatureManagement.checkPermission(APPROVER_PERMISSION) || RlyRoles.isAuditor(); // build 49: auditors read it
         if (g.mode != RlyHubGuard.MODE_HUB || !a.canView) {
             return a;
         }

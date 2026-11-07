@@ -3,7 +3,8 @@
  * The copy must not post to the team's Slack or push to the team's Git repository: it switches Slack off
  * (RLY_Notification__c Enabled__c false) and sets the Git connection's status to 'Not checked', with a note saying
  * why. It also removes everyone's assignments of Release Relay's own permission sets (RLY_Developer, RLY_Approver,
- * RLY_Deploy_Team, RLY_Slack_Site, by exact name) and keeps RLY_Admin, so only admins see the copy. RlyHubGuard
+ * RLY_Deploy_Team, RLY_Slack_Site, and from build 49 RLY_Auditor, the add-ons and the Developer, Approver, Deployment
+ * Team and Auditor groups, by exact name) and keeps RLY_Admin and the Admin and Full Access groups, so only admins see the copy. RlyHubGuard
  * refuses releases in the copy as well, and its tabs only show the Guide's Set up.
  */
 @SuppressWarnings('PMD.AvoidGlobalModifier') // global is required: Salesforce calls SandboxPostCopy classes from outside the namespace.
@@ -18,7 +19,11 @@ global with sharing class RlySandboxCopy implements SandboxPostCopy {
         + 'could not be removed automatically: remove their assignments in Setup > Permission Sets > Manage Assignments.';
 
     // Release Relay's own permission sets, by exact name (RLY_Admin stays). Other sets that start with RLY_ are left alone.
-    private static final Set<String> RELAY_SETS = new Set<String>{ 'RLY_Developer', 'RLY_Approver', 'RLY_Deploy_Team', 'RLY_Slack_Site' };
+    private static final Set<String> RELAY_SETS = new Set<String>{ 'RLY_Developer', 'RLY_Approver', 'RLY_Deploy_Team', 'RLY_Slack_Site',
+        'RLY_Auditor', 'RLY_Hotfix_Addon', 'RLY_Prod_Approver_Addon', 'RLY_Window_Bypass_Addon' };
+    // Build 49: the role groups too (the Admin and Full Access groups stay).
+    private static final Set<String> RELAY_GROUPS = new Set<String>{ 'RLY_Developer_Group', 'RLY_Approver_Group', 'RLY_Deploy_Team_Group',
+        'RLY_Auditor_Group' };
 
     /** @description Set by a test to act as if Salesforce refused the permission set DML (tests may mix DML in runAs). */
     @TestVisible
@@ -78,7 +83,7 @@ global with sharing class RlySandboxCopy implements SandboxPostCopy {
                 throw new DmlException('MIXED_DML_OPERATION');
             }
             List<PermissionSetAssignment> rows = [SELECT Id FROM PermissionSetAssignment
-                                                  WHERE PermissionSet.Name IN :RELAY_SETS
+                                                  WHERE PermissionSet.Name IN :RELAY_SETS OR PermissionSetGroup.DeveloperName IN :RELAY_GROUPS
                                                   WITH SYSTEM_MODE LIMIT 10000];
             if (!rows.isEmpty()) {
                 delete as system rows;

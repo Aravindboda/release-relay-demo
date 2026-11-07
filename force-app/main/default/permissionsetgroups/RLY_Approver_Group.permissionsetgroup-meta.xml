@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSetGroup xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Approve non-production releases (in Salesforce and Slack), reject, bypass a code scan, promote. Add the Production Approver add-on for people who approve production.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Release Relay Approver</label>
+    <permissionSets>RLY_Approver</permissionSets>
+    <permissionSets>RLY_Access</permissionSets>
+    <status>Updated</status>
+</PermissionSetGroup>

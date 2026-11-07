@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>RLY_Prod_Approver</name>
+    </customPermissions>
+    <description>Add-on (build 49), assigned on top of the Approver or Admin group: approve releases into the production hub once the hub setting Production approval needs the add-on is on.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Release Relay Production Approver</label>
+</PermissionSet>
