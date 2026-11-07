@@ -1,16 +1,16 @@
 {
  "request": "REL-91039",
  "step": "validate",
- "status": "Failed",
+ "status": "Passed",
  "changed": 46,
  "deleted": [],
  "mergedWith": "9127b295ec0aec78b9cb3a87c0b065acdb0b1f50",
- "validatedTree": "2b793b8f66b8287e3309cb686234e543208edb3e",
+ "validatedTree": "ffd6545952ffd18585fe9e7f863d18f4985a1f64",
  "environment": "sit",
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d7OGrSAM",
- "testsRun": 0,
+ "deployId": "0AfgL00000d7OVNSA2",
+ "testsRun": 441,
  "tests": [
   "RlyAppendTest",
   "RlyApprovalRulesTest",
@@ -78,138 +78,16 @@
   "RlyWindowGateTest"
  ],
  "coverageWarnings": [],
- "componentErrors": [
-  {
-   "type": "ApexClass",
-   "name": "RlyApprovalRuns",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyWindowGate : Identifier name is reserved: when",
-   "line": 141
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyBackPromoteRun",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyPromotion : Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyWindowGate : Identifier name is reserved: when",
-   "line": 141
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyHomeNeeds",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyApprovalService : Dependent class is invalid and needs recompilation:\n Class RlyManualStepGate : Dependent class is invalid and needs recompilation:\n Class RlyApprover : Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Cl",
-   "line": 141
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyHomeStats",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleaseQuery : Dependent class is invalid and needs recompilation:\n Class RlyHotfix : Dependent class is invalid and needs recompilation:\n Class RlyRaiseService : Dependent class is invalid and needs recompilation:\n Class RlyManualOnly : Dependent class is invalid and needs recompilation:\n Class RlyManualSteps : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuleOrg : Dependent class is invalid and needs recompilation:\n Class RlyApprovalWords : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRules : Dependent class is invalid and needs recompilation:\n Class R",
-   "line": 141
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyReleasePhase",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyWindowGate : Identifier name is reserved: when",
-   "line": 141
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyReleaseQuery",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyHotfix : Dependent class is invalid and needs recompilation:\n Class RlyRaiseService : Dependent class is invalid and needs recompilation:\n Class RlyManualOnly : Dependent class is invalid and needs recompilation:\n Class RlyManualSteps : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuleOrg : Dependent class is invalid and needs recompilation:\n Class RlyApprovalWords : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRules : Dependent class is invalid and needs recompilation:\n Class RlyManualStepGate : Dependent class is invalid and needs recompilation:\n Class",
-   "line": 141
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyReleaseWindow",
-   "problem": "Duplicate field: days",
-   "line": 18
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyReleaseWindow",
-   "problem": "Final members can only be assigned in their declaration, init blocks, or constructors: DAYS",
-   "line": 34
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyReleaseWindowTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleaseWindow : Duplicate field: days",
-   "line": 18
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyStatusReader",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyBackPromoteRun : Dependent class is invalid and needs recompilation:\n Class RlyPromotion : Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyWindowGate : Identifier name is reserved: when",
-   "line": 141
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyWindowController",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleaseWindow : Duplicate field: days",
-   "line": 18
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyWindowGate",
-   "problem": "Identifier name is reserved: when",
-   "line": 141
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyWindowGateTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyWindowController : Dependent class is invalid and needs recompilation:\n Class RlyReleaseWindow : Duplicate field: days",
-   "line": 18
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyWindowInput",
-   "problem": "Method does not exist or incorrect signature: void getTimeZone(String) from the type String",
-   "line": 67
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyWindowText",
-   "problem": "Static field cannot be referenced from a non static context: DAYS from the type RlyReleaseWindow",
-   "line": 22
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyWindowText",
-   "problem": "Static field cannot be referenced from a non static context: DAYS from the type RlyReleaseWindow",
-   "line": 89
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyHome",
-   "problem": "Unable to find Apex action class referenced as 'RlyWindowController'."
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Admin",
-   "problem": "In field: apexClass - no ApexClass named RlyWindowController found"
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Approver",
-   "problem": "In field: apexClass - no ApexClass named RlyWindowController found"
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Deploy_Team",
-   "problem": "In field: apexClass - no ApexClass named RlyWindowController found"
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Developer",
-   "problem": "In field: apexClass - no ApexClass named RlyWindowController found"
-  }
- ],
+ "componentErrors": [],
  "testFailures": [],
- "message": "21 component error(s)",
+ "message": "",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42392689760",
- "finishedAt": "2026-11-07T16:44:23.642Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42392936825",
+ "finishedAt": "2026-11-07T16:52:43.747Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
