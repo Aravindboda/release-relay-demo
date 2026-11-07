@@ -1,16 +1,16 @@
 {
  "request": "REL-91054",
  "step": "validate",
- "status": "Failed",
- "changed": 78,
+ "status": "Passed",
+ "changed": 50,
  "deleted": [],
  "mergedWith": "ef34d0f8bbf62d42cfed53389af88a4af57a82a5",
- "validatedTree": "64d6def63423b548dc43d81203b3c111f2b7de43",
+ "validatedTree": "7c6fad6f3f5ecfffa6f721847207c3367841faed",
  "environment": "sit",
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d8RvpSAE",
- "testsRun": 0,
+ "deployId": "0AfgL00000d8P1CSAU",
+ "testsRun": 523,
  "tests": [
   "RlyAppendTest",
   "RlyApprovalRulesTest",
@@ -37,6 +37,7 @@
   "RlyFlowActivationTest",
   "RlyFlowBatchTest",
   "RlyGitAdviceTest",
+  "RlyGitLabTest",
   "RlyGitProvidersTest",
   "RlyHomeControllerTest",
   "RlyHotfixTest",
@@ -45,6 +46,8 @@
   "RlyManualStepGateTest",
   "RlyManualStepsTest",
   "RlyMetricsTest",
+  "RlyMigrationPartsTest",
+  "RlyMigrationTest",
   "RlyOrgControllerTest",
   "RlyOrgLinksTest",
   "RlyOrgSessionTest",
@@ -63,6 +66,7 @@
   "RlyRouteControllerTest",
   "RlyRunMonitorControllerTest",
   "RlyRunMonitorRestTest",
+  "RlyRunTitlesTest",
   "RlyScanRuleTest",
   "RlySetupStatusTest",
   "RlySharedReadTest",
@@ -79,27 +83,19 @@
   "RlyTwoApproversTest",
   "RlyWindowGateTest",
   "RlyWorkItemsTest",
-  "RlyRunTitlesTest",
-  "RlyWorkTrackersTest",
-  "RlyGitLabTest"
+  "RlyWorkTrackersTest"
  ],
  "coverageWarnings": [],
- "componentErrors": [
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyWorkTracking",
-   "problem": "Value too long for field: Description maximum length is:255"
-  }
- ],
+ "componentErrors": [],
  "testFailures": [],
- "message": "1 component error(s)",
+ "message": "",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42417742154",
- "finishedAt": "2026-11-07T21:51:47.700Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42418070276",
+ "finishedAt": "2026-11-07T22:01:55.569Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
