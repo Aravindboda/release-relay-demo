@@ -1,0 +1,97 @@
+{
+ "request": "REL-91039",
+ "step": "scan",
+ "status": "Passed",
+ "total": 4,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Moderate": 4
+ },
+ "files": [
+  "force-app/main/default/classes/RlyApprovalRuns.cls",
+  "force-app/main/default/classes/RlyBackPromoteRun.cls",
+  "force-app/main/default/classes/RlyHomeNeeds.cls",
+  "force-app/main/default/classes/RlyHomeStats.cls",
+  "force-app/main/default/classes/RlyPromoteStore.cls",
+  "force-app/main/default/classes/RlyReleasePhase.cls",
+  "force-app/main/default/classes/RlyReleaseQuery.cls",
+  "force-app/main/default/classes/RlyReleaseWindow.cls",
+  "force-app/main/default/classes/RlyReleaseWindowTest.cls",
+  "force-app/main/default/classes/RlyStatusReader.cls",
+  "force-app/main/default/classes/RlyWindowController.cls",
+  "force-app/main/default/classes/RlyWindowFreezes.cls",
+  "force-app/main/default/classes/RlyWindowGate.cls",
+  "force-app/main/default/classes/RlyWindowGateTest.cls",
+  "force-app/main/default/classes/RlyWindowInput.cls",
+  "force-app/main/default/classes/RlyWindowStore.cls",
+  "force-app/main/default/classes/RlyWindowText.cls",
+  "force-app/main/default/lwc/rlyHome/rlyHome.html",
+  "force-app/main/default/lwc/rlyHome/rlyHome.js",
+  "force-app/main/default/lwc/rlyOrgTile/rlyOrgTile.html",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+  "force-app/main/default/lwc/rlyPipelineMonitor/rlyPipelineMonitor.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js",
+  "force-app/main/default/lwc/rlyReleaseTracker/rlyReleaseTracker.js",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.html",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.js",
+  "force-app/main/default/lwc/rlyReleaseWindow/rlyReleaseWindow.html",
+  "force-app/main/default/lwc/rlyReleaseWindow/rlyReleaseWindow.js",
+  "force-app/main/default/lwc/rlyWindowDeploy/rlyWindowDeploy.html",
+  "force-app/main/default/lwc/rlyWindowDeploy/rlyWindowDeploy.js"
+ ],
+ "violations": [
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+   "line": 1666,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+   "line": 3061,
+   "message": "Inline rule disablement not allowed: @lwc/lwc/no-async-operation",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+   "line": 3295,
+   "message": "Inline rule disablement not allowed: @lwc/lwc/no-async-operation",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyReleaseTracker/rlyReleaseTracker.js",
+   "line": 430,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42392689760",
+ "finishedAt": "2026-11-07T16:44:06.302Z"
+}
