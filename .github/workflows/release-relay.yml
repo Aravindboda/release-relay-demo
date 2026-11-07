@@ -1,4 +1,11 @@
-# Release Relay pipeline files: version 21
+# Release Relay pipeline files: version 22
+# Version 22: mode "compare" (the hub's Compare before raising, for big releases). The hub commits the developer org's
+# copy as Metadata API zips to release-relay-results (compare-inbox/<id>/<n>.zip) and starts the run with request_id
+# CMP-<13 digits>, target = the branch to compare with, components/deletions and options.batches. The compare job signs
+# in to no org and uses no environment: it converts the zips on top of the target branch and writes
+# results/<id>/compare.json and results/<id>/f/<n>.json for the hub to read. Every other job skips; the Pipeline Monitor
+# shows the run as "Compare". Also in version 22: the hub can send a big release in parts
+# (.relay-inbox/<REL>-part-<k>.zip on the release branch); the script unpacks them all.
 # Version 21: the archive call sends its JSON body inline (--body "$body"). "sf api request rest --body" sent the file's
 # path as the body, so the hub never saw the body.
 # Version 20: Pipeline Monitor. Two small jobs tell the hub about every run, signed in with the hub environment's login
@@ -83,10 +90,10 @@ on:
         required: false
         type: string
       mode:
-        description: org, branch, promote, hub, resolve, check, merge, sync, rollback, or archive (the nightly archive, by hand)
+        description: org, branch, promote, hub, resolve, check, merge, sync, rollback, compare (from the hub), or archive (the nightly archive, by hand)
         required: true
         type: choice
-        options: [org, branch, promote, hub, resolve, check, merge, sync, rollback, archive]
+        options: [org, branch, promote, hub, resolve, check, merge, sync, rollback, compare, archive]
       environment:
         description: GitHub environment of the source org (sync = the hub's production org)
         required: false
@@ -129,9 +136,9 @@ permissions:
   pull-requests: write
 
 # One run at a time per release branch; back promotes, one at a time per back-promote branch; rollbacks, one at
-# a time per org; the nightly archive, one at a time.
+# a time per org; the nightly archive, one at a time; each compare on its own.
 concurrency:
-  group: release-relay-${{ github.event_name == 'schedule' && 'archive' || (inputs.mode == 'rollback' && format('rollback-{0}', inputs.target_environment) || (inputs.mode == 'sync' && inputs.target || inputs.branch)) }}
+  group: release-relay-${{ github.event_name == 'schedule' && 'archive' || (inputs.mode == 'compare' && format('compare-{0}', inputs.request_id) || (inputs.mode == 'rollback' && format('rollback-{0}', inputs.target_environment) || (inputs.mode == 'sync' && inputs.target || inputs.branch))) }}
   cancel-in-progress: false
 
 env:
@@ -512,6 +519,44 @@ jobs:
           SF_JKS_ALIAS: ${{ vars.SF_JKS_ALIAS }}
         run: node scripts/release-relay.js
 
+  # Compare (version 22): the hub's Compare before raising for a big release. Reads the zips the hub left on
+  # release-relay-results, converts them on top of the target branch and writes the result files there. No org login
+  # and no environment: the developer org's copy came from the hub.
+  compare:
+    if: ${{ inputs.mode == 'compare' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      - name: Salesforce CLI cache key
+        id: sfkey
+        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+      - name: Cache Salesforce CLI
+        uses: actions/cache@v4
+        with:
+          path: ~/.relay-sf
+          key: ${{ steps.sfkey.outputs.key }}
+      - name: Install Salesforce CLI
+        run: |
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
+      # Inputs reach the script only as environment variables, never inside a shell command.
+      - name: Compare with the target branch
+        env:
+          STEP: compare
+          OPTIONS: ${{ inputs.options }}
+          COMPONENTS: ${{ inputs.components }}
+          DELETIONS: ${{ inputs.deletions }}
+          ORG_LABEL: ${{ vars.ORG_LABEL }}
+          SOURCE_PATH: ${{ vars.SOURCE_PATH }}
+        run: node scripts/release-relay.js
+
   # Nightly archive (schedule only): signs in to the hub with its environment's login (as the other jobs do) and
   # calls the archive endpoint once per pass until it answers done (at most 25 calls). Each call's answer is logged.
   # The hub decides: it skips (and says why) unless it is the production hub, the user has Release Relay Admin,
@@ -658,7 +703,7 @@ jobs:
   # the hub how the run ended: Succeeded, Failed or Cancelled from the jobs' results, the finished time and duration,
   # each job's outcome and the first failure (read from this run with its own token: actions and checks read). Never fails the run.
   monitor-end:
-    needs: [monitor-start, raise, scan, validate, merge, deploy, sync, rollback, notify, archive]
+    needs: [monitor-start, raise, scan, validate, merge, deploy, sync, rollback, notify, archive, compare]
     if: ${{ always() && vars.RELAY_MONITOR != 'off' }}
     runs-on: ubuntu-latest
     environment: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
