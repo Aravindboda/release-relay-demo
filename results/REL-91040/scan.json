@@ -1,0 +1,93 @@
+{
+ "request": "REL-91040",
+ "step": "scan",
+ "status": "Failed",
+ "total": 3,
+ "blocking": 2,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "High": 2,
+  "Moderate": 1
+ },
+ "files": [
+  "force-app/main/default/classes/RlyApprovalRuns.cls",
+  "force-app/main/default/classes/RlyEvidenceCsv.cls",
+  "force-app/main/default/classes/RlyEvidenceHtml.cls",
+  "force-app/main/default/classes/RlyEvidenceTest.cls",
+  "force-app/main/default/classes/RlyPromotion.cls",
+  "force-app/main/default/classes/RlyRaiseService.cls",
+  "force-app/main/default/classes/RlyReleaseQuery.cls",
+  "force-app/main/default/classes/RlyReleaseStore.cls",
+  "force-app/main/default/classes/RlySlackCardText.cls",
+  "force-app/main/default/classes/RlyWorkBoard.cls",
+  "force-app/main/default/classes/RlyWorkBoardRow.cls",
+  "force-app/main/default/classes/RlyWorkCalls.cls",
+  "force-app/main/default/classes/RlyWorkFormat.cls",
+  "force-app/main/default/classes/RlyWorkGate.cls",
+  "force-app/main/default/classes/RlyWorkItems.cls",
+  "force-app/main/default/classes/RlyWorkItemsController.cls",
+  "force-app/main/default/classes/RlyWorkItemsTest.cls",
+  "force-app/main/default/classes/RlyWorkLinks.cls",
+  "force-app/main/default/classes/RlyWorkSettings.cls",
+  "force-app/main/default/classes/RlyWorkStore.cls",
+  "force-app/main/default/classes/RlyWorkSync.cls",
+  "force-app/main/default/classes/RlyWorkTracker.cls",
+  "force-app/main/default/classes/RlyWorkTypes.cls",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+  "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.html",
+  "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js",
+  "force-app/main/default/lwc/rlyReleaseTickets/rlyReleaseTickets.html",
+  "force-app/main/default/lwc/rlyReleaseTickets/rlyReleaseTickets.js",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.html",
+  "force-app/main/default/lwc/rlyTicketInput/rlyTicketInput.html",
+  "force-app/main/default/lwc/rlyTicketInput/rlyTicketInput.js",
+  "force-app/main/default/lwc/rlyWorkItems/rlyWorkItems.html",
+  "force-app/main/default/lwc/rlyWorkItems/rlyWorkItems.js",
+  "force-app/main/default/lwc/rlyWorkTracking/rlyWorkTracking.html",
+  "force-app/main/default/lwc/rlyWorkTracking/rlyWorkTracking.js"
+ ],
+ "violations": [
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "no-unused-vars",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+   "line": 106,
+   "message": "'e' is defined but never used.",
+   "url": "https://eslint.org/docs/latest/rules/no-unused-vars"
+  },
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "no-unused-vars",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyTicketInput/rlyTicketInput.js",
+   "line": 74,
+   "message": "'e' is defined but never used.",
+   "url": "https://eslint.org/docs/latest/rules/no-unused-vars"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc/no-api-reassignments",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+   "line": 170,
+   "message": "Invalid reassignment of public property \"appendTo\"",
+   "url": "https://github.com/salesforce/eslint-plugin-lwc/blob/v3.5.0/docs/rules/no-api-reassignments.md"
+  }
+ ],
+ "message": "2 violation(s) at High or above.",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42393782093",
+ "finishedAt": "2026-11-07T16:57:05.069Z"
+}
