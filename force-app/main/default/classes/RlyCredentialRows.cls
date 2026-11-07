@@ -116,7 +116,7 @@ public with sharing class RlyCredentialRows {
      * @param noExpiryText the message when there is no expiry
      * @return the row
      */
-    public static RLY_Credential_Status__c expiring(RLY_Credential_Status__c r, Date expires, String noExpiryText) {
+    public static RLY_Credential_Status__c fromExpiry(RLY_Credential_Status__c r, Date expires, String noExpiryText) {
         r.Expires_On__c = expires;
         r.Status__c = statusFor(expires);
         if (expires == null) {

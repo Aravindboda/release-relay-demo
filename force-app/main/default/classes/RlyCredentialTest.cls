@@ -21,11 +21,33 @@ private class RlyCredentialTest {
         public List<String> calls = new List<String>();
         public Map<String, String> bodies = new Map<String, String>();
 
-        public Mock on(String urlPart, Integer status, String body, String expiryHeader) {
-            rules.add(new List<String>{ urlPart, String.valueOf(status), body, expiryHeader });
+        /**
+         * @description Adds an answer for URLs containing a fragment.
+         * @param urlPart the fragment
+         * @param status the HTTP status
+         * @param body the body
+         * @return this mock
+         */
+        public Mock answer(String urlPart, Integer status, String body) {
+            rules.add(new List<String>{ urlPart, String.valueOf(status), body, null });
             return this;
         }
 
+        /**
+         * @description Gives the last answer GitHub's token expiry header.
+         * @param expiry the header's value
+         * @return this mock
+         */
+        public Mock withExpiry(String expiry) {
+            rules[rules.size() - 1][3] = expiry;
+            return this;
+        }
+
+        /**
+         * @description Answers a callout from the table (404 when nothing matches).
+         * @param req the request
+         * @return the answer
+         */
         public HttpResponse respond(HttpRequest req) {
             String url = EncodingUtil.urlDecode(req.getEndpoint(), 'UTF-8');
             calls.add(url);
@@ -60,19 +82,19 @@ private class RlyCredentialTest {
         RlyCredentialRows.todayForTest = TODAY_FOR_TEST;
         RlyOrgSession.testToken = RlyTestData.TOKEN;
         return new Mock()
-            .on('callout:RLY_GitHub/repos/acme/release', 200, '{"id":1}', '2026-11-12 10:00:00 UTC')
-            .on('callout:RLY_Slack/auth.test', 200, '{"ok":true,"team":"Acme"}', null)
-            .on('callout:RLY_Slack/chat.postMessage', 200, '{"ok":true,"channel":"C1","ts":"1.1"}', null)
-            .on('dev1.my.salesforce.com/services/data/v63.0/tooling/query', 200, certs('dev_cert', '2026-11-01'), null)
-            .on('dev1.my.salesforce.com/services/data/v63.0/query', 200, '{"records":[{"IsActive":false}]}', null)
-            .on('sit.my.salesforce.com/services/data/v63.0/tooling/query', 200, certs('sit_cert', '2027-06-01'), null)
-            .on('sit.my.salesforce.com/services/data/v63.0/query', 200, '{"records":[{"IsActive":true}]}', null);
+            .answer('callout:RLY_GitHub/repos/acme/release', 200, '{"id":1}').withExpiry('2026-11-12 10:00:00 UTC')
+            .answer('callout:RLY_Slack/auth.test', 200, '{"ok":true,"team":"Acme"}')
+            .answer('callout:RLY_Slack/chat.postMessage', 200, '{"ok":true,"channel":"C1","ts":"1.1"}')
+            .answer('dev1.my.salesforce.com/services/data/v63.0/tooling/query', 200, certs('dev_cert', '2026-11-01'))
+            .answer('dev1.my.salesforce.com/services/data/v63.0/query', 200, '{"records":[{"IsActive":false}]}')
+            .answer('sit.my.salesforce.com/services/data/v63.0/tooling/query', 200, certs('sit_cert', '2027-06-01'))
+            .answer('sit.my.salesforce.com/services/data/v63.0/query', 200, '{"records":[{"IsActive":true}]}');
     }
 
     private static Map<String, RLY_Credential_Status__c> saved() {
         Map<String, RLY_Credential_Status__c> out = new Map<String, RLY_Credential_Status__c>();
         for (RLY_Credential_Status__c r : [SELECT Key__c, Kind__c, Name, Status__c, Expires_On__c, Message__c, Last_OK__c, Org__r.Name
-                                           FROM RLY_Credential_Status__c]) {
+                                           FROM RLY_Credential_Status__c LIMIT 500]) {
             out.put(r.Kind__c + '|' + (r.Org__r == null ? '' : r.Org__r.Name) + '|' + r.Name, r);
         }
         return out;
@@ -144,8 +166,8 @@ private class RlyCredentialTest {
             scenario();
             RlyOrgSession.testToken = null;
             RlyOrgSession.testSignInError = 'invalid_grant: user hasn\'t approved this consumer';
-            Mock mock = new Mock().on('callout:RLY_GitHub/repos/', 401, '{"message":"Bad credentials"}', null)
-                .on('callout:RLY_Slack/auth.test', 200, '{"ok":false,"error":"invalid_auth"}', null);
+            Mock mock = new Mock().answer('callout:RLY_GitHub/repos/', 401, '{"message":"Bad credentials"}')
+                .answer('callout:RLY_Slack/auth.test', 200, '{"ok":false,"error":"invalid_auth"}');
             Test.setMock(HttpCalloutMock.class, mock);
             Test.startTest();
             RlyCredentialCheck.Pass p = RlyCredentialCheck.gather();
@@ -163,12 +185,12 @@ private class RlyCredentialTest {
         System.runAs(RlyTestData.admin()) {
             RlyCredentialRows.todayForTest = TODAY_FOR_TEST;
             RLY_Credential_Status__c r = RlyCredentialRows.row('git:x', RlyCredentialRows.KIND_GIT, 'GitLab · group/project');
-            HttpResponse ok = new HttpResponse();
-            ok.setStatusCode(200);
-            ok.setBody('{"expires_at":"2026-11-30","active":true,"revoked":false}');
-            System.assertEquals(RlyCredentialRows.EXPIRING, RlyCredentialParse.gitLab(r, ok).Status__c, '23 days left');
-            ok.setBody('{"expires_at":null,"active":false}');
-            System.assertEquals(RlyCredentialRows.FAILED, RlyCredentialParse.gitLab(r, ok).Status__c, 'Not active');
+            HttpResponse answerOk = new HttpResponse();
+            answerOk.setStatusCode(200);
+            answerOk.setBody('{"expires_at":"2026-11-30","active":true,"revoked":false}');
+            System.assertEquals(RlyCredentialRows.EXPIRING, RlyCredentialParse.gitLab(r, answerOk).Status__c, '23 days left');
+            answerOk.setBody('{"expires_at":null,"active":false}');
+            System.assertEquals(RlyCredentialRows.FAILED, RlyCredentialParse.gitLab(r, answerOk).Status__c, 'Not active');
             HttpResponse refused = new HttpResponse();
             refused.setStatusCode(401);
             System.assertEquals(RlyCredentialRows.FAILED, RlyCredentialParse.gitLab(r, refused).Status__c, 'Refused');
@@ -209,8 +231,8 @@ private class RlyCredentialTest {
             RlyCredentialUsers.hubOrg(p, hub);
             System.assertEquals(RlyCredentialRows.UNKNOWN, p.found.get(RlyCredentialOrgChecks.signInKey(hub.Id)).Status__c, 'Not checked yet');
             RLY_Credential_Status__c u = RlyCredentialRows.orgRow('user:x', RlyCredentialRows.KIND_USER, hub);
-            System.assertEquals(RlyCredentialRows.OK, RlyCredentialUsers.user(u, RlyCredentialUsers.ACTIVE, hub).Status__c, 'Active');
-            System.assertEquals(RlyCredentialRows.FAILED, RlyCredentialUsers.user(u, RlyCredentialUsers.INACTIVE, hub).Status__c, 'Inactive');
+            System.assertEquals(RlyCredentialRows.OK, RlyCredentialUsers.userStatus(u, RlyCredentialUsers.ACTIVE, hub).Status__c, 'Active');
+            System.assertEquals(RlyCredentialRows.FAILED, RlyCredentialUsers.userStatus(u, RlyCredentialUsers.INACTIVE, hub).Status__c, 'Inactive');
         }
     }
 
@@ -221,7 +243,7 @@ private class RlyCredentialTest {
             RLY_Org__c sit = RlyTestData.stage('SIT', 'sit', 1);
             insert sit;
             RlyCredentialStore.save(new List<RLY_Credential_Status__c>{
-                RlyCredentialRows.expiring(RlyCredentialRows.row('git:a', RlyCredentialRows.KIND_GIT, 'GitHub · acme/release'), Date.newInstance(2026, 11, 20), null),
+                RlyCredentialRows.fromExpiry(RlyCredentialRows.row('git:a', RlyCredentialRows.KIND_GIT, 'GitHub · acme/release'), Date.newInstance(2026, 11, 20), null),
                 RlyCredentialRows.mark(RlyCredentialRows.row('slack', RlyCredentialRows.KIND_SLACK, 'Slack app'), RlyCredentialRows.OK, 'ok'),
                 RlyCredentialRows.mark(RlyCredentialRows.orgRow('cert:' + sit.Id + ':c', RlyCredentialRows.KIND_CERT, sit), RlyCredentialRows.FAILED, 'x'),
                 RlyCredentialRows.mark(RlyCredentialRows.orgRow('user:' + sit.Id, RlyCredentialRows.KIND_USER, sit), RlyCredentialRows.UNKNOWN, 'x'),
@@ -240,8 +262,8 @@ private class RlyCredentialTest {
             System.assertEquals(2, t.problems.size(), 'Expiring and Failed');
             System.assertEquals(5, t.total, 'Total');
             System.assert(t.isAdmin, 'Admin link');
-            System.assert(RlyCredentialController.howToRenew(RlyCredentialRows.KIND_GIT, 'GitLab · g/p').contains('GitLab'), 'GitLab renew');
-            System.assert(RlyCredentialController.howToRenew(RlyCredentialRows.KIND_SIGNIN, 'x').contains('Pipeline'), 'Sign-in renew');
+            System.assert(RlyCredentialViews.howToRenew(RlyCredentialRows.KIND_GIT, 'GitLab · g/p').contains('GitLab'), 'GitLab renew');
+            System.assert(RlyCredentialViews.howToRenew(RlyCredentialRows.KIND_SIGNIN, 'x').contains('Pipeline'), 'Sign-in renew');
             RlyCredentialCheck.Pass p = new RlyCredentialCheck.Pass();
             p.saved = RlyCredentialStore.byKey();
             p.replaceScope('cert:' + sit.Id + ':');
@@ -262,13 +284,13 @@ private class RlyCredentialTest {
             Test.stopTest();
             System.assert(b.message.startsWith('Checked:'), b.message);
             System.assert(b.rows.size() > 5, 'Rows saved: ' + b.rows.size());
-            System.assertEquals(null, RlyCredentialNightly.before('{"runId":"a0B000000000001"}'), 'Later calls of the night don\'t check');
+            System.assertEquals(null, RlyCredentialNightly.checkFirst('{"runId":"a0B000000000001"}'), 'Later calls of the night don\'t check');
             Map<String, Object> answer = new Map<String, Object>();
-            RlyCredentialNightly.after(null, answer);
+            RlyCredentialNightly.saveAfter(null, answer);
             System.assert(!answer.containsKey('credentials'), 'Nothing to save');
             RlyCredentialCheck.Pass p = new RlyCredentialCheck.Pass();
             p.add(RlyCredentialRows.mark(RlyCredentialRows.row('slack', RlyCredentialRows.KIND_SLACK, 'Slack app'), RlyCredentialRows.OK, 'ok'));
-            RlyCredentialNightly.after(p, answer);
+            RlyCredentialNightly.saveAfter(p, answer);
             System.assert(String.valueOf(answer.get('credentials')).contains('1 checked'), 'Said in the answer: ' + answer);
         }
     }

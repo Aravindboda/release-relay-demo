@@ -2,14 +2,14 @@
  * @description One refresh of the Credentials dashboard (build 49): gather runs every check (RlyCredentialHubChecks,
  * RlyCredentialOrgChecks) and, when Slack is on, posts one alert for the items that just turned Critical, Expired or
  * Failed (RlyCredentialAlert) — callouts only; save then upserts the rows by Key__c and removes the ones gone. A request
- * calls gather before any DML and save after its last callout. A pass makes at most BUDGET callouts: orgs that don't fit
+ * calls gather before any DML and save after its last callout. A pass makes at most CALLOUT_BUDGET callouts: orgs that don't fit
  * wait for the next pass, oldest checked first. Runs nightly with the pipeline's archive call (RlyCredentialNightly) and
  * from Check now on the Pipeline tab (RlyCredentialController); no Apex runs in the background.
  */
 public with sharing class RlyCredentialCheck {
 
     /** @description Most callouts one pass makes. */
-    public static final Integer BUDGET = 40;
+    public static final Integer CALLOUT_BUDGET = 40;
     /** @description The Slack row's key. */
     public static final String SLACK_KEY = 'slack';
 
@@ -32,7 +32,7 @@ public with sharing class RlyCredentialCheck {
         /** @description Items that just turned Critical, Expired or Failed. */
         public List<RLY_Credential_Status__c> turnedBad = new List<RLY_Credential_Status__c>();
         /** @description Most callouts this pass may make. */
-        public Integer budget = BUDGET;
+        public Integer budget = CALLOUT_BUDGET;
         private Integer startCallouts = Limits.getCallouts();
 
         /**
@@ -92,7 +92,7 @@ public with sharing class RlyCredentialCheck {
     public static Pass gather() {
         Pass p = new Pass();
         p.saved = RlyCredentialStore.byKey();
-        p.budget = BUDGET - 1; // room for the Slack alert
+        p.budget = CALLOUT_BUDGET - 1; // room for the Slack alert
         RlyCredentialHubChecks.git(p);
         RlyCredentialHubChecks.slack(p);
         RlyCredentialHubChecks.certificates(p);
@@ -105,7 +105,7 @@ public with sharing class RlyCredentialCheck {
                 p.turnedBad.add(r);
             }
         }
-        p.budget = BUDGET;
+        p.budget = CALLOUT_BUDGET;
         p.alertResult = RlyCredentialAlert.post(p.turnedBad);
         return p;
     }
@@ -135,11 +135,11 @@ public with sharing class RlyCredentialCheck {
      * @return for example "12 checked, 1 needs attention, 2 orgs left for the next pass"
      */
     public static String summary(Pass p) {
-        Integer attention = 0;
+        Integer needing = 0;
         for (RLY_Credential_Status__c r : p.found.values()) {
-            attention += RlyCredentialRows.ATTENTION.contains(r.Status__c) ? 1 : 0;
+            needing += RlyCredentialRows.ATTENTION.contains(r.Status__c) ? 1 : 0;
         }
-        String text = p.found.size() + ' checked, ' + attention + (attention == 1 ? ' needs attention' : ' need attention');
+        String text = p.found.size() + ' checked, ' + needing + (needing == 1 ? ' needs attention' : ' need attention');
         if (p.orgsLeft > 0) {
             text += ', ' + p.orgsLeft + (p.orgsLeft == 1 ? ' org' : ' orgs') + ' left for the next pass';
         }

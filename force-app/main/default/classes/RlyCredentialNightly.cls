@@ -1,7 +1,7 @@
 /**
  * @description The Credentials dashboard's nightly refresh (build 49), in the pipeline's nightly archive call
  * (RlyArchiveNightly, POST /rly/archive). The first call of the night (no runId) runs the checks before the archive pass
- * touches anything: before makes every callout, the archive pass does its DML, then after saves the rows and adds
+ * touches anything: checkFirst makes every callout, the archive pass does its DML, then saveAfter saves the rows and adds
  * "credentials" to the answer. Only in the production hub and for the pipeline's admin user, like the archive. Never
  * throws: a failed check never stops the archive.
  */
@@ -12,7 +12,7 @@ public with sharing class RlyCredentialNightly {
      * @param body the call's body ({"runUrl", "runId"})
      * @return the pass to save after the archive, or null when this call doesn't check
      */
-    public static RlyCredentialCheck.Pass before(String body) {
+    public static RlyCredentialCheck.Pass checkFirst(String body) {
         try {
             if (!isFirstCall(body) || !RlyArchiveService.onHub() || !RlyOrgController.isAdmin()) {
                 return null;
@@ -28,7 +28,7 @@ public with sharing class RlyCredentialNightly {
      * @param p the pass, or null
      * @param answer the archive call's answer
      */
-    public static void after(RlyCredentialCheck.Pass p, Map<String, Object> answer) {
+    public static void saveAfter(RlyCredentialCheck.Pass p, Map<String, Object> answer) {
         if (p == null || answer == null) {
             return;
         }

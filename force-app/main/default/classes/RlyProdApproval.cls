@@ -14,7 +14,7 @@ public with sharing class RlyProdApproval {
     /** @description What an approver without the add-on is told. */
     public static final String NOTE = 'Approving production needs the Production Approver add-on.';
     /** @description The admins' banner while the setting is off. */
-    public static final String BANNER = 'Turn on once you\'ve assigned the Production Approver add-on.';
+    public static final String BANNER_TEXT = 'Turn on once you\'ve assigned the Production Approver add-on.';
     /** @description The state value that turns it on (saveProdApproval). */
     public static final String STATE_ON = 'On';
     /** @description Changed_By__c when a new hub turned it on. */
@@ -36,8 +36,6 @@ public with sharing class RlyProdApproval {
         @AuraEnabled public List<String> holderNames = new List<String>();
         /** @description Who changed it last and when, or null. */
         @AuraEnabled public String changedText;
-        /** @description The sentence approvers without the add-on see. */
-        @AuraEnabled public String note = NOTE;
     }
 
     /**
@@ -110,7 +108,7 @@ public with sharing class RlyProdApproval {
         RLY_Approval_Setting__c s = data.read();
         v.isOn = s != null && s.Prod_Needs_Addon__c == true;
         v.canEdit = RlyOrgController.isAdmin();
-        v.banner = v.canEdit && !v.isOn ? BANNER : null;
+        v.banner = v.canEdit && !v.isOn ? BANNER_TEXT : null;
         if (s != null && s.Changed_On__c != null) {
             v.changedText = (v.isOn ? 'Turned on ' : 'Turned off ') + s.Changed_On__c.format('d MMM yyyy')
                 + (String.isBlank(s.Changed_By__c) ? '' : ' by ' + s.Changed_By__c);

@@ -23,7 +23,7 @@ public with sharing class RlyCredentialUsers {
         if (String.isNotBlank(o.Username__c)) {
             RLY_Credential_Status__c u = RlyCredentialRows.orgRow('user:' + o.Id, RlyCredentialRows.KIND_USER, o);
             u.Name = (o.Name + ' · ' + o.Username__c.trim()).left(80);
-            p.add(user(u, stateOf(RlyCredentialStore.hubUserActive(o.Username__c.trim())), o));
+            p.add(userStatus(u, stateOf(RlyCredentialStore.hubUserActive(o.Username__c.trim())), o));
         }
     }
 
@@ -38,7 +38,7 @@ public with sharing class RlyCredentialUsers {
     public static RLY_Credential_Status__c withCertificate(RLY_Credential_Status__c s, RLY_Org__c o, RlyCredentialCheck.Pass p) {
         String cert = String.isBlank(o.Certificate__c) ? null : o.Certificate__c.trim().toLowerCase();
         if (cert != null && p.hubCerts.containsKey(cert)) {
-            RlyCredentialRows.expiring(s, p.hubCerts.get(cert), null);
+            RlyCredentialRows.fromExpiry(s, p.hubCerts.get(cert), null);
             s.Message__c = s.Message__c == null ? null : 'Hub certificate ' + o.Certificate__c.trim() + ': ' + s.Message__c.uncapitalize();
         }
         return s;
@@ -52,7 +52,7 @@ public with sharing class RlyCredentialUsers {
      */
     public static RLY_Credential_Status__c userRow(RLY_Credential_Status__c u, RLY_Org__c o) {
         try {
-            return user(u, userActive(o), o);
+            return userStatus(u, userActive(o), o);
         } catch (Exception e) {
             return RlyCredentialRows.mark(u, RlyCredentialRows.UNKNOWN, 'Couldn\'t read the user: ' + e.getMessage());
         }
@@ -65,7 +65,7 @@ public with sharing class RlyCredentialUsers {
      * @param o the org
      * @return the row
      */
-    public static RLY_Credential_Status__c user(RLY_Credential_Status__c u, String state, RLY_Org__c o) {
+    public static RLY_Credential_Status__c userStatus(RLY_Credential_Status__c u, String state, RLY_Org__c o) {
         String last = o.Last_Checked__c == null ? 'No saved sign-in check.'
             : 'Last sign-in check ' + (o.Status__c == 'Failed' ? 'failed' : 'OK') + ' ' + o.Last_Checked__c.format('d MMM yyyy') + '.';
         if (state == null) {
@@ -89,8 +89,8 @@ public with sharing class RlyCredentialUsers {
         return RlyCredentialRows.mark(s, RlyCredentialRows.UNKNOWN, 'Not checked yet: Check the org on the Pipeline tab.');
     }
 
-    private static String stateOf(Boolean active) {
-        return active == null ? null : (active ? ACTIVE : INACTIVE);
+    private static String stateOf(Boolean isActive) {
+        return isActive == null ? null : (isActive ? ACTIVE : INACTIVE);
     }
 
     // The org's integration user: ACTIVE, INACTIVE, or null when not found.

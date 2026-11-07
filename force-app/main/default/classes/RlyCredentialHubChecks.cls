@@ -42,16 +42,16 @@ public with sharing class RlyCredentialHubChecks {
         String name = c.Provider__c + ' · ' + c.Repository__c + (active ? '' : ' (not active)');
         RLY_Credential_Status__c r = RlyCredentialRows.row('git:' + c.Id, RlyCredentialRows.KIND_GIT, name);
         try {
-            RlyGit git = RlyGit.forConnection(c);
+            RlyGit provider = RlyGit.forConnection(c);
             if (c.Provider__c == 'GitHub') {
-                return RlyCredentialParse.gitHub(r, git.request(new RlyGitRequest('GET', '/repos/' + c.Repository__c.trim(), null)));
+                return RlyCredentialParse.gitHub(r, provider.request(new RlyGitRequest('GET', '/repos/' + c.Repository__c.trim(), null)));
             }
             if (c.Provider__c == 'GitLab') {
-                return RlyCredentialParse.gitLab(r, git.request(new RlyGitRequest('GET', '/personal_access_tokens/self', null)));
+                return RlyCredentialParse.gitLab(r, provider.request(new RlyGitRequest('GET', '/personal_access_tokens/self', null)));
             }
-            String branch = String.isBlank(c.Pipeline_Branch__c) ? git.defaultBranch() : c.Pipeline_Branch__c.trim();
-            git.branchExists(branch);
-            return RlyCredentialRows.mark(r, RlyCredentialRows.OK, 'The token answers. ' + git.providerLabel() + ' doesn\'t say when it expires.');
+            String branch = String.isBlank(c.Pipeline_Branch__c) ? provider.defaultBranch() : c.Pipeline_Branch__c.trim();
+            provider.branchExists(branch);
+            return RlyCredentialRows.mark(r, RlyCredentialRows.OK, 'The token answers. ' + provider.providerLabel() + ' doesn\'t say when it expires.');
         } catch (Exception e) {
             return RlyCredentialRows.mark(r, RlyCredentialRows.FAILED, e.getMessage());
         }

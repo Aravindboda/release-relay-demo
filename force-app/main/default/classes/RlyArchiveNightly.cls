@@ -33,9 +33,9 @@ public with sharing class RlyArchiveNightly {
      * @return the answer
      */
     public static Map<String, Object> handle(String body) {
-        RlyCredentialCheck.Pass credentials = RlyCredentialNightly.before(body); // build 49: callouts before any DML
+        RlyCredentialCheck.Pass credentials = RlyCredentialNightly.checkFirst(body); // build 49: callouts before any DML
         Map<String, Object> out = archiveCall(body);
-        RlyCredentialNightly.after(credentials, out);
+        RlyCredentialNightly.saveAfter(credentials, out);
         return out;
     }
 

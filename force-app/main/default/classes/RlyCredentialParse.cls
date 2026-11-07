@@ -23,7 +23,7 @@ public with sharing class RlyCredentialParse {
         if (res.getStatusCode() >= 300) {
             return RlyCredentialRows.mark(r, RlyCredentialRows.FAILED, 'GitHub answered HTTP ' + res.getStatusCode() + '.');
         }
-        return RlyCredentialRows.expiring(r, dateOf(header(res, GITHUB_EXPIRY_HEADER)), NO_EXPIRY);
+        return RlyCredentialRows.fromExpiry(r, dateOf(header(res, GITHUB_EXPIRY_HEADER)), NO_EXPIRY);
     }
 
     /**
@@ -40,7 +40,7 @@ public with sharing class RlyCredentialParse {
             return RlyCredentialRows.mark(r, RlyCredentialRows.FAILED, 'GitLab answered HTTP ' + res.getStatusCode() + '.');
         }
         Map<String, Object> body = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
-        RlyCredentialRows.expiring(r, dateOf(text(body.get('expires_at'))), NO_EXPIRY);
+        RlyCredentialRows.fromExpiry(r, dateOf(text(body.get('expires_at'))), NO_EXPIRY);
         if (body.get('active') == false || body.get('revoked') == true) {
             RlyCredentialRows.mark(r, RlyCredentialRows.FAILED, 'GitLab says the token isn\'t active (revoked or expired).');
         }
@@ -66,7 +66,7 @@ public with sharing class RlyCredentialParse {
             RLY_Credential_Status__c r = RlyCredentialRows.row(keyPrefix + devName, RlyCredentialRows.KIND_CERT,
                 (label == null ? devName : label) + suffix);
             r.Org__c = o == null ? null : o.Id;
-            out.add(RlyCredentialRows.expiring(r, dateOf(text(c.get('ExpirationDate'))), 'No expiry date.'));
+            out.add(RlyCredentialRows.fromExpiry(r, dateOf(text(c.get('ExpirationDate'))), 'No expiry date.'));
         }
         return out;
     }

@@ -43,7 +43,7 @@ private class RlyRolesTest {
             System.assert(!RlyProdApproval.isOn(), 'Off after the upgrade');
             System.assert(RlyProdApproval.mayApprove(rel, UserInfo.getUserId()), 'Every approver until it is on');
             RlyProdApproval.View v = RlyAccessController.prodApproval();
-            System.assertEquals(RlyProdApproval.BANNER, v.banner, 'Admins see the banner');
+            System.assertEquals(RlyProdApproval.BANNER_TEXT, v.banner, 'Admins see the banner');
             System.assert(v.canEdit, 'Admins change it');
             v = RlyAccessController.saveProdApproval('On');
             System.assert(v.isOn && v.banner == null, 'On, no banner');
