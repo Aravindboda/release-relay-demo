@@ -55,11 +55,12 @@ public with sharing class RlyStatusReader {
         if (RlySharedRead.isFresh(rel, freshFor) || !RlySharedRead.claim(releaseId, freshFor)) {
             return RlyReleaseStore.release(releaseId);
         }
-        RlyGit git = RlyGit.forConnection(RlyReleaseStore.git());
+        RlyGit git = RlyGit.forConnection(RlyReleaseStore.gitFor(rel));
         String oldStatus = rel.Status__c;
         RLY_Release__c prior = rel.clone(true, true, true, true);
         try {
             readLatest(rel, git);
+            RlyProdSync.afterChecks(rel, git); // build 45: an automatic prod sync release merges without an approver
             RlyAutoApproval.afterChecks(rel, git, oldStatus);
         } catch (Exception e) {
             rel.Error_Message__c = ('Couldn\'t read the latest status: ' + e.getMessage()).left(2000);

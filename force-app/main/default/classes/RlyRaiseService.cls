@@ -138,7 +138,8 @@ public with sharing class RlyRaiseService {
             Test_Classes__c = String.join(new List<String>(tests), ','),
             Scan_Status__c = RlyScanRule.statusFor(route.git, target),
             Validation_Status__c = String.isBlank(target.Git_Environment__c) ? 'Not configured' : 'Pending',
-            Approval_Status__c = 'Pending', Deploy_Status__c = 'Pending', Last_Synced__c = System.now());
+            Approval_Status__c = 'Pending', Deploy_Status__c = 'Pending', Last_Synced__c = System.now(),
+            Git_Connection__c = route.git.Id);
     }
 
     private static List<RLY_Release_Item__c> buildItems(List<Item> selected) {

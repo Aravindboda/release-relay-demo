@@ -27,7 +27,7 @@ public with sharing class RlyPipelineOptions {
         if (String.isNotBlank(rel.Check_Token__c)) {
             options.put('attempt', rel.Check_Token__c);
         }
-        RLY_Git_Connection__c conn = RlyReleaseStore.git();
+        RLY_Git_Connection__c conn = RlyReleaseStore.gitFor(rel);
         if (conn != null && !RlyScanRule.isOn(conn, RlyScanRule.targetOf(rel))) {
             options.put('scan', 'off');
         }
@@ -95,8 +95,12 @@ public with sharing class RlyPipelineOptions {
     // A merge into the first stage brings the developer branches up to date; a merge into the hub every stage branch
     // and then every developer branch (merged back down).
     private static void addSyncBranches(RLY_Release__c rel, Map<String, Object> options) {
-        List<String> branches = isHub(rel) ? backMergeBranches()
-            : isFirstStage(rel) ? RlyReleaseStore.developerBranches() : new List<String>();
+        Id connectionId = RlyReleaseStore.gitFor(rel)?.Id; // build 45: only the branches of the release's repository
+        if (RlyProdSync.isProdSync(rel)) {
+            return; // keeping another repository's prod in step brings nothing back down
+        }
+        List<String> branches = isHub(rel) ? backMergeBranches(connectionId)
+            : isFirstStage(rel, connectionId) ? RlyConnectionRoutes.developerBranchesFor(connectionId) : new List<String>();
         if (!branches.isEmpty()) {
             options.put('syncBranches', branches);
         }
@@ -106,8 +110,8 @@ public with sharing class RlyPipelineOptions {
         return rel.Target_Org__r != null && rel.Target_Org__r.Role__c == 'Hub';
     }
 
-    private static Boolean isFirstStage(RLY_Release__c rel) {
-        RLY_Org__c firstStage = RlyReleaseStore.firstStage();
+    private static Boolean isFirstStage(RLY_Release__c rel, Id connectionId) {
+        RLY_Org__c firstStage = RlyConnectionRoutes.firstStageFor(connectionId);
         return firstStage != null && firstStage.Id == rel.Target_Org__c;
     }
 
@@ -116,8 +120,17 @@ public with sharing class RlyPipelineOptions {
      * @return the branch names
      */
     public static List<String> stageBranches() {
+        return stageBranchesFor(null);
+    }
+
+    /**
+     * @description One Git connection's stage branches in route order (the hub left out), each once (build 45).
+     * @param connectionId the connection (blank: the main one)
+     * @return the branch names
+     */
+    public static List<String> stageBranchesFor(Id connectionId) {
         List<String> out = new List<String>();
-        for (RLY_Org__c o : RlyRouteRules.ordered(RlyReleaseStore.routeOrgs())) {
+        for (RLY_Org__c o : RlyRouteRules.ordered(RlyConnectionRoutes.routeOrgsFor(connectionId))) {
             if (o.Role__c == 'Stage' && String.isNotBlank(o.Branch__c) && !out.contains(o.Branch__c.trim())) {
                 out.add(o.Branch__c.trim());
             }
@@ -126,9 +139,9 @@ public with sharing class RlyPipelineOptions {
     }
 
     // The back-merge after a deploy to the hub: stage branches in route order, then developer branches.
-    private static List<String> backMergeBranches() {
-        List<String> out = stageBranches();
-        for (String b : RlyReleaseStore.developerBranches()) {
+    private static List<String> backMergeBranches(Id connectionId) {
+        List<String> out = stageBranchesFor(connectionId);
+        for (String b : RlyConnectionRoutes.developerBranchesFor(connectionId)) {
             if (!out.contains(b)) {
                 out.add(b);
             }

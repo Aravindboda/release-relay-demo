@@ -56,12 +56,13 @@ public with sharing class RlyRaiseRules {
         Route r = new Route();
         r.source = RlyRaiseRoute.source(sourceOrgId);
         r.target = RlyRaiseRoute.target(r.source);
-        r.git = git();
+        r.git = git(r.source);
         return r;
     }
 
-    private static RLY_Git_Connection__c git() {
-        RLY_Git_Connection__c git = RlyReleaseStore.git();
+    // The source org's Git connection (build 45: the release lives in that repository).
+    private static RLY_Git_Connection__c git(RLY_Org__c source) {
+        RLY_Git_Connection__c git = RlyReleaseStore.gitForOrg(source.Id);
         if (git == null || git.Status__c != 'Connected') {
             throw new RlyReleaseException('The Git connection isn\'t set up and checked yet (Pipeline tab).');
         }

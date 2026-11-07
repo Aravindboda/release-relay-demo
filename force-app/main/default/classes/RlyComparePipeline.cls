@@ -103,7 +103,7 @@ public with sharing class RlyComparePipeline {
      */
     public static PartState stagePart(Part part) {
         RlyComparePipelineInput.checkPart(part);
-        RlyGit git = gitHub();
+        RlyGit git = RlyComparePipelineInput.gitHubFor(part.sourceOrgId);
         RLY_Org__c source = RlyRaiseRoute.source(part.sourceOrgId);
         RlyRetrieve.RetrieveStatus st = RlyRetrieve.check(source, part.retrieveId);
         PartState state = new PartState();
@@ -132,7 +132,7 @@ public with sharing class RlyComparePipeline {
         } else {
             RlyComparePipelineInput.checkRun(job);
         }
-        RlyGit git = gitHub();
+        RlyGit git = RlyComparePipelineInput.gitHubFor(job.sourceOrgId);
         RLY_Org__c source = RlyRaiseRoute.source(job.sourceOrgId);
         Boolean whole = job.full == true;
         RLY_Org__c target = whole ? source : RlyCompareTarget.of(source, job.targetBranch);

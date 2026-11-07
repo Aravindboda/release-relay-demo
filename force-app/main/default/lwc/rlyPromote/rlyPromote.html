@@ -46,7 +46,7 @@
                             <section class="rr-card rr-head" aria-label={s.routeLabel}>
                                 <div class="rr-head-text">
                                     <p class="rr-kicker">Promote</p>
-                                    <h2 class="rr-h1"><span>{s.stageName}</span> <span class="rr-arrow" aria-label="to">→</span> <span>{s.nextText}</span></h2>
+                                    <h2 class="rr-h1"><span>{s.stageName}</span> <span class="rr-arrow" aria-label="to">→</span> <span>{s.nextText}</span><template lwc:if={s.viaText}> <span class="rr-pill rr-pill-info rr-via" title={s.viaTitle}>{s.viaText}</span></template></h2>
                                 </div>
                                 <span class="rr-weak rr-small">{s.subText}</span>
                                 <!-- board HubPromoteRules: opens the side panel for this card -->

@@ -98,6 +98,7 @@ public with sharing class RlyRunMonitorQueries {
         String pattern = urlPattern(repository);
         if (pattern != null) {
             binds.put('urlLike', pattern);
+            binds.put('urlLikeGitLab', pattern.removeEnd('/actions/runs/%') + '/-/pipelines/%'); // build 45: GitLab pipelines
         }
         return binds;
     }
@@ -129,7 +130,7 @@ public with sharing class RlyRunMonitorQueries {
         }
 
         private String repoCondition(Map<String, Object> binds) {
-            return binds.containsKey('urlLike') ? ' AND Run_Url__c LIKE :urlLike' : '';
+            return binds.containsKey('urlLike') ? ' AND (Run_Url__c LIKE :urlLike OR Run_Url__c LIKE :urlLikeGitLab)' : '';
         }
     }
 }

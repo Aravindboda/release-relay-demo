@@ -27,6 +27,26 @@ public with sharing class RlyReleaseStart {
         @AuraEnabled public List<RlyHotfix.StageSource> stageSources = new List<RlyHotfix.StageSource>();
         /** @description Stage and hub orgs, shown in their environment for context (no sign-in fields). */
         @AuraEnabled public List<RLY_Org__c> routeStops = new List<RLY_Org__c>();
+        /** @description Build 45: one route per Git connection; a developer org's releases go through its connection's. */
+        @AuraEnabled public List<Route> routes = new List<Route>();
+        /** @description The main connection (developer orgs without a connection are on it), or null. */
+        @AuraEnabled public Id mainConnectionId;
+    }
+
+    /** @description Where a developer org's releases go on one connection (the "via GitLab" chip). */
+    public class Route {
+        /** @description The connection. */
+        @AuraEnabled public Id connectionId;
+        /** @description The provider's name, for example GitLab. */
+        @AuraEnabled public String provider;
+        /** @description The repository. */
+        @AuraEnabled public String repository;
+        /** @description The connection is checked. */
+        @AuraEnabled public Boolean connected = false;
+        /** @description Its first stage's name, or null. */
+        @AuraEnabled public String targetName;
+        /** @description Its first stage's branch, or null. */
+        @AuraEnabled public String targetBranch;
     }
 
     /**
@@ -48,7 +68,7 @@ public with sharing class RlyReleaseStart {
                 }
             }
         }
-        RLY_Org__c target = firstStage(stages);
+        RLY_Org__c target = firstStage(onMain(stages));
         if (target != null) {
             s.targetName = target.Name;
             s.targetBranch = target.Branch__c;
@@ -58,7 +78,44 @@ public with sharing class RlyReleaseStart {
         s.provider = RlyGitName.labelFor(git);
         s.canHotfix = RlyHotfix.allowed();
         addProblems(s, git, target);
+        addRoutes(s, stages);
         return s;
+    }
+
+    // Build 45: the stages on the main connection (where orgs without a connection release to).
+    private static List<RLY_Org__c> onMain(List<RLY_Org__c> stages) {
+        RLY_Git_Connection__c main = RlyReleaseStore.git();
+        Id mainId = main == null ? null : main.Id;
+        List<RLY_Org__c> out = new List<RLY_Org__c>();
+        for (RLY_Org__c o : stages) {
+            if (RlyConnectionRoutes.connectionIdOf(o, mainId) == mainId) {
+                out.add(o);
+            }
+        }
+        return out;
+    }
+
+    // Build 45: each connection's first stage, so the page shows where the picked org's releases go ("via GitLab").
+    private static void addRoutes(Start s, List<RLY_Org__c> stages) {
+        List<RLY_Git_Connection__c> conns = RlyConnectionStore.connections();
+        s.mainConnectionId = conns.isEmpty() ? null : conns[0].Id;
+        for (RLY_Git_Connection__c c : conns) {
+            Route r = new Route();
+            r.connectionId = c.Id;
+            r.provider = RlyGitName.labelFor(c);
+            r.repository = c.Repository__c;
+            r.connected = c.Status__c == 'Connected';
+            List<RLY_Org__c> own = new List<RLY_Org__c>();
+            for (RLY_Org__c o : stages) {
+                if (RlyConnectionRoutes.connectionIdOf(o, s.mainConnectionId) == c.Id) {
+                    own.add(o);
+                }
+            }
+            RLY_Org__c firstOne = firstStage(own);
+            r.targetName = firstOne == null ? null : firstOne.Name;
+            r.targetBranch = firstOne == null ? null : firstOne.Branch__c;
+            s.routes.add(r);
+        }
     }
 
     // The stage with the lowest order (stages without one come after).
@@ -97,7 +154,7 @@ public with sharing class RlyReleaseStart {
          */
         public List<RLY_Org__c> orgs() {
             return [SELECT Id, Name, Role__c, Branch__c, Stage_Order__c, Git_Environment__c, Status__c, Source_Tracking__c,
-                           Org_Type__c, Is_Sandbox__c, Environment__c, Approval_Rule__c, Approval_Types__c
+                           Org_Type__c, Is_Sandbox__c, Environment__c, Approval_Rule__c, Approval_Types__c, Git_Connection__c
                     FROM RLY_Org__c WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }
 
@@ -107,7 +164,7 @@ public with sharing class RlyReleaseStart {
          */
         public RLY_Git_Connection__c git() {
             List<RLY_Git_Connection__c> rows = [SELECT Id, Provider__c, Repository__c, Named_Credential__c, Status__c FROM RLY_Git_Connection__c
-                                                WITH SYSTEM_MODE ORDER BY CreatedDate ASC LIMIT 1];
+                                                WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC, Id ASC LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
         }
     }

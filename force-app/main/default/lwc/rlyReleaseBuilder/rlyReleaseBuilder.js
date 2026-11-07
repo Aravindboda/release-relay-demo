@@ -294,7 +294,16 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     error;
 
     // source
-    orgId;
+    _orgId;
+    /** Build 45: getStart as read; start itself carries the picked org's route (its connection's first stage and provider). */
+    startBase;
+
+    /** The developer org picked; picking one shows where its releases go (its Git connection's route). */
+    get orgId() { return this._orgId; }
+    set orgId(value) {
+        this._orgId = value;
+        this.applyRoute();
+    }
     windowChoice = '7';
     sinceDate;
     changedBy = 'me';
@@ -340,7 +349,9 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         this.loading = true;
         getStart()
             .then((s) => {
+                this.startBase = s;
                 this.start = s;
+                this.applyRoute();
                 const usable = this.envGroups.filter((g) => g.pickable > 0);
                 if (usable.length === 1) {
                     this.envChoice = usable[0].value;
@@ -603,6 +614,48 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         }
         const d = new Date(Date.now() - Number(this.windowChoice) * 86400000);
         return d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+    }
+
+    // ---------- the picked org's Git connection (build 45) ----------
+
+    /** The route of the picked org's connection: target, branch and provider come from it, with no extra question. */
+    applyRoute() {
+        const base = this.startBase;
+        if (!base || !(base.routes || []).length) {
+            return;
+        }
+        const route = this.routeOf(this._orgId);
+        this.start = route
+            ? { ...base, targetName: route.targetName, targetBranch: route.targetBranch, provider: route.provider, repository: route.repository }
+            : base;
+    }
+
+    routeOf(orgId) {
+        const base = this.startBase;
+        const org = ((base && base.developers) || []).find((d) => d.Id === orgId);
+        if (!org) {
+            return undefined;
+        }
+        const id = org.Git_Connection__c || base.mainConnectionId;
+        return (base.routes || []).find((r) => r.connectionId === id);
+    }
+
+    /** Several connections: the "via GitLab" chip on the picked org's route. */
+    get viaChip() {
+        const base = this.startBase;
+        if (!base || (base.routes || []).length < 2) {
+            return '';
+        }
+        const route = this.routeOf(this._orgId);
+        return route && route.provider ? 'via ' + route.provider : '';
+    }
+    get viaTitle() {
+        const route = this.routeOf(this._orgId);
+        return route ? route.provider + ' ' + route.repository : '';
+    }
+    get viaNotChecked() {
+        const route = this.routeOf(this._orgId);
+        return !!route && route.connected !== true;
     }
 
     get sourceOrg() {

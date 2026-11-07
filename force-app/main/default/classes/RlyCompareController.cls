@@ -68,7 +68,7 @@ public with sharing class RlyCompareController {
     public static String startPipelinePart(Id sourceOrgId, List<String> keys) {
         try {
             RlyHubGuard.requireHub();
-            RlyComparePipeline.gitHub();
+            RlyComparePipelineInput.gitHubFor(sourceOrgId);
             return RlyComparePipeline.startPart(sourceOrgId, keys);
         } catch (Exception e) {
             throw handled(e);
@@ -116,13 +116,14 @@ public with sharing class RlyCompareController {
      * @description Compare in the pipeline: reads the result.
      * @param compareId the compare's id
      * @param token the run's token
+     * @param sourceOrgId the developer org compared (build 45: its repository; blank: the main connection)
      * @return done = false until it's there
      */
     @AuraEnabled
-    public static RlyComparePipelineResult.Result checkPipelineCompare(String compareId, String token) {
+    public static RlyComparePipelineResult.Result checkPipelineCompare(String compareId, String token, Id sourceOrgId) {
         try {
             RlyHubGuard.requireHub();
-            return RlyComparePipelineResult.check(compareId, token);
+            return RlyComparePipelineResult.checkIn(compareId, token, sourceOrgId);
         } catch (Exception e) {
             throw handled(e);
         }
@@ -132,13 +133,14 @@ public with sharing class RlyCompareController {
      * @description Compare in the pipeline: one file's copies.
      * @param compareId the compare's id
      * @param n the file's number
+     * @param sourceOrgId the developer org compared (build 45: its repository; blank: the main connection)
      * @return the file
      */
     @AuraEnabled
-    public static RlyCompareFiles.FileDiff pipelineCompareFile(String compareId, Integer n) {
+    public static RlyCompareFiles.FileDiff pipelineCompareFile(String compareId, Integer n, Id sourceOrgId) {
         try {
             RlyHubGuard.requireHub();
-            return RlyComparePipelineResult.file(compareId, n);
+            return RlyComparePipelineResult.fileIn(compareId, n, sourceOrgId);
         } catch (Exception e) {
             throw handled(e);
         }

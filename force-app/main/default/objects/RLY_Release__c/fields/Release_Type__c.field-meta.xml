@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Release_Type__c</fullName>
-    <description>Hub: Release (raised from a developer org), Promotion (a stage&apos;s deployed releases carried to its next stop) or Back promote (production&apos;s changes sent to a back promote org).</description>
+    <description>Hub: Release (raised from a developer org), Promotion (a stage&apos;s deployed releases carried to its next stop), Back promote (production&apos;s changes sent to a back promote org) or Prod sync (build 45: a production deploy brought into another Git connection&apos;s prod branch, merge only).</description>
     <label>Release Type</label>
     <required>false</required>
     <type>Picklist</type>
@@ -23,6 +23,11 @@
                 <fullName>Back_Promote</fullName>
                 <default>false</default>
                 <label>Back promote</label>
+            </value>
+            <value>
+                <fullName>Prod_Sync</fullName>
+                <default>false</default>
+                <label>Prod sync</label>
             </value>
         </valueSetDefinition>
     </valueSet>

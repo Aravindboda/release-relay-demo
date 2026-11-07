@@ -71,7 +71,7 @@ public with sharing class RlyDataResult {
             fromSummary(v, run.Summary__c);
             return v;
         }
-        RlyGit git = RlyComparePipelineInput.gitHub();
+        RlyGit git = RlyComparePipelineInput.gitHubFor(run.Target_Org__c); // build 45: the target org's repository
         Map<String, Object> result = parsed(git.getFileRaw('results/' + runId + '/data.json', RlyPipelineRun.RESULTS_BRANCH));
         if (result != null && run.Token__c != null && run.Token__c.equals(String.valueOf(result.get('attempt')))) {
             settle(v, run, result);

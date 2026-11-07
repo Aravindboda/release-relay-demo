@@ -109,7 +109,7 @@ public with sharing class RlySyncResult {
             v.done = check.Status__c == RlySyncStore.FAILED;
             return v;
         }
-        RlyGit git = RlyComparePipeline.gitHub();
+        RlyGit git = RlyComparePipelineInput.gitHubFor(check.Org__c); // build 45: an org check reads the org's repository
         Map<String, Object> result = RlySyncParse.parsed(git.getFileRaw('results/' + syncId + '/' + fileOf(check) + '.json', RlyPipelineRun.RESULTS_BRANCH));
         Boolean fromThisRun = result != null && check.Token__c != null && check.Token__c.equals(String.valueOf(result.get('attempt')));
         if (!fromThisRun) {
@@ -131,7 +131,8 @@ public with sharing class RlySyncResult {
         if (n == null || n < 1 || n > 100000) {
             throw new RlyReleaseException('That file isn\'t part of the check.');
         }
-        Map<String, Object> f = RlySyncParse.parsed(RlyComparePipeline.gitHub().getFileRaw('results/' + syncId + '/f/' + n + '.json',
+        RLY_Sync_Check__c check = RlySyncStore.bySyncId(syncId);
+        Map<String, Object> f = RlySyncParse.parsed(RlyComparePipelineInput.gitHubFor(check == null ? null : check.Org__c).getFileRaw('results/' + syncId + '/f/' + n + '.json',
             RlyPipelineRun.RESULTS_BRANCH));
         if (f == null) {
             throw new RlyReleaseException('That file isn\'t on the results branch any more: check again.');

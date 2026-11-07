@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Prod_Sync__c</fullName>
+    <description>Several connections (build 45): after a deploy to production, how the prod branch of each other repository was kept in step, as JSON: [{connectionId, provider, repository, branch, status (Queued, Started, Synced or Failed), message, runUrl}].</description>
+    <label>Prod Sync</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

@@ -42,6 +42,8 @@ public with sharing class RlyReleaseQuery {
         public String state;
         /** @description Part of the release number or title, or blank. */
         public String searchText;
+        /** @description Build 45: the Git connection (repository) picked, or blank for every repository. */
+        public Id connectionId;
     }
 
     /** @description What the list queries: statuses, a search pattern, a user and the rollback states left out. */
@@ -88,6 +90,7 @@ public with sharing class RlyReleaseQuery {
         c.userId = userIdOf(f.raisedById);
         c.hiddenRollback = state == STATE_DEPLOYED ? new Set<String>{ RlyRollbackState.ROLLED_BACK } : HIDE_NOTHING;
         List<RLY_Release__c> rels = state == STATE_ROLLED_BACK ? new SystemAccess().rolledBack(c) : new SystemAccess().listed(c);
+        rels = RlyReleaseRepo.onlyIn(rels, f.connectionId);
         return state == STATE_OPEN ? hotfixesFirst(rels) : rels;
     }
 
@@ -165,7 +168,8 @@ public with sharing class RlyReleaseQuery {
             if (c.userId == null) {
                 return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
                                CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                               Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
+                               Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c,
+                               Git_Connection__c, Source_Org__r.Git_Connection__c
                         FROM RLY_Release__c WHERE Source_Org__c != null AND Status__c IN :statuses AND (Rollback_Status__c = null OR Rollback_Status__c NOT IN :hidden)
                             AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
                         WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
@@ -173,7 +177,8 @@ public with sharing class RlyReleaseQuery {
             Id userId = c.userId;
             return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
                            CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
+                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c,
+                               Git_Connection__c, Source_Org__r.Git_Connection__c
                     FROM RLY_Release__c WHERE Source_Org__c != null AND CreatedById = :userId AND Status__c IN :statuses
                         AND (Rollback_Status__c = null OR Rollback_Status__c NOT IN :hidden) AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
                     WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
@@ -191,14 +196,16 @@ public with sharing class RlyReleaseQuery {
             if (userId == null) {
                 return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
                                CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                               Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
+                               Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c,
+                               Git_Connection__c, Source_Org__r.Git_Connection__c
                         FROM RLY_Release__c WHERE Source_Org__c != null AND Rollback_Status__c = :rolled
                             AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
                         WITH SYSTEM_MODE ORDER BY Rollback_On__c DESC LIMIT 200];
             }
             return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
                            CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
+                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c,
+                               Git_Connection__c, Source_Org__r.Git_Connection__c
                     FROM RLY_Release__c WHERE Source_Org__c != null AND CreatedById = :userId AND Rollback_Status__c = :rolled
                         AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
                     WITH SYSTEM_MODE ORDER BY Rollback_On__c DESC LIMIT 200];

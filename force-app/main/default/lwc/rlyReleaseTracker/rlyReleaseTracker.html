@@ -36,6 +36,11 @@
                             <button key={c.id} type="button" class={c.cls} data-id={c.id} aria-pressed={c.on} title={c.title} onclick={pickChip}>{c.label} <span class="rr-count">{c.count}</span></button>
                         </template>
                     </div>
+                    <template lwc:if={showRepoFilter}>
+                        <div class="rr-repo">
+                            <lightning-combobox label="Repository" value={repoId} options={repoOptions} onchange={handleRepo}></lightning-combobox>
+                        </div>
+                    </template>
                     <div class="rr-search">
                         <c-rly-search-box label={searchLabel} placeholder={searchPlaceholder} shown={shownCount} total={totalCount}
                             onsearch={handleSearch}></c-rly-search-box>
@@ -81,6 +86,7 @@
                                         <template lwc:if={r.deletesText}><span class="rr-pill rr-pill-bad">{r.deletesText}</span></template>
                                         <template lwc:if={r.manualText}><span class="rr-pill rr-pill-wait">{r.manualText}</span></template>
                                         <span class={r.pillCls}>{r.status}</span>
+                                        <template lwc:if={r.provider}><span class="rr-pill rr-pill-repo" title={r.repoTitle}>{r.provider}</span></template>
                                         <template lwc:if={r.rollbackFailed}><span class="rr-pill rr-pill-bad">Rollback failed</span></template>
                                         <span class="rr-grow"></span>
                                         <span class="rr-weak rr-small">{r.when}</span>

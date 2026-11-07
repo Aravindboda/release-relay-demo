@@ -65,7 +65,7 @@ public with sharing class RlyCompareRun {
     public static Result check(Job job) {
         Result r = new Result();
         RLY_Org__c source = prepare(job, r);
-        RlyCompareBranch branch = branchReader(r);
+        RlyCompareBranch branch = branchReader(r, source);
         if (job.pendingPaths != null && !job.pendingPaths.isEmpty()) {
             if (job.pendingPaths.size() > MAX_PENDING) {
                 throw new RlyReleaseException('Ask for up to ' + MAX_PENDING + ' files at a time.');
@@ -108,8 +108,9 @@ public with sharing class RlyCompareRun {
         return source;
     }
 
-    private static RlyCompareBranch branchReader(Result r) {
-        RLY_Git_Connection__c conn = RlyReleaseStore.git();
+    // The source org's Git connection (build 45: its own repository).
+    private static RlyCompareBranch branchReader(Result r, RLY_Org__c source) {
+        RLY_Git_Connection__c conn = RlyReleaseStore.gitForOrg(source.Id);
         if (conn == null || conn.Status__c != 'Connected') {
             throw new RlyReleaseException('The Git connection isn\'t set up and checked yet (Pipeline tab).');
         }

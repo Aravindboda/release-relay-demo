@@ -28,12 +28,12 @@ public with sharing class RlyRaiseRoute {
     }
 
     /**
-     * @description Where the release goes: the first stage.
+     * @description Where the release goes: the first stage of the source org's route (its Git connection's).
      * @param source the checked source org
      * @return the target org, with its branch
      */
     public static RLY_Org__c target(RLY_Org__c source) {
-        RLY_Org__c target = RlyReleaseStore.firstStage();
+        RLY_Org__c target = RlyConnectionRoutes.firstStageFor(RlyReleaseStore.gitForOrg(source.Id)?.Id);
         if (target == null || String.isBlank(target.Branch__c)) {
             throw new RlyReleaseException('No stage to release into yet: register the first stage org with its branch on the Pipeline tab.');
         }

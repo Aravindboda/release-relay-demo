@@ -108,7 +108,7 @@ public with sharing class RlyRepoSettings {
          */
         public RLY_Git_Connection__c git() {
             List<RLY_Git_Connection__c> rows = [SELECT Id, Provider__c, Repository__c, Named_Credential__c, Pipeline__c, Pipeline_Branch__c
-                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY CreatedDate ASC LIMIT 1];
+                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC, Id ASC LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
         }
     }

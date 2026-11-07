@@ -26,6 +26,7 @@ public with sharing class RlyReleaseRows {
             }
             out.add(row);
         }
+        RlyReleaseRepo.fill(out, rels); // build 45: the GitHub / GitLab badge
         return out;
     }
 

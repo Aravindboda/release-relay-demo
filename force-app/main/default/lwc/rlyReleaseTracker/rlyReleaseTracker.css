@@ -130,3 +130,5 @@ mark { background: #fef1cd; color: inherit; padding: 0; border-radius: 2px; }
 @media (max-width: 600px) {
     .rr-scroll, .rr-scroll-cards { max-height: 60vh; }
 }
+.rr-repo { flex: 0 1 220px; min-width: 160px; }
+.rr-pill-repo { background: #f3f3f3; color: #444; border: 1px solid #e5e5e5; }

@@ -17,8 +17,8 @@ public with sharing class RlyDeployReader {
             mergeFailed(rel, mergeResult);
             return;
         }
-        if (mergeResult != null) {
-            rel.Merge_Commit__c = String.valueOf(mergeResult.get('sha')).left(40);
+        if (mergedOnly(rel, mergeResult)) {
+            return;
         }
         Object sync = mergeResult == null ? null : mergeResult.get('sync');
         if (sync instanceof List<Object>) {
@@ -36,6 +36,19 @@ public with sharing class RlyDeployReader {
             rel.Deploy_Status__c = 'Deploying';
             keepSync(rel, sync);
         }
+    }
+
+    // The merge commit; an automatic prod sync release (build 45) is a merge only: merged is deployed.
+    private static Boolean mergedOnly(RLY_Release__c rel, Map<String, Object> mergeResult) {
+        if (mergeResult == null) {
+            return false;
+        }
+        rel.Merge_Commit__c = String.valueOf(mergeResult.get('sha')).left(40);
+        if (!RlyProdSync.isProdSync(rel)) {
+            return false;
+        }
+        deployed(rel, new Map<String, Object>{ 'status' => 'Deployed', 'merge' => mergeResult });
+        return true;
     }
 
     // How the developer branches were updated after the merge (merge.json sync) goes with the deploy result.

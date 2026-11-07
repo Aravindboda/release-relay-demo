@@ -11,6 +11,7 @@ import checkGit from '@salesforce/apex/RlyRouteController.checkGit';
 import createBranchesPart from '@salesforce/apex/RlyRouteController.createBranchesPart';
 import saveRoute from '@salesforce/apex/RlyRouteController.saveRoute';
 import getPipelineFiles from '@salesforce/apex/RlyRouteController.getPipelineFiles';
+import checkBranch from '@salesforce/apex/RlyConnectionController.checkBranch';
 import updatePipelineFiles from '@salesforce/apex/RlyRouteController.updatePipelineFiles';
 import getSlack from '@salesforce/apex/RlySlackController.getSlack';
 import readSiteCheck from '@salesforce/apex/RlySlackSiteCheck.read';
@@ -163,7 +164,7 @@ function blankForm() {
         Id: null, Name: '', Role__c: null, Environment__c: null, My_Domain__c: '', Login_Type__c: null,
         Username__c: '', Consumer_Key__c: '', Certificate__c: '', Git_Environment__c: '', Branch__c: '',
         Approve_In_Salesforce__c: true, Approve_In_Slack__c: false, Require_Git_Review__c: false, Slack_Channel__c: '', Slack_Post__c: false,
-        Hotfix_Two_Approvers__c: false, Approval_Rule__c: RULE_ALWAYS, approvalTypes: [], Code_Scan__c: SCAN_FOLLOW
+        Hotfix_Two_Approvers__c: false, Approval_Rule__c: RULE_ALWAYS, approvalTypes: [], Code_Scan__c: SCAN_FOLLOW, Git_Connection__c: null
     };
 }
 
@@ -441,6 +442,14 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     developers = [];
     stages = [];
     warnings = [];
+    /** Build 45: one route per Git connection; the lane shown, and each connection's pipeline file status. */
+    lanes = [];
+    laneId;
+    laneFiles = {};
+    /** Build 45: the Git connections an org can be on (the org modal's picker shows with more than one). */
+    connections = [];
+    branchCheck;
+    branchChecking = false;
     routeDirty = false;
     routeBusy = false;
     editingRoute = false;
@@ -638,6 +647,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
                 this.isAdmin = h.isAdmin;
                 this.slackAvailable = h.slackAvailable === true;
                 this.gitProviderName = h.gitProvider;
+                this.connections = h.connections || [];
                 this.showSetup = this.orgs.length === 0;
                 this.applySetup(s);
                 if (this.git && !this.pipeFiles && !this.pipeFilesLoading) {
@@ -897,7 +907,9 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     orgTile(o) {
         let approvalText;
         if (o.Role__c === 'Developer') {
-            const first = this.stages.find((s) => s.Role__c !== 'Hub') || this.stages[0];
+            const lane = this.lanes.find((l) => (l.developers || []).some((d) => d.Id === o.Id)); // build 45: the org's own route
+            const route = lane ? (lane.stages || []) : this.stages;
+            const first = route.find((s) => s.Role__c !== 'Hub') || route[0];
             approvalText = first ? 'Raises into ' + (first.Branch__c || first.Name) : 'Raises releases';
         } else if (o.Role__c === BACK_PROMOTE) {
             const b = this.bpFor(o);
@@ -918,6 +930,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
             branchCls: o.Branch__c ? 'rr-mono' : 'rr-weak',
             approvalText,
             windowText: (this.windowViews[o.Id] && this.windowViews[o.Id].summary) || '',
+            connectionText: this.connectionTextOf(o),
             checkedText: o.Last_Checked__c ? 'Checked ' + new Date(o.Last_Checked__c).toLocaleString([], {
                 month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not checked yet',
             openLabel: 'Open ' + o.Name + ' to see or edit it',
@@ -1602,8 +1615,70 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
         this.developers = (s.developers || []).filter((o) => o.Role__c !== BACK_PROMOTE);
         this.stages = (s.stages || []).filter((o) => o.Role__c !== BACK_PROMOTE);
         this.warnings = s.warnings || [];
+        this.lanes = s.lanes || [];
         this.routeDirty = false;
         this.editingRoute = false;
+        this.showLane();
+    }
+
+    // ---------- routes, one per Git connection (build 45) ----------
+
+    /** Several connections: the route shown is the picked lane's (developer orgs, its stages, the hub). */
+    showLane() {
+        if (this.lanes.length < 2) {
+            return;
+        }
+        const lane = this.lanes.find((l) => l.connectionId === this.laneId) || this.lanes[0];
+        this.laneId = lane.connectionId;
+        this.developers = (lane.developers || []).filter((o) => o.Role__c !== BACK_PROMOTE);
+        this.stages = (lane.stages || []).filter((o) => o.Role__c !== BACK_PROMOTE);
+        this.warnings = [...(lane.warnings || []), ...this.laneFileWarnings(lane)];
+    }
+
+    laneFileWarnings(lane) {
+        const f = this.laneFiles[lane.connectionId];
+        if (!f || !(f.older || f.missing)) {
+            return [];
+        }
+        const who = lane.provider || 'This connection';
+        return [f.missing ? who + '\'s pipeline files aren\'t in its repository yet: Update pipeline files on its card.'
+            : who + '\'s pipeline file is older than the hub\'s: Update pipeline files on its card.'];
+    }
+
+    get hasLanes() { return this.lanes.length > 1; }
+    get laneChips() {
+        return this.lanes.map((l) => {
+            const on = l.connectionId === this.laneId;
+            const warn = (l.warnings || []).length + this.laneFileWarnings(l).length;
+            return {
+                key: l.connectionId || 'none',
+                id: l.connectionId,
+                label: l.label || l.provider || 'Git',
+                selected: on ? 'true' : 'false',
+                cls: on ? 'rr-lane rr-lane-on' : 'rr-lane',
+                warn: warn > 0,
+                warnText: warn === 1 ? '1 warning' : warn + ' warnings',
+                main: l.isMain === true
+            };
+        });
+    }
+    get laneLocked() { return this.editingRoute; }
+
+    pickLane(event) {
+        if (this.editingRoute) {
+            return;
+        }
+        this.laneId = event.currentTarget.dataset.id;
+        this.showLane();
+    }
+
+    handleFilesStatus(event) {
+        this.laneFiles = event.detail || {};
+        this.showLane();
+    }
+
+    handleConnectionsChanged() {
+        this.load();
     }
 
     // ---------- Git connection (read-only card) ----------
@@ -2431,12 +2506,81 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
             ...blankForm(), ...o, Consumer_Key__c: '',
             Approve_In_Salesforce__c: ap.sf || !ap.slack, Approve_In_Slack__c: ap.slack, Require_Git_Review__c: ap.git,
             Slack_Channel__c: o.Slack_Channel__c || '', Slack_Post__c: !!o.Slack_Post__c, Hotfix_Two_Approvers__c: o.Hotfix_Two_Approvers__c === true,
-            Approval_Rule__c: ruleOf(o), approvalTypes: typesOf(o), Code_Scan__c: scanChoiceOf(o)
+            Approval_Rule__c: ruleOf(o), approvalTypes: typesOf(o), Code_Scan__c: scanChoiceOf(o),
+            Git_Connection__c: o.Git_Connection__c || this.mainConnectionId || null
         });
+        this.branchCheck = undefined;
         this.ruleError = undefined;
         this.bpForm = { whenValue: b.whenValue || 'Manual', approval: b.approval === true };
         this.bounced = false;
         this.startEdit('org:' + orgId + ':' + kind);
+    }
+
+    // ---------- the org's Git connection (build 45) ----------
+
+    get mainConnectionId() {
+        const main = this.connections.find((c) => c.isMain);
+        return main ? main.id : undefined;
+    }
+    /** Several connections and a developer or stage org: the org picks its connection (one connection: picked automatically). */
+    get showConnectionPicker() {
+        return this.connections.length > 1 && (this.form.Role__c === 'Developer' || this.form.Role__c === 'Stage');
+    }
+    get connectionOptions() {
+        return this.connections.filter((c) => c.active || c.id === this.form.Git_Connection__c).map((c) => ({
+            value: c.id, label: c.label, help: c.isMain ? 'Main connection' : undefined
+        }));
+    }
+    get connectionHelp() {
+        return 'Where this org\'s releases go: its branch and its route are in that repository. An org with open releases can\'t move.';
+    }
+    get formConnection() {
+        return this.connections.find((c) => c.id === this.form.Git_Connection__c) || this.connections.find((c) => c.isMain);
+    }
+    get branchCheckLabel() {
+        const c = this.formConnection;
+        return this.branchChecking ? 'Checking…' : 'Check branch in ' + ((c && c.provider) || 'Git');
+    }
+    get cantCheckBranch() { return this.branchChecking || !(this.form.Branch__c || '').trim() || !this.isAdmin; }
+    get branchCheckText() {
+        if (!this.branchCheck) {
+            return '';
+        }
+        return this.branchCheck.message + (this.branchCheck.found ? ' ✓' : '');
+    }
+    get branchCheckCls() { return this.branchCheck && this.branchCheck.found ? 'rr-conn-check rr-conn-ok' : 'rr-conn-check rr-conn-bad'; }
+    get hasConnections() { return this.connections.length > 0; }
+
+    connectionTextOf(o) {
+        if (this.connections.length < 2 || o.Role__c === 'Hub') {
+            return o.Role__c === 'Hub' && this.connections.length > 1 ? 'Every route' : '';
+        }
+        if (o.Role__c === BACK_PROMOTE) {
+            return '';
+        }
+        const c = this.connections.find((x) => x.id === o.Git_Connection__c) || this.connections.find((x) => x.isMain);
+        return c ? c.label : '';
+    }
+
+    handleConnectionChoice(event) {
+        this.form = { ...this.form, Git_Connection__c: event.detail.value };
+        this.branchCheck = undefined;
+        this.editError = undefined;
+    }
+
+    handleBranchCheck() {
+        const c = this.formConnection;
+        this.branchChecking = true;
+        checkBranch({ connectionId: c ? c.id : null, branch: (this.form.Branch__c || '').trim() })
+            .then((r) => {
+                this.branchCheck = r;
+            })
+            .catch((e) => {
+                this.branchCheck = { found: false, message: errorText(e) };
+            })
+            .finally(() => {
+                this.branchChecking = false;
+            });
     }
 
     get formIsDeveloper() { return this.form.Role__c === 'Developer'; }
@@ -2445,7 +2589,10 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     get formOrgName() { return (this.form.Name || '').trim() || 'this org'; }
     get formTwoApproverLabel() { return 'Hotfixes into ' + this.formOrgName + ' need 2 approvers'; }
     get formTwoApproverOn() { return this.form.Hotfix_Two_Approvers__c === true; }
-    get formGitReviewLabel() { return 'Also require ' + (this.gitProviderName || '').trim() + ' reviewers before deploying'; }
+    get formGitReviewLabel() {
+        const c = this.connections.length > 1 ? this.formConnection : undefined; // build 45: the org's own provider
+        return 'Also require ' + ((c && c.provider) || this.gitProviderName || '').trim() + ' reviewers before deploying';
+    }
     get formApproveGroupLabel() { return 'Where releases into ' + this.formOrgName + ' are approved'; }
     get formShowApproveHelp() { return this.slackAvailable || this.bounced; }
     get formApproveHelpCls() { return this.bounced ? 'rr-msg rr-msg-wait' : 'rr-kicker'; }
@@ -2601,6 +2748,9 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
         payload.Slack_Channel__c = trimOrNull(f.Slack_Channel__c);
         payload.Slack_Post__c = f.Slack_Post__c === true;
         payload.Hotfix_Two_Approvers__c = f.Hotfix_Two_Approvers__c === true;
+        if (this.showConnectionPicker) {
+            payload.Git_Connection__c = f.Git_Connection__c || null; // build 45: the org's Git connection
+        }
         if (this.formIsTarget) {
             const rule = f.Approval_Rule__c || RULE_ALWAYS;
             payload.Approval_Rule__c = rule;

@@ -58,7 +58,7 @@ public with sharing class RlyApprovalService {
             throw new RlyReleaseException('Checks can run again on an open pull request that isn\'t approved yet.');
         }
         RLY_Release__c before = rel.clone(true, true, true, true);
-        RlyApprovalRuns.startChecks(rel, RlyReleaseStore.git(), 'check');
+        RlyApprovalRuns.startChecks(rel, RlyReleaseStore.gitFor(rel), 'check');
         saveAndNotify(before, rel);
         return rel;
     }
@@ -95,7 +95,7 @@ public with sharing class RlyApprovalService {
             return rel;
         }
         RLY_Release__c prior = rel.clone(true, true, true, true);
-        RLY_Git_Connection__c conn = RlyReleaseStore.git();
+        RLY_Git_Connection__c conn = RlyReleaseStore.gitFor(rel);
         RlyGit git = RlyGit.forConnection(conn);
         if (RlyApprovalRuns.targetMoved(rel, git)) {
             RlyApprovalRuns.startChecks(rel, conn, RlyPipelineRun.RECHECK);

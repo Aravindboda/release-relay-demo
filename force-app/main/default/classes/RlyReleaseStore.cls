@@ -52,11 +52,32 @@ public with sharing class RlyReleaseStore {
     }
 
     /**
-     * @description The hub's Git connection.
+     * @description The hub's main Git connection: the oldest active one (hub-wide jobs: schedules, archive, self-update).
+     * Use gitFor or gitForOrg when a release or an org is in hand.
      * @return the connection, or null
      */
     public static RLY_Git_Connection__c git() {
         return new SystemAccess().readGit();
+    }
+
+    /**
+     * @description The connection a release lives in (build 45): its own Git_Connection__c, else its source org's, else
+     * the main one (RlyConnectionRoutes.forRelease).
+     * @param rel the release
+     * @return the connection, or null when the hub has none
+     */
+    public static RLY_Git_Connection__c gitFor(RLY_Release__c rel) {
+        return RlyConnectionRoutes.forRelease(rel);
+    }
+
+    /**
+     * @description The connection an org belongs to (build 45): its Git_Connection__c, else the main one; the hub is always
+     * on the main one (RlyConnectionRoutes.forOrg).
+     * @param orgId the org
+     * @return the connection, or null when the hub has none
+     */
+    public static RLY_Git_Connection__c gitForOrg(Id orgId) {
+        return RlyConnectionRoutes.forOrg(orgId);
     }
 
     /**
@@ -146,7 +167,7 @@ public with sharing class RlyReleaseStore {
          */
         public RLY_Org__c readOrg(Id orgId) {
             List<RLY_Org__c> rows = [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Username__c, Consumer_Key__c, Client_Id__c,
-                                            Certificate__c, Branch__c, Git_Environment__c, Stage_Order__c, Code_Scan__c
+                                            Certificate__c, Branch__c, Git_Environment__c, Stage_Order__c, Code_Scan__c, Git_Connection__c
                                      FROM RLY_Org__c WHERE Id = :orgId WITH SYSTEM_MODE];
             return rows.isEmpty() ? null : rows[0];
         }
@@ -156,7 +177,7 @@ public with sharing class RlyReleaseStore {
          * @return the stage, or null
          */
         public RLY_Org__c readFirstStage() {
-            List<RLY_Org__c> rows = [SELECT Id, Name, Branch__c, Git_Environment__c, Code_Scan__c FROM RLY_Org__c
+            List<RLY_Org__c> rows = [SELECT Id, Name, Branch__c, Git_Environment__c, Code_Scan__c, Git_Connection__c FROM RLY_Org__c
                                      WHERE Role__c = 'Stage' WITH SYSTEM_MODE ORDER BY Stage_Order__c ASC NULLS LAST, Name LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
         }
@@ -167,7 +188,7 @@ public with sharing class RlyReleaseStore {
          */
         public List<RLY_Org__c> readRouteOrgs() {
             return [SELECT Id, Name, Role__c, Branch__c, Git_Environment__c, Stage_Order__c, Status__c, Source_Tracking__c, Environment__c,
-                           Hotfix_Two_Approvers__c, Code_Scan__c
+                           Hotfix_Two_Approvers__c, Code_Scan__c, Git_Connection__c
                     FROM RLY_Org__c WHERE Role__c IN ('Stage', 'Hub') WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }
 
@@ -186,8 +207,8 @@ public with sharing class RlyReleaseStore {
          */
         public RLY_Git_Connection__c readGit() {
             List<RLY_Git_Connection__c> rows = [SELECT Id, Provider__c, Repository__c, Named_Credential__c, Pipeline__c, Pipeline_Branch__c,
-                                                       Source_Path__c, Code_Scan__c, Status__c, Back_Promote__c
-                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY CreatedDate ASC LIMIT 1];
+                                                       Source_Path__c, Code_Scan__c, Status__c, Back_Promote__c, Name, Active__c
+                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC, Id ASC LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
         }
 
@@ -213,7 +234,8 @@ public with sharing class RlyReleaseStore {
                     Second_Approved_By__c, Second_Approved_By__r.Name, Second_Approved_On__c, Back_Merge_Result__c,
                     Target_Org__r.Role__c, Target_Org__r.Hotfix_Two_Approvers__c, Target_Org__r.Branch__c, Source_Org__r.Git_Environment__c,
                     Deletions__c, Deletion_Count__c, Target_Org__r.Approval_Rule__c, Target_Org__r.Approval_Types__c, Target_Org__r.Code_Scan__c,
-                    Flow_Actions__c, Flow_Results__c, Manual_Only__c, Append_State__c, Inactive_Triggers__c, Target_Org__r.Environment__c
+                    Flow_Actions__c, Flow_Results__c, Manual_Only__c, Append_State__c, Inactive_Triggers__c, Target_Org__r.Environment__c,
+                    Git_Connection__c, Source_Org__r.Git_Connection__c, Prod_Sync__c, Prod_Sync_State__c
                 FROM RLY_Release__c WHERE Id = :releaseId WITH SYSTEM_MODE];
             return rows.isEmpty() ? null : rows[0];
         }
@@ -245,7 +267,8 @@ public with sharing class RlyReleaseStore {
         public List<RLY_Release__c> waitingForApproval() {
             return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
                            CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
+                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c,
+                           Git_Connection__c, Source_Org__r.Git_Connection__c
                     FROM RLY_Release__c WHERE Source_Org__c != null AND Status__c IN ('Ready for approval', 'Checks failed')
                     WITH SYSTEM_MODE ORDER BY Is_Hotfix__c DESC, CreatedDate ASC LIMIT 200];
         }
@@ -257,7 +280,8 @@ public with sharing class RlyReleaseStore {
         public List<RLY_Release__c> allReleases() {
             return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
                            CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
+                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c,
+                           Git_Connection__c, Source_Org__r.Git_Connection__c
                     FROM RLY_Release__c WHERE Source_Org__c != null WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
         }
 
@@ -269,7 +293,8 @@ public with sharing class RlyReleaseStore {
         public List<RLY_Release__c> raisedBy(Id userId) {
             return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
                            CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
+                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c,
+                           Git_Connection__c, Source_Org__r.Git_Connection__c
                     FROM RLY_Release__c WHERE Source_Org__c != null AND CreatedById = :userId
                     WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
         }

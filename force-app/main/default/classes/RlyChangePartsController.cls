@@ -107,6 +107,9 @@ public with sharing class RlyChangePartsController {
         try {
             RlyChangesController.source(orgId);
             RlyDeletionPlan.Part part = String.isBlank(partJson) ? null : (RlyDeletionPlan.Part) JSON.deserialize(partJson, RlyDeletionPlan.Part.class);
+            if (part != null) {
+                part.orgId = orgId; // build 45: the org's own repository
+            }
             return RlyDeletionPlan.readPart(part);
         } catch (Exception e) {
             throw RlyChangesController.handled(e);

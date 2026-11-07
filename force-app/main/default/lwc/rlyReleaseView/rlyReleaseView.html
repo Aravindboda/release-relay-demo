@@ -20,6 +20,10 @@
                         <template lwc:if={typeLabel}><span class="rr-pill rr-pill-info">{typeLabel}</span></template>
                         <template lwc:if={manualOnly}><span class="rr-pill rr-pill-info">{manualOnlyLabel}</span></template>
                         <span class={headPillCls}>{headPill}</span>
+                        <template lwc:if={repoChip}>
+                            <template lwc:if={repoUrl}><a class="rr-pill rr-pill-none rr-repo-chip" href={repoUrl} target="_blank" rel="noopener" title="The repository this release lives in">{repoChip}</a></template>
+                            <template lwc:else><span class="rr-pill rr-pill-none" title="The repository this release lives in">{repoChip}</span></template>
+                        </template>
                         <template lwc:if={manualOpenText}><span class="rr-pill rr-pill-wait">{manualOpenText}</span></template>
                         <template lwc:if={detail.slackUrl}>
                             <a class="slds-button slds-button_neutral" href={detail.slackUrl} target="_blank" rel="noopener">Open in Slack</a>
@@ -107,7 +111,7 @@
                                         <template lwc:if={s.hasSync}>
                                             <ul class="rr-sync-list" aria-label={s.syncLabel}>
                                                 <template for:each={s.sync} for:item="b">
-                                                    <li key={b.key}><span class={b.cls}>{b.label}</span><span class="rr-small rr-sp">{b.text}</span></li>
+                                                    <li key={b.key}><span class={b.cls}>{b.label}</span><span class="rr-small rr-sp">{b.text}</span><template lwc:if={b.retry}> <button type="button" class="slds-button rr-sp" data-id={b.retry} onclick={handleProdSyncRetry}>Try again</button></template></li>
                                                 </template>
                                             </ul>
                                         </template>

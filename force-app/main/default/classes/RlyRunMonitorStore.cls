@@ -115,7 +115,7 @@ public with sharing class RlyRunMonitorStore {
          */
         public List<RLY_Git_Connection__c> connections() {
             return [SELECT Id, Provider__c, Repository__c FROM RLY_Git_Connection__c WITH SYSTEM_MODE
-                    ORDER BY CreatedDate ASC LIMIT 20];
+                    ORDER BY Active__c DESC, CreatedDate ASC, Id ASC LIMIT 20];
         }
 
         /**

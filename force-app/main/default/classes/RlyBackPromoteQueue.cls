@@ -35,6 +35,7 @@ public with sharing class RlyBackPromoteQueue {
      * @param rel the release just deployed
      */
     public static void afterDeploy(RLY_Release__c rel) {
+        RlyProdSync.queue(rel); // build 45: the other repositories' prod branches are kept in step (DML only)
         if (!isHubDeploy(rel) || !RlyBackPromote.isOn(RlyReleaseStore.git())) {
             return;
         }
@@ -58,7 +59,7 @@ public with sharing class RlyBackPromoteQueue {
      */
     public static Boolean isHubDeploy(RLY_Release__c rel) {
         return rel.Target_Org__r != null && rel.Target_Org__r.Role__c == 'Hub'
-            && RlyPromotion.typeOf(rel) != RlyPromotion.TYPE_BACK_PROMOTE;
+            && RlyPromotion.typeOf(rel) != RlyPromotion.TYPE_BACK_PROMOTE && !RlyProdSync.isProdSync(rel);
     }
 
     private static Boolean hasOpenSync(Id orgId, List<RLY_Release__c> latest) {

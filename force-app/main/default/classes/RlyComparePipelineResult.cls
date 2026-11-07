@@ -32,8 +32,19 @@ public with sharing class RlyComparePipelineResult {
      * @return done = false until the run has written it
      */
     public static Result check(String compareId, String token) {
+        return checkIn(compareId, token, null);
+    }
+
+    /**
+     * @description Reads the compare's result in the developer org's repository (build 45).
+     * @param compareId the compare's id
+     * @param token the run's token
+     * @param sourceOrgId the developer org compared (blank: the hub's main connection)
+     * @return done = false until the run has written it
+     */
+    public static Result checkIn(String compareId, String token, Id sourceOrgId) {
         RlyComparePipeline.checkId(compareId);
-        RlyGit git = RlyComparePipeline.gitHub();
+        RlyGit git = RlyComparePipelineInput.gitHubFor(sourceOrgId);
         Result r = new Result();
         Map<String, Object> summary = parsed(git.getFileRaw('results/' + compareId + '/compare.json', RlyPipelineRun.RESULTS_BRANCH));
         Boolean fromThisRun = summary != null && String.isNotBlank(token) && token.equals(String.valueOf(summary.get('attempt')));
@@ -61,11 +72,22 @@ public with sharing class RlyComparePipelineResult {
      * @return the file
      */
     public static RlyCompareFiles.FileDiff file(String compareId, Integer n) {
+        return fileIn(compareId, n, null);
+    }
+
+    /**
+     * @description One file's copies (or its unified diff), in the developer org's repository (build 45).
+     * @param compareId the compare's id
+     * @param n the file's number
+     * @param sourceOrgId the developer org compared (blank: the hub's main connection)
+     * @return the file
+     */
+    public static RlyCompareFiles.FileDiff fileIn(String compareId, Integer n, Id sourceOrgId) {
         RlyComparePipeline.checkId(compareId);
         if (n == null || n < 1 || n > 100000) {
             throw new RlyReleaseException('That file isn\'t part of the compare.');
         }
-        Map<String, Object> f = parsed(RlyComparePipeline.gitHub().getFileRaw('results/' + compareId + '/f/' + n + '.json',
+        Map<String, Object> f = parsed(RlyComparePipelineInput.gitHubFor(sourceOrgId).getFileRaw('results/' + compareId + '/f/' + n + '.json',
             RlyPipelineRun.RESULTS_BRANCH));
         if (f == null) {
             throw new RlyReleaseException('That file isn\'t on the results branch any more: compare again.');

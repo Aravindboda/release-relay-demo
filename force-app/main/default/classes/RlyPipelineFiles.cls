@@ -83,8 +83,16 @@ public with sharing class RlyPipelineFiles {
      * @return the status
      */
     public static Status currentStatus() {
+        return currentStatusFor(new Data().git());
+    }
+
+    /**
+     * @description The packaged version, one connection's repository version and every file (build 45: per connection).
+     * @param conn the connection (with Provider__c, Repository__c, Named_Credential__c, Pipeline__c, Pipeline_Branch__c), or null
+     * @return the status
+     */
+    public static Status currentStatusFor(RLY_Git_Connection__c conn) {
         Data data = new Data();
-        RLY_Git_Connection__c conn = data.git();
         Status s = new Status();
         s.isAdmin = RlyOrgController.isAdmin();
         s.files = catalog(conn);
@@ -120,9 +128,19 @@ public with sharing class RlyPipelineFiles {
      * @return what happened
      */
     public static UpdateResult updateRepository(String how) {
+        return updateRepositoryFor(new Data().git(), how);
+    }
+
+    /**
+     * @description Writes the packaged files for one connection's provider to its repository (build 45: per connection).
+     * The caller checks the user is an admin.
+     * @param conn the connection, or null
+     * @param how pullRequest (the default) or commit
+     * @return what happened
+     */
+    public static UpdateResult updateRepositoryFor(RLY_Git_Connection__c conn, String how) {
         UpdateResult r = new UpdateResult();
         Data data = new Data();
-        RLY_Git_Connection__c conn = data.git();
         if (conn == null) {
             r.message = NO_CONNECTION;
             return r;
@@ -243,7 +261,7 @@ public with sharing class RlyPipelineFiles {
          */
         public RLY_Git_Connection__c git() {
             List<RLY_Git_Connection__c> rows = [SELECT Id, Provider__c, Repository__c, Named_Credential__c, Pipeline__c, Pipeline_Branch__c
-                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY CreatedDate ASC LIMIT 1];
+                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC, Id ASC LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
         }
 

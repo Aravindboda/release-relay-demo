@@ -37,7 +37,7 @@ public with sharing class RlyRollbackPreview {
         if (p.org.hasSnapshot != true) {
             throw new RlyReleaseException(p.org.orgName + ' has no snapshot to roll back to (' + p.org.why + ').');
         }
-        String raw = RlyGit.forConnection(RlyReleaseStore.git()).getFileRaw(p.org.snapshotPath + '/manifest.json', RlyRollbackPlan.SNAPSHOT_BRANCH);
+        String raw = RlyGit.forConnection(RlyReleaseStore.gitFor(new RLY_Release__c(Id = releaseId))).getFileRaw(p.org.snapshotPath + '/manifest.json', RlyRollbackPlan.SNAPSHOT_BRANCH);
         if (String.isBlank(raw)) {
             throw new RlyReleaseException('The snapshot ' + p.org.snapshotPath + ' isn\'t on ' + RlyRollbackPlan.SNAPSHOT_BRANCH + ' any more.');
         }

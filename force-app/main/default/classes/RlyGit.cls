@@ -5,6 +5,7 @@
  * Each provider is a small subclass with its endpoints; this class holds the factory, the shared
  * HTTP call and the release operations' defaults. Error advice lives in RlyGitAdvice.
  */
+@SuppressWarnings('PMD.ExcessivePublicCount,PMD.CyclomaticComplexity') // build 45: one class for every provider's operations
 public abstract with sharing class RlyGit {
 
     private static final String GITHUB = 'GitHub';
@@ -237,6 +238,31 @@ public abstract with sharing class RlyGit {
      */
     public virtual String openPullRequest(String head, String baseBranch, String message) {
         return (String) failUnsupported('Opening pull requests');
+    }
+
+    /**
+     * @description What the provider calls a pull request (build 45).
+     * @return Pull request, or Merge request on GitLab
+     */
+    public virtual String changeRequestLabel() {
+        return 'Pull request';
+    }
+
+    /**
+     * @description The repository's web address (build 45).
+     * @return for example https://github.com/owner/repo
+     */
+    public virtual String webUrl() {
+        return 'https://github.com/' + conn.Repository__c.trim();
+    }
+
+    /**
+     * @description A branch's web address (build 45).
+     * @param branch the branch
+     * @return for example https://github.com/owner/repo/tree/sit
+     */
+    public virtual String branchUrl(String branch) {
+        return webUrl() + '/tree/' + branch;
     }
 
     protected GitException unsupported(String what) {
