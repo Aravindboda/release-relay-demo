@@ -1,19 +1,19 @@
 {
  "request": "REL-91046",
  "step": "raise",
- "status": "Opened",
+ "status": "Failed",
  "mode": "hub",
  "branch": "feature/rly-b44-check",
  "target": "rly-sit-install",
- "sha": "2e14c0fc1b08a3e5b403c3f5ee6d0f4d6a1a28e8",
- "pr": 202,
- "url": "https://github.com/Aravindboda/release-relay-demo/pull/202",
+ "sha": null,
+ "pr": null,
+ "url": null,
  "commits": [],
  "conflicts": [],
  "deleted": [],
  "valuesTokenized": 0,
  "appended": false,
- "message": "",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42401039642",
- "finishedAt": "2026-11-07T18:23:40.057Z"
+ "message": ".relay-inbox/REL-91046.zip isn't on feature/rly-b44-check (nor a .relay-inbox/REL-91046.deletions listing deletions). Raise the release again from Release Relay.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42402073079",
+ "finishedAt": "2026-11-07T18:36:02.119Z"
 }
