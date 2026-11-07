@@ -1419,6 +1419,38 @@ const USE_SECTIONS = [
         ]
     },
     {
+        key: 'metrics',
+        group: 'daily',
+        label: 'Metrics',
+        cards: [
+            {
+                key: 'metrics-main',
+                title: 'Metrics: how releases are going',
+                blocks: [
+                    { type: 'text', paras: [
+                        '**Metrics** turns Release Relay\'s own history into numbers: the four **DORA** measures and two day-to-day ones. Everyone with a Release Relay permission set can open it; nothing is set up and nothing can be changed there.',
+                        'Pick the **Org** deploys go to (production first; **All orgs** adds them up), a **Developer org** (or all) and the period: **30 days**, **90 days**, **6 months** or **12 months**. Each tile compares the period with the one before it, in green when it got better and red when it got worse. Charts go by week up to 90 days and by month beyond; hover a bar for its number.'
+                    ] },
+                    { type: 'table', cols: ['Tile', 'What it measures'], rows: [
+                        ['Deploys (DORA)', 'Successful deploys to the org, and how many a week.'],
+                        ['Lead time (DORA)', 'From raising a release to it running in the org (median). A promotion counts each release it carries from the day that release was raised.'],
+                        ['Change failure rate (DORA)', 'Failed deploys, rollbacks and hotfixes deployed, over deploys tried.'],
+                        ['Time to restore (DORA)', 'From a failed deploy or a rollback to the next successful deploy in that org (median).'],
+                        ['Approval wait', 'From the check that made a release ready for approval to its approval (median).'],
+                        ['Checks failing', 'Check-only deploys and code scans that failed, over those run.']
+                    ] },
+                    { type: 'list', items: [
+                        '**Why checks fail** sorts the failed checks into test failures, deploy errors, conflicts with the branch, quality gates, code coverage and code scan, from each release\'s latest result (read ten releases at a time, so it fills in after the tiles). A release fixed since shows **Fixed since**. **Files that conflict most** lists the files in those conflicts.',
+                        'The **Developer org** filter applies to lead time, approvals and checks; deploys, failures and restores are per org.',
+                        '**Download CSV** saves every tile (this period and the one before), every chart point and the reasons.',
+                        'Numbers go back as far as the history does: the nightly archive removes releases older than the Retention days (Pipeline → Retention).'
+                    ] },
+                    { type: 'links', links: [{ label: 'Open Metrics', tab: 'RLY_Metrics' }] }
+                ]
+            }
+        ]
+    },
+    {
         key: 'sync',
         group: 'daily',
         label: 'Sync status',
