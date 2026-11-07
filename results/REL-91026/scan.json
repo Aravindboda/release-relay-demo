@@ -1,0 +1,65 @@
+{
+ "request": "REL-91026",
+ "step": "scan",
+ "status": "Passed",
+ "total": 2,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Info": 2
+ },
+ "files": [
+  "force-app/main/default/classes/RlyCompareController.cls",
+  "force-app/main/default/classes/RlyCompareFiles.cls",
+  "force-app/main/default/classes/RlyCompareParts.cls",
+  "force-app/main/default/classes/RlyComparePipeline.cls",
+  "force-app/main/default/classes/RlyComparePipelineInput.cls",
+  "force-app/main/default/classes/RlyComparePipelineResult.cls",
+  "force-app/main/default/classes/RlyComparePipelineTest.cls",
+  "force-app/main/default/classes/RlyCompareRun.cls",
+  "force-app/main/default/classes/RlyCompareTarget.cls",
+  "force-app/main/default/classes/RlyCompareZip.cls",
+  "force-app/main/default/classes/RlyRunMonitorChecks.cls",
+  "force-app/main/default/classes/RlyRunMonitorInbound.cls",
+  "force-app/main/default/classes/RlyRunMonitorReleases.cls",
+  "force-app/main/default/classes/RlyRunMonitorRestTest.cls",
+  "force-app/main/default/classes/RlyRunMonitorStore.cls",
+  "force-app/main/default/classes/RlyStatusReader.cls",
+  "force-app/main/default/lwc/rlyCompare/rlyCompare.html",
+  "force-app/main/default/lwc/rlyCompare/rlyCompare.js",
+  "force-app/main/default/lwc/rlyPipelineMonitor/rlyPipelineMonitor.js"
+ ],
+ "violations": [
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "NoTrailingWhitespace",
+   "engine": "regex",
+   "file": "force-app/main/default/classes/RlyComparePipeline.cls",
+   "line": 20,
+   "message": "Found trailing whitespace at the end of a line of code.",
+   "url": null
+  },
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "NoTrailingWhitespace",
+   "engine": "regex",
+   "file": "force-app/main/default/classes/RlyRunMonitorStore.cls",
+   "line": 12,
+   "message": "Found trailing whitespace at the end of a line of code.",
+   "url": null
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42342529271",
+ "finishedAt": "2026-11-07T05:24:14.372Z"
+}
