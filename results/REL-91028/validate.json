@@ -1,15 +1,15 @@
 {
  "request": "REL-91028",
  "step": "validate",
- "status": "Failed",
- "changed": 64,
+ "status": "Passed",
+ "changed": 65,
  "deleted": [],
  "mergedWith": "bf14bf9ffea147bb34ee89f33a03f80e7afc4c62",
- "validatedTree": "f4d977bacae683f9adf98eb38cf4ed22bb790bc9",
+ "validatedTree": "5f5ff309c93fc0d0fb5d8213765e5c2ef100b9e1",
  "environment": "sit",
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d4jbBSAQ",
+ "deployId": "0AfgL00000d4oB3SAI",
  "testsRun": 400,
  "tests": [
   "RlyAppendTest",
@@ -72,31 +72,15 @@
  ],
  "coverageWarnings": [],
  "componentErrors": [],
- "testFailures": [
-  {
-   "name": "RlyRaisePartsTest",
-   "method": "aBigRaiseStartsWithItsFirstPart",
-   "message": "System.SObjectException: SObject row was retrieved via SOQL without querying the requested field: RLY_Release__c.Source_Org__c"
-  },
-  {
-   "name": "RlyRaisePartsTest",
-   "method": "eachCheckCommitsOnePartAndStartsTheNext",
-   "message": "System.AssertException: Assertion Failed: The next part's retrieve started: Expected: 2:09S000000000001, Actual: 1:09S000000000001"
-  },
-  {
-   "name": "RlyRaisePartsTest",
-   "method": "planKeepsHeavyTypesAloneAndIsStable",
-   "message": "System.AssertException: Assertion Failed: Heavy types alone, sorted: Expected: {banner}, Actual: {logo}"
-  }
- ],
- "message": "3 test failure(s)",
+ "testFailures": [],
+ "message": "",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42344225798",
- "finishedAt": "2026-11-07T05:56:14.384Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42344882334",
+ "finishedAt": "2026-11-07T06:04:29.256Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
