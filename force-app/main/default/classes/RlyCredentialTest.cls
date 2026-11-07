@@ -181,6 +181,52 @@ private class RlyCredentialTest {
     }
 
     @IsTest
+    static void theHubReadsItsOwnCertificatesAndGitLabTokens() {
+        System.runAs(RlyTestData.admin()) {
+            RlyCredentialRows.todayForTest = TODAY_FOR_TEST;
+            insert new RLY_Git_Connection__c(Provider__c = 'GitHub', Repository__c = 'acme/release', Named_Credential__c = 'RLY_GitHub',
+                Pipeline__c = 'release-relay.yml', Pipeline_Branch__c = 'main', Source_Path__c = 'force-app/main/default', Active__c = true);
+            insert new RLY_Git_Connection__c(Provider__c = 'GitLab', Repository__c = 'group/project', Named_Credential__c = 'RLY_GitLab',
+                Pipeline__c = '.gitlab-ci.yml', Pipeline_Branch__c = 'main', Source_Path__c = 'force-app/main/default', Active__c = false);
+            RlyCredentialHubChecks.selfCredentialForTest = true;
+            Mock mock = new Mock()
+                .answer('callout:RLY_Org_Self/services/data/v63.0/tooling/query', 200, certs('release_relay', '2026-12-01'))
+                .answer('callout:RLY_GitLab/personal_access_tokens/self', 200, '{"expires_at":"2026-11-10","active":true}')
+                .answer('callout:RLY_GitHub/repos/acme/release', 200, '{}');
+            Test.setMock(HttpCalloutMock.class, mock);
+            Test.startTest();
+            RlyCredentialCheck.Pass p = new RlyCredentialCheck.Pass();
+            RlyCredentialHubChecks.certificates(p);
+            RlyCredentialHubChecks.git(p);
+            Test.stopTest();
+            RLY_Credential_Status__c cert = p.found.get(RlyCredentialHubChecks.HUB_CERT_PREFIX + 'release_relay');
+            System.assertEquals(RlyCredentialRows.EXPIRING, cert.Status__c, '24 days left: ' + cert);
+            System.assertEquals(Date.newInstance(2026, 12, 1), p.hubCerts.get('release_relay'), 'Kept for the org sign-ins');
+            System.assert(p.goneKeys.contains(RlyCredentialHubChecks.HUB_CERT_KEY), 'The placeholder row goes');
+            RLY_Credential_Status__c lab = find(p.found, RlyCredentialRows.KIND_GIT, 'GitLab');
+            System.assertEquals(RlyCredentialRows.CRITICAL, lab.Status__c, 'An inactive GitLab connection is checked too: ' + lab);
+            System.assertEquals(RlyCredentialRows.OK, find(p.found, RlyCredentialRows.KIND_GIT, 'GitHub').Status__c, 'No expiry header');
+        }
+    }
+
+    @IsTest
+    static void aRefusedSelfQueryIsShown() {
+        System.runAs(RlyTestData.admin()) {
+            RlyCredentialHubChecks.selfCredentialForTest = true;
+            Test.setMock(HttpCalloutMock.class, new Mock().answer('callout:RLY_Org_Self/', 403, '[{"errorCode":"INSUFFICIENT_ACCESS"}]'));
+            Test.startTest();
+            RlyCredentialCheck.Pass p = new RlyCredentialCheck.Pass();
+            RlyCredentialHubChecks.certificates(p);
+            p.budget = 0;
+            RlyCredentialHubChecks.slack(p);
+            Test.stopTest();
+            RLY_Credential_Status__c holder = p.found.get(RlyCredentialHubChecks.HUB_CERT_KEY);
+            System.assertEquals(RlyCredentialRows.FAILED, holder.Status__c, 'Refused: ' + holder);
+            System.assert(holder.Message__c.contains('403'), holder.Message__c);
+        }
+    }
+
+    @IsTest
     static void gitLabTokensAndOtherProviders() {
         System.runAs(RlyTestData.admin()) {
             RlyCredentialRows.todayForTest = TODAY_FOR_TEST;

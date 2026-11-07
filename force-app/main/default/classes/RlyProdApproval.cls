@@ -53,7 +53,15 @@ public with sharing class RlyProdApproval {
      * @return true for the hub
      */
     public static Boolean isProduction(RLY_Release__c rel) {
-        return rel != null && rel.Target_Org__r != null && rel.Target_Org__r.Role__c == 'Hub';
+        if (rel == null) {
+            return false;
+        }
+        Map<String, Object> loaded = rel.getPopulatedFieldsAsMap();
+        if (loaded.containsKey('Target_Org__r') && rel.Target_Org__r != null && rel.Target_Org__r.isSet('Role__c')) {
+            return rel.Target_Org__r.Role__c == 'Hub';
+        }
+        Id orgId = loaded.containsKey('Target_Org__c') ? rel.Target_Org__c : null;
+        return orgId != null && new Data().roleOf(orgId) == 'Hub';
     }
 
     /**
@@ -62,7 +70,7 @@ public with sharing class RlyProdApproval {
      * @return true for a release into production with the setting on
      */
     public static Boolean needsAddon(RLY_Release__c rel) {
-        return isProduction(rel) && isOn();
+        return isOn() && isProduction(rel);
     }
 
     /**
@@ -171,6 +179,16 @@ public with sharing class RlyProdApproval {
             s.Changed_On__c = System.now();
             s.Changed_By__c = byName == null ? null : byName.left(121);
             upsert as system s;
+        }
+
+        /**
+         * @description An org's role.
+         * @param orgId the org
+         * @return Developer, Stage, Hub or Back_Promote, or null
+         */
+        public String roleOf(Id orgId) {
+            List<RLY_Org__c> rows = [SELECT Role__c FROM RLY_Org__c WHERE Id = :orgId WITH SYSTEM_MODE LIMIT 1];
+            return rows.isEmpty() ? null : rows[0].Role__c;
         }
 
         /**

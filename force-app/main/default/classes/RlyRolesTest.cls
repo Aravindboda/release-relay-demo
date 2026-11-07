@@ -74,6 +74,30 @@ private class RlyRolesTest {
     }
 
     @IsTest
+    static void onlyAdminsChangeProductionApproval() {
+        User plain = RlyTestData.plainUser();
+        System.runAs(plain) {
+            String refused;
+            try {
+                RlyAccessController.saveProdApproval('On');
+            } catch (AuraHandledException e) {
+                refused = e.getMessage();
+            }
+            System.assert(refused != null && refused.contains('admin'), 'Refused: ' + refused);
+            RlyProdApproval.View v = RlyAccessController.prodApproval();
+            System.assert(!v.canEdit && v.banner == null, 'Read only, no banner');
+        }
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = RlyReleaseTestData.release('Ready for approval', 'hub');
+            RLY_Release__c bare = [SELECT Id, Target_Org__c FROM RLY_Release__c WHERE Id = :rel.Id];
+            System.assert(!RlyProdApproval.isProduction(bare), 'SIT, read from the org when the release has no Target_Org__r');
+            update new RLY_Release__c(Id = rel.Id, Target_Org__c = [SELECT Id FROM RLY_Org__c WHERE Name = 'PROD' LIMIT 1].Id);
+            bare = [SELECT Id, Target_Org__c FROM RLY_Release__c WHERE Id = :rel.Id];
+            System.assert(RlyProdApproval.isProduction(bare), 'The hub');
+        }
+    }
+
+    @IsTest
     static void aNewHubStartsWithProductionApprovalOn() {
         System.runAs(RlyTestData.admin()) {
             RlyProdApproval.onNewHub();
