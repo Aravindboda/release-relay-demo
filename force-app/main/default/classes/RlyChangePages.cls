@@ -11,8 +11,8 @@ public with sharing class RlyChangePages {
     /** @description Folders read per call. */
     public static final Integer FOLDERS_PER_CALL = 30;
 
-    private static final Pattern CURSOR = Pattern.compile('^/services/data/v\\d{1,3}\\.\\d{1,2}/(tooling/)?query/[A-Za-z0-9-]{1,80}$');
-    private static final Pattern OFFSET = Pattern.compile('^\\d{1,5}$');
+    private static final Pattern CURSOR_PATTERN = Pattern.compile('^/services/data/v\\d{1,3}\\.\\d{1,2}/(tooling/)?query/[A-Za-z0-9-]{1,80}$');
+    private static final Pattern OFFSET_PATTERN = Pattern.compile('^\\d{1,5}$');
 
     /** @description What a page call reads: the org, since when, and which page. */
     public class Ask {
@@ -51,7 +51,7 @@ public with sharing class RlyChangePages {
      */
     public static String checkedCursor(String cursor) {
         String c = cursor == null ? '' : cursor.trim();
-        if (!CURSOR.matcher(c).matches()) {
+        if (!CURSOR_PATTERN.matcher(c).matches()) {
             throw new RlyReleaseException('That page of results isn\'t valid any more: read the org again.');
         }
         return c;
@@ -164,7 +164,7 @@ public with sharing class RlyChangePages {
     }
 
     private static Integer offsetOf(String cursor) {
-        if (!OFFSET.matcher(cursor.trim()).matches()) {
+        if (!OFFSET_PATTERN.matcher(cursor.trim()).matches()) {
             throw new RlyReleaseException('That page of results isn\'t valid any more: read the org again.');
         }
         return Integer.valueOf(cursor.trim());

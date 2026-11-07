@@ -15,7 +15,7 @@ public with sharing class RlyDeletionPlan {
     /** @description Most folders one part takes. */
     public static final Integer MAX_FOLDERS_PER_PART = 30;
     private static final String TREE = 'tree';
-    private static final Pattern SHA = Pattern.compile('^[0-9a-f]{40}$');
+    private static final Pattern SHA_PATTERN = Pattern.compile('^[0-9a-f]{40}$');
 
     /** @description The parts of the branch to read. */
     public class Plan {
@@ -156,7 +156,7 @@ public with sharing class RlyDeletionPlan {
             throw new RlyReleaseException('That part of the branch isn\'t valid: find deleted components again.');
         }
         for (Folder f : given.folders) {
-            Boolean ok = f != null && f.sha != null && SHA.matcher(f.sha).matches() && f.prefix != null && f.prefix.endsWith('/')
+            Boolean ok = f != null && f.sha != null && SHA_PATTERN.matcher(f.sha).matches() && f.prefix != null && f.prefix.endsWith('/')
                 && !f.prefix.contains('..') && !f.prefix.startsWith('/') && f.prefix.length() <= 400;
             if (!ok) {
                 throw new RlyReleaseException('That part of the branch isn\'t valid: find deleted components again.');

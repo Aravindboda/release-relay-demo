@@ -15,7 +15,7 @@ private class RlyChangePartsTest {
     private static final String SHA_OBJECTS = 'e'.repeat(40);
     private static final String SHA_LABELS = 'f'.repeat(40);
     private static final String SHA_INVOICE = '1'.repeat(40);
-    private static final String CURSOR = '/services/data/v63.0/tooling/query/01gXX0000000001-2000';
+    private static final String FIELD_CURSOR = '/services/data/v63.0/tooling/query/01gXX0000000001-2000';
     private static final String RECENT = '2026-10-30T10:00:00.000Z';
 
     // A tree answer; entries are path, type, sha (keys in an unusual order on purpose).
@@ -202,11 +202,11 @@ private class RlyChangePartsTest {
             String objectId = RlyTestData.fakeId('01I', 1);
             String lostId = RlyTestData.fakeId('01I', 9);
             Test.setMock(HttpCalloutMock.class, new RlyHttpMock()
-                .match('GET', CURSOR).reply(200, '{"done":true,"records":[{"DeveloperName":"Region","NamespacePrefix":null,'
+                .match('GET', FIELD_CURSOR).reply(200, '{"done":true,"records":[{"DeveloperName":"Region","NamespacePrefix":null,'
                     + '"TableEnumOrId":"Account","EntityDefinition":{"QualifiedApiName":"Account"}}]}')
                 .match('GET', 'EntityDefinition.QualifiedApiName').reply(400, '[{"errorCode":"INVALID_FIELD"}]')
                 .match('GET', 'FROM CustomObject').reply(200, '{"records":[{"Id":"' + objectId + 'AAA","DeveloperName":"Invoice","NamespacePrefix":null}]}')
-                .match('GET', 'FROM CustomField').reply(200, '{"done":false,"nextRecordsUrl":"' + CURSOR + '","records":['
+                .match('GET', 'FROM CustomField').reply(200, '{"done":false,"nextRecordsUrl":"' + FIELD_CURSOR + '","records":['
                     + '{"DeveloperName":"Total","NamespacePrefix":null,"TableEnumOrId":"' + objectId + '"},'
                     + '{"DeveloperName":"Score","NamespacePrefix":"pkg","TableEnumOrId":"Contact"},'
                     + '{"DeveloperName":"Lost","NamespacePrefix":null,"TableEnumOrId":"' + lostId + '"}]}'));
@@ -222,7 +222,7 @@ private class RlyChangePartsTest {
             Test.stopTest();
             System.assertEquals(new List<String>{ 'invoice__c.total__c', 'contact.pkg__score__c' }, page1.names,
                 'Custom object named through CustomObject (asked again without EntityDefinition); a field whose object isn\'t found is left out');
-            System.assertEquals(CURSOR, page1.nextCursor, 'Cursor to the next page');
+            System.assertEquals(FIELD_CURSOR, page1.nextCursor, 'Cursor to the next page');
             System.assertEquals(new List<String>{ 'account.region__c' }, page2.names, 'Next page, object from EntityDefinition');
             System.assertEquals(null, page2.nextCursor, 'Last page');
             System.assert(foreign.contains('isn\'t valid'), 'Only the org\'s query cursors: ' + foreign);
@@ -293,7 +293,7 @@ private class RlyChangePartsTest {
             RlyChangePages.ChangePage second = RlyChangePartsController.listFolderPage(devId, 'Report',
                 JSON.serialize(new Map<String, Object>{ 'cursor' => page1.nextCursor }));
             List<String> refused = new List<String>();
-            for (String bad : new List<String>{ '{"cursor":"x"}', '{"cursor":"' + CURSOR + '"}' }) {
+            for (String bad : new List<String>{ '{"cursor":"x"}', '{"cursor":"' + FIELD_CURSOR + '"}' }) {
                 try {
                     RlyChangePartsController.listFolderPage(devId, 'Report', bad);
                 } catch (AuraHandledException e) {
