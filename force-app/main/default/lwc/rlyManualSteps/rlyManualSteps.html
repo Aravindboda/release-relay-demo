@@ -136,13 +136,13 @@
                             <div class="rr-form" role="group" aria-label={formTitle}>
                                 <p class="rr-label rr-cap">{formTitle}</p>
                                 <lightning-input label="Title" value={form.title} max-length="120" required data-field="title" onchange={handleText}
-                                    placeholder="For example: Give a profile access to a new field"></lightning-input>
+                                    placeholder={titleHint}></lightning-input>
                                 <div class="rr-grid2">
                                     <lightning-combobox label="Category" value={form.category} options={categoryOptions} data-field="category" onchange={handleField}></lightning-combobox>
                                     <lightning-radio-group type="button" label="When" value={form.timing} options={timingOptions} data-field="timing" onchange={handleField}></lightning-radio-group>
                                 </div>
                                 <lightning-textarea label="Instructions" value={form.instructions} max-length="32768" data-field="instructions" onchange={handleText}
-                                    placeholder="What exactly to do, for example: Profile Sales User: Account.Region__c read/edit"></lightning-textarea>
+                                    placeholder={instructionsHint}></lightning-textarea>
                                 <template lwc:if={showFormFiles}>
                                     <c-rly-step-files label="" files={formFileRows} record-id={formFileRecordId} can-attach={formCanAttach} disabled={busy}
                                         upload-label="Attach files" onuploaded={handleFormFiles} onremove={handleFormFileRemove}></c-rly-step-files>

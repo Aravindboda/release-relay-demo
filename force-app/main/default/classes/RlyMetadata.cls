@@ -15,11 +15,11 @@ public with sharing class RlyMetadata {
         'Report' => 'ReportFolder', 'Dashboard' => 'DashboardFolder', 'EmailTemplate' => 'EmailFolder', 'Document' => 'DocumentFolder'
     };
 
-    // Types listMetadata can't list, or that aren't release material.
+    // Types listMetadata can't list, or that aren't release material (legacy Territory; Territory2 types are listed).
     private static final Set<String> SKIP = new Set<String>{
         'ApexTestSuite', 'Certificate', 'ConnectedApp', 'ExternalClientApplication', 'ExtlClntAppOauthSettings',
         'ExtlClntAppGlobalOauthSettings', 'ExtlClntAppOauthConfigurablePolicies', 'Index', 'InstalledPackage',
-        'ManagedTopics', 'Package', 'Portal', 'SiteDotCom', 'Territory', 'Territory2Settings', 'Scontrol'
+        'ManagedTopics', 'Package', 'Portal', 'SiteDotCom', 'Territory', 'Scontrol'
     };
 
     /** @description The org answered with an error, or something it can't do. */
@@ -109,7 +109,8 @@ public with sharing class RlyMetadata {
     }
 
     private static Boolean isListable(String typeName) {
-        return !SKIP.contains(typeName) && !typeName.endsWith('Settings') && !FOLDER_TYPE.values().contains(typeName);
+        // Org settings are listed too (build 37.1): they can be changed by a release, not deleted (RlyDeletable).
+        return !SKIP.contains(typeName) && !FOLDER_TYPE.values().contains(typeName);
     }
 
     /**

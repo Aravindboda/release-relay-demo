@@ -1,7 +1,7 @@
 /**
  * @description The rules for a release's deletions: the request's deletions and its items flagged deleted are the
  * deletions (Type:Name, each once); a component can't be both added and deleted; names must be ones the pipeline can
- * carry; and they must fit in Deletions__c.
+ * carry; components a deploy can't delete are refused (RlyDeletable); and they must fit in Deletions__c.
  */
 public with sharing class RlyDeletionRules {
 
@@ -68,6 +68,10 @@ public with sharing class RlyDeletionRules {
             throw new RlyReleaseException('Give each deletion a type and a name.');
         }
         RlyRaiseRules.checkName(d, source);
+        String why = RlyDeletable.whyNot(d.type.trim(), d.name.trim());
+        if (why != null) {
+            throw new RlyReleaseException(d.type.trim() + ' ' + d.name.trim() + ' can\'t be deleted by a release: ' + why);
+        }
         return d.type.trim() + ':' + d.name.trim();
     }
 }

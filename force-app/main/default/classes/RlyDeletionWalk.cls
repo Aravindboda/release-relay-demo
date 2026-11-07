@@ -11,19 +11,23 @@ public with sharing class RlyDeletionWalk {
     /** @description Most folders looked into at one level. */
     private static final Integer MAX_LOOK_INTO = 10;
     private static final String OBJECTS = 'objects';
+    private static final String TERRITORY_MODELS = 'territory2Models';
     private static final String TREE = 'tree';
 
     private RlyGitTreeReader git;
     private RlyDeletionPlan.Plan plan;
+    private Map<String, RlyPathRules.Rule> rules;
 
     /**
      * @description A walk that adds its parts to a plan.
      * @param git the tree reader
      * @param plan the plan
+     * @param rules the folder rules (RlyPathRules.byDir): which folders hold components
      */
-    public RlyDeletionWalk(RlyGitTreeReader git, RlyDeletionPlan.Plan plan) {
+    public RlyDeletionWalk(RlyGitTreeReader git, RlyDeletionPlan.Plan plan, Map<String, RlyPathRules.Rule> rules) {
         this.git = git;
         this.plan = plan;
+        this.rules = rules;
     }
 
     /**
@@ -40,7 +44,7 @@ public with sharing class RlyDeletionWalk {
             if (e.type != TREE) {
                 continue;
             }
-            if (RlyDeletionPaths.isComponentFolder(e.path)) {
+            if (rules.containsKey(e.path)) {
                 found = true;
                 addFolder(e, prefix);
             } else {
@@ -55,10 +59,10 @@ public with sharing class RlyDeletionWalk {
         }
     }
 
-    // A component folder: one part, or objects in groups.
+    // A component folder: one part, or objects (and territory models) in groups.
     private void addFolder(RlyGitTree.Entry e, String prefix) {
-        if (e.path == OBJECTS) {
-            objectParts(e.sha, prefix + OBJECTS + '/');
+        if (e.path == OBJECTS || e.path == TERRITORY_MODELS) {
+            objectParts(e.sha, prefix + e.path + '/');
             return;
         }
         plan.parts.add(RlyDeletionPlan.newPart(prefix + e.path,
@@ -78,17 +82,18 @@ public with sharing class RlyDeletionWalk {
             bunch.add(RlyDeletionPlan.folderAt(prefix + e.path + '/', e.sha));
             names.add(e.path);
             if (bunch.size() == RlyDeletionPlan.OBJECTS_PER_PART) {
-                plan.parts.add(RlyDeletionPlan.newPart(objectsLabel(names), bunch));
+                plan.parts.add(RlyDeletionPlan.newPart(groupLabel(prefix, names), bunch));
                 bunch = new List<RlyDeletionPlan.Folder>();
                 names = new List<String>();
             }
         }
         if (!bunch.isEmpty()) {
-            plan.parts.add(RlyDeletionPlan.newPart(objectsLabel(names), bunch));
+            plan.parts.add(RlyDeletionPlan.newPart(groupLabel(prefix, names), bunch));
         }
     }
 
-    private static String objectsLabel(List<String> names) {
-        return names.size() == 1 ? 'Object ' + names[0] : 'Objects ' + names[0] + ' – ' + names[names.size() - 1];
+    private static String groupLabel(String prefix, List<String> names) {
+        String what = prefix.endsWith(TERRITORY_MODELS + '/') ? 'Territory model' : 'Object';
+        return names.size() == 1 ? what + ' ' + names[0] : what + 's ' + names[0] + ' – ' + names[names.size() - 1];
     }
 }

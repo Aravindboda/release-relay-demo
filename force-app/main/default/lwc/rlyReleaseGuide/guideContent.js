@@ -1765,8 +1765,19 @@ const USE_SECTIONS = [
                                 text: [
                                     'Press **Find deleted components**. The hub compares the files in your org\'s own branch with what is in the org and lists what is in the branch but not in the org.',
                                     'They may have been deleted in your org, or came from another org through the branch and were never deployed to yours. Nothing is ticked for you: **tick only what you deleted**.',
-                                    'It reads the branch a folder at a time and checks your org a type at a time, so a big branch doesn\'t time out; a part that can\'t be read is listed with **Try again**. Queues, groups, global value sets, Lightning pages, quick actions and custom permissions are found too.',
+                                    'It reads the branch a folder at a time and checks your org a type at a time, so a big branch doesn\'t time out; a part that can\'t be read is listed with **Try again**. Every metadata type your org has is covered (the org\'s own list of types says which folder holds which type), territory models, territories and territory rules included. Reports, dashboards and email templates in folders aren\'t compared this way: use **Delete from the branch** for them.',
                                     'Picklist values aren\'t components: remove a value in the field (Salesforce makes it inactive in the target, it can\'t delete it through a deploy) or add a manual step to delete it in Setup.'
+                                ]
+                            },
+                            {
+                                title: 'Delete from the branch',
+                                where: 'New Release → Select → Delete from <branch> branch…',
+                                text: [
+                                    'Pick what to delete straight from the target\'s branch (the first stage\'s, for example **sit**), without deleting it in your org first. Useful after a refresh, or for something that never was in your org.',
+                                    'The window reads the branch a folder at a time: types on the left with their counts, components on the right with search, **All** / **Chosen**. Press **Delete** on a component to choose it (press again to drop it); **Add N to the release** puts them in the release\'s deletions, like Find deleted components.',
+                                    'Each component says whether your org still has it: **Still in DEV1** (amber: delete it there too, or a later release from DEV1 can bring it back) or **Not in DEV1**. Components already in the release say **In release**.',
+                                    'Greyed with the reason, and not selectable: Salesforce\'s own objects and fields, org settings, standard value sets, standard profiles, files that hold every rule of an object (workflow, sharing, assignment, auto-response, escalation and matching rules), labels and translations, and managed package components (install or upgrade the package instead).',
+                                    'The rest is as for any deletion: checks in the first stage catch anything still using it, then approval, deploy and promotion. Records a queue owns stay where they are: add a manual step to move them first.'
                                 ]
                             },
                             {
@@ -1973,7 +1984,8 @@ const USE_SECTIONS = [
                                 who: 'Developer',
                                 where: 'New Release → Review → Manual steps',
                                 items: [
-                                    'Press **Add a manual step**: a **Title**, the **Category** (Profile or permission access, Data, Setup configuration, Other), **When** (Before deploy or After deploy) and the exact **Instructions**, for example `Profile Sales User: Account.Region__c read/edit`.',
+                                    'Press **Add a manual step**: a **Title**, the **Category** (Profile or permission access, Data, Setup configuration, Managed package, Other), **When** (Before deploy or After deploy) and the exact **Instructions**, for example `Profile Sales User: Account.Region__c read/edit`.',
+                                    'Installing or upgrading a **managed package** is a manual step (category **Managed package**), usually **Before deploy**: the package, version and install link, who it is installed for and any licences. Release Relay never moves managed-package components: they come with the package.',
                                     '**Also in back promote orgs** is on by default. **Orgs**: all orgs on the route, or pick the orgs it applies to.',
                                     'Order them with the up and down arrows: the deployment team does them in that order. Up to 50 steps.',
                                     'A flow set to **Leave inactive** adds the step **Activate flow <name>** (Setup, After deploy, every org) for you.',

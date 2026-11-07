@@ -76,7 +76,7 @@ private class RlyDeletionFinderTest {
             List<String> keys = RlyDeletionPaths.keysOf(paths, 'force-app/main/default/');
             System.assertEquals(new List<String>{ 'ApexClass:OldHelper', 'ApexTrigger:OldTrigger', 'LightningComponentBundle:oldCard',
                 'AuraDefinitionBundle:oldCmp', 'CustomObject:Invoice__c', 'CustomField:Invoice__c.Total__c', 'ValidationRule:Invoice__c.Positive',
-                'RecordType:Invoice__c.Credit', 'ListView:Invoice__c.All', 'Flow:Old_Flow', 'Layout:Invoice__c-Invoice Layout',
+                'RecordType:Invoice__c.Credit', 'ListView:Invoice__c.All', 'CompactLayout:Invoice__c.Small', 'Flow:Old_Flow', 'Layout:Invoice__c-Invoice Layout',
                 'PermissionSet:Old_Access', 'ApexPage:OldPage', 'ApexComponent:OldComp', 'StaticResource:OldLogo', 'CustomTab:Old_Tab' },
                 keys, 'Each supported component once; labels, unknown files and other folders left out');
             System.assertEquals('ApexClass:X', RlyDeletionPaths.keyOf('main/default/classes/X.cls'), 'Any depth below the source path');
