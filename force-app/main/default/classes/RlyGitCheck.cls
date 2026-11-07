@@ -18,9 +18,14 @@ public with sharing class RlyGitCheck {
             notes.add('Repository reachable. Default branch: ' + git.defaultBranch() + '.');
             checkPipeline(git, g);
             notes.add('Pipeline files found on ' + g.Pipeline_Branch__c + '.');
+            List<String> branches = RlyBranchCreate.branchesOf(orgs);
             List<String> missing = missingBranches(git, orgs);
-            notes.add(missing.isEmpty() ? 'Every route branch exists.'
+            Integer unchecked = Math.max(branches.size() - RlyBranchCreate.MAX_CHECKS, 0);
+            notes.add(missing.isEmpty() ? (unchecked > 0 ? 'Every branch checked exists.' : 'Every route branch exists.')
                 : 'Missing branches: ' + String.join(missing, ', ') + '. Use Create missing branches.');
+            if (unchecked > 0) {
+                notes.add(unchecked + ' more branches weren\'t checked here: Create missing branches checks and creates every branch, in parts.');
+            }
             out.Status__c = 'Connected';
         } catch (Exception e) {
             out.Status__c = 'Failed';
@@ -49,17 +54,18 @@ public with sharing class RlyGitCheck {
     }
 
     /**
-     * @description The route branches that aren't in the repository yet (each branch once).
+     * @description The route branches that aren't in the repository yet, among the first RlyBranchCreate.MAX_CHECKS
+     * (each branch once, sorted): one call per branch, so a long route is checked in parts by Create missing branches.
      * @param git the Git provider
      * @param orgs the registered orgs
      * @return the missing branches
      */
     public static List<String> missingBranches(RlyGit git, List<RLY_Org__c> orgs) {
         List<String> missing = new List<String>();
-        Set<String> seen = new Set<String>();
-        for (RLY_Org__c o : orgs) {
-            if (String.isNotBlank(o.Branch__c) && seen.add(o.Branch__c.trim()) && !git.branchExists(o.Branch__c.trim())) {
-                missing.add(o.Branch__c.trim());
+        List<String> branches = RlyBranchCreate.branchesOf(orgs);
+        for (Integer i = 0; i < Math.min(branches.size(), RlyBranchCreate.MAX_CHECKS); i++) {
+            if (!git.branchExists(branches[i])) {
+                missing.add(branches[i]);
             }
         }
         return missing;

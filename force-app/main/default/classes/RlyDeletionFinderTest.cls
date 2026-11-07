@@ -80,6 +80,9 @@ private class RlyDeletionFinderTest {
                 'PermissionSet:Old_Access', 'ApexPage:OldPage', 'ApexComponent:OldComp', 'StaticResource:OldLogo', 'CustomTab:Old_Tab' },
                 keys, 'Each supported component once; labels, unknown files and other folders left out');
             System.assertEquals('ApexClass:X', RlyDeletionPaths.keyOf('main/default/classes/X.cls'), 'Any depth below the source path');
+            System.assertEquals('Queue:Support_Tier_2', RlyDeletionPaths.keyOf('queues/Support_Tier_2.queue-meta.xml'), 'Queues are found');
+            System.assertEquals('Group:Regional_Leads', RlyDeletionPaths.keyOf('groups/Regional_Leads.group-meta.xml'), 'Public groups are found');
+            System.assertEquals('GlobalValueSet:Regions', RlyDeletionPaths.keyOf('globalValueSets/Regions.globalValueSet-meta.xml'), 'Global value sets are found');
             System.assertEquals(2, RlyDeletionPaths.keysOf(new List<String>{ 'classes/A.cls', 'x/classes/B.cls' }, ' ').size(), 'No source path');
         }
     }

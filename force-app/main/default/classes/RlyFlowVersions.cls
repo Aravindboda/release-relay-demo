@@ -18,6 +18,9 @@
  */
 public with sharing class RlyFlowVersions {
 
+    /** @description Most flow names in one Tooling query (the query goes in the URL). */
+    public static final Integer NAMES_PER_QUERY = 100;
+
     /** @description A flow's versions in an org. */
     public class FlowInfo {
         /** @description The flow's API name. */
@@ -49,7 +52,7 @@ public with sharing class RlyFlowVersions {
         if (asked.isEmpty()) {
             return new List<FlowInfo>();
         }
-        Map<String, FlowInfo> found = query(org, asked);
+        Map<String, FlowInfo> found = queryAll(org, asked);
         List<FlowInfo> out = new List<FlowInfo>();
         for (String n : asked) {
             FlowInfo f = found.get(n.toLowerCase());
@@ -87,6 +90,23 @@ public with sharing class RlyFlowVersions {
             }
         }
         return out;
+    }
+
+    // A short URL whatever the number of names: one Tooling query per NAMES_PER_QUERY flows.
+    private static Map<String, FlowInfo> queryAll(RLY_Org__c org, List<String> asked) {
+        Map<String, FlowInfo> found = new Map<String, FlowInfo>();
+        List<String> chunk = new List<String>();
+        for (String n : asked) {
+            chunk.add(n);
+            if (chunk.size() == NAMES_PER_QUERY) {
+                found.putAll(query(org, chunk));
+                chunk = new List<String>();
+            }
+        }
+        if (!chunk.isEmpty()) {
+            found.putAll(query(org, chunk));
+        }
+        return found;
     }
 
     private static Map<String, FlowInfo> query(RLY_Org__c org, List<String> asked) {

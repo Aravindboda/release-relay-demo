@@ -36,6 +36,7 @@
 /* the list */
 .rr-chsum { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid #f3f3f3; flex-wrap: wrap; }
 .rr-trunc { margin: 0; padding: 6px 16px; background: #fef1cd; color: #5e3600; }
+.rr-spin-s { display: inline-block; width: 12px; height: 12px; border-width: 2px; vertical-align: -2px; }
 .rr-prl { list-style: none; margin: 0; padding: 4px 8px 8px; }
 .rr-pr {
     display: grid; grid-template-columns: 72px minmax(0, 1fr) auto 56px; align-items: center; gap: 10px; width: 100%;

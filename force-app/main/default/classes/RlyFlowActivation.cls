@@ -31,19 +31,25 @@ public with sharing class RlyFlowActivation {
     }
 
     /**
-     * @description Activates the chosen flows when the release has just been deployed.
+     * @description Activates the chosen flows of a deployed release, at most RlyFlowBatch.PER_READ per read: the flows
+     * without a result for the target org yet (Flow_Results__c is the cursor). The rest follow on the next reads
+     * (RlyFlowBatch.continueAfterDeploy), so a release with many flows never runs out of callouts or time in one read.
      * @param rel the release, as read now (Status__c Deployed), with Target_Org__c and Flow_Actions__c
-     * @param oldStatus its status before this read
+     * @param oldStatus its status before this read (kept for the callers; a read after Deployed carries on)
      */
     public static void afterRead(RLY_Release__c rel, String oldStatus) {
-        if (oldStatus == 'Deployed' || rel.Status__c != 'Deployed' || rel.Target_Org__c == null) {
+        if (rel.Status__c != 'Deployed' || rel.Target_Org__c == null) {
             return;
         }
-        List<String> names = namesFor(rel);
-        if (names.isEmpty()) {
+        List<String> chosen = namesFor(rel);
+        if (chosen.isEmpty()) {
             return;
         }
         RLY_Org__c org = RlyReleaseStore.org(rel.Target_Org__c);
+        List<String> names = RlyFlowBatch.nextNames(rel, org.Name, chosen);
+        if (names.isEmpty()) {
+            return;
+        }
         List<Outcome> outcomes = activateAll(org, names);
         rel.Flow_Results__c = merged(rel.Flow_Results__c, outcomes);
         for (Outcome o : outcomes) {
@@ -53,8 +59,13 @@ public with sharing class RlyFlowActivation {
         }
     }
 
-    // The release's own Activate flows; a back promote sync: those of the hub deploys it carries.
-    private static List<String> namesFor(RLY_Release__c rel) {
+    /**
+     * @description The flows a deployed release activates: its own Activate flows; a back promote sync, those of the
+     * hub deploys it carries.
+     * @param rel the release
+     * @return the flow names
+     */
+    public static List<String> namesFor(RLY_Release__c rel) {
         if (RlyPromotion.typeOf(rel) != RlyPromotion.TYPE_BACK_PROMOTE) {
             return RlyFlowChoices.toActivate(rel);
         }

@@ -1274,6 +1274,21 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         });
     }
     get hasFlows() { return this.flowRows.length > 0; }
+    /**
+     * While flows are left to activate after a deploy (RlyFlowBatch: a batch per check): "Activating flows: 8 of 30" —
+     * the Activate flows with a result for the target org, out of all of them.
+     */
+    get flowProgress() {
+        if (!this.detail || this.rel.Status__c !== 'Deployed') {
+            return '';
+        }
+        const actions = this.flowActions;
+        const chosen = Object.keys(actions).filter((n) => actions[n] === 'Activate');
+        const target = this.detail.targetName;
+        const done = new Set(this.flowResults.filter((r) => r.org === target).map((r) => r.flow || r.name));
+        const left = chosen.filter((n) => !done.has(n)).length;
+        return left > 0 ? 'Activating flows: ' + (chosen.length - left) + ' of ' + chosen.length : '';
+    }
     get flowActivatedText() {
         const n = this.flowResults.filter((r) => r.status === FLOW_ACTIVATED).length;
         return n ? n + ' activated' : '';

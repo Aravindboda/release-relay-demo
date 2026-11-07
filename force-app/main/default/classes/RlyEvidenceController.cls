@@ -1,17 +1,13 @@
 /**
  * @description Evidence for change requests and audits. saveEvidence builds a release's evidence document
  * (RlyEvidenceHtml), turns it into a PDF and saves it to the release's Files (ContentVersion linked to the release,
- * visible to all users), returning its download address. exportCsv returns the Releases tab's filtered list (the same
- * filter as RlyReleasesController.listReleasesFor) as CSV text with the approval, deploy and rollback details (a release
- * rolled back in an org has Status "Rolled back" and the org and time in their own columns) and, last, the files on its
- * manual steps (Files: name, size, step or "proof in <org>"; listed, not embedded). Both only read
+ * visible to all users), returning its download address. exportCsvPart returns the Releases tab's filtered list (the
+ * same filter as RlyReleasesController.listReleasesFor) as CSV text a part at a time (RlyEvidenceCsv: approval, deploy
+ * and rollback details and the files on its manual steps, listed, not embedded); exportCsv returns it whole. Both only read
  * releases, so they work in a sandbox copy of the hub too. Files are created in system mode: every Release Relay user
  * may save evidence of a release they can open.
  */
 public with sharing class RlyEvidenceController {
-
-    private static final List<String> CSV_HEADER = new List<String>{ 'REL', 'Title', 'Route', 'Raised by', 'Raised on', 'Status',
-        'Approved by', 'Approved on', 'Via', 'Comment', 'Second approver', 'Deployed to', 'Deploy ids', 'PR url', 'Rolled back in', 'Rolled back on', 'Files' };
 
     /** @description The saved evidence file. */
     public class EvidenceFile {
@@ -52,47 +48,32 @@ public with sharing class RlyEvidenceController {
     }
 
     /**
-     * @description The Releases tab's filtered list as CSV text.
+     * @description The Releases tab's filtered list as CSV text, whole (RlyEvidenceCsv.whole).
      * @param filterJson {"raisedById", "state", "searchText"} as for RlyReleasesController.listReleasesFor
      * @return the CSV (a header line, then one line per release)
      */
     @AuraEnabled
     public static String exportCsv(String filterJson) {
         try {
-            List<RLY_Release__c> listed = RlyReleaseQuery.releasesFor(RlyReleaseQuery.parse(filterJson));
-            Map<Id, RLY_Release__c> details = new SystemAccess().details(new Map<Id, RLY_Release__c>(listed).keySet());
-            Map<Id, String> files = RlyStepFileEvidence.csvFiles(details.values());
-            List<String> lines = new List<String>{ csvLine(CSV_HEADER) };
-            for (RLY_Release__c r : listed) {
-                List<String> cells = columns(details.get(r.Id));
-                cells.add(files.get(r.Id));
-                lines.add(csvLine(cells));
-            }
-            return String.join(lines, '\r\n');
+            return RlyEvidenceCsv.whole(filterJson);
         } catch (Exception e) {
             throw handled(e);
         }
     }
 
-    private static List<String> columns(RLY_Release__c r) {
-        List<String> deployIds = new List<String>();
-        for (String deployId : new List<String>{ RlyEvidenceText.validationOf(r.Validation_Result__c).deployId,
-                RlyEvidenceText.deployOf(r.Deploy_Result__c).deployId }) {
-            if (String.isNotBlank(deployId)) {
-                deployIds.add(deployId);
-            }
+    /**
+     * @description One part of the Releases tab's CSV (RlyEvidenceCsv.PART_SIZE releases); the page joins the parts.
+     * @param filterJson the filter, as for exportCsv
+     * @param offset where the part starts (0 for the first, then the last part's nextOffset)
+     * @return the part's text (the first starts with the header), the next offset (null at the end) and the total
+     */
+    @AuraEnabled
+    public static RlyEvidenceCsv.CsvPart exportCsvPart(String filterJson, Integer offset) {
+        try {
+            return RlyEvidenceCsv.part(filterJson, offset);
+        } catch (Exception e) {
+            throw handled(e);
         }
-        List<String> out = new List<String>{ r.Name, r.Title__c, nameOf(r.Source_Org__r) + ' → ' + nameOf(r.Target_Org__r),
-            r.CreatedBy == null ? null : r.CreatedBy.Name, stamp(r.CreatedDate), rolledBack(r) ? 'Rolled back' : r.Status__c,
-            r.Approved_By__r == null ? null : r.Approved_By__r.Name, stamp(r.Approved_On__c), r.Approved_Via__c, r.Approval_Comment__c,
-            r.Second_Approved_By__r == null ? null : r.Second_Approved_By__r.Name,
-            r.Status__c == 'Deployed' ? nameOf(r.Target_Org__r) : null, String.join(deployIds, ' '), r.PR_URL__c };
-        out.addAll(rolledBack(r) ? new List<String>{ nameOf(r.Rollback_Org__r), stamp(r.Rollback_On__c) } : new List<String>{ null, null });
-        return out;
-    }
-
-    private static Boolean rolledBack(RLY_Release__c r) {
-        return r.Rollback_Status__c == RlyRollbackState.ROLLED_BACK;
     }
 
     /**
@@ -111,14 +92,6 @@ public with sharing class RlyEvidenceController {
             out.add('"' + text.replace('"', '""') + '"');
         }
         return String.join(out, ',');
-    }
-
-    private static String stamp(Datetime value) {
-        return value == null ? null : value.format('yyyy-MM-dd HH:mm');
-    }
-
-    private static String nameOf(RLY_Org__c org) {
-        return org == null ? '' : org.Name;
     }
 
     private static AuraHandledException handled(Exception e) {
@@ -142,19 +115,6 @@ public with sharing class RlyEvidenceController {
             return [SELECT Id, Org__r.Name, Step__r.Title__c, Step__r.Timing__c, Status__c, Done_By__r.Name, Done_On__c, Note__c
                     FROM RLY_Manual_Step_Run__c WHERE Release__c = :releaseId
                     WITH SYSTEM_MODE ORDER BY Org__r.Name, Order__c ASC NULLS LAST, Name ASC LIMIT 2000];
-        }
-
-        /**
-         * @description The CSV's fields of some releases.
-         * @param ids the releases
-         * @return the releases by Id
-         */
-        public Map<Id, RLY_Release__c> details(Set<Id> ids) {
-            return new Map<Id, RLY_Release__c>([SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Target_Org__r.Name,
-                    CreatedBy.Name, CreatedDate, Approved_By__r.Name, Approved_On__c, Approved_Via__c, Approval_Comment__c,
-                    Second_Approved_By__r.Name, Validation_Result__c, Deploy_Result__c, PR_URL__c, Rollback_Status__c,
-                    Rollback_Org__r.Name, Rollback_On__c, Carried_Releases__c
-                FROM RLY_Release__c WHERE Id IN :ids WITH SYSTEM_MODE]);
         }
 
         /**

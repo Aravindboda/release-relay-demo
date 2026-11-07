@@ -6,7 +6,7 @@ import listReleases from '@salesforce/apex/RlyReleasesController.listReleases';
 import listReleasesFor from '@salesforce/apex/RlyReleasesController.listReleasesFor';
 import countReleases from '@salesforce/apex/RlyReleasesController.countReleases';
 import refreshRelease from '@salesforce/apex/RlyReleasesController.refreshRelease';
-import exportCsv from '@salesforce/apex/RlyEvidenceController.exportCsv';
+import exportCsvPart from '@salesforce/apex/RlyEvidenceController.exportCsvPart';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
 
@@ -415,11 +415,24 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
 
     get exportLabel() { return this.exporting ? 'Exporting…' : 'Export CSV'; }
 
-    /** RlyEvidenceController.exportCsv: the releases matching the filters as CSV text, downloaded as a file. */
+    /**
+     * RlyEvidenceController.exportCsvPart: the releases matching the filters as CSV text, read a part at a time (each part
+     * one small call) and joined here, then downloaded as a file.
+     */
     async exportReleases() {
         this.exporting = true;
         try {
-            const csv = await exportCsv({ filterJson: this.exportJson });
+            const parts = [];
+            let offset = 0;
+            while (offset !== null && offset !== undefined) {
+                // eslint-disable-next-line no-await-in-loop
+                const part = await exportCsvPart({ filterJson: this.exportJson, offset });
+                if (part && part.text) {
+                    parts.push(part.text);
+                }
+                offset = part ? part.nextOffset : null;
+            }
+            const csv = parts.join('\r\n');
             const today = new Date();
             const pad = (n) => String(n).padStart(2, '0');
             this.csvName = 'releases-' + today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate()) + '.csv';

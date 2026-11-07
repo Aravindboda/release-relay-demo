@@ -1,9 +1,10 @@
 /**
  * @description Picks the next pass of the archive: the eligible releases (RlyArchiveEligible) ordered by finished date
  * (oldest first), then as many as fit in one pass: at most 200 releases and at most 4,000 records (the release with its
- * items, history, manual steps, step runs and files), stopping at whichever comes first; the first release always goes,
- * so one large release never blocks the rest. Only the 400 oldest-raised eligible releases are ordered per pass, which
- * keeps the query rows low. History and children are shared hub records: counted in system mode in the private inner
+ * items, history, manual steps, step runs and files), stopping at whichever comes first. A first release larger than a
+ * pass goes in slices: the pass removes up to 4,000 of its children (Candidate.slice) and the release itself goes in a
+ * later pass once what is left fits, so one large release never blocks the rest or a run. Only the 400 oldest-raised
+ * eligible releases are ordered per pass, and every count is grouped and limited, which keeps the query rows low. History and children are shared hub records: counted in system mode in the private inner
  * without sharing class.
  */
 public with sharing class RlyArchiveBatch {
@@ -26,6 +27,8 @@ public with sharing class RlyArchiveBatch {
         public Datetime finished;
         /** @description The release and its children. */
         public Integer weight = 1;
+        /** @description Too large for one pass: the most of its children this pass removes (null: the whole release). */
+        public Integer slice;
 
         /**
          * @description Oldest finished first (then by Id, so the order is stable).
@@ -50,10 +53,14 @@ public with sharing class RlyArchiveBatch {
         Data data = new Data();
         List<Candidate> top = oldestFinished(data, cutoff);
         weigh(data, top);
+        if (!top.isEmpty() && top[0].weight > passRecords) {
+            top[0].slice = passRecords;
+            return new List<Candidate>{ top[0] };
+        }
         List<Candidate> pass = new List<Candidate>();
         Integer records = 0;
         for (Candidate c : top) {
-            if (!pass.isEmpty() && records + c.weight > passRecords) {
+            if (records + c.weight > passRecords) {
                 break;
             }
             pass.add(c);
@@ -105,6 +112,9 @@ public with sharing class RlyArchiveBatch {
     /** @description History, children and file links are shared hub records: counted in system mode. */
     private without sharing class Data {
 
+        /** @description Most grouped rows or links one count reads. */
+        private final Integer maxRows = 2000;
+
         /**
          * @description When each release's last history entry was made.
          * @param ids the releases
@@ -113,7 +123,7 @@ public with sharing class RlyArchiveBatch {
         public Map<Id, Datetime> lastEvents(Set<Id> ids) {
             Map<Id, Datetime> out = new Map<Id, Datetime>();
             for (AggregateResult a : [SELECT Release__c r, MAX(CreatedDate) d FROM RLY_Release_Event__c
-                                      WHERE Release__c IN :ids WITH SYSTEM_MODE GROUP BY Release__c]) {
+                                      WHERE Release__c IN :ids WITH SYSTEM_MODE GROUP BY Release__c LIMIT :maxRows]) {
                 out.put((Id) a.get('r'), (Datetime) a.get('d'));
             }
             return out;
@@ -130,15 +140,19 @@ public with sharing class RlyArchiveBatch {
                 return out;
             }
             add(out, [SELECT Release__c r, COUNT(Id) n FROM RLY_Release_Item__c WHERE Release__c IN :ids
-                      WITH SYSTEM_MODE GROUP BY Release__c]);
+                      WITH SYSTEM_MODE GROUP BY Release__c LIMIT :maxRows]);
             add(out, [SELECT Release__c r, COUNT(Id) n FROM RLY_Release_Event__c WHERE Release__c IN :ids
-                      WITH SYSTEM_MODE GROUP BY Release__c]);
+                      WITH SYSTEM_MODE GROUP BY Release__c LIMIT :maxRows]);
             add(out, [SELECT Release__c r, COUNT(Id) n FROM RLY_Manual_Step__c WHERE Release__c IN :ids
-                      WITH SYSTEM_MODE GROUP BY Release__c]);
+                      WITH SYSTEM_MODE GROUP BY Release__c LIMIT :maxRows]);
             add(out, [SELECT Release__c r, COUNT(Id) n FROM RLY_Manual_Step_Run__c WHERE Release__c IN :ids
-                      WITH SYSTEM_MODE GROUP BY Release__c]);
+                      WITH SYSTEM_MODE GROUP BY Release__c LIMIT :maxRows]);
+            // Runs of a release's steps that belong to another release (a carried step) go with the step too.
+            add(out, [SELECT Step__r.Release__c r, COUNT(Id) n FROM RLY_Manual_Step_Run__c
+                      WHERE Step__r.Release__c IN :ids AND (Release__c = null OR Release__c NOT IN :ids)
+                      WITH SYSTEM_MODE GROUP BY Step__r.Release__c LIMIT :maxRows]);
             for (ContentDocumentLink l : [SELECT LinkedEntityId FROM ContentDocumentLink WHERE LinkedEntityId IN :ids
-                                          WITH SYSTEM_MODE]) {
+                                          WITH SYSTEM_MODE LIMIT :maxRows]) {
                 plus(out, l.LinkedEntityId, 1);
             }
             return out;
