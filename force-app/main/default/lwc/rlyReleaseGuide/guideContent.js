@@ -3052,6 +3052,7 @@ const REF_SECTIONS = [
                     },
                     { type: 'list', items: [
                         '**What changed for people assigned before build 49:** the role permission sets still hold the Git and Slack principals, so nobody loses access. Admins no longer raise hotfixes or Deploy now anyway: give them the Hotfix and Release Window Bypass add-ons, or Full Access. The deployment team now loads data and copies data down too.',
+                        'The role permission sets are now labelled **Release Relay Admin Permissions**, **… Approver Permissions** and so on: the groups carry the role names. Their API names (`RLY_Admin`, `RLY_Approver`…) don\'t change.',
                         '**Production approval** is off after the upgrade, so existing approvers aren\'t locked out. Admins see "Turn on once you\'ve assigned the Production Approver add-on" on the Pipeline tab until they turn it on. A new hub starts with it on.',
                         '**`RLY_Org_Self`** (the hub reading itself) isn\'t packaged, so `RLY_Access` can\'t hold it. Create your own permission set **`RLY_Org_Self_Access`** with its principal and add it to every group by hand. Don\'t add it to `RLY_Access`: deploying Release Relay replaces that set\'s principal list.'
                     ] }

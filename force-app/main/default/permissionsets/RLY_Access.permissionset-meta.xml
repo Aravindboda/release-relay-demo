@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
-    <description>Credential access only (build 49): the Git and Slack credential principals Release Relay calls through. In every Release Relay permission set group. RLY_Org_Self is not packaged: put its principal on your own permission set RLY_Org_Self_Access and add that to each group (a deploy of this set replaces its principal list).</description>
+    <description>Credential access only (build 49): the Git and Slack principals. In every Release Relay group. Put RLY_Org_Self on your own set RLY_Org_Self_Access, not here: a deploy replaces this list.</description>
     <externalCredentialPrincipalAccesses>
         <enabled>true</enabled>
         <externalCredentialPrincipal>RLY_Slack-Bot</externalCredentialPrincipal>
