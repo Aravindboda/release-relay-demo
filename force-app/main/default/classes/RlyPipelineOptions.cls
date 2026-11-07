@@ -44,6 +44,7 @@ public with sharing class RlyPipelineOptions {
     private static void addModeOptions(RLY_Release__c rel, String mode, Map<String, Object> options) {
         if (mode == 'merge') {
             addSyncBranches(rel, options);
+            addExpectHead(rel, options);
         } else if (mode == RlyPromotion.MODE) {
             String stageBranch = stageBranchOf(rel);
             if (String.isNotBlank(stageBranch)) {
@@ -54,6 +55,12 @@ public with sharing class RlyPipelineOptions {
         } else if (mode == 'sync') {
             RlySyncPaths.addOptions(rel, options);
         }
+    }
+
+    // Build 48: the merge refuses a release branch whose head isn't the one the checks validated (expectHead), and
+    // quick-deploys only the validation of that check run (validationAttempt).
+    private static void addExpectHead(RLY_Release__c rel, Map<String, Object> options) {
+        options.putAll(RlyRunKeyStore.validatedOptions(rel));
     }
 
     /**

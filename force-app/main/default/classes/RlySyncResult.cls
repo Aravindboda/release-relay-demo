@@ -110,7 +110,8 @@ public with sharing class RlySyncResult {
             return v;
         }
         RlyGit git = RlyComparePipeline.gitHub();
-        Map<String, Object> result = RlySyncParse.parsed(git.getFileRaw('results/' + syncId + '/' + fileOf(check) + '.json', RlyPipelineRun.RESULTS_BRANCH));
+        Map<String, Object> result = RlyResultSignature.lenient(git.getFileRaw('results/' + syncId + '/' + fileOf(check) + '.json',
+            RlyPipelineRun.RESULTS_BRANCH), syncId, fileOf(check));
         Boolean fromThisRun = result != null && check.Token__c != null && check.Token__c.equals(String.valueOf(result.get('attempt')));
         if (!fromThisRun) {
             watchRun(git, check, v);
@@ -191,7 +192,7 @@ public with sharing class RlySyncResult {
     // The result's components (Org) or pairs (Route); the check gets its status and counts.
     private static void fill(View v, RLY_Sync_Check__c check, Map<String, Object> result) {
         v.done = true;
-        v.runUrl = result.get('runUrl') == null ? v.runUrl : String.valueOf(result.get('runUrl'));
+        v.runUrl = result.get('runUrl') == null ? v.runUrl : RlyRunMonitorInput.url(result.get('runUrl'));
         Boolean ok = String.valueOf(result.get('status')) == RlySyncStore.SUCCEEDED;
         v.status = ok ? RlySyncStore.SUCCEEDED : RlySyncStore.FAILED;
         v.message = ok ? null : (result.get('message') == null ? 'The check failed. Open the run for the reason.' : String.valueOf(result.get('message')));

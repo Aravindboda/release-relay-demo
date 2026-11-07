@@ -57,6 +57,8 @@ public with sharing class RlyWorkTypes {
         @AuraEnabled public String serviceNowTable;
         /** @description New tickets go to it and moments are posted. */
         @AuraEnabled public Boolean active = true;
+        /** @description ServiceNow (build 48): the change gate needs the change to name the release. */
+        @AuraEnabled public Boolean changeMentionsRelease = true;
         /** @description The routing order (1 first). */
         @AuraEnabled public Integer position;
     }
@@ -185,5 +187,7 @@ public with sharing class RlyWorkTypes {
         public Boolean allowed = false;
         /** @description In words. */
         public String message;
+        /** @description The change request as ServiceNow sent it (build 48: RlyWorkChangeMention reads it), or null. */
+        public Map<String, Object> record;
     }
 }

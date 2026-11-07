@@ -152,7 +152,8 @@ private class RlySlackLinkTest {
             press(rel.Id, 'U0NOBODY');
             Test.stopTest();
             String whisper = mock.bodyFor('chat.postEphemeral');
-            System.assert(whisper.contains(RlySlackPress.notLinkedText('Approve')) && whisper.contains('Link my account'), whisper);
+            // Build 48: a Slack email that matches no user gets no link token, only "Ask an admin to link you".
+            System.assert(whisper.contains('Ask an admin to link you') && !whisper.contains('Link my account'), whisper);
         }
         System.runAs(plain) {
             String token = RlySlackLink.token('U0NOBODY', null, RlyReleaseTestData.SIGNING_SECRET);

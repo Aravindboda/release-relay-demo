@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customSettingsType>Hierarchy</customSettingsType>
+    <description>Run signing (build 48). Org default row: the run-signing key the hub signs every pipeline run with and checks every result file against (the pipeline holds the same key as RELAY_RUN_KEY), and who set it. Read and written only by RlyRunKeyStore; an admin sets it on the Pipeline tab and it is never shown again.</description>
+    <enableFeeds>false</enableFeeds>
+    <label>RLY Run Key</label>
+    <visibility>Protected</visibility>
+</CustomObject>

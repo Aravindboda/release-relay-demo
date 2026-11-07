@@ -233,6 +233,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>RLY_Work_Tracker__c.Change_Mentions_Release__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>RLY_Work_Tracker__c.State_Map__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -254,6 +259,11 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>RLY_Notification__c.Slack_Scopes__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>RLY_Notification__c.Slack_Team_Id__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -909,6 +919,16 @@
     <fieldPermissions>
         <editable>false</editable>
         <field>RLY_Release__c.Merge_Commit__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>RLY_Release__c.Validated_Head__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>RLY_Release__c.Validated_Attempt__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>

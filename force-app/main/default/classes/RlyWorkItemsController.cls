@@ -139,7 +139,7 @@ public with sharing class RlyWorkItemsController {
         RLY_Release__c rel = RlyWorkStore.release(releaseId);
         RlyWorkTypes.ReleaseTickets out = new RlyWorkTypes.ReleaseTickets();
         out.trackerLabel = RlyWorkBoard.trackerLabel();
-        out.canEdit = rel != null && !RlyWorkItems.CLOSED.contains(rel.Status__c);
+        out.canEdit = rel != null && !RlyWorkItems.CLOSED.contains(rel.Status__c) && RlyReleaseAccess.mayEditTickets(rel);
         for (RLY_Work_Item__c w : RlyWorkStore.forRelease(releaseId)) {
             RlyWorkTypes.TicketView t = new RlyWorkTypes.TicketView();
             RLY_Work_Tracker__c tracker = RlyWorkRouting.trackerOf(w);

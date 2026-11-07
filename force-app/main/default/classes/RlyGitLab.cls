@@ -173,14 +173,16 @@ public with sharing class RlyGitLab extends RlyGit {
     /**
      * @description Starts a pipeline on the pipeline branch (POST /pipeline), each input a variable named in upper case
      * (request_id becomes REQUEST_ID). Blank inputs are left out: the CI file treats a missing variable as blank.
+     * Build 48: every variable is sent raw (env_var, raw true), so a $VAR in a title is never expanded; the inputs come
+     * signed from RlyGit.startPipeline.
      * @param inputs the pipeline inputs
      */
-    public override void startPipeline(Map<String, String> inputs) {
+    protected override void dispatchPipeline(Map<String, String> inputs) {
         List<Object> variables = new List<Object>();
         for (String k : inputs.keySet()) {
             String value = inputs.get(k);
             if (String.isNotBlank(value)) {
-                variables.add(new Map<String, Object>{ 'key' => k.toUpperCase(), 'value' => value });
+                variables.add(new Map<String, Object>{ 'key' => k.toUpperCase(), 'value' => value, 'variable_type' => 'env_var', 'raw' => true });
             }
         }
         HttpResponse res = send('POST', p('/pipeline'), JSON.serialize(new Map<String, Object>{
