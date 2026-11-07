@@ -85,6 +85,7 @@ public with sharing class RlyArchiveService {
             r.cutoffDate = cut.date();
             r.eligibleReleases = RlyArchiveEligible.countReleases(cut);
             r.eligibleRecords = RlyArchiveEligible.countRecords(cut, r.eligibleReleases);
+            r.recordsEstimated = RlyArchiveEligible.isEstimate(r.eligibleReleases);
         }
         if (conn != null) {
             r.changedOn = conn.Retention_Changed_On__c;
@@ -114,6 +115,7 @@ public with sharing class RlyArchiveService {
         p.cutoffDate = cut.date();
         p.eligibleReleases = RlyArchiveEligible.countReleases(cut);
         p.eligibleRecords = RlyArchiveEligible.countRecords(cut, p.eligibleReleases);
+        p.recordsEstimated = RlyArchiveEligible.isEstimate(p.eligibleReleases);
         return p;
     }
 
@@ -161,6 +163,7 @@ public with sharing class RlyArchiveService {
             a.cutoffDate = cut.date();
             a.eligibleReleases = RlyArchiveEligible.countReleases(cut);
             a.eligibleRecords = RlyArchiveEligible.countRecords(cut, a.eligibleReleases);
+            a.recordsEstimated = RlyArchiveEligible.isEstimate(a.eligibleReleases);
             a.eligibleNext30 = Math.max(0, RlyArchiveEligible.countReleases(cut.addDays(NEXT_DAYS)) - a.eligibleReleases);
         }
         RlyArchiveStats.totals(a);

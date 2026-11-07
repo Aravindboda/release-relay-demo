@@ -320,6 +320,7 @@
                                     <section class="rr-card" aria-label="Flows">
                                         <div class="rr-hd rr-hd-line">
                                             <h2 class="rr-h2 rr-grow">Flows</h2>
+                                            <template lwc:if={flowProgress}><span class="rr-pill rr-pill-wait" role="status">{flowProgress}</span></template>
                                             <template lwc:if={flowActivatedText}><span class="rr-pill rr-pill-ok">{flowActivatedText}</span></template>
                                             <template lwc:if={flowFailedText}><span class="rr-pill rr-pill-bad">{flowFailedText}</span></template>
                                         </div>

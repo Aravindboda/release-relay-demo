@@ -16,7 +16,13 @@ public with sharing class RlyDeletionPaths {
         'pages' => new List<String>{ 'ApexPage', '.page' },
         'components' => new List<String>{ 'ApexComponent', '.component' },
         'staticresources' => new List<String>{ 'StaticResource', '.resource-meta.xml' },
-        'tabs' => new List<String>{ 'CustomTab', '.tab-meta.xml' }
+        'tabs' => new List<String>{ 'CustomTab', '.tab-meta.xml' },
+        'queues' => new List<String>{ 'Queue', '.queue-meta.xml' },
+        'groups' => new List<String>{ 'Group', '.group-meta.xml' },
+        'globalValueSets' => new List<String>{ 'GlobalValueSet', '.globalValueSet-meta.xml' },
+        'flexipages' => new List<String>{ 'FlexiPage', '.flexipage-meta.xml' },
+        'quickActions' => new List<String>{ 'QuickAction', '.quickAction-meta.xml' },
+        'customPermissions' => new List<String>{ 'CustomPermission', '.customPermission-meta.xml' }
     };
     // Folders whose components are a folder each.
     private static final Map<String, String> BUNDLES = new Map<String, String>{

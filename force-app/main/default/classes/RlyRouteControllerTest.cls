@@ -117,6 +117,37 @@ private class RlyRouteControllerTest {
     }
 
     @IsTest
+    static void manyBranchesAreCreatedInParts() {
+        System.runAs(RlyTestData.admin()) {
+            insertRoute();
+            RlyRouteController.saveGit(gitJson('GitHub', 'acme/sfdx', 'release-relay.yml'));
+            List<RLY_Org__c> orgs = new List<RLY_Org__c>();
+            for (Integer i = 0; i < RlyBranchCreate.MAX_CHECKS + 5; i++) {
+                orgs.add(new RLY_Org__c(Branch__c = 'dev' + String.valueOf(i).leftPad(3, '0')));
+            }
+            orgs.add(new RLY_Org__c(Branch__c = ' dev000 '));
+            RlyHttpMock mock = new RlyHttpMock().match('GET', '/branches/dev044').reply(404, '{}')
+                .match('GET', '/branches/').reply(200, '{}')
+                .match('GET', '/git/ref/heads/main').reply(200, '{"object":{"sha":"abc"}}')
+                .match('POST', '/git/refs').reply(201, '{}');
+            Test.setMock(HttpCalloutMock.class, mock);
+            RLY_Git_Connection__c conn = RlyReleaseStore.git();
+            List<String> branches = RlyBranchCreate.branchesOf(orgs);
+            Test.startTest();
+            RlyBranchCreate.Result first = RlyBranchCreate.part(conn, branches, 0);
+            RlyBranchCreate.Result last = RlyBranchCreate.part(conn, branches, first.nextIndex);
+            RlyBranchCreate.Result page = RlyRouteController.createBranchesPart(0);
+            Test.stopTest();
+            System.assertEquals(RlyBranchCreate.MAX_CHECKS + 5, branches.size(), 'Each branch once, trimmed');
+            System.assertEquals(RlyBranchCreate.MAX_CHECKS, first.nextIndex, 'A part checks at most MAX_CHECKS');
+            System.assert(first.created.isEmpty(), 'They exist');
+            System.assertEquals(null, last.nextIndex, 'The last part');
+            System.assertEquals(new List<String>{ 'dev044' }, last.created, 'The missing one created');
+            System.assertNotEquals(null, page.total, 'The page gets the total');
+        }
+    }
+
+    @IsTest
     static void failedChecksSayWhy() {
         System.runAs(RlyTestData.admin()) {
             insertRoute();

@@ -370,7 +370,7 @@ public with sharing class RlyReleasesController {
         }
         d.items = RlyReleaseStore.items(releaseId);
         d.isApprover = RlyApprovalService.canApprove();
-        d.running = RlyStatusReader.OPEN_STATUSES.contains(d.release.Status__c);
+        d.running = RlyStatusReader.OPEN_STATUSES.contains(d.release.Status__c) || RlyFlowBatch.hasPending(d.release);
         d.sourceName = d.release.Source_Org__r.Name;
         d.targetName = d.release.Target_Org__r.Name;
         d.canResolve = RlyConflictService.mayResolve(d.release);

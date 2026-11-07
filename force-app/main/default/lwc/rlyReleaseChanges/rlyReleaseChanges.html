@@ -18,6 +18,12 @@
                 <span class="rr-grow"></span>
                 <template lwc:if={filesUrl}><a class="rr-link" href={filesUrl} target="_blank" rel="noopener">{openLabel}</a></template>
             </div>
+            <template lwc:if={more}>
+                <p class="rr-trunc rr-small" role="status"><span class="rr-spin rr-spin-s" aria-hidden="true"></span> {moreText}</p>
+            </template>
+            <template lwc:if={moreError}>
+                <p class="rr-trunc rr-small" role="alert">Some files couldn&rsquo;t be read: {moreError} <button type="button" class="rr-linkbtn" onclick={readMore}>Try again</button></p>
+            </template>
             <template lwc:if={truncatedText}>
                 <p class="rr-trunc rr-small">{truncatedText} · <a class="rr-link" href={filesUrl} target="_blank" rel="noopener">{openLabel}</a></p>
             </template>
@@ -94,7 +100,14 @@
                             </select>
                         </div>
                         <div class="rr-pane">
-                            <template lwc:if={hasPatch}>
+                            <template lwc:if={patchWaiting}>
+                                <section class="rr-dv" aria-label={current.filename}>
+                                    <div class="rr-dvh"><b class="rr-mono rr-ell">{current.filename}</b></div>
+                                    <div class="rr-empty" role="status"><span class="rr-spin" aria-hidden="true"></span><p>Reading this file&rsquo;s changes…</p></div>
+                                </section>
+                            </template>
+                            <template lwc:elseif={hasPatch}>
+                                <template lwc:if={patchNote}><p class="rr-trunc rr-small">{patchNote}</p></template>
                                 <c-rly-diff-view title={current.filename} left-label={leftLabel} right-label={rightLabel} patch={current.patch}
                                     mode="unified" link-url={current.url} link-label={openLabel}></c-rly-diff-view>
                             </template>

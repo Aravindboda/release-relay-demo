@@ -1,6 +1,7 @@
 /**
  * @description The evidence document's tables (RlyEvidenceHtml): manual steps per org, flows, the latest rollback,
- * quality gate failures, the history, and the table, escaping and date helpers.
+ * quality gate failures, the history, and the table, escaping and date helpers. The history keeps its newest
+ * RlyEvidenceCap.MAX_ROWS entries, with a row saying how many earlier ones aren't shown.
  */
 public with sharing class RlyEvidenceTables {
 
@@ -99,9 +100,12 @@ public with sharing class RlyEvidenceTables {
      */
     public static String history(List<RLY_Release_Event__c> events) {
         List<List<String>> rows = new List<List<String>>();
-        for (RLY_Release_Event__c e : events) {
+        for (RLY_Release_Event__c e : RlyEvidenceCap.newest(events)) {
             rows.add(new List<String>{ stamp(e.Occurred_On__c), RlyEvidenceWords.words(e.Event_Type__c), e.Org__r == null ? '' : e.Org__r.Name,
                 (e.Actor__r == null ? '' : e.Actor__r.Name + ' · ') + RlyEvidenceText.text(e.Via__c), e.Detail__c, e.Reference__c });
+        }
+        if (events.size() > RlyEvidenceCap.MAX_ROWS) {
+            rows.add(0, new List<String>{ '', RlyEvidenceCap.earlierText(events.size()), '', '', '', '' });
         }
         return '<div class="rr-sec"><h2>History, oldest first</h2>'
             + table(new List<String>{ 'When', 'Event', 'Org', 'Who', 'Detail', 'Reference' }, rows) + '</div>';

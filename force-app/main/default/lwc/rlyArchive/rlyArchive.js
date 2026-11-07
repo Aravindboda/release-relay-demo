@@ -296,7 +296,10 @@ export default class RlyArchive extends NavigationMixin(LightningElement) {
         return this.eligible > 0 ? 'rr-tile rr-tile-warn' : 'rr-tile rr-tile-good';
     }
     get eligibleValue() { return this.hasDays ? num(this.eligible) : '–'; }
-    get eligibleRecordsText() { return num(this.eligibleRecords); }
+    /** "about" when the hub worked the records out from a sample of the releases (a big hub). */
+    get eligibleRecordsText() {
+        return (this.hasArchive && this.archive.recordsEstimated ? 'about ' : '') + num(this.eligibleRecords);
+    }
     get eligibleSub() {
         if (!this.hasDays) {
             return 'No days set';

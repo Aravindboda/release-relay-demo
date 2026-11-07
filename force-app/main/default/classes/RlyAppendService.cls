@@ -80,6 +80,7 @@ public with sharing class RlyAppendService {
         if (added.isEmpty() && deletions.isEmpty()) {
             throw new RlyReleaseException('Pick at least one component that isn\'t in ' + rel.Name + ' yet.');
         }
+        RlyReleaseSize.checkAdd(inRelease.size(), added, deletions);
         Map<String, Set<String>> byType = RlyRaiseRules.byType(added, source);
         Set<String> tests = RlyAppendRules.newTests(req, rel);
         if (!tests.isEmpty() || RlyReleasePhase.tests(rel).isEmpty()) {

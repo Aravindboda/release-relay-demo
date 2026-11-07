@@ -8,7 +8,7 @@ import checkOrg from '@salesforce/apex/RlyOrgController.checkOrg';
 import getSetup from '@salesforce/apex/RlyRouteController.getSetup';
 import saveGit from '@salesforce/apex/RlyRouteController.saveGit';
 import checkGit from '@salesforce/apex/RlyRouteController.checkGit';
-import createBranches from '@salesforce/apex/RlyRouteController.createBranches';
+import createBranchesPart from '@salesforce/apex/RlyRouteController.createBranchesPart';
 import saveRoute from '@salesforce/apex/RlyRouteController.saveRoute';
 import getPipelineFiles from '@salesforce/apex/RlyRouteController.getPipelineFiles';
 import updatePipelineFiles from '@salesforce/apex/RlyRouteController.updatePipelineFiles';
@@ -1623,17 +1623,25 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
             });
     }
 
-    handleCreateBranches() {
+    /** Creates the missing route branches a part at a time (RlyBranchCreate: a few dozen checks per call) until done. */
+    async handleCreateBranches() {
         this.gitBusy = true;
-        createBranches()
-            .then((made) => {
-                this.toast(made.length ? 'Created ' + made.join(', ') : 'Every route branch already exists.', 'success');
-                return this.runGitCheck();
-            })
-            .catch((e) => this.toast(errorText(e), 'error'))
-            .finally(() => {
-                this.gitBusy = false;
-            });
+        const made = [];
+        try {
+            let next = 0;
+            while (next !== null && next !== undefined) {
+                // eslint-disable-next-line no-await-in-loop
+                const r = await createBranchesPart({ fromIndex: next });
+                (r.created || []).forEach((b) => made.push(b));
+                next = r.nextIndex;
+            }
+            this.toast(made.length ? 'Created ' + made.join(', ') : 'Every route branch already exists.', 'success');
+            await this.runGitCheck();
+        } catch (e) {
+            this.toast((made.length ? 'Created ' + made.join(', ') + '. Then: ' : '') + errorText(e), 'error');
+        } finally {
+            this.gitBusy = false;
+        }
     }
 
     // ---------- pipeline files ----------
