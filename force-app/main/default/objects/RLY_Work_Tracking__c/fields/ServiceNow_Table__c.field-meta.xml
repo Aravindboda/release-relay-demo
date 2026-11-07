@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ServiceNow_Table__c</fullName>
+    <description>ServiceNow: the table its tickets are in (default change_request) for posting work notes.</description>
+    <externalId>false</externalId>
+    <label>ServiceNow Table</label>
+    <length>80</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

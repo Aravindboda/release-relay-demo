@@ -594,6 +594,9 @@
                         </section>
                     </template>
 
+                    <!-- Work tracking (build 40): the tracker, ticket formats and the ServiceNow change gate; admins edit -->
+                    <c-rly-work-tracking></c-rly-work-tracking>
+
                     <!-- Retention (production hub only): how long finished releases stay; admins edit, everyone else reads -->
                     <template lwc:if={showRetention}>
                         <section class={retentionCardCls} aria-label="Retention" data-section="retention">

@@ -1,0 +1,56 @@
+<template>
+    <section class="rr-wt" aria-label="Work tracking">
+        <div class="rr-wt-head">
+            <div class="rr-grow">
+                <h2 class="rr-h2">Work tracking</h2>
+                <p class="rr-small rr-weak">{summary}</p>
+            </div>
+            <template lwc:if={isAdmin}>
+                <template lwc:if={showEdit}><lightning-button label="Edit" onclick={startEdit}></lightning-button></template>
+            </template>
+        </div>
+        <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+        <template lwc:if={saved}><div class="rr-msg rr-msg-ok" role="status">{saved}</div></template>
+        <template lwc:if={editing}>
+            <div class="rr-wt-form">
+                <c-rly-choice-chips mode="single" label="Tracker" options={trackerChips} value={trackerValue} onchange={handleTracker}></c-rly-choice-chips>
+                <div class="rr-grid2">
+                    <lightning-input label="Ticket format (regular expressions, space separated)" value={form.ticketPattern} data-field="ticketPattern"
+                        onchange={handleText} placeholder={ticketHint} max-length="255"></lightning-input>
+                    <lightning-input label="Link (optional)" value={form.linkPattern} data-field="linkPattern" onchange={handleText}
+                        placeholder={linkHint} max-length="255"></lightning-input>
+                </div>
+                <lightning-input type="toggle" label="Tickets required to raise" checked={form.required} data-field="required" onchange={handleToggle}
+                    message-toggle-active="" message-toggle-inactive=""></lightning-input>
+                <template lwc:if={integrates}>
+                    <div class="rr-grid2">
+                        <lightning-input label="Named Credential (API name)" value={form.namedCredential} data-field="namedCredential" onchange={handleText}
+                            placeholder={credentialHint} max-length="80"
+                            field-level-help="Created by an admin in Setup → Named Credentials. It holds the tracker's sign-in; Release Relay stores only its name."></lightning-input>
+                        <template lwc:if={isServiceNow}>
+                            <lightning-input label="ServiceNow table for work notes" value={form.serviceNowTable} data-field="serviceNowTable" onchange={handleText}
+                                placeholder="change_request" max-length="80"></lightning-input>
+                        </template>
+                    </div>
+                    <lightning-input type="toggle" label="Post each moment to the ticket (raised, approval, deployed, failed, rolled back)" checked={form.postUpdates}
+                        data-field="postUpdates" onchange={handleToggle} message-toggle-active="" message-toggle-inactive=""></lightning-input>
+                    <lightning-textarea label="State map (optional JSON: moment → state or transition)" value={form.stateMap} data-field="stateMap"
+                        onchange={handleText} placeholder={stateHint} max-length="2000"></lightning-textarea>
+                </template>
+                <template lwc:if={isServiceNow}>
+                    <div class="rr-grid2">
+                        <lightning-input type="toggle" label="Require an approved change before production" checked={form.requireChange} data-field="requireChange"
+                            onchange={handleToggle} message-toggle-active="" message-toggle-inactive=""></lightning-input>
+                        <lightning-input label="Change number format" value={form.changePattern} data-field="changePattern" onchange={handleText}
+                            placeholder={changeHint} max-length="80"></lightning-input>
+                    </div>
+                </template>
+                <p class="rr-small rr-weak">Without an integration, Release Relay tracks each ticket itself (Work items tab). With one, the same moments are posted to the ticket; a post that fails shows on the release with Try again.</p>
+                <div class="rr-wt-actions">
+                    <lightning-button label="Cancel" onclick={cancel} disabled={busy}></lightning-button>
+                    <lightning-button label="Save" variant="brand" onclick={save} disabled={busy}></lightning-button>
+                </div>
+            </div>
+        </template>
+    </section>
+</template>

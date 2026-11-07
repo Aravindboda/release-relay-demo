@@ -25,6 +25,9 @@ public with sharing class RlyApprovalRuns {
      * @param git the Git provider
      */
     public static void dispatchMerge(RLY_Release__c rel, RlyGit git) {
+        if (RlyWorkGate.holds(rel)) {
+            return; // build 40: production waits for an approved ServiceNow change (RlyWorkGate)
+        }
         if (RlyManualOnly.isManualOnly(rel)) {
             RlyManualOnly.startDeploy(rel); // nothing to merge: Deploying until its manual steps are done
             return;

@@ -166,7 +166,7 @@ public with sharing class RlyReleaseQuery {
                                CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
                                Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
                         FROM RLY_Release__c WHERE Source_Org__c != null AND Status__c IN :statuses AND (Rollback_Status__c = null OR Rollback_Status__c NOT IN :hidden)
-                            AND (Name LIKE :pattern OR Title__c LIKE :pattern)
+                            AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
                         WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
             }
             Id userId = c.userId;
@@ -174,7 +174,7 @@ public with sharing class RlyReleaseQuery {
                            CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
                            Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
                     FROM RLY_Release__c WHERE Source_Org__c != null AND CreatedById = :userId AND Status__c IN :statuses
-                        AND (Rollback_Status__c = null OR Rollback_Status__c NOT IN :hidden) AND (Name LIKE :pattern OR Title__c LIKE :pattern)
+                        AND (Rollback_Status__c = null OR Rollback_Status__c NOT IN :hidden) AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
                     WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
         }
 
@@ -192,14 +192,14 @@ public with sharing class RlyReleaseQuery {
                                CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
                                Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
                         FROM RLY_Release__c WHERE Source_Org__c != null AND Rollback_Status__c = :rolled
-                            AND (Name LIKE :pattern OR Title__c LIKE :pattern)
+                            AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
                         WITH SYSTEM_MODE ORDER BY Rollback_On__c DESC LIMIT 200];
             }
             return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
                            CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
                            Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
                     FROM RLY_Release__c WHERE Source_Org__c != null AND CreatedById = :userId AND Rollback_Status__c = :rolled
-                        AND (Name LIKE :pattern OR Title__c LIKE :pattern)
+                        AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
                     WITH SYSTEM_MODE ORDER BY Rollback_On__c DESC LIMIT 200];
         }
 

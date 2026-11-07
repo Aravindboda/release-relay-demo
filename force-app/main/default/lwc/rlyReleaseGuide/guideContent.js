@@ -2569,6 +2569,84 @@ const USE_SECTIONS = [
         ]
     },
     {
+        key: 'workitems',
+        group: 'daily',
+        label: 'Work items',
+        cards: [
+            {
+                key: 'wi-main',
+                title: 'Work items: tickets on every release',
+                blocks: [
+                    { type: 'text', paras: [
+                        'Every release can carry the tickets it delivers (Jira issues, Azure Boards work items, ServiceNow records, or your own numbers). Add them on **New release** under **Work items**: type a ticket and press Enter or a comma. When the admin made tickets required, a release can\'t be raised without one; when the admin set a ticket format, a ticket in another format is refused with the format shown.',
+                        'A **promotion** carries the tickets of the releases it carries. A release\'s tickets can be added or removed on its page until it is deployed, rejected or closed. The tickets show as links on the release page, in Approvals, in Releases search (search by ticket), in the CSV and evidence PDF, and in Slack messages.'
+                    ] },
+                    { type: 'table', cols: ['Moment', 'When'], rows: [
+                        ['Raised from DEV1 / Promoted to SIT', 'The release or promotion was raised.'],
+                        ['Ready for approval in SIT', 'Its checks passed; it waits for an approver.'],
+                        ['Waiting to deploy to PROD', 'Approved, waiting for its deploy to start (for example for an approved change).'],
+                        ['Deployed to SIT', 'Deployed.'],
+                        ['Checks failed / Deploy failed in SIT', 'Blocked until the release is fixed.'],
+                        ['Rolled back in SIT', 'The deploy was rolled back.'],
+                        ['Rejected / Closed', 'The release stopped.']
+                    ] },
+                    { type: 'list', items: [
+                        '**Without an integration** Release Relay keeps each ticket\'s status itself: the **Work items** tab shows one row per ticket with a dot per org of the route, its status (**In PROD**, **Waiting for PROD**, **In SIT approval**, **Blocked**, **In progress**) and the releases that carry it.',
+                        '**With an integration** each moment is also posted to the ticket, once: a Jira comment (and the mapped transition), an Azure Boards history entry (and state), a ServiceNow work note (and state), or a JSON POST to your own address. Each ticket shows its last sync: **Synced**, **Couldn\'t post** (with what the tracker said) or **Tracked here**. **Try again** on the release page posts it again.',
+                        'Posting happens while someone has the release page or the Work items tab open (**Sync now**), never in the background.',
+                        'The Work items tab has a search box (ticket, release, title, person) and chips: **All**, **In progress**, **In PROD**, **Blocked**.'
+                    ] }
+                ]
+            },
+            {
+                key: 'wi-admin',
+                title: 'Work tracking settings (admin)',
+                blocks: [
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Choose the tracker',
+                                who: 'Admin',
+                                where: 'Pipeline → Work tracking → Edit',
+                                goal: 'Say where tickets live and how they look.',
+                                items: [
+                                    'Pick **Jira**, **Azure Boards**, **ServiceNow**, **No integration** or **Other**.',
+                                    '**Tickets required** makes every release carry at least one ticket.',
+                                    '**Ticket format**: one or more regular expressions, separated by spaces, for example `[A-Z][A-Z0-9]+-\\d+`. Leave it empty to accept any ticket.',
+                                    '**Link**: the ticket\'s address with `{id}` where the number goes, for example `https://yourcompany.atlassian.net/browse/{id}`.'
+                                ]
+                            },
+                            {
+                                title: 'Post updates to the tracker',
+                                who: 'Admin',
+                                where: 'Setup → Named Credentials, then Pipeline → Work tracking',
+                                goal: 'Let Release Relay post each moment to the ticket without storing a password.',
+                                items: [
+                                    'In Setup create a **Named Credential** (with its External Credential) for the tracker\'s address: Jira `https://yourcompany.atlassian.net`, Azure Boards `https://dev.azure.com/<org>/<project>`, ServiceNow `https://<instance>.service-now.com`, or your own address for Other. Give the Release Relay permission sets access to its principal.',
+                                    'In Work tracking enter the Named Credential\'s API name and turn on **Post updates**.',
+                                    'Optional **State map**: JSON from a moment to the tracker\'s state, for example `{"Deployed to SIT":"In QA","Deployed to PROD":"Done"}`. For Jira it is the transition\'s name.',
+                                    'ServiceNow: the table for work notes is `change_request` unless you enter another (for example `incident`).'
+                                ]
+                            },
+                            {
+                                title: 'Require an approved change (ServiceNow)',
+                                who: 'Admin',
+                                where: 'Pipeline → Work tracking → Require an approved change',
+                                goal: 'Deploy to production only inside an approved change window.',
+                                items: [
+                                    'With this on, a deploy into the hub org starts only when the release carries a change request (format `CHG\\d{7}` unless you set another) that ServiceNow shows **approved** with now inside its planned start and end.',
+                                    'Otherwise the release stays approved and says what it waits for. Opening the release page checks again and starts the deploy once the change allows it.'
+                                ]
+                            }
+                        ]
+                    },
+                    { type: 'note', text: 'Release Relay never stores the tracker\'s password or token: the calls go through the Named Credential.' }
+                ]
+            }
+        ]
+    },
+    {
         key: 'pipelinetab',
         group: 'daily',
         label: 'Pipeline tab (admin)',
