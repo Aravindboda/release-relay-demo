@@ -1,0 +1,13 @@
+{
+ "request": "SYN-1794076796249",
+ "step": "drift",
+ "status": "Failed",
+ "message": "Converting the files from the hub failed: { \"status\": 0, \"result\": [ { \"fullName\": \"apexEmailNotifications\", \"type\": \"ApexEmailNotifications\", \"filePath\": \"force-app/main/default/apexEmailNotifications/apexEmailNotifications.notifications-meta.xml\", \"state\": \"Add\" }, { \"fullName\": \"AppSwitcher\", \"type\": \"AppMenu\", \"filePath\": \"force-app/main/default/appMenus/AppSwitcher.appMenu-meta.xml\", \"state\": \"Add\" }, { \"fullName\": \"Salesforce1\", \"type\": \"AppMenu\", \"filePath\": \"force-app/main/default/appMenus/Salesforce1.appMenu-meta.xml\", \"state\": \"Add\" }, { \"fullName\": \"standard__AIWorkbench\", \"type\": \"CustomApplication\", \"filePath\": \"force-app/main/default/applications/standard__AIWorkbench.app-meta.xml\", \"state\": \"Add\" }, { \"fullName\": \"standard__AgentforceStudio\", \"type\": \"CustomApplication\", \"filePath\": \"force-app/main/default/applications/standard__AgentforceStudio.app-meta.xml\", \"state\": \"Add\" }, { \"fullName\": \"standard__AllTabSet\", \"type\": \"CustomApplication\", \"filePath\": \"force-app/main/default/applications/standard__AllTabSet.app-meta.xml\", \"state\": \"Add\" }, { \"fullName\": \"standard__AlmDevops\", \"type\": \"CustomApplication\", \"filePath\": \"force-app/main/default/applications/standard__AlmDevops.app-meta.xml\", \"state\": \"Add\" }, { \"fullName\": \"standard__AppLauncher\", \"type\": \"CustomApplication\", \"filePath\": \"force-app/main/default/applications/standard__AppLauncher.app-meta.xml\", \"state\": \"Add\" }, { \"fullName\": \"standard__Approvals\", \"type\": \"CustomApplication\", \"filePath\": \"force-a",
+ "org": "PROD",
+ "branch": "prod",
+ "components": [],
+ "counts": {},
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42402403729",
+ "finishedAt": "2026-11-07T18:42:58.918Z",
+ "attempt": "0da1af4ac63753cf619aa35464bf565f"
+}
