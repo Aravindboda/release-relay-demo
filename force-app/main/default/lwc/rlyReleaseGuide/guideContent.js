@@ -2717,6 +2717,7 @@ const USE_SECTIONS = [
                             ['Resolving conflicts', 'Your conflict choices were committed; the pipeline merges the target and checks again.', 'Wait.'],
                             ['Checks failed', 'The code scan blocked it, the validation failed, a quality gate failed, or it conflicts with the target.', 'Add the fix (Add changes from …), resolve the conflict, ask an approver to bypass the scan, or Check again.'],
                             ['Ready for approval', 'All checks passed (or the scan was bypassed) and the target org\'s approval rule asks for an approver.', 'An approver approves or rejects, in Salesforce or Slack. When the rule needs no approver, the release is approved automatically and deploys.'],
+                            ['Waiting for the window', 'Approved, but the target org\'s release window is closed or it is frozen. The release says when it will deploy.', 'Wait; it deploys when the release is opened inside the window. An admin can Deploy now anyway, with a reason.'],
                             ['Deploying', 'Merging the pull request and deploying.', 'Wait.'],
                             ['Deployed', 'In the target org; developer branches updated; flows set to Activate activated.', 'Nothing. Download evidence (PDF) if the change request needs it.'],
                             ['Deploy failed', 'The merge or the deploy failed.', 'Read the reason; raise a new release.'],
@@ -2735,6 +2736,52 @@ const USE_SECTIONS = [
                         ]
                     },
                     { type: 'note', text: '**Manual steps only** releases skip Retrieving, Workflow running and Validating: Submitted → Ready for approval → Deploying while the deployment team does the manual steps in that org → Deployed when all of them are Done or Not needed.' }
+                ]
+            }
+        ]
+    }
+];
+
+// Build 39: release windows and freezes.
+const WINDOW_SECTIONS = [
+    {
+        key: 'windows',
+        group: 'daily',
+        label: 'Release windows and freezes',
+        cards: [
+            {
+                key: 'win-main',
+                title: 'Release windows and freezes',
+                blocks: [
+                    { type: 'text', paras: ['An org can have a **release window**: the days and hours deploys into it may run, in its own time zone. It can also have **freezes**: whole days (start and end included) when nothing deploys, each with a reason. An org without a window or freezes deploys any time, as before.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Set an org\'s window',
+                                who: 'Admin',
+                                where: 'Pipeline tab → the org\'s card',
+                                items: [
+                                    'Open the org\'s card. **Release window** shows the window in a few words (for example "Mon–Thu 6:00 PM–10:00 PM CST · next freeze 16 Nov 2026") and whether it is open now.',
+                                    'Press **Edit**. Pick the days, then From and To (leave both blank for the whole day; a To earlier than From runs past midnight), and the time zone.',
+                                    'Under **Freezes**, press **Add a freeze** for each period: start, end and why (for example Year-end close).',
+                                    'Press **Save**. Clearing every day and freeze removes the window.'
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        type: 'table',
+                        cols: ['When', 'What happens'],
+                        rows: [
+                            ['A release is approved outside the window', 'Checks and approval run as usual. It shows **Waiting for the window** with when it will deploy, and History says so. It deploys the first time anyone opens the release, the Releases list or Home inside the window.'],
+                            ['A release is approved during a freeze', 'It waits the same way: "Frozen until 2 Jan 2027 in PROD: Year-end close." It deploys when a window opens after the freeze.'],
+                            ['It can\'t wait', 'An admin presses **Deploy now anyway** on the release and says why. History, the evidence PDF and the Slack card record it.'],
+                            ['A freeze starts within 7 days', 'Home shows a warning.'],
+                            ['Rollbacks and branch-only back promotes', 'Never held.']
+                        ]
+                    },
+                    { type: 'note', text: 'The Releases tab\'s **Waiting for the window** filter lists the releases that are waiting. A release deploys inside the window only when a page reads it, so open it (or the Releases list) once the window opens.' }
                 ]
             }
         ]
@@ -2894,6 +2941,6 @@ const REF_SECTIONS = [
     }
 ];
 
-const SECTIONS = [...START_SECTIONS, ...SETUP_SECTIONS, ...USE_SECTIONS, ...REF_SECTIONS];
+const SECTIONS = [...START_SECTIONS, ...SETUP_SECTIONS, ...USE_SECTIONS, ...WINDOW_SECTIONS, ...REF_SECTIONS];
 
 export default SECTIONS;

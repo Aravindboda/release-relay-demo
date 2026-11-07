@@ -984,6 +984,9 @@
                                             </template>
                                         </div>
                                     </template>
+                                    <template lwc:if={dialogWindow}>
+                                        <c-rly-release-window view={dialogWindow} onsaved={handleWindowSaved}></c-rly-release-window>
+                                    </template>
                                 </template>
                                 <template lwc:else>
                                     <template for:each={formSections} for:item="s">

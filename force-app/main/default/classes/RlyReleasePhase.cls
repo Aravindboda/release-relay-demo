@@ -44,6 +44,9 @@ public with sharing class RlyReleasePhase {
     // Waiting for a second approver, for the deployment team's manual steps before deploy, or (manual steps only) for the
     // manual steps that finish its deploy.
     private static String held(RLY_Release__c rel) {
+        if (rel.Status__c == RlyWindowGate.WAITING) {
+            return RlyWindowGate.noticeFor(rel).text; // approved, waiting for the target's release window (build 39)
+        }
         String secondNotice = RlyTwoApprovers.notice(rel);
         String gateNotice = secondNotice != null ? secondNotice : RlyManualStepGate.notice(rel);
         return gateNotice != null ? gateNotice : RlyManualOnly.notice(rel);

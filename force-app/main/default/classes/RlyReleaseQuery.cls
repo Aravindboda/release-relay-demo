@@ -20,12 +20,13 @@ public with sharing class RlyReleaseQuery {
 
     /** @description Statuses that still need something (the open state). */
     private static final Set<String> OPEN_STATES = new Set<String>{ 'Submitted', 'Retrieving', 'Workflow running', 'Validating',
-        'PR open', 'Checks failed', 'Ready for approval', 'Approved', 'Merging', 'Merged', 'Deploying' };
+        'PR open', 'Checks failed', 'Ready for approval', 'Approved', 'Merging', 'Merged', 'Deploying', RlyWindowGate.WAITING };
 
     /** @description The Releases tab's states and the statuses each one groups. */
     public static final Map<String, Set<String>> STATE_STATUSES = new Map<String, Set<String>>{
         STATE_OPEN => OPEN_STATES,
         'checks' => new Set<String>{ 'Checks failed' },
+        'window' => new Set<String>{ RlyWindowGate.WAITING },
         STATE_DEPLOYED => new Set<String>{ 'Deployed' },
         STATE_ROLLED_BACK => everyStatus(),
         'failed' => new Set<String>{ 'Failed', 'Deploy failed' },
@@ -37,7 +38,7 @@ public with sharing class RlyReleaseQuery {
     public class Filter {
         /** @description The user who raised the releases, or blank for everyone. */
         public String raisedById;
-        /** @description open, checks, deployed, rolledback, failed, closed or all (blank: open). */
+        /** @description open, checks, window, deployed, rolledback, failed, closed or all (blank: open). */
         public String state;
         /** @description Part of the release number or title, or blank. */
         public String searchText;
