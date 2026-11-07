@@ -956,6 +956,9 @@
                                                     </div>
                                                 </template>
                                             </dl>
+                                            <template lwc:if={s.isSlack}>
+                                                <c-rly-slack-org-reminders org-id={dialogOrg.Id}></c-rly-slack-org-reminders>
+                                            </template>
                                             <template lwc:if={s.isSignin}>
                                                 <template lwc:if={dialogOrg.statusMessage}><p class={dialogOrg.messageCls}>{dialogOrg.statusMessage}</p></template>
                                             </template>

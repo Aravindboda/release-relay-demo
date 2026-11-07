@@ -170,6 +170,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
+        <field>RLY_Release__c.Slack_Reminded__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>RLY_Release__c.Approved_Via__c</field>
         <readable>true</readable>
     </fieldPermissions>

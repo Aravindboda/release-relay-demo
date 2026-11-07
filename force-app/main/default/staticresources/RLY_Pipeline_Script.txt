@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 23
+// Release Relay pipeline files: version 24
+// Version 24: no script change (Slack reminders run in the workflow's slack-due job, which calls the hub directly).
 // Version 23 (the hub's Sync status tab, request ids SYN-<13 digits>):
 //   MODE=drift (STEP=drift): signs in to an org (ENVIRONMENT, the org's own GitHub environment), builds a manifest of
 //     everything in it (sf project generate manifest --from-org: managed packages left out; plus the hub's skipped

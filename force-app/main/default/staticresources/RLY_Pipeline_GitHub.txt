@@ -1,4 +1,9 @@
-# Release Relay pipeline files: version 23
+# Release Relay pipeline files: version 24
+# Version 24: Slack reminders and the daily digest. A second schedule (every hour at :17, "17 * * * *") runs the
+# slack-due job only: it signs in to the hub like the archive job and calls POST /services/apexrest/rly/slack-due once
+# per pass until the hub says done (at most 10 calls). The hub decides what is due per org (reminders, digests); an
+# org with them off is never read. Repository variable RELAY_SLACK_DUE=off skips the job; mode "slack" runs it by hand.
+# The hourly runs aren't posted to the Pipeline Monitor. The nightly archive (0 8 * * *) is unchanged.
 # Version 23: the hub's Sync status tab (request ids SYN-<13 digits>). Mode "drift" (Org vs branch): the drift job runs
 # in the org's own environment (inputs.environment), signs in like validate and deploy, reads the whole org (managed
 # packages left out) and compares it with its branch (target); results/<id>/drift.json for the hub. Mode "routediff"
@@ -85,13 +90,15 @@
 # {"snapshot":false} skips the rollback snapshot before a deploy; {"snapshotPath":"REL-00042/prod/<id>"} picks
 # the snapshot for mode=rollback.
 name: Release Relay
-run-name: "${{ (github.event_name == 'schedule' || inputs.mode == 'archive') && 'Release Relay nightly archive' || format('Release Relay {0} ({1})', inputs.request_id, inputs.mode) }}"
+run-name: "${{ ((github.event_name == 'schedule' && github.event.schedule == '17 * * * *') || inputs.mode == 'slack') && 'Release Relay Slack reminders' || ((github.event_name == 'schedule' || inputs.mode == 'archive') && 'Release Relay nightly archive' || format('Release Relay {0} ({1})', inputs.request_id, inputs.mode)) }}"
 
 on:
   # Nightly archive. Cron is UTC: 0 8 * * * is 2:00 AM Central in winter (CST), 3:00 AM in summer (CDT); change the
   # hour to your quiet time. GitHub may start it a few minutes late.
   schedule:
     - cron: "0 8 * * *"
+    # Slack reminders and daily digests (version 24): every hour at :17; the hub sends only what is due.
+    - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
       request_id:
@@ -99,10 +106,10 @@ on:
         required: false
         type: string
       mode:
-        description: org, branch, promote, hub, resolve, check, merge, sync, rollback, compare, drift, routediff (from the hub), or archive (the nightly archive, by hand)
+        description: org, branch, promote, hub, resolve, check, merge, sync, rollback, compare, drift, routediff (from the hub), archive (the nightly archive, by hand) or slack (Slack reminders and digests, by hand)
         required: true
         type: choice
-        options: [org, branch, promote, hub, resolve, check, merge, sync, rollback, compare, drift, routediff, archive]
+        options: [org, branch, promote, hub, resolve, check, merge, sync, rollback, compare, drift, routediff, archive, slack]
       environment:
         description: GitHub environment of the source org (sync = the hub's production org)
         required: false
@@ -147,7 +154,7 @@ permissions:
 # One run at a time per release branch; back promotes, one at a time per back-promote branch; rollbacks, one at
 # a time per org; the nightly archive, one at a time; each compare on its own.
 concurrency:
-  group: release-relay-${{ github.event_name == 'schedule' && 'archive' || ((inputs.mode == 'compare' || inputs.mode == 'drift' || inputs.mode == 'routediff') && format('{0}-{1}', inputs.mode, inputs.request_id) || (inputs.mode == 'rollback' && format('rollback-{0}', inputs.target_environment) || (inputs.mode == 'sync' && inputs.target || inputs.branch))) }}
+  group: release-relay-${{ ((github.event_name == 'schedule' && github.event.schedule == '17 * * * *') || inputs.mode == 'slack') && 'slack-due' || github.event_name == 'schedule' && 'archive' || ((inputs.mode == 'compare' || inputs.mode == 'drift' || inputs.mode == 'routediff') && format('{0}-{1}', inputs.mode, inputs.request_id) || (inputs.mode == 'rollback' && format('rollback-{0}', inputs.target_environment) || (inputs.mode == 'sync' && inputs.target || inputs.branch))) }}
   cancel-in-progress: false
 
 env:
@@ -666,7 +673,7 @@ jobs:
   # The hub decides: it skips (and says why) unless it is the production hub, the user has Release Relay Admin,
   # "Archive every night" is on and Retention days are set. No script from the repository is needed.
   archive:
-    if: ${{ github.event_name == 'schedule' || inputs.mode == 'archive' }}
+    if: ${{ (github.event_name == 'schedule' && github.event.schedule == '0 8 * * *') || inputs.mode == 'archive' }}
     runs-on: ubuntu-latest
     environment: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
     timeout-minutes: 30
@@ -755,11 +762,90 @@ jobs:
             fi
           done
 
+  # Slack reminders and daily digests (version 24): every hour at :17 (or mode "slack" by hand). Signs in to the hub
+  # like the archive job and calls the slack-due endpoint once per pass until it answers done (at most 10 calls). The
+  # hub skips (and says why) unless it is the production hub, the user has Release Relay Admin and Slack is connected;
+  # an org with reminders and the digest off is never read. Repository variable RELAY_SLACK_DUE=off skips this job.
+  slack-due:
+    if: ${{ vars.RELAY_SLACK_DUE != 'off' && ((github.event_name == 'schedule' && github.event.schedule == '17 * * * *') || inputs.mode == 'slack') }}
+    runs-on: ubuntu-latest
+    environment: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Salesforce CLI cache key
+        id: sfkey
+        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+      - name: Cache Salesforce CLI
+        uses: actions/cache@v4
+        with:
+          path: ~/.relay-sf
+          key: ${{ steps.sfkey.outputs.key }}
+      - name: Install Salesforce CLI
+        run: |
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
+      - name: Send due Slack reminders and digests
+        env:
+          SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+          SF_USERNAME: ${{ secrets.SF_USERNAME }}
+          SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+          SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+          SF_JKS: ${{ secrets.SF_JKS }}
+          SF_JKS_PASSWORD: ${{ secrets.SF_JKS_PASSWORD }}
+          SF_JKS_ALIAS: ${{ vars.SF_JKS_ALIAS }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # Secrets reach the shell only as environment variables; the key is written as the archive job writes it.
+        run: |
+          set -euo pipefail
+          for name in SF_USERNAME SF_CLIENT_ID SF_INSTANCE_URL; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name isn't set for the hub's environment."
+              exit 1
+            fi
+          done
+          key="$RUNNER_TEMP/relay.key"
+          if [ -n "${SF_JKS:-}" ]; then
+            if [ -z "${SF_JKS_PASSWORD:-}" ] || [ -z "${SF_JKS_ALIAS:-}" ]; then
+              echo "::error::SF_JKS is set, so SF_JKS_PASSWORD (secret) and SF_JKS_ALIAS (variable) are needed too."
+              exit 1
+            fi
+            dir="$(mktemp -d)"
+            printf '%s' "$SF_JKS" | base64 -d > "$dir/store.jks"
+            export RELAY_PW="$SF_JKS_PASSWORD"
+            keytool -importkeystore -noprompt -srckeystore "$dir/store.jks" -srcstoretype JKS -srcstorepass:env RELAY_PW \
+              -srckeypass:env RELAY_PW -srcalias "$SF_JKS_ALIAS" -destkeystore "$dir/store.p12" -deststoretype PKCS12 \
+              -deststorepass:env RELAY_PW -destkeypass:env RELAY_PW > /dev/null
+            openssl pkcs12 -in "$dir/store.p12" -nocerts -nodes -passin env:RELAY_PW -out "$key" 2> /dev/null
+            rm -rf "$dir"
+          elif [ -n "${SF_JWT_KEY:-}" ]; then
+            printf '%s' "$SF_JWT_KEY" | base64 -d > "$key"
+          else
+            echo "::error::Set SF_JKS (keystore from Salesforce) or SF_JWT_KEY (private key) for the hub's environment."
+            exit 1
+          fi
+          chmod 600 "$key"
+          sf org login jwt --client-id "$SF_CLIENT_ID" --username "$SF_USERNAME" --jwt-key-file "$key" \
+            --instance-url "$SF_INSTANCE_URL" --alias relay-hub > /dev/null
+          rm -f "$key"
+          for call in $(seq 1 10); do
+            body="$(jq -n --arg runUrl "$RUN_URL" --argjson pass "$call" '{runUrl: $runUrl, pass: $pass}')"
+            answer="$(sf api request rest /services/apexrest/rly/slack-due --method POST --body "$body" --target-org relay-hub)"
+            line="$(printf '%s' "$answer" | jq -r '"Pass \(.pass // 0): \(.sent // 0) sent, \(.skipped // 0) skipped. \(.reason // "")"')"
+            echo "$line"
+            echo "- $line" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$(printf '%s' "$answer" | jq -r '.done // true')" = "true" ]; then
+              break
+            fi
+          done
+
   # Pipeline Monitor (version 20): tells the hub this run started, for its Pipeline Monitor tab. Signs in with the hub
   # environment's login (as the archive job does) and posts to /services/apexrest/rly/pipeline-run. It runs beside the
   # other jobs and never fails the run: a failed call is a warning. Repository variable RELAY_MONITOR=off skips it.
   monitor-start:
-    if: ${{ vars.RELAY_MONITOR != 'off' }}
+    if: ${{ vars.RELAY_MONITOR != 'off' && github.event.schedule != '17 * * * *' && inputs.mode != 'slack' }}
     runs-on: ubuntu-latest
     environment: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
     timeout-minutes: 10
@@ -808,7 +894,7 @@ jobs:
   # each job's outcome and the first failure (read from this run with its own token: actions and checks read). Never fails the run.
   monitor-end:
     needs: [monitor-start, raise, scan, validate, merge, deploy, sync, sync-branch, rollback, notify, archive, compare, drift, routediff]
-    if: ${{ always() && vars.RELAY_MONITOR != 'off' }}
+    if: ${{ always() && vars.RELAY_MONITOR != 'off' && github.event.schedule != '17 * * * *' && inputs.mode != 'slack' }}
     runs-on: ubuntu-latest
     environment: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
     timeout-minutes: 10
