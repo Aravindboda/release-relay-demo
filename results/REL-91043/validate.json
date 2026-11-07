@@ -1,0 +1,176 @@
+{
+ "request": "REL-91043",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 54,
+ "deleted": [],
+ "mergedWith": "9127b295ec0aec78b9cb3a87c0b065acdb0b1f50",
+ "validatedTree": "230acf9bb18c314a2a5a1fab6844b2b2a9909822",
+ "environment": "sit",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000d76WsSAI",
+ "testsRun": 0,
+ "tests": [
+  "RlyAppendTest",
+  "RlyApprovalRulesTest",
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyArchiveRestTest",
+  "RlyArchiveRunsTest",
+  "RlyArchiveTest",
+  "RlyBackPromoteTest",
+  "RlyBranchDeleteTest",
+  "RlyBuildInfoTest",
+  "RlyBuildLockTest",
+  "RlyChangePartsTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyComparePipelineTest",
+  "RlyCompareTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyDeletionFinderTest",
+  "RlyDeployReaderTest",
+  "RlyEvidenceTest",
+  "RlyFlowActivationTest",
+  "RlyFlowBatchTest",
+  "RlyGitAdviceTest",
+  "RlyGitProvidersTest",
+  "RlyHomeControllerTest",
+  "RlyHotfixTest",
+  "RlyHubGuardTest",
+  "RlyManualOnlyTest",
+  "RlyManualStepGateTest",
+  "RlyManualStepsTest",
+  "RlyOrgControllerTest",
+  "RlyOrgLinksTest",
+  "RlyOrgSessionTest",
+  "RlyPipelineFilesTest",
+  "RlyPromoteOverlapTest",
+  "RlyPromoteTest",
+  "RlyPullRequestCloseTest",
+  "RlyPullRequestFilesTest",
+  "RlyRaisePartsTest",
+  "RlyRaiseServiceTest",
+  "RlyRaiseTest",
+  "RlyReleaseSizeTest",
+  "RlyReleasesFilterTest",
+  "RlyRepoSettingsTest",
+  "RlyRollbackTest",
+  "RlyRouteControllerTest",
+  "RlyRunMonitorControllerTest",
+  "RlyRunMonitorRestTest",
+  "RlyScanRuleTest",
+  "RlySetupStatusTest",
+  "RlySharedReadTest",
+  "RlySlackActionsTest",
+  "RlySlackApproversTest",
+  "RlySlackCardTest",
+  "RlySlackLinkTest",
+  "RlySlackSiteCheckTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest",
+  "RlyStepFilesTest",
+  "RlySyncTest",
+  "RlyTwoApproversTest",
+  "RlyDataTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [
+  {
+   "type": "ApexClass",
+   "name": "RlyDataController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyDataExport : Identifier type is reserved: Page",
+   "line": 14
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyDataExport",
+   "problem": "Identifier type is reserved: Page",
+   "line": 14
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyDataTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyDataController : Dependent class is invalid and needs recompilation:\n Class RlyDataExport : Identifier type is reserved: Page",
+   "line": 14
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyDataSync",
+   "problem": "Unable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyDataSync",
+   "problem": "Unable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyDataSync",
+   "problem": "Unable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyDataSync",
+   "problem": "Unable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyDataSync",
+   "problem": "Unable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyDataSync",
+   "problem": "Unable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyDataSync",
+   "problem": "Unable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyDataSync",
+   "problem": "Unable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'.\nUnable to find Apex action class referenced as 'RlyDataController'."
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Admin",
+   "problem": "In field: apexClass - no ApexClass named RlyDataController found"
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Approver",
+   "problem": "In field: apexClass - no ApexClass named RlyDataController found"
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Deploy_Team",
+   "problem": "In field: apexClass - no ApexClass named RlyDataController found"
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Developer",
+   "problem": "In field: apexClass - no ApexClass named RlyDataController found"
+  }
+ ],
+ "testFailures": [],
+ "message": "15 component error(s)",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42393792846",
+ "finishedAt": "2026-11-07T16:59:48.926Z",
+ "excluded": [],
+ "selfUpdate": true,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
+}
