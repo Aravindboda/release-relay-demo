@@ -34,7 +34,7 @@ public with sharing class RlySlackNudge {
      * @param memberIds the Slack member ids
      * @return the text
      */
-    public static String mentions(Collection<String> memberIds) {
+    public static String mentions(List<String> memberIds) {
         List<String> parts = new List<String>();
         for (String m : memberIds) {
             if (String.isNotBlank(m) && parts.size() < RlySlackDueStore.MAX_MENTIONS) {
