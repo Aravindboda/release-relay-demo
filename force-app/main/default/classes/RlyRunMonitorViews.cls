@@ -84,6 +84,8 @@ public with sharing class RlyRunMonitorViews {
         @AuraEnabled public Id releaseId;
         /** @description That release's number. */
         @AuraEnabled public String releaseName;
+        /** @description The release's status (for example Ready for approval), shown when the branch has no run yet. */
+        @AuraEnabled public String releaseStatus;
         /** @description The newest activity: the latest run's start or finish, or the release's last change. */
         @AuraEnabled public Datetime lastActivity;
         /** @description Where the branch is now: the latest run's org, or the release's target org. */
