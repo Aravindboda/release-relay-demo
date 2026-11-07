@@ -185,8 +185,12 @@ const CHILD_TYPES = {
     ListView: ['listViews', '.listView-meta.xml']
 };
 
+/** Output buffer for git and Salesforce CLI calls (Node's default, 1 MB, is too small for a whole org). */
+const CLI_BUFFER = 512 * 1024 * 1024;
+
 function run(cmd, args, options = {}) {
-    const out = execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], ...options });
+    // A big buffer: git and the CLI list every file of a whole-org branch, far past Node's 1 MB default.
+    const out = execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: CLI_BUFFER, ...options });
     return out == null ? '' : String(out).trim();
 }
 
@@ -623,7 +627,7 @@ function git(args, options) {
 
 function gitQuiet(args) {
     try {
-        return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+        return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: CLI_BUFFER }).trim();
     } catch (e) {
         return null;
     }
@@ -2237,9 +2241,14 @@ function convertFromHub(mdapi, out, failWith = raiseFailed) {
     fs.writeFileSync(path.join(out, 'sfdx-project.json'),
         JSON.stringify({ packageDirectories: [{ path: 'force-app', default: true }], sourceApiVersion: '63.0' }));
     try {
+        // The JSON lists every converted file (megabytes for a whole org): a big buffer, or Node stops the command midway.
         execFileSync('sf', ['project', 'convert', 'mdapi', '--root-dir', mdapi, '--output-dir', path.join(out, 'force-app'), '--json'],
-            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], cwd: out });
+            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], cwd: out, maxBuffer: CLI_BUFFER,
+                env: { ...process.env, SF_SKIP_NEW_VERSION_CHECK: 'true', NO_COLOR: '1', FORCE_COLOR: '0' } });
     } catch (e) {
+        if (e.code === 'ENOBUFS') {
+            failWith('Converting the files from the hub printed more output than the pipeline can hold; nothing was changed.');
+        }
         let detail = String(e.stdout || '') + String(e.stderr || '');
         try {
             const parsed = JSON.parse(String(e.stdout || '{}'));
@@ -2601,7 +2610,7 @@ async function raisePromotion() {
         if (parents > 1) { args.push('-m', '1'); }
         args.push(sha);
         try {
-            execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+            execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: CLI_BUFFER });
         } catch (e) {
             const files = conflictedFiles();
             gitQuiet(['cherry-pick', '--abort']);
