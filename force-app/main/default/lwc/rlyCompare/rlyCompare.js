@@ -490,7 +490,7 @@ export default class RlyCompare extends LightningElement {
         }
         this.pipeWaiting = false;
         try {
-            const r = await checkPipelineCompare({ compareId: this.pipe.compareId, token: this.pipe.token });
+            const r = await checkPipelineCompare({ compareId: this.pipe.compareId, token: this.pipe.token, sourceOrgId: this.sourceOrgId });
             this.pipe = { ...this.pipe, runUrl: r.runUrl || this.pipe.runUrl, runStatus: r.runStatus };
             if (!r.done) {
                 this.pipeCycle += 1;
@@ -549,7 +549,7 @@ export default class RlyCompare extends LightningElement {
         this.fileLoading = true;
         this.fileError = undefined;
         try {
-            const d = await pipelineCompareFile({ compareId: this.pipe.compareId, n: f.n });
+            const d = await pipelineCompareFile({ compareId: this.pipe.compareId, n: f.n, sourceOrgId: this.sourceOrgId });
             this.pipe = { ...this.pipe, files: { ...this.pipe.files, [f.n]: d } };
         } catch (e) {
             this.fileError = errorText(e);

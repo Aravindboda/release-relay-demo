@@ -232,6 +232,21 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
+        <field>RLY_Release__c.Git_Connection__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>RLY_Release__c.Prod_Sync__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>RLY_Release__c.Prod_Sync_State__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>RLY_Release__c.Deletions__c</field>
         <readable>true</readable>
     </fieldPermissions>

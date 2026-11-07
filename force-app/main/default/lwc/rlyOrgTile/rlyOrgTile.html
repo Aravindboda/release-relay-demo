@@ -10,6 +10,10 @@
             <span class={t.branchCls}>{t.branch}</span>
             <span class="rr-tile-lab">Approval</span>
             <span class="rr-tile-val">{t.approvalText}</span>
+            <template lwc:if={t.connectionText}>
+                <span class="rr-tile-lab">Git</span>
+                <span class="rr-tile-val">{t.connectionText}</span>
+            </template>
             <template lwc:if={t.windowText}>
                 <span class="rr-tile-lab">Window</span>
                 <span class="rr-tile-val">{t.windowText}</span>

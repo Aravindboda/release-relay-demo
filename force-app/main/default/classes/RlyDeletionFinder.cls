@@ -14,9 +14,9 @@ public with sharing class RlyDeletionFinder {
      * @return the candidates, each with deleted = true
      */
     public static List<RlyChangeFinder.Change> find(RLY_Org__c org) {
-        RlyGit git = git();
+        RlyGit git = gitOf(org.Id);
         String branch = branchOf(org);
-        String sourcePath = sourcePath();
+        String sourcePath = sourcePathOf(org.Id);
         List<String> keys = RlyDeletionPaths.keysOf(git.listFiles(branch, sourcePath), sourcePath);
         Map<String, List<String>> byType = new Map<String, List<String>>();
         for (String k : keys) {
@@ -34,7 +34,16 @@ public with sharing class RlyDeletionFinder {
      * @return the provider
      */
     public static RlyGit git() {
-        RLY_Git_Connection__c conn = RlyReleaseStore.git();
+        return gitOf(null);
+    }
+
+    /**
+     * @description An org's Git connection, checked (connected). Build 45: the org's own repository.
+     * @param orgId the org (blank: the hub's main connection)
+     * @return the provider
+     */
+    public static RlyGit gitOf(Id orgId) {
+        RLY_Git_Connection__c conn = orgId == null ? RlyReleaseStore.git() : RlyReleaseStore.gitForOrg(orgId);
         if (conn == null || conn.Status__c != 'Connected') {
             throw new RlyReleaseException('The Git connection isn\'t set up and checked yet (Pipeline tab).');
         }
@@ -46,7 +55,16 @@ public with sharing class RlyDeletionFinder {
      * @return the path
      */
     public static String sourcePath() {
-        RLY_Git_Connection__c conn = RlyReleaseStore.git();
+        return sourcePathOf(null);
+    }
+
+    /**
+     * @description An org's Git connection's source path, without a trailing slash (blank: the repository root).
+     * @param orgId the org (blank: the hub's main connection)
+     * @return the path
+     */
+    public static String sourcePathOf(Id orgId) {
+        RLY_Git_Connection__c conn = orgId == null ? RlyReleaseStore.git() : RlyReleaseStore.gitForOrg(orgId);
         return conn == null || String.isBlank(conn.Source_Path__c) ? '' : conn.Source_Path__c.trim().removeEnd('/');
     }
 
@@ -59,7 +77,7 @@ public with sharing class RlyDeletionFinder {
         if (String.isNotBlank(org.Branch__c)) {
             return org.Branch__c.trim();
         }
-        RLY_Org__c firstStage = RlyReleaseStore.firstStage();
+        RLY_Org__c firstStage = RlyConnectionRoutes.firstStageFor(RlyReleaseStore.gitForOrg(org.Id)?.Id);
         if (firstStage == null || String.isBlank(firstStage.Branch__c)) {
             throw new RlyReleaseException('Give ' + org.Name + ' its own branch on the Pipeline tab first.');
         }

@@ -24,7 +24,9 @@ public with sharing class RlyRollbackRun {
         if (RlyRollbackState.isRunning(releaseId)) {
             advance(releaseId);
         } else if (RlyHubGuard.isHub()) {
-            RlyBackPromoteRun.catchUp();
+            if (!RlyProdSync.step(releaseId)) { // build 45: keeping the other repositories' prod in step goes first
+                RlyBackPromoteRun.catchUp();
+            }
         }
     }
 
@@ -41,7 +43,7 @@ public with sharing class RlyRollbackRun {
         String owner = RlyEvidenceText.str(started.get('request'));
         Map<String, Object> outcome;
         try {
-            RlyGit git = RlyGit.forConnection(RlyReleaseStore.git());
+            RlyGit git = RlyGit.forConnection(RlyReleaseStore.gitFor(running));
             outcome = readResult(git, owner, running.Rollback_Token__c);
             if (outcome == null) {
                 outcome = runFailure(git, owner, running);

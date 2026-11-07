@@ -244,6 +244,8 @@ export default class RlyPromote extends LightningElement {
 
     get kicker() { return APP_NAME + ' hub · Promote'; }
     get stages() { return (this.board && this.board.stages) || []; }
+    /** Build 45: several Git connections; the stages come grouped by connection, each card says which. */
+    get manyConnections() { return !!(this.board && this.board.connectionCount > 1); }
     get canPromote() { return !!(this.board && this.board.canPromote); }
     get isPicking() { return !this.promotedId; }
     get noStages() { return !!this.board && this.stages.length === 0; }
@@ -296,6 +298,8 @@ export default class RlyPromote extends LightningElement {
             nextName: s.nextName,
             nextBranch: s.nextBranch,
             nextText: s.nextName + (s.nextBranch ? ' · ' + s.nextBranch : ''),
+            viaText: this.manyConnections && s.provider ? 'via ' + s.provider : '',
+            viaTitle: s.connectionLabel || '',
             routeLabel: s.stageName + ' to ' + s.nextName,
             rulesOpen: this.openRulesFor === s.stageId,
             rulesExpanded: this.openRulesFor === s.stageId ? 'true' : 'false',

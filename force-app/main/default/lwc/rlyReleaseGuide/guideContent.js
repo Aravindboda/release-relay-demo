@@ -2939,6 +2939,108 @@ const WINDOW_SECTIONS = [
     }
 ];
 
+// Build 45: several Git connections.
+const CONNECTION_SECTIONS = [
+    {
+        key: 'connections',
+        group: 'setup',
+        label: 'Several Git connections',
+        adminOnly: true,
+        cards: [
+            {
+                key: 'conn-main',
+                title: 'Several Git connections',
+                blocks: [
+                    { type: 'text', paras: ['The hub can have **one Git connection per provider**: GitHub, GitLab, Bitbucket and Azure DevOps. Every developer and stage org belongs to exactly one connection, picked when it is registered. With one connection it is picked for you and the picker stays hidden.', 'Each connection has its own route: its developer orgs, then its stages, then the hub. The hub (production) is the last stop of every route, and its branch (for example `prod`) is in every repository.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Add a connection',
+                                who: 'Admin',
+                                where: 'Pipeline tab → Git connections',
+                                goal: 'A second repository, for example on GitLab, for some orgs\' releases.',
+                                items: [
+                                    'In Setup, create the Named Credential for the provider (for example `RLY_GitLab`, URL `https://gitlab.com/api/v4`) and enter the token. Grant its principal on your profile, like `RLY_Slack`.',
+                                    'On the Pipeline tab, press **Add** on the provider\'s "Not set up" card (or **Add connection**).',
+                                    'Fill in the repository, the Named Credential, the pipeline file (for example `.gitlab-ci.yml`), the pipeline branch and the source path. Save: the hub checks it.',
+                                    'Press **Update pipeline files** on its card so the repository gets the pipeline files, then **Create missing branches**.'
+                                ],
+                                check: 'The card says Connected and the pipeline version matches the hub\'s.'
+                            },
+                            {
+                                title: 'Move an org to another connection',
+                                who: 'Admin',
+                                where: 'Pipeline tab → the org\'s card → Edit',
+                                items: [
+                                    'Pick the connection under **Git connection** and press **Check branch** ("sit exists in GitLab ✓").',
+                                    'Save. An org with open releases can\'t move: deploy, reject or close them first.',
+                                    'Its history stays with the old repository; its next release starts in the new one.'
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        type: 'table',
+                        cols: ['What', 'How it works'],
+                        rows: [
+                            ['The main connection', 'The oldest active one. Schedules, the nightly archive, self-update and back promote run on it, and orgs or releases without a connection count as on it, so nothing changes until a second connection is added.'],
+                            ['A release', 'Lives in its source org\'s repository from the moment it is raised. Its promotions and rollbacks stay there. New Release shows the route with a "via GitLab" chip; no extra question.'],
+                            ['Promote', 'A promotion only combines releases from one connection. The Promote tab shows each stage\'s connection.'],
+                            ['After a production deploy', 'For each other repository the hub raises an automatic **Prod sync** release from the hub org into its prod branch, with the deployed components. It has no target environment: it opens the pull or merge request, scans and merges, with no validation and no deploy. The release shows "prod kept in step in GitHub ✓", running, or failed with **Try again**. It is best effort and never blocks.'],
+                            ['Releases list', 'A GitHub or GitLab badge on every card, and a Repository filter.'],
+                            ['Release page', 'Says Merge request for GitLab; its links open the right site.']
+                        ]
+                    },
+                    { type: 'note', text: 'GitLab has no schedules from the hub: the hourly Slack reminders and the nightly archive stay with the main connection.' }
+                ]
+            },
+            {
+                key: 'conn-gitlab',
+                title: 'Set up GitLab',
+                blocks: [
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'The token in Salesforce',
+                                who: 'Admin',
+                                where: 'Setup → Named Credentials',
+                                items: [
+                                    'In GitLab, create a project access token with the role **Maintainer** and the scopes `api` and `write_repository`.',
+                                    'External Credential **RLY GitLab**: add the principal `ProjectToken` with the authentication parameter **Token** holding the project access token.',
+                                    'Grant the principal on your profile, like `RLY_Slack` (Profile → Enabled External Credential Principal Access). The permission sets don\'t carry it.',
+                                    'Named Credential `RLY_GitLab` uses it, with the URL `https://gitlab.com/api/v4`.'
+                                ]
+                            },
+                            {
+                                title: 'The project in GitLab',
+                                who: 'GitLab maintainer',
+                                where: 'GitLab → the project → Settings → CI/CD',
+                                items: [
+                                    'Under **Variables**, set **Minimum role to use pipeline variables** to **Maintainer**.',
+                                    'Add these variables per environment (for example `sit`, `prod`, `dev1`): `SF_CLIENT_ID`, `SF_USERNAME`, `SF_INSTANCE_URL`, `SF_JKS_ALIAS`, `ORG_LABEL` and `DEPLOY_TEST_LEVEL`.',
+                                    'Add `SF_JKS`, `SF_JKS_PASSWORD` and `RELAY_TOKEN` for all environments.'
+                                ]
+                            },
+                            {
+                                title: 'Connect it',
+                                who: 'Admin',
+                                where: 'Pipeline tab → Git connections',
+                                items: [
+                                    'Add the GitLab connection: repository `group/project`, Named Credential `RLY_GitLab`, pipeline file `.gitlab-ci.yml`, pipeline branch, source path.',
+                                    'Press **Update pipeline files** on its card, merge the merge request, then **Create missing branches** and **Check**.'
+                                ],
+                                check: 'The card says Connected, with the hub\'s pipeline version.'
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+];
+
 const REF_SECTIONS = [
     {
         key: 'repo',
@@ -3092,6 +3194,6 @@ const REF_SECTIONS = [
     }
 ];
 
-const SECTIONS = [...START_SECTIONS, ...SETUP_SECTIONS, ...USE_SECTIONS, ...WINDOW_SECTIONS, ...REF_SECTIONS];
+const SECTIONS = [...START_SECTIONS, ...SETUP_SECTIONS, ...USE_SECTIONS, ...WINDOW_SECTIONS, ...CONNECTION_SECTIONS, ...REF_SECTIONS];
 
 export default SECTIONS;

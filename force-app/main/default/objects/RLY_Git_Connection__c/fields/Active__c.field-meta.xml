@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Active__c</fullName>
+    <defaultValue>true</defaultValue>
+    <description>Several connections (build 45): this connection is in use. The oldest active connection is the hub&apos;s main one (schedules, archive, self-update); orgs and releases without a connection count as on it.</description>
+    <label>Active</label>
+    <trackHistory>false</trackHistory>
+    <type>Checkbox</type>
+</CustomField>

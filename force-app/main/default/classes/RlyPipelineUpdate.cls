@@ -49,7 +49,7 @@ public with sharing class RlyPipelineUpdate {
             r.message = 'Committed version ' + packagedVersion + ' of the pipeline files to ' + pipelineBranch + '.';
         } else {
             r.url = viaPullRequest();
-            r.message = 'Opened a pull request with version ' + packagedVersion + ' of the pipeline files into ' + pipelineBranch
+            r.message = 'Opened a ' + git.changeRequestLabel().toLowerCase() + ' with version ' + packagedVersion + ' of the pipeline files into ' + pipelineBranch
                 + '. Merge it to start using them.';
         }
         r.ok = true;

@@ -50,7 +50,7 @@ public with sharing class RlyDataExport {
         part.count = records.size();
         part.nextCursor = res.get('done') == true || p.pageNo * PAGE_SIZE >= RlyDataRuns.MAX_RECORDS ? null : (String) res.get('nextRecordsUrl');
         String body = JSON.serialize(new Map<String, Object>{ 'objectName' => item.objectName, 'index' => p.index, 'records' => records });
-        RlyComparePipelineInput.gitHub().putFile(new RlyGitFile(RlyDataRuns.INBOX + p.runId + '/' + String.valueOf(p.index).leftPad(2, '0')
+        RlyComparePipelineInput.gitHubFor(run.Target_Org__c).putFile(new RlyGitFile(RlyDataRuns.INBOX + p.runId + '/' + String.valueOf(p.index).leftPad(2, '0')
             + '-' + String.valueOf(p.pageNo).leftPad(3, '0') + '.json', RlyPipelineRun.RESULTS_BRANCH)
             .withContent(EncodingUtil.base64Encode(Blob.valueOf(body)), p.runId + ': ' + item.objectName + ' part ' + p.pageNo));
         return part;

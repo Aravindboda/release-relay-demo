@@ -34,6 +34,8 @@ public with sharing class RlyOrgController {
         @AuraEnabled public List<ApprovalOption> approvalTypeOptions = new List<ApprovalOption>();
         /** @description Org Id to its card's read-only approval rule line. */
         @AuraEnabled public Map<Id, String> approvalRules = new Map<Id, String>();
+        /** @description The Git connections an org can be on (build 45; the picker shows when there's more than one). */
+        @AuraEnabled public List<RlyConnectionCards.Choice> connections = new List<RlyConnectionCards.Choice>();
     }
 
     /** @description One choice for Approval_In__c. */
@@ -94,6 +96,7 @@ public with sharing class RlyOrgController {
         p.approvalOptions = approvalOptions();
         p.slackAvailable = RlySlack.isConnected();
         p.gitProvider = RlyGitName.labelFor(RlyReleaseStore.git());
+        p.connections = RlyConnectionCards.choices();
         RlyApprovalRuleOrg.fill(p);
         return p;
     }
@@ -142,7 +145,9 @@ public with sharing class RlyOrgController {
         RlyOrgSettings.apply(row, orgJson);
         RlyApprovalRuleOrg.apply(row, orgJson, saved);
         applyStatus(row, saved);
+        RlyOrgConnection.Move move = RlyOrgConnection.apply(row, input, saved); // build 45: its Git connection
         data.save(row);
+        RlyOrgConnection.afterSave(row, move);
         return row.Id;
     }
 
@@ -242,7 +247,7 @@ public with sharing class RlyOrgController {
             return [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Environment__c, Username__c, Certificate__c,
                            Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c,
                            Hotfix_Two_Approvers__c, Approval_Rule__c, Approval_Types__c, Code_Scan__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c, Org_Id__c, Org_Type__c, Is_Sandbox__c, Api_Version__c, Source_Tracking__c,
-                           Status__c, Status_Message__c, Last_Checked__c
+                           Status__c, Status_Message__c, Last_Checked__c, Git_Connection__c
                     FROM RLY_Org__c WITH SYSTEM_MODE ORDER BY Role__c, Name LIMIT 200];
         }
 
@@ -263,7 +268,7 @@ public with sharing class RlyOrgController {
             List<RLY_Org__c> rows = [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Environment__c, Username__c, Consumer_Key__c, Client_Id__c,
                                             Certificate__c, Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c,
                            Hotfix_Two_Approvers__c, Approval_Rule__c, Approval_Types__c, Code_Scan__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c, Org_Id__c, Org_Type__c,
-                                            Is_Sandbox__c, Api_Version__c, Source_Tracking__c, Status__c, Status_Message__c, Last_Checked__c
+                                            Is_Sandbox__c, Api_Version__c, Source_Tracking__c, Status__c, Status_Message__c, Last_Checked__c, Git_Connection__c
                                      FROM RLY_Org__c WHERE Id = :orgId WITH SYSTEM_MODE];
             if (rows.isEmpty()) {
                 throw new AuraHandledException('That org isn\'t registered any more.');
@@ -280,7 +285,7 @@ public with sharing class RlyOrgController {
             return [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Environment__c, Username__c, Certificate__c,
                            Git_Environment__c, Branch__c, Stage_Order__c, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c, Require_Git_Review__c, Slack_Channel__c, Slack_Post__c,
                            Hotfix_Two_Approvers__c, Approval_Rule__c, Approval_Types__c, Code_Scan__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c, Org_Id__c, Org_Type__c, Is_Sandbox__c, Api_Version__c,
-                           Source_Tracking__c, Status__c, Status_Message__c, Last_Checked__c
+                           Source_Tracking__c, Status__c, Status_Message__c, Last_Checked__c, Git_Connection__c
                     FROM RLY_Org__c WHERE Id = :orgId WITH SYSTEM_MODE LIMIT 1];
         }
 

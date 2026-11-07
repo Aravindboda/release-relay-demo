@@ -16,7 +16,7 @@ public with sharing class RlyCompareTarget {
         if (asked.equals(firstStage.Branch__c.trim())) {
             return firstStage;
         }
-        for (RLY_Org__c o : RlyReleaseStore.routeOrgs()) {
+        for (RLY_Org__c o : RlyConnectionRoutes.routeOrgsFor(RlyReleaseStore.gitForOrg(source.Id)?.Id)) { // build 45: the source's route
             if (String.isNotBlank(o.Branch__c) && asked.equals(o.Branch__c.trim())) {
                 return o;
             }

@@ -11,6 +11,7 @@ import approve from '@salesforce/apex/RlyReleasesController.approve';
 import reject from '@salesforce/apex/RlyReleasesController.reject';
 import resolveConflicts from '@salesforce/apex/RlyReleasesController.resolveConflicts';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
+import retryProdSync from '@salesforce/apex/RlyProdSync.retry';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
 
 /** A list shows its search box from this many rows (or while a search is typed). */
@@ -78,7 +79,7 @@ const STEP_DOT = {
     Warn: 'rr-dot rr-dot-warn',
     Waiting: 'rr-dot'
 };
-const TYPE_LABEL = { Promotion: 'Promotion', Back_Promote: 'Back promote' };
+const TYPE_LABEL = { Promotion: 'Promotion', Back_Promote: 'Back promote', Prod_Sync: 'Prod sync' };
 /** A release with only manual steps (RLY_Release__c.Manual_Only__c): no Git or pipeline steps. */
 const MANUAL_ONLY = 'Manual steps only';
 const NOT_NEEDED = 'Not needed: manual steps only';
@@ -462,6 +463,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     get provider() { return providerOf(this.detail, this.rel.PR_URL__c); }
     /** Pull request, merge request (GitLab) or the neutral change request when the provider isn't known. */
     get crLabel() {
+        if (this.detail && this.detail.changeRequestLabel) {
+            return this.detail.changeRequestLabel; // build 45: the release's own repository says it (Merge request on GitLab)
+        }
         const p = this.provider;
         if (p === 'GitLab') {
             return 'Merge request';
@@ -469,6 +473,12 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         return p ? 'Pull request' : 'Change request';
     }
     get crWord() { return this.crLabel.toLowerCase(); }
+    /** Build 45: the release's repository, as a chip in the header ("in GitLab group/project"). */
+    get repoChip() {
+        const d = this.detail;
+        return d && d.repository && d.gitProvider ? d.gitProvider + ' · ' + d.repository : '';
+    }
+    get repoUrl() { return (this.detail && this.detail.repositoryUrl) || ''; }
     get prLabel() { return this.rel.PR_Number__c ? this.crLabel + ' #' + this.rel.PR_Number__c : this.crLabel; }
     get running() { return !!(this.detail && this.detail.running); }
 
@@ -570,6 +580,10 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         steps.push(this.approvalStep());
         steps.push(this.deployStep());
         this.backMergeSteps().forEach((st) => steps.push(st));
+        const prodSync = this.prodSyncStep();
+        if (prodSync) {
+            steps.push(prodSync);
+        }
         const rollbackStep = this.rollbackStep();
         if (rollbackStep) {
             steps.push(rollbackStep);
@@ -1150,6 +1164,52 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             pill: open.length ? STEP_PILL.Warn : STEP_PILL.Done,
             text: '', sync: lines, hasSync: true, syncLabel: title
         };
+    }
+
+    /**
+     * Build 45: after a deploy to production, the other repositories' prod branches (Detail.prodSync): one line each,
+     * "prod kept in step in GitHub ✓", or what is still going or went wrong. Best effort: it never blocks the release.
+     */
+    prodSyncStep() {
+        const list = this.detail && Array.isArray(this.detail.prodSync) ? this.detail.prodSync : [];
+        if (!list.length) {
+            return null;
+        }
+        const lines = list.map((v, i) => {
+            const ok = v.state === 'Synced';
+            const failed = v.state === 'Failed';
+            const where = (v.provider || 'Git') + (v.repository ? ' ' + v.repository : '');
+            const text = ok ? v.branch + ' kept in step in ' + (v.provider || 'Git') + ' ✓' : where + ': ' + (v.message || v.state);
+            let cls = 'rr-pill rr-pill-info';
+            if (ok) {
+                cls = 'rr-pill rr-pill-ok';
+            } else if (failed) {
+                cls = 'rr-pill rr-pill-wait';
+            }
+            return { key: 'ps' + i, label: ok ? '✓' : (failed ? 'Failed' : 'Running'), cls, text, retry: failed ? v.connectionId : null };
+        });
+        const failed = list.some((v) => v.state === 'Failed');
+        const running = list.some((v) => v.state === 'Running');
+        let state = 'Done';
+        if (running) {
+            state = 'Running';
+        } else if (failed) {
+            state = 'Warn';
+        }
+        return {
+            key: 'ps', title: 'Prod kept in step in the other repositories', state,
+            label: { Done: 'Done', Running: 'In progress', Warn: 'To review' }[state],
+            text: failed ? 'Best effort: this never blocks the release.' : '', sync: lines, hasSync: true,
+            syncLabel: 'Other repositories'
+        };
+    }
+
+    /** Try again on a prod sync line (build 45): queues it again; the page's next read raises a new automatic release. */
+    handleProdSyncRetry(event) {
+        const connectionId = event.currentTarget.dataset.id;
+        retryProdSync({ releaseId: this.releaseId, connectionId })
+            .then(() => this.load())
+            .catch((e) => this.dispatchEvent(new ShowToastEvent({ title: APP_NAME, message: (e && e.body && e.body.message) || 'Couldn\'t try again.', variant: 'error' })));
     }
 
     /** Detail.backPromote: Off, or what happened per back promote org (for example "Sent to an org: Deployed"). */

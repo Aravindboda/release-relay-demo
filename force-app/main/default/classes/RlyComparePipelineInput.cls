@@ -57,7 +57,16 @@ public with sharing class RlyComparePipelineInput {
      * @return the provider
      */
     public static RlyGit gitHub() {
-        RLY_Git_Connection__c conn = RlyReleaseStore.git();
+        return gitHubFor(null);
+    }
+
+    /**
+     * @description An org's Git connection, checked: connected, on GitHub (build 45: the org's own repository).
+     * @param orgId the org (blank: the hub's main connection)
+     * @return the provider
+     */
+    public static RlyGit gitHubFor(Id orgId) {
+        RLY_Git_Connection__c conn = orgId == null ? RlyReleaseStore.git() : RlyReleaseStore.gitForOrg(orgId);
         if (conn == null || conn.Status__c != 'Connected') {
             throw new RlyReleaseException('The Git connection isn\'t set up and checked yet (Pipeline tab).');
         }

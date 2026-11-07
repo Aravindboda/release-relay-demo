@@ -12,6 +12,8 @@ public with sharing class RlyPromoteController {
         @AuraEnabled public Boolean canPromote;
         /** @description Each stage with a next stop, in route order. */
         @AuraEnabled public List<PromoteStage> stages = new List<PromoteStage>();
+        /** @description How many Git connections the hub has (build 45: the page groups the stages by connection when more than one). */
+        @AuraEnabled public Integer connectionCount = 0;
     }
 
     /** @description One stage and its next stop. */
@@ -30,6 +32,12 @@ public with sharing class RlyPromoteController {
         @AuraEnabled public String nextBranch;
         /** @description Releases waiting in the stage: hotfixes first, then oldest deploy first. */
         @AuraEnabled public List<Ready> ready = new List<Ready>();
+        /** @description The stage's Git connection (build 45), or null without one. */
+        @AuraEnabled public Id connectionId;
+        /** @description Its provider and repository, for example GitLab group/project. */
+        @AuraEnabled public String connectionLabel;
+        /** @description Its provider's name, for example GitLab. */
+        @AuraEnabled public String provider;
     }
 
     /** @description A release waiting to be promoted. */
@@ -81,14 +89,14 @@ public with sharing class RlyPromoteController {
         try {
             PromoteBoard board = new PromoteBoard();
             board.canPromote = canPromote();
-            List<RLY_Org__c> route = RlyRouteRules.ordered(RlyReleaseStore.routeOrgs());
+            List<RLY_Git_Connection__c> conns = RlyConnectionStore.connections();
+            board.connectionCount = conns.size();
+            for (RLY_Git_Connection__c c : conns.isEmpty() ? new List<RLY_Git_Connection__c>{ null } : conns) {
+                addLane(board, c); // build 45: one route per Git connection, each ending at the hub
+            }
             Map<Id, PromoteStage> byStage = new Map<Id, PromoteStage>();
-            for (Integer i = 0; i < route.size() - 1; i++) {
-                if (route[i].Role__c == 'Stage') {
-                    PromoteStage s = toStage(route[i], route[i + 1]);
-                    board.stages.add(s);
-                    byStage.put(s.stageId, s);
-                }
+            for (PromoteStage s : board.stages) {
+                byStage.put(s.stageId, s);
             }
             List<RLY_Release__c> waiting = RlyPromoteStore.readyIn(byStage.keySet());
             Set<Id> waitingIds = new Map<Id, RLY_Release__c>(waiting).keySet();
@@ -122,6 +130,22 @@ public with sharing class RlyPromoteController {
             return RlyPromotion.create(req);
         } catch (Exception e) {
             throw handled(e);
+        }
+    }
+
+    // One connection's route: each stage with its next stop, labelled with the connection.
+    private static void addLane(PromoteBoard board, RLY_Git_Connection__c c) {
+        List<RLY_Org__c> route = RlyRouteRules.ordered(RlyConnectionRoutes.routeOrgsFor(c == null ? null : c.Id));
+        for (Integer i = 0; i < route.size() - 1; i++) {
+            if (route[i].Role__c == 'Stage') {
+                PromoteStage s = toStage(route[i], route[i + 1]);
+                if (c != null) {
+                    s.connectionId = c.Id;
+                    s.connectionLabel = RlyPromoteConnection.nameOf(c);
+                    s.provider = RlyGitName.labelFor(c);
+                }
+                board.stages.add(s);
+            }
         }
     }
 

@@ -306,3 +306,16 @@ button.rr-chev:disabled { cursor: default; opacity: 0.4; }
 @media (max-width: 480px) {
     .rr-lockpw { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Build 45: one route per Git connection (lane chips above the route) */
+.rr-lanes { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 0; }
+.rr-lane {
+    font: inherit; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 16px;
+    border: 1px solid var(--rr-line); background: #fff; color: inherit; cursor: pointer;
+}
+.rr-lane:focus-visible { outline: 2px solid var(--rr-blue); outline-offset: 1px; }
+.rr-lane:disabled { cursor: default; opacity: 0.7; }
+.rr-lane-on { border-color: var(--rr-blue); box-shadow: 0 0 0 1px var(--rr-blue); background: #f3f6ff; }
+.rr-conn-check { font-size: 12px; margin-top: 4px; }
+.rr-conn-ok { color: #2e844a; }
+.rr-conn-bad { color: #8c4b02; }

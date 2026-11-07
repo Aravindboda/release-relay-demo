@@ -30,6 +30,12 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public String rolledBackBy;
         /** @description When it was rolled back, or null. */
         @AuraEnabled public Datetime rolledBackOn;
+        /** @description Build 45: the Git connection it lives in. */
+        @AuraEnabled public Id connectionId;
+        /** @description Its provider's name, for example GitLab (the list's badge). */
+        @AuraEnabled public String provider;
+        /** @description Its repository. */
+        @AuraEnabled public String repository;
     }
 
     /** @description One row of the release list. */
@@ -102,6 +108,14 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public Boolean canAppend;
         /** @description Open org: the orgs on the release's route with their login addresses (admins and the deployment team only, else empty). */
         @AuraEnabled public List<RlyOrgLinks.OrgLink> orgLinks = new List<RlyOrgLinks.OrgLink>();
+        /** @description Build 45: Pull request, or Merge request on GitLab. */
+        @AuraEnabled public String changeRequestLabel;
+        /** @description The release's repository, for example release-relay-group/release-relay-gitlab. */
+        @AuraEnabled public String repository;
+        /** @description The repository's web address, or null. */
+        @AuraEnabled public String repositoryUrl;
+        /** @description After a deploy to production: how the other repositories' prod branches were kept in step. */
+        @AuraEnabled public List<RlyProdSync.View> prodSync = new List<RlyProdSync.View>();
     }
 
     /** @description What a release page shows about the release's links to others (Detail extends it; RlyReleaseLinks fills it). */
@@ -380,7 +394,7 @@ public with sharing class RlyReleasesController {
         d.approvedIn = RlyApprover.approvalIn(d.release.Target_Org__r);
         d.approveHere = RlyApprover.inSalesforce(d.release.Target_Org__r);
         d.tests = RlyReleasePhase.tests(d.release);
-        d.gitProvider = RlyGitName.labelFor(RlyReleaseStore.git());
+        RlyReleaseGitView.fill(d); // build 45: the release's own repository (provider, Merge request, links)
         d.slackChannel = RlyReleasePhase.slackChannel(d.release);
         d.canAppend = RlyAppendRules.mayAppend(d.release);
         d.orgLinks = RlyOrgLinks.forRelease(d.release);

@@ -163,7 +163,7 @@ private class RlyComparePipelineTest {
             RlyReleaseTestData.route();
             Test.setMock(HttpCalloutMock.class, new RlyHttpMock().match('GET', SUMMARY).reply(200, summaryJson(TOKEN, 'Succeeded')));
             Test.startTest();
-            RlyComparePipelineResult.Result r = RlyCompareController.checkPipelineCompare(COMPARE_ID, TOKEN);
+            RlyComparePipelineResult.Result r = RlyCompareController.checkPipelineCompare(COMPARE_ID, TOKEN, null);
             Test.stopTest();
             System.assertEquals(true, r.done, 'Result read');
             System.assertEquals(false, r.failed, 'It succeeded');
@@ -187,7 +187,7 @@ private class RlyComparePipelineTest {
                 .match('GET', '/runs?event=workflow_dispatch').reply(200, '{"workflow_runs":[{"id":7,"display_title":"Release Relay '
                     + COMPARE_ID + ' (compare)","html_url":"https://github.com/acme/release/actions/runs/7","status":"in_progress"}]}'));
             Test.startTest();
-            RlyComparePipelineResult.Result r = RlyCompareController.checkPipelineCompare(COMPARE_ID, TOKEN);
+            RlyComparePipelineResult.Result r = RlyCompareController.checkPipelineCompare(COMPARE_ID, TOKEN, null);
             Test.stopTest();
             System.assertEquals(false, r.done, 'Another run\'s result isn\'t this one');
             System.assertEquals('in_progress', r.runStatus, 'The run is going');
@@ -203,9 +203,9 @@ private class RlyComparePipelineTest {
                 .match('GET', '/runs?event=workflow_dispatch').reply(200, '{"workflow_runs":[{"id":7,"display_title":"Release Relay '
                     + COMPARE_ID + ' (compare)","html_url":"https://x","status":"completed","conclusion":"failure"}]}'));
             Test.startTest();
-            RlyComparePipelineResult.Result ended = RlyCompareController.checkPipelineCompare(COMPARE_ID, TOKEN);
+            RlyComparePipelineResult.Result ended = RlyCompareController.checkPipelineCompare(COMPARE_ID, TOKEN, null);
             Test.setMock(HttpCalloutMock.class, new RlyHttpMock().match('GET', SUMMARY).reply(200, summaryJson(TOKEN, 'Failed')));
-            RlyComparePipelineResult.Result failed = RlyCompareController.checkPipelineCompare(COMPARE_ID, TOKEN);
+            RlyComparePipelineResult.Result failed = RlyCompareController.checkPipelineCompare(COMPARE_ID, TOKEN, null);
             Test.stopTest();
             System.assert(ended.done && ended.failed, 'A run that ended without a result fails the compare');
             System.assert(failed.done && failed.failed, 'A Failed result fails it');
@@ -221,11 +221,11 @@ private class RlyComparePipelineTest {
                 .match('GET', 'results/' + COMPARE_ID + '/f/1.json').reply(200, '{"path":"force-app/main/default/classes/A.cls","left":"a","right":"b"}')
                 .match('GET', 'results/' + COMPARE_ID + '/f/2.json').reply(200, '{"path":"force-app/main/default/classes/D.cls","patch":"@@ -1 +1 @@\\n-a\\n+b"}'));
             Test.startTest();
-            RlyCompareFiles.FileDiff text = RlyCompareController.pipelineCompareFile(COMPARE_ID, 1);
-            RlyCompareFiles.FileDiff patch = RlyCompareController.pipelineCompareFile(COMPARE_ID, 2);
+            RlyCompareFiles.FileDiff text = RlyCompareController.pipelineCompareFile(COMPARE_ID, 1, null);
+            RlyCompareFiles.FileDiff patch = RlyCompareController.pipelineCompareFile(COMPARE_ID, 2, null);
             String gone;
             try {
-                RlyCompareController.pipelineCompareFile(COMPARE_ID, 3);
+                RlyCompareController.pipelineCompareFile(COMPARE_ID, 3, null);
             } catch (AuraHandledException e) {
                 gone = e.getMessage();
             }

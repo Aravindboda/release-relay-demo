@@ -138,7 +138,7 @@ public with sharing class RlyDataRuns {
         if (body.length() > 60000) {
             throw new RlyReleaseException('The data set is too large to send to the pipeline: split it.');
         }
-        RlyComparePipelineInput.gitHub().startPipeline(new Map<String, String>{
+        RlyComparePipelineInput.gitHubFor(c.target.Id).startPipeline(new Map<String, String>{ // build 45: the target's repository
             'request_id' => run.Run_Id__c, 'mode' => 'data',
             'environment' => fromInbox ? '' : c.source.Git_Environment__c, 'target_environment' => c.target.Git_Environment__c,
             'branch' => '', 'target' => String.isBlank(c.target.Branch__c) ? 'main' : c.target.Branch__c.trim(),

@@ -82,7 +82,9 @@
                                 </template>
                             </div>
 
-                            <p class="rr-goes">Goes to <span class="rr-arrow-inline" aria-hidden="true">→</span> <strong>{targetText}</strong> <span class="rr-weak">{targetNote}</span></p>
+                            <p class="rr-goes">Goes to <span class="rr-arrow-inline" aria-hidden="true">→</span> <strong>{targetText}</strong> <span class="rr-weak">{targetNote}</span>
+                                <template lwc:if={viaChip}> <span class="rr-pill rr-pill-info rr-via" title={viaTitle}>{viaChip}</span></template>
+                                <template lwc:if={viaNotChecked}> <span class="rr-pill rr-pill-wait">Not checked yet</span></template></p>
 
                             <div class="rr-filters">
                                 <div class="rr-col">
@@ -133,7 +135,7 @@
                     <section class="rr-card rr-select" aria-label="Select changes">
                         <div class="rr-card-head rr-row">
                             <div class="rr-route-head">
-                                <h2 class="rr-h2"><span>{sourceName}</span><span class="rr-arrow-inline" aria-label="to">→</span><span>{targetText}</span></h2>
+                                <h2 class="rr-h2"><span>{sourceName}</span><span class="rr-arrow-inline" aria-label="to">→</span><span>{targetText}</span><template lwc:if={viaChip}><span class="rr-pill rr-pill-info rr-via" title={viaTitle}>{viaChip}</span></template></h2>
                                 <template lwc:if={isAppend}>
                                     <p class="rr-small rr-weak">{scopeText}</p>
                                 </template>

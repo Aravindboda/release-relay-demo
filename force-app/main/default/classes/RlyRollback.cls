@@ -51,7 +51,7 @@ public with sharing class RlyRollback {
         String testsChoice = isAllLocal(org, req.tests) ? TESTS_ALL : (apex ? TESTS_RELEASE : 'none');
         List<String> tests = testsChoice == TESTS_RELEASE ? org.tests : new List<String>();
         String token = RlyPipelineRun.newToken();
-        RlyGit.forConnection(RlyReleaseStore.git()).startPipeline(inputs(org, token, tests)); // the callout, before any DML
+        RlyGit.forConnection(RlyReleaseStore.gitFor(new RLY_Release__c(Id = releaseId))).startPipeline(inputs(org, token, tests)); // the callout, before any DML
         RLY_Release__c row = new RLY_Release__c(Id = releaseId, Rollback_Status__c = RlyRollbackState.RUNNING, Rollback_Org__c = org.orgId,
             Rollback_By__c = UserInfo.getUserId(), Rollback_On__c = System.now(), Rollback_Reason__c = reason.left(REASON_MAX),
             Rollback_Token__c = token, Rollback_Result__c = JSON.serialize(new Map<String, Object>{ 'request' => org.ownerName,

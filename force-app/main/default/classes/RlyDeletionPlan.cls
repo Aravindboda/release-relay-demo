@@ -20,6 +20,8 @@ public with sharing class RlyDeletionPlan {
     public static final Integer MAX_FOLDERS_PER_PART = 30;
     private static final String TREE = 'tree';
     private static final Pattern SHA_PATTERN = Pattern.compile('^[0-9a-f]{40}$');
+    // Build 45: a GitLab tree ref is branch:path. Stand-in for RlyGitTreeReader.isTreeRef (Agent B's), swapped in the merge.
+    private static final Pattern TREE_REF_PATTERN = Pattern.compile('^[A-Za-z0-9._/-]{1,200}:[^\\s]{0,1000}$');
 
     /** @description The parts of the branch to read. */
     public class Plan {
@@ -41,6 +43,8 @@ public with sharing class RlyDeletionPlan {
         @AuraEnabled public String id;
         /** @description What it covers, for example classes or Objects Account – Invoice__c. */
         @AuraEnabled public String label;
+        /** @description The developer org the plan is for (build 45: its Git connection is read), or null. */
+        @AuraEnabled public Id orgId;
         /** @description Its folders. */
         @AuraEnabled public List<Folder> folders = new List<Folder>();
         /** @description The plan's rules, sent back by the page (blank: the fixed rules). */
@@ -83,14 +87,14 @@ public with sharing class RlyDeletionPlan {
      * @return the plan (no parts when the source path isn't on the branch)
      */
     public static Plan buildFor(RLY_Org__c org, String branch) {
-        RlyGitTreeReader git = reader();
+        RlyGitTreeReader git = reader(org.Id);
         Plan p = new Plan();
         p.branch = branch;
         RlyPathRules.Described d = RlyPathRules.forOrgWithNamespace(org);
         p.rules = d.rules;
         p.namespace = d.namespace;
         RlyGitTree.Tree level = git.own(p.branch);
-        String sourcePath = RlyDeletionFinder.sourcePath();
+        String sourcePath = RlyDeletionFinder.sourcePathOf(org.Id);
         for (String segment : String.isBlank(sourcePath) ? new List<String>() : sourcePath.split('/')) {
             p.truncated = p.truncated || level.truncated;
             RlyGitTree.Entry next = folderNamed(level, segment);
@@ -103,6 +107,7 @@ public with sharing class RlyDeletionPlan {
         Integer n = 1;
         for (Part pt : p.parts) {
             pt.id = 'p' + n++;
+            pt.orgId = org.Id;
         }
         return p;
     }
@@ -114,7 +119,7 @@ public with sharing class RlyDeletionPlan {
      */
     public static PartResult readPart(Part given) {
         checkPart(given);
-        RlyGitTreeReader git = reader();
+        RlyGitTreeReader git = reader(given.orgId);
         Map<String, RlyPathRules.Rule> rules = RlyPathRules.byDir(RlyPathRules.checked(given.rules));
         PartResult r = new PartResult();
         Set<String> seen = new Set<String>();
@@ -138,9 +143,9 @@ public with sharing class RlyDeletionPlan {
     }
 
     // The tree reader on the hub's Git connection (checked: connected).
-    private static RlyGitTreeReader reader() {
-        RlyDeletionFinder.git();
-        return new RlyGitTreeReader(RlyReleaseStore.git());
+    private static RlyGitTreeReader reader(Id orgId) {
+        RlyDeletionFinder.gitOf(orgId);
+        return new RlyGitTreeReader(orgId == null ? RlyReleaseStore.git() : RlyReleaseStore.gitForOrg(orgId));
     }
 
     /**
@@ -185,11 +190,16 @@ public with sharing class RlyDeletionPlan {
             throw new RlyReleaseException('That part of the branch isn\'t valid: find deleted components again.');
         }
         for (Folder f : given.folders) {
-            Boolean ok = f != null && f.sha != null && SHA_PATTERN.matcher(f.sha).matches() && f.prefix != null && f.prefix.endsWith('/')
+            Boolean ok = f != null && f.sha != null && isTreeRef(f.sha) && f.prefix != null && f.prefix.endsWith('/')
                 && !f.prefix.contains('..') && !f.prefix.startsWith('/') && f.prefix.length() <= 400;
             if (!ok) {
                 throw new RlyReleaseException('That part of the branch isn\'t valid: find deleted components again.');
             }
         }
+    }
+
+    // A tree's sha (GitHub) or branch:path (GitLab). Stand-in for RlyGitTreeReader.isTreeRef (build 45, Agent B).
+    private static Boolean isTreeRef(String ref) {
+        return SHA_PATTERN.matcher(ref).matches() || (TREE_REF_PATTERN.matcher(ref).matches() && !ref.contains('..'));
     }
 }

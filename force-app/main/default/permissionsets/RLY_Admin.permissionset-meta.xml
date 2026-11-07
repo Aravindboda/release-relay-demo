@@ -532,12 +532,22 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>RLY_Git_Connection__c.Active__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>RLY_Org__c.Branch__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
         <field>RLY_Org__c.Stage_Order__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>RLY_Org__c.Git_Connection__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -613,6 +623,21 @@
     <fieldPermissions>
         <editable>false</editable>
         <field>RLY_Release__c.Back_Merge_Result__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>RLY_Release__c.Git_Connection__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>RLY_Release__c.Prod_Sync__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>RLY_Release__c.Prod_Sync_State__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>

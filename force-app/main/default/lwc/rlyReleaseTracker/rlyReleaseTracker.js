@@ -64,7 +64,7 @@ const PER_CYCLE = 5;
 const CHECK_SECONDS = 60;
 const TIME = { hour: 'numeric', minute: '2-digit', second: '2-digit' };
 const TAB = 'RLY_My_Releases';
-const TYPE_LABEL = { Promotion: 'Promotion', Back_Promote: 'Back promote' };
+const TYPE_LABEL = { Promotion: 'Promotion', Back_Promote: 'Back promote', Prod_Sync: 'Prod sync' };
 const NEW_RELEASE_TAB = 'RLY_New_Release';
 /** Row.rollbackStatus (RLY_Release__c.Rollback_Status__c): what the list shows (board HubRollbackValuesGates 3). */
 const ROLLBACK_SHOWN = { Rolled_Back: { status: 'Rolled back', tone: 'wait' }, Running: { status: 'Rolling back', tone: 'run' } };
@@ -357,6 +357,7 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
                 return;
             }
             this.rows = result.rows || [];
+            this.noteRepos(this.rows);
             this.counts = result.counts || {};
             this.error = undefined;
             if (this.isReleases) {
@@ -399,7 +400,37 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
 
     /** build 13's listReleasesFor filter: Raised by and state chip (the search box filters the loaded rows on the page). */
     get filterJson() {
-        return JSON.stringify({ raisedById: this.raisedById || null, state: this.filter, searchText: null });
+        return JSON.stringify({ raisedById: this.raisedById || null, state: this.filter, searchText: null, connectionId: this.repoId || null });
+    }
+
+    // ---------- Repository filter and badges (build 45: several Git connections) ----------
+
+    /** The repository picked (a Git connection's Id), or blank for every repository. */
+    repoId = '';
+    /** Every repository seen in the lists so far: connection Id to its label. */
+    reposSeen = {};
+
+    noteRepos(rows) {
+        const seen = { ...this.reposSeen };
+        (rows || []).forEach((r) => {
+            if (r.connectionId && !seen[r.connectionId]) {
+                seen[r.connectionId] = r.provider + (r.repository ? ' · ' + r.repository : '');
+            }
+        });
+        this.reposSeen = seen;
+    }
+
+    get showRepoFilter() { return Object.keys(this.reposSeen).length > 1; }
+    get repoOptions() {
+        return [{ label: 'Every repository', value: '' },
+            ...Object.keys(this.reposSeen).map((id) => ({ label: this.reposSeen[id], value: id }))];
+    }
+
+    handleRepo(event) {
+        this.repoId = event.detail.value || '';
+        if (this.isReleases) {
+            this.load();
+        }
     }
 
     /** Export CSV: the same filter plus the search text (the server matches it on the release number or title). */
@@ -638,7 +669,7 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
         if (this.isReleases) {
             return this.rows;
         }
-        const list = this.rows.filter((r) => this.matches(r, this.filter));
+        const list = this.rows.filter((r) => this.matches(r, this.filter) && (!this.repoId || r.connectionId === this.repoId));
         // Approvals: hotfixes first (the server sends them first; a sort keeps it so after a status change).
         return [...list].sort((a, b) => Number(!!b.isHotfix) - Number(!!a.isHotfix));
     }
@@ -693,6 +724,8 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
                 id: r.id,
                 name: r.name,
                 title: r.title,
+                provider: r.provider || '',
+                repoTitle: r.repository ? 'In ' + r.provider + ' ' + r.repository : '',
                 nameParts: highlightParts(r.name, this.search),
                 titleParts: highlightParts(r.title, this.search),
                 isHotfix,

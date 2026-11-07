@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Git_Connection__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Several connections (build 45): the repository the release lives in, from its source org when it is raised (promotions copy it from the releases they carry). Never changes. Blank means the hub&apos;s main (oldest) connection.</description>
+    <label>Git Connection</label>
+    <referenceTo>RLY_Git_Connection__c</referenceTo>
+    <relationshipLabel>Releases</relationshipLabel>
+    <relationshipName>RLY_Connection_Releases</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

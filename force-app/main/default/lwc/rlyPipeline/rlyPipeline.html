@@ -64,58 +64,16 @@
                                     </button>
                                     <div class="rr-ttl">
                                         <h2 class="rr-h2">{fold.git.title}</h2>
-                                        <p class="rr-sub">One Git connection for the whole pipeline. Saved as a record, never in custom metadata. The token stays in a Named Credential.</p>
+                                        <p class="rr-sub">Git connections: one per provider, each with its own route to production. Saved as records, never in custom metadata. Each token stays in its Named Credential.</p>
                                     </div>
-                                    <template lwc:if={gitViewing}>
-                                        <template lwc:if={hasGit}>
-                                            <span class={gitStatusCls}>{gitStatusText}</span>
-                                            <lightning-button label={gitCheckLabel} onclick={handleGitCheck} disabled={gitCantAct}></lightning-button>
-                                        </template>
-                                        <template lwc:if={isAdmin}>
-                                            <lightning-button label="Edit" title="Edit Git connection" onclick={openGitEdit} disabled={editLocked}></lightning-button>
-                                        </template>
-                                    </template>
-                                    <template lwc:else><span class="rr-pill rr-pill-info">Editing</span></template>
+                                    <template lwc:if={isGitEditing}><span class="rr-pill rr-pill-info">Editing</span></template>
                                 </div>
                                 <div id="rr-sec-git" class={gitBoxCls}>
                                     <template lwc:if={gitViewing}>
                                         <div class="rr-body">
-                                <template lwc:if={hasGit}>
-                                    <dl class="rr-ro rr-ro-3">
-                                        <template for:each={gitFacts} for:item="f">
-                                            <div key={f.key} class={f.cls}>
-                                                <dt class="slds-form-element__label">{f.label}</dt>
-                                                <dd class="slds-form-element__control">
-                                                    <div class="slds-form-element__static">
-                                                        <template lwc:if={f.isFlag}>
-                                                            <span class="rr-flag">
-                                                                <template lwc:if={f.on}><lightning-icon icon-name="utility:check" size="xx-small" variant="success" alternative-text=""></lightning-icon></template>
-                                                                <template lwc:else><lightning-icon icon-name="utility:dash" size="xx-small" alternative-text=""></lightning-icon></template>
-                                                                <span>{f.value}</span>
-                                                            </span>
-                                                        </template>
-                                                        <template lwc:else><span class={f.valueCls}>{f.value}</span></template>
-                                                    </div>
-                                                    <template lwc:if={f.hint}><p class="rr-kicker">{f.hint}</p></template>
-                                                </dd>
-                                            </div>
-                                        </template>
-                                    </dl>
-                                    <template lwc:if={gitMessage}><p class={gitMessageCls}>{gitMessage}</p></template>
-                                    <template lwc:if={showFilesLine}>
-                                        <div class="rr-files-line" role="status">
-                                            <span class={filesPillCls}>{filesPill}</span>
-                                            <span class="rr-files-text rr-grow">{filesText}</span>
-                                            <template lwc:if={canUpdateFiles}>
-                                                <lightning-button label="Update pipeline files" onclick={openFiles} disabled={filesCantOpen}></lightning-button>
-                                            </template>
-                                        </div>
-                                        <template lwc:if={filesNote}><p class="rr-small rr-weak">{filesNote}</p></template>
-                                    </template>
-                                </template>
-                                <template lwc:if={noGit}>
-                                    <p class="rr-small rr-weak">No Git connection yet. Press Edit to choose the provider and repository.</p>
-                                </template>
+                                <!-- Build 45: one card per Git connection, with Check, Edit, Create missing branches and Update pipeline files -->
+                                <c-rly-git-connections hub-copy={hubCopy} locked={editLocked} onchanged={handleConnectionsChanged}
+                                    onfilesstatus={handleFilesStatus}></c-rly-git-connections>
                                         </div>
                                     </template>
                         <template lwc:if={isGitEditing}>
@@ -249,6 +207,18 @@
 </template>
                         <template lwc:if={fold.route.open}>
                             <div id="rr-sec-route" class="rr-sec-body">
+                        <!-- Build 45: one route per Git connection; each ends at the hub -->
+                        <template lwc:if={hasLanes}>
+                            <div class="rr-lanes" role="group" aria-label="Routes, one per Git connection">
+                                <template for:each={laneChips} for:item="l">
+                                    <button key={l.key} type="button" class={l.cls} aria-pressed={l.selected} data-id={l.id} onclick={pickLane} disabled={laneLocked}>
+                                        <span>{l.label}</span>
+                                        <template lwc:if={l.main}><span class="rr-pill rr-pill-info">Main</span></template>
+                                        <template lwc:if={l.warn}><span class="rr-pill rr-pill-wait">{l.warnText}</span></template>
+                                    </button>
+                                </template>
+                            </div>
+                        </template>
                         <template lwc:if={editingRoute}><p class="rr-route-note rr-small rr-weak rr-route-help">Move the stages into order with the arrows, then Save.</p></template>
                         <template lwc:if={hasRoute}>
                             <div class="rr-route">
@@ -1018,6 +988,19 @@
                                                                     field-level-help="This org's Git branch: the stage's branch, or the developer org's own branch."></lightning-input>
                                                                 <lightning-input label="Git environment" data-field="Git_Environment__c" value={form.Git_Environment__c} onchange={handleField} placeholder="e.g. uat (stages only)"
                                                                     field-level-help="The environment in your Git provider that holds this org's login for the pipeline."></lightning-input>
+                                                                <template lwc:if={showConnectionPicker}>
+                                                                    <div class="rr-wide">
+                                                                        <c-rly-choice-chips mode="single" label="Git connection" options={connectionOptions} value={form.Git_Connection__c}
+                                                                            onchange={handleConnectionChoice}></c-rly-choice-chips>
+                                                                        <p class="rr-kicker">{connectionHelp}</p>
+                                                                    </div>
+                                                                </template>
+                                                                <template lwc:if={hasConnections}>
+                                                                    <div class="rr-wide">
+                                                                        <lightning-button variant="base" label={branchCheckLabel} onclick={handleBranchCheck} disabled={cantCheckBranch}></lightning-button>
+                                                                        <template lwc:if={branchCheck}><p class={branchCheckCls} role="status">{branchCheckText}</p></template>
+                                                                    </div>
+                                                                </template>
                                                             </div>
                                             </template>
                                             <template lwc:if={s.isApproval}>

@@ -29,6 +29,8 @@ public with sharing class RlyRouteController {
         @AuraEnabled public List<String> warnings = new List<String>();
         /** @description The current user is an admin. */
         @AuraEnabled public Boolean isAdmin;
+        /** @description One route per Git connection, the main one first (build 45). */
+        @AuraEnabled public List<RlyRouteLanes.Lane> lanes = new List<RlyRouteLanes.Lane>();
     }
 
     /**
@@ -51,7 +53,8 @@ public with sharing class RlyRouteController {
             }
         }
         s.stages = RlyRouteRules.ordered(s.stages);
-        s.warnings = RlyRouteRules.warnings(s.developers, s.stages);
+        s.lanes = RlyRouteLanes.build(RlyConnectionStore.connections(), s.developers, s.stages);
+        s.warnings = s.lanes.size() > 1 ? RlyRouteLanes.allWarnings(s.lanes) : RlyRouteRules.warnings(s.developers, s.stages);
         return s;
     }
 
@@ -105,7 +108,7 @@ public with sharing class RlyRouteController {
         requireAdmin();
         Data data = new Data();
         RLY_Git_Connection__c g = requireGit(data);
-        data.saveGit(RlyGitCheck.run(g, data.orgs()));
+        data.saveGit(RlyGitCheck.run(g, RlyConnectionStore.orgsOn(g.Id, g.Id))); // build 45: the main connection's route
         return data.git();
     }
 
@@ -131,7 +134,7 @@ public with sharing class RlyRouteController {
         Data data = new Data();
         RLY_Git_Connection__c g = requireGit(data);
         try {
-            return RlyBranchCreate.part(g, RlyBranchCreate.branchesOf(data.orgs()), fromIndex);
+            return RlyBranchCreate.part(g, RlyBranchCreate.branchesOf(RlyConnectionStore.orgsOn(g.Id, g.Id)), fromIndex);
         } catch (Exception e) {
             throw new AuraHandledException(e.getMessage());
         }
@@ -248,7 +251,7 @@ public with sharing class RlyRouteController {
             List<RLY_Git_Connection__c> rows = [SELECT Id, Name, Provider__c, Repository__c, Named_Credential__c, Pipeline__c,
                                                        Pipeline_Branch__c, Source_Path__c, Code_Scan__c, Status__c, Status_Message__c,
                                                        Last_Checked__c, Back_Promote__c
-                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY CreatedDate ASC LIMIT 1];
+                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC, Id ASC LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
         }
 
@@ -258,7 +261,8 @@ public with sharing class RlyRouteController {
          */
         public List<RLY_Org__c> orgs() {
             return [SELECT Id, Name, Role__c, Branch__c, Stage_Order__c, Git_Environment__c, Status__c, Source_Tracking__c, My_Domain__c,
-                           Environment__c, Hotfix_Two_Approvers__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c
+                           Environment__c, Hotfix_Two_Approvers__c, Back_Promote_When__c, Back_Promote_Approval__c, Synced_On__c, Sync_Status__c,
+                           Git_Connection__c
                     FROM RLY_Org__c WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }
 

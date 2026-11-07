@@ -40,7 +40,7 @@ public with sharing class RlySyncRuns {
             d.environment = org.Git_Environment__c;
             d.options.put('label', org.Name.left(40));
             d.options.put('attempt', check.Token__c);
-            RlyComparePipeline.gitHub().startPipeline(d.inputs());
+            RlyComparePipelineInput.gitHubFor(org.Id).startPipeline(d.inputs()); // build 45: the org's own repository
         } else {
             s.mode = 'parts';
         }
@@ -97,7 +97,7 @@ public with sharing class RlySyncRuns {
      * @return the check
      */
     public static Started startRoute(List<RLY_Org__c> orgs) {
-        List<RlySyncRoute.Pair> pairs = RlySyncRoute.pairs(orgs);
+        List<RlySyncRoute.Pair> pairs = RlySyncRoute.pairs(RlyConnectionRoutes.onConnection(orgs, null)); // build 45: the main repository's route
         if (pairs.isEmpty()) {
             throw new RlyReleaseException('The route needs at least two orgs with a branch (Pipeline tab).');
         }

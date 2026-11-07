@@ -105,14 +105,13 @@ public with sharing class RlyBackPromoteRun {
         if (conn == null) {
             return;
         }
-        RlyGit git = RlyGit.forConnection(conn);
         List<RLY_Release__c> rels = new List<RLY_Release__c>();
         for (Id relId : ids) {
             RLY_Release__c rel = RlyReleaseStore.release(relId);
             String oldStatus = rel.Status__c;
             RLY_Release__c prior = rel.clone(true, true, true, true);
             try {
-                advanceSync(rel, git);
+                advanceSync(rel, RlyGit.forConnection(RlyReleaseStore.gitFor(rel))); // build 45: the sync's own repository
             } catch (Exception e) {
                 rel.Error_Message__c = ('Couldn\'t read the latest status: ' + e.getMessage()).left(2000);
             }

@@ -61,10 +61,12 @@ public with sharing class RlyPromotion {
         if (stage == null || stage.Role__c != 'Stage') {
             throw new RlyReleaseException('Pick a stage to promote from.');
         }
-        RLY_Org__c nextOrg = nextOrgOf(stage);
-        RLY_Git_Connection__c conn = connectedGit();
         List<RLY_Release__c> carried = picked(req, stage);
+        RLY_Git_Connection__c route = RlyPromoteConnection.of(stage, carried);
+        RLY_Org__c nextOrg = nextOrgOf(stage, route);
+        RLY_Git_Connection__c conn = connectedGit(route);
         RLY_Release__c promotion = build(stage, nextOrg, conn);
+        promotion.Git_Connection__c = conn.Id; // build 45: a promotion stays in its releases' repository
         promotion.Title__c = title;
         fill(promotion, carried);
         List<RLY_Release_Item__c> items = RlyCarried.items(carried);
@@ -82,8 +84,9 @@ public with sharing class RlyPromotion {
         return promotion.Id;
     }
 
-    private static RLY_Org__c nextOrgOf(RLY_Org__c stage) {
-        RLY_Org__c nextOrg = RlyHotfix.nextStop(stage.Id, RlyReleaseStore.routeOrgs());
+    // The next stop on the stage's route (its Git connection's: build 45).
+    private static RLY_Org__c nextOrgOf(RLY_Org__c stage, RLY_Git_Connection__c conn) {
+        RLY_Org__c nextOrg = RlyHotfix.nextStop(stage.Id, RlyConnectionRoutes.routeOrgsFor(conn == null ? null : conn.Id));
         if (nextOrg == null) {
             throw new RlyReleaseException(stage.Name + ' has no next stop on the route to promote to.');
         }
@@ -93,8 +96,7 @@ public with sharing class RlyPromotion {
         return nextOrg;
     }
 
-    private static RLY_Git_Connection__c connectedGit() {
-        RLY_Git_Connection__c conn = RlyReleaseStore.git();
+    private static RLY_Git_Connection__c connectedGit(RLY_Git_Connection__c conn) {
         if (conn == null || conn.Status__c != 'Connected') {
             throw new RlyReleaseException('The Git connection isn\'t set up and checked yet (Pipeline tab).');
         }
