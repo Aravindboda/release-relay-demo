@@ -1,4 +1,17 @@
-# Release Relay pipeline files: version 26
+# Release Relay pipeline files: version 27
+# Version 27 (hub build 48, security), as in the GitHub workflow:
+# - Signed runs: every job that signs in or pushes checks the hub's signature (OPTIONS iat and sig) against the CI/CD
+#   variable RELAY_RUN_KEY (masked, protected, all environments) before anything else; the age is counted from
+#   CI_PIPELINE_CREATED_AT. Without the variable a job warns and goes on; RELAY_SIGNING=required makes that a failure.
+#   Archive and Slack runs (by hand) are checked too. Protect the pipeline branch (main): only maintainers merge, nobody
+#   pushes; protected variables only reach pipelines on protected branches.
+# - Signed results, approved head (the merge API's sha), deploy only what was validated, quick deploy checked with the
+#   org, the sf allowlisted environment, sfdx-project.json "replacements" ignored, --config-file for Code Analyzer and
+#   selfUpdate refused off release-relay-hub (variable RELAY_SELF_UPDATE_BRANCHES allows more): all in the script.
+# - The Salesforce CLI lives in /opt/relay-sf (outside the checkout), cached as one archive saved from that copy.
+# - The notify job runs in the hub's environment (RELAY_HUB_ENVIRONMENT).
+# - Pinned: node:22.22.3, @salesforce/cli@2.135.7, @salesforce/plugin-code-analyzer@5.13.0.
+# (Version 26 notes follow.)
 # Version 26: MODE=migrate (the hub's Move repository wizard, REQUEST_ID MIG-<13 digits>). The release-relay-migrate
 # job runs in this (the SOURCE) project: no environment and no org. It mirror-clones this project and pushes every
 # branch and tag to the new, empty repository at OPTIONS.targetUrl (https, never with credentials) with the CI/CD
@@ -117,7 +130,7 @@ stages:
   - relay-sync
 
 .release-relay:
-  image: node:22
+  image: node:22.22.3
   variables:
     RELAY_PROVIDER: gitlab
     GIT_DEPTH: "0"
@@ -125,18 +138,25 @@ stages:
   # (the pipeline branch's commit this pipeline runs on).
   before_script:
     - git show "$CI_COMMIT_SHA:scripts/release-relay.js" > /tmp/release-relay.js
-    # relay_install_sf: the Salesforce CLI (major version 2) from the job cache (.relay-sf, see .relay-sf-cache),
-    # installed again when missing or older than 30 days.
+    # relay_install_sf (version 27): the Salesforce CLI 2.135.7, installed in /opt/relay-sf, outside the checkout (the
+    # script checks out release branches there, and a branch must never put an sf of its own on the PATH). The job
+    # cache holds it as one archive (.relay-sf-cache, see there), unpacked before the script checks anything out and
+    # kept aside (/opt/relay-sf.tgz) so after_script saves that copy, never the working tree's.
     - |
       relay_install_sf() {
-        relay_sf="$CI_PROJECT_DIR/.relay-sf"
-        relay_age=$(( $(date +%s) - $(cat "$relay_sf/.installed" 2>/dev/null || echo 0) ))
-        if [ ! -x "$relay_sf/bin/sf" ] || [ "$relay_age" -gt 2592000 ]; then
-          rm -rf "$relay_sf"
-          npm install --global --prefix "$relay_sf" @salesforce/cli@2 --silent --no-audit --no-fund \
-            && date +%s > "$relay_sf/.installed"
+        relay_sf=/opt/relay-sf
+        relay_tgz="$CI_PROJECT_DIR/.relay-sf-cache/sf-2.135.7.tgz"
+        if [ ! -x "$relay_sf/bin/sf" ]; then
+          rm -rf "$relay_sf" /opt/relay-sf.tgz
+          if [ -f "$relay_tgz" ] && mkdir -p "$relay_sf" && tar -xzf "$relay_tgz" -C "$relay_sf" && [ -x "$relay_sf/bin/sf" ]; then
+            cp "$relay_tgz" /opt/relay-sf.tgz
+          else
+            rm -rf "$relay_sf"
+            npm install --global --prefix "$relay_sf" @salesforce/cli@2.135.7 --silent --no-audit --no-fund
+            tar -czf /opt/relay-sf.tgz -C "$relay_sf" .
+          fi
         fi
-        export PATH="$CI_PROJECT_DIR/.relay-sf/bin:$PATH"
+        export PATH="$relay_sf/bin:$PATH"
       }
     # keytool turns an SF_JKS keystore into the key; only needed by jobs that sign in (RELAY_NO_ORG unset).
     - |
@@ -144,12 +164,18 @@ stages:
         apt-get update -qq && apt-get install -y -qq openjdk-17-jre-headless > /dev/null
       fi
 
-# The jobs that use the Salesforce CLI keep it in the cache (GitLab skips the upload when nothing changed).
+# The jobs that use the Salesforce CLI keep it in the cache. Version 27: the key carries the CLI version; the cached
+# folder is replaced in after_script by the archive this job unpacked or built (/opt/relay-sf.tgz), so a file a release
+# branch left in the working tree never reaches the cache. Keep "Use separate caches for protected branches" on (the
+# GitLab default): pipelines on main never read a cache an unprotected branch wrote.
 .relay-sf-cache:
   cache:
-    key: relay-sf-cli2-node22
+    key: relay-sf-cli-2.135.7-node22.22.3
     paths:
-      - .relay-sf/
+      - .relay-sf-cache/
+  after_script:
+    - rm -rf "$CI_PROJECT_DIR/.relay-sf-cache"
+    - if [ -f /opt/relay-sf.tgz ]; then mkdir -p "$CI_PROJECT_DIR/.relay-sf-cache" && cp /opt/relay-sf.tgz "$CI_PROJECT_DIR/.relay-sf-cache/sf-2.135.7.tgz"; fi
 
 release-relay-raise:
   extends: [.release-relay, .relay-sf-cache]
@@ -183,8 +209,8 @@ release-relay-scan:
   script:
     - apt-get update -qq && apt-get install -y -qq openjdk-17-jre-headless > /dev/null
     - relay_install_sf
-    # The plugin lives in the job's home folder (not cached): installed each time.
-    - sf plugins install code-analyzer
+    # The plugin lives in the job's home folder (not cached): installed each time, pinned (version 27).
+    - sf plugins install @salesforce/plugin-code-analyzer@5.13.0
     - STEP=scan node /tmp/release-relay.js
 
 release-relay-validate:
@@ -379,17 +405,21 @@ release-relay-data-load:
     - STEP=data-load node /tmp/release-relay.js
 
 # Tells the Salesforce org named in OPTIONS.notify to read the results now. Its login is read as
-# <NOTIFY>_SF_USERNAME etc. (prefixed variables). A failure here never fails the pipeline.
+# <NOTIFY>_SF_USERNAME etc. (prefixed variables), else the hub environment's. A failure here never fails the pipeline.
+# Version 27: runs in the hub's environment, so the variables it reads (and RELAY_RUN_KEY) can be scoped to it.
 release-relay-notify:
   extends: .release-relay
   stage: .post
   timeout: 10m
   allow_failure: true
+  environment:
+    name: $RELAY_HUB_ENVIRONMENT
+    action: prepare
   rules:
     - if: '$CI_PIPELINE_SOURCE =~ /^(api|trigger|web)$/ && $REQUEST_ID && $OPTIONS =~ /"notify"\s*:\s*"[^"]+"/'
       when: always
   script:
-    - npm install --global @salesforce/cli@2 --silent
+    - relay_install_sf
     - |
       node -e '
         let o = {};
@@ -405,19 +435,25 @@ release-relay-notify:
 # The hub's archive and Slack calls (by hand only: MODE=archive or MODE=slack; the schedules stay with the hub's main
 # connection). Sign in to the hub with its environment's login and call its endpoint once per pass until it says done.
 .relay-hub-call:
-  image: node:22
+  image: node:22.22.3
   variables:
-    GIT_STRATEGY: none
+    # Version 27: the pipeline commit only, for the script's signature check.
+    GIT_STRATEGY: fetch
+    GIT_DEPTH: "1"
+    RELAY_PROVIDER: gitlab
   environment:
     name: $RELAY_HUB_ENVIRONMENT
     action: prepare
   before_script:
+    # Version 27: a run started by hand must carry the hub's signature (RELAY_RUN_KEY), checked before the sign-in.
+    - git show "$CI_COMMIT_SHA:scripts/release-relay.js" > /tmp/release-relay.js
+    - STEP=verify node /tmp/release-relay.js
     - apt-get update -qq && apt-get install -y -qq jq openssl > /dev/null
     - |
       if env | grep -Eq '^SF_JKS=.'; then
         apt-get install -y -qq openjdk-17-jre-headless > /dev/null
       fi
-    - npm install --global @salesforce/cli@2 --silent --no-audit --no-fund
+    - npm install --global @salesforce/cli@2.135.7 --silent --no-audit --no-fund
     # Secrets reach the shell only as environment variables. The key is written like the script does it:
     # SF_JKS (keystore, base64) with SF_JKS_PASSWORD and SF_JKS_ALIAS, or SF_JWT_KEY (base64 PEM private key).
     - |
