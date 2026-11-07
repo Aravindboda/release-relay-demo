@@ -42,6 +42,7 @@
   "force-app/main/default/classes/RlyRaiseParts.cls",
   "force-app/main/default/classes/RlyRaisePartsTest.cls",
   "force-app/main/default/classes/RlyRaiseService.cls",
+  "force-app/main/default/classes/RlyReleaseStore.cls",
   "force-app/main/default/classes/RlyRetrieve.cls",
   "force-app/main/default/classes/RlyRunMonitorChecks.cls",
   "force-app/main/default/classes/RlyRunMonitorInbound.cls",
@@ -107,6 +108,6 @@
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42344225798",
- "finishedAt": "2026-11-07T05:48:37.999Z"
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42344882334",
+ "finishedAt": "2026-11-07T05:58:16.848Z"
 }
