@@ -1,5 +1,10 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 24
+// Release Relay pipeline files: version 25
+// Version 25: each step's result also goes to the run's summary page (GITHUB_STEP_SUMMARY; printed when it isn't set)
+//   as readable markdown instead of the raw JSON: request id and title, step and status, source → target, raised and
+//   approved by (options.by, options.approvedBy), components (count and the first 30), deletions, tests, scan findings,
+//   deploy id, message and an "Open in Release Relay" link (options.hubUrl). Values from the values file and
+//   secret-like environment variables are replaced by •••. The run's name (workflow file) adds the title and raiser.
 // Version 24 (the hub's data sets, request ids DAT-<13 digits>): MODE=data moves records between orgs.
 //   STEP=data-export (ENVIRONMENT, the source's environment) queries each object of options.dataSet and saves the
 //     records on release-relay-results at data-inbox/<id>/<ii>-<ppp>.json (a developer org's are sent there by the hub).
@@ -180,8 +185,12 @@ const CHILD_TYPES = {
     ListView: ['listViews', '.listView-meta.xml']
 };
 
+/** Output buffer for git and Salesforce CLI calls (Node's default, 1 MB, is too small for a whole org). */
+const CLI_BUFFER = 512 * 1024 * 1024;
+
 function run(cmd, args, options = {}) {
-    const out = execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], ...options });
+    // A big buffer: git and the CLI list every file of a whole-org branch, far past Node's 1 MB default.
+    const out = execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: CLI_BUFFER, ...options });
     return out == null ? '' : String(out).trim();
 }
 
@@ -190,6 +199,117 @@ function summary(markdown) {
         fs.appendFileSync(env.GITHUB_STEP_SUMMARY, markdown + '\n');
     } else {
         console.log(markdown);
+    }
+}
+
+// ---------- run summary (version 25) ----------
+
+const SUMMARY_OK = /^(passed|deployed|merged|succeeded|created|raised|opened|done|ok|up to date|no changes)$/i;
+const SUMMARY_BAD = /^(failed|error|conflict|conflicts|cancelled|blocked)$/i;
+const SUMMARY_COMPONENTS = 30;
+const SECRET_ENV_RE = /(TOKEN|SECRET|PASSWORD|PASSWD|KEY|AUTH|SFDX_URL|JWT|CREDENTIAL|PRIVATE)/i;
+
+/** Text for the summary: one line, no HTML, at most max characters. */
+function summaryText(value, max = 300) {
+    const text = String(value === null || value === undefined ? '' : value).replace(/[\r\n\t]+/g, ' ').trim();
+    const clipped = text.length > max ? text.slice(0, max - 1) + '…' : text;
+    return clipped.replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;')).replace(/\|/g, '\\|').replace(/`/g, "'");
+}
+
+/** Every value the summary must never show: the values file's values and secret-like environment variables. */
+function summarySecrets() {
+    const out = new Set();
+    for (const perEnv of Object.values((relayValues && relayValues.values) || {})) {
+        for (const value of Object.values(perEnv || {})) {
+            if (typeof value === 'string' && value.trim().length >= 3) {
+                out.add(value.trim());
+            }
+        }
+    }
+    for (const [name, value] of Object.entries(env)) {
+        if (SECRET_ENV_RE.test(name) && typeof value === 'string' && value.trim().length >= 6) {
+            out.add(value.trim());
+        }
+    }
+    return [...out].sort((a, b) => b.length - a.length);
+}
+
+/** The markdown with every secret and value-file value replaced by •••. */
+function redactSummary(markdown) {
+    let out = markdown;
+    for (const secret of summarySecrets()) {
+        out = out.split(secret).join('•••');
+    }
+    return out;
+}
+
+/** Type:Name entries the run was given (not a promotion's merge commits). */
+function summaryList(name) {
+    if (name === 'COMPONENTS' && mode === 'promote') {
+        return [];
+    }
+    return (input(name) || '').split(',').map((x) => x.trim()).filter((x) => /^[A-Za-z]+:.+/.test(x));
+}
+
+/** The readable summary of one step's result (markdown). Never shows secrets or values from the values file. */
+function resultSummary(result) {
+    const status = String(result.status || 'Unknown');
+    const emoji = SUMMARY_OK.test(status) ? '✅' : SUMMARY_BAD.test(status) ? '❌' : /^skipped$/i.test(status) ? '⏭️' : 'ℹ️';
+    const id = String(result.request || requestId);
+    const shortTitle = title.startsWith(id + ':') ? title.slice(id.length + 1).trim() : title; // the hub's titles start with the id
+    const lines = [`### ${emoji} Release Relay ${summaryText(id, 80)}` + (shortTitle ? ` · ${summaryText(shortTitle, 200)}` : ''), ''];
+    const row = (label, value) => {
+        if (value !== null && value !== undefined && String(value).trim() !== '') {
+            lines.push(`| ${label} | ${summaryText(value)} |`);
+        }
+    };
+    lines.push('| | |', '|---|---|');
+    row('Step', `${result.step}${mode ? ' (' + mode + ')' : ''}: ${emoji} ${status}`);
+    const from = [sourceEnv, branch].filter(Boolean).join(' · ');
+    const to = [options.label || '', targetEnv, target].filter(Boolean).join(' · ');
+    if (from || to) {
+        row('Source → target', `${from || '—'} → ${to || '—'}`);
+    }
+    row('Raised by', typeof options.by === 'string' ? options.by : '');
+    row('Approved by', typeof options.approvedBy === 'string' ? options.approvedBy : '');
+    const components = summaryList('COMPONENTS');
+    const deletions = Array.isArray(result.deleted) ? result.deleted
+        : Array.isArray(result.deletedList) ? result.deletedList : summaryList('DELETIONS');
+    if (components.length) {
+        row('Components', String(components.length));
+    } else if (typeof result.changed === 'number') {
+        row('Files sent', String(result.changed));
+    }
+    row('Deletions', deletions.length || (typeof result.deleted === 'number' ? result.deleted : '') || '');
+    if (result.testLevel || result.testsRun) {
+        row('Tests', `${Number(result.testsRun || 0)} run` + (result.testLevel ? ` · ${result.testLevel}` : ''));
+    }
+    if (result.step === 'scan' || typeof result.blocking === 'number') {
+        row('Scan findings', `${Number(result.total || 0)} found, ${Number(result.blocking || 0)} blocking`
+            + (result.thresholdLabel ? ` (${result.thresholdLabel} or above)` : ''));
+    }
+    row('Deploy id', result.deployId || result.validationId || '');
+    row('Message', result.message ? summaryText(result.message, 600) : '');
+    if (typeof options.hubUrl === 'string' && /^https:\/\/[^\s"'<>]+$/.test(options.hubUrl)) {
+        lines.push('', `[Open in Release Relay](${options.hubUrl})`);
+    }
+    if (components.length) {
+        lines.push('', `<details><summary>Components (${components.length})</summary>`, '');
+        components.slice(0, SUMMARY_COMPONENTS).forEach((c) => lines.push(`- ${summaryText(c, 200)}`));
+        if (components.length > SUMMARY_COMPONENTS) {
+            lines.push(`- … and ${components.length - SUMMARY_COMPONENTS} more`);
+        }
+        lines.push('', '</details>');
+    }
+    return lines.join('\n') + '\n';
+}
+
+/** Adds a step's result to the run's summary page; a problem here never fails the step. */
+function summarizeResult(result) {
+    try {
+        summary(redactSummary(resultSummary(result)));
+    } catch (e) {
+        console.log(`The run summary couldn't be written (${String(e.message).slice(0, 200)}).`);
     }
 }
 
@@ -507,7 +627,7 @@ function git(args, options) {
 
 function gitQuiet(args) {
     try {
-        return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+        return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: CLI_BUFFER }).trim();
     } catch (e) {
         return null;
     }
@@ -563,7 +683,7 @@ function writeResult(name, data) {
         result.gates = gatesResult(relayGates, []);
     }
     const json = JSON.stringify(result, null, 1);
-    summary('```json\n' + json.slice(0, 4000) + '\n```');
+    summarizeResult(result);
     if (env.RELAY_LOCAL_RESULTS === 'true') {
         return;
     }
@@ -2121,9 +2241,14 @@ function convertFromHub(mdapi, out, failWith = raiseFailed) {
     fs.writeFileSync(path.join(out, 'sfdx-project.json'),
         JSON.stringify({ packageDirectories: [{ path: 'force-app', default: true }], sourceApiVersion: '63.0' }));
     try {
+        // The JSON lists every converted file (megabytes for a whole org): a big buffer, or Node stops the command midway.
         execFileSync('sf', ['project', 'convert', 'mdapi', '--root-dir', mdapi, '--output-dir', path.join(out, 'force-app'), '--json'],
-            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], cwd: out });
+            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], cwd: out, maxBuffer: CLI_BUFFER,
+                env: { ...process.env, SF_SKIP_NEW_VERSION_CHECK: 'true', NO_COLOR: '1', FORCE_COLOR: '0' } });
     } catch (e) {
+        if (e.code === 'ENOBUFS') {
+            failWith('Converting the files from the hub printed more output than the pipeline can hold; nothing was changed.');
+        }
         let detail = String(e.stdout || '') + String(e.stderr || '');
         try {
             const parsed = JSON.parse(String(e.stdout || '{}'));
@@ -2485,7 +2610,7 @@ async function raisePromotion() {
         if (parents > 1) { args.push('-m', '1'); }
         args.push(sha);
         try {
-            execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+            execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: CLI_BUFFER });
         } catch (e) {
             const files = conflictedFiles();
             gitQuiet(['cherry-pick', '--abort']);
@@ -4030,7 +4155,7 @@ function writeCompareResults(data, files, fileName = 'compare.json', stepName = 
         result.attempt = runToken;
     }
     const json = JSON.stringify(result, null, 1);
-    summary('```json\n' + JSON.stringify({ ...result, components: (result.components || []).length }, null, 1).slice(0, 2000) + '\n```');
+    summarizeResult({ ...result, components: undefined, changed: undefined, deleted: undefined });
     if (env.RELAY_LOCAL_RESULTS === 'true') {
         return;
     }
