@@ -1,4 +1,11 @@
-# Release Relay pipeline files: version 24
+# Release Relay pipeline files: version 25
+# Version 25: clearer run names and a run summary. A run's name keeps "Release Relay <request id> (<mode>)" (the hub
+# finds its run by it; hubs from build 44 also accept the added parts) and adds " · <title>" when the title input is set
+# and " · by <name>" when the options JSON has "by" (who raised the release). Scheduled runs keep their names. Each step's
+# result also goes to the run's summary page (GITHUB_STEP_SUMMARY): request, step and status, source → target, raised
+# and approved by, components, deletions, tests, scan findings, deploy id, message and an "Open in Release Relay" link
+# (options.hubUrl). The summary never shows secrets or values from the values file. Needs a hub from build 44.
+# (Version 24 notes follow.)
 # Version 24: Slack reminders and the daily digest. A second schedule (every hour at :17, "17 * * * *") runs the
 # slack-due job only: it signs in to the hub like the archive job and calls POST /services/apexrest/rly/slack-due once
 # per pass until the hub says done (at most 10 calls). The hub decides what is due per org (reminders, digests); an
@@ -96,7 +103,7 @@
 # {"snapshot":false} skips the rollback snapshot before a deploy; {"snapshotPath":"REL-00042/prod/<id>"} picks
 # the snapshot for mode=rollback.
 name: Release Relay
-run-name: "${{ ((github.event_name == 'schedule' && github.event.schedule == '17 * * * *') || inputs.mode == 'slack') && 'Release Relay Slack reminders' || ((github.event_name == 'schedule' || inputs.mode == 'archive') && 'Release Relay nightly archive' || format('Release Relay {0} ({1})', inputs.request_id, inputs.mode)) }}"
+run-name: "${{ ((github.event_name == 'schedule' && github.event.schedule == '17 * * * *') || inputs.mode == 'slack') && 'Release Relay Slack reminders' || ((github.event_name == 'schedule' || inputs.mode == 'archive') && 'Release Relay nightly archive' || format('Release Relay {0} ({1}){2}{3}', inputs.request_id, inputs.mode, inputs.title && format(' · {0}', inputs.title) || '', fromJSON(inputs.options || '{}').by && format(' · by {0}', fromJSON(inputs.options || '{}').by) || '')) }}"
 
 on:
   # Nightly archive. Cron is UTC: 0 8 * * * is 2:00 AM Central in winter (CST), 3:00 AM in summer (CDT); change the
