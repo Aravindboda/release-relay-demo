@@ -72,6 +72,10 @@
         <apexClass>RlyRunMonitorController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>RlySyncController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <customPermissions>
         <enabled>true</enabled>
         <name>RLY_Deploy_Team</name>
@@ -662,6 +666,15 @@
         <object>RLY_Pipeline_Run__c</object>
         <viewAllRecords>true</viewAllRecords>
     </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>RLY_Sync_Check__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
     <tabSettings>
         <tab>RLY_Approvals</tab>
         <visibility>Visible</visibility>
@@ -688,6 +701,10 @@
     </tabSettings>
     <tabSettings>
         <tab>RLY_Pipeline_Monitor</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>RLY_Sync_Status</tab>
         <visibility>Visible</visibility>
     </tabSettings>
 </PermissionSet>

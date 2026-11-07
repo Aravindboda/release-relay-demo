@@ -96,6 +96,18 @@ function deletionKey(type, name) {
 }
 
 /** Deletions from the org get their own keys and are never ticked for the user. */
+/** The picks the Sync status tab left for New Release (read once, then removed). */
+function readSyncPick() {
+    try {
+        const raw = window.sessionStorage.getItem('rlySyncPick');
+        window.sessionStorage.removeItem('rlySyncPick');
+        const pick = raw ? JSON.parse(raw) : null;
+        return pick && pick.orgId ? pick : undefined;
+    } catch (e) {
+        return undefined;
+    }
+}
+
 function asDeletion(c) {
     return { ...c, key: deletionKey(c.type, c.name), deleted: true };
 }
@@ -141,8 +153,17 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     /** Append mode came from the page state (so opening New Release again without it starts a normal release). */
     appendFromState = false;
 
+    /** Picks handed over by the Sync status tab (sessionStorage rlySyncPick, page state c__syncPick). */
+    pendingPick;
+
     @wire(CurrentPageReference)
     readPageState(ref) {
+        if (ref && ref.state && ref.state.c__syncPick && !this.pendingPick) {
+            this.pendingPick = readSyncPick();
+            if (this.pendingPick && this.start) {
+                this.applyPickStart();
+            }
+        }
         const id = ref && ref.state ? ref.state.c__appendTo : undefined;
         if (id && id !== this._appendTo) {
             this.appendFromState = true;
@@ -326,6 +347,8 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
                 }
                 if (this._appendTo) {
                     this.loadAppend();
+                } else if (this.pendingPick) {
+                    this.applyPickStart();
                 }
             })
             .catch((e) => {
@@ -334,6 +357,57 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
             .finally(() => {
                 this.loading = false;
             });
+    }
+
+    // ---------- picks from the Sync status tab ----------
+
+    /** Opens Select for the picked org (all time), with the title and manual steps the tab prefilled. */
+    applyPickStart() {
+        const pick = this.pendingPick;
+        const group = this.envGroups.find((g) => g.cards.some((c) => c.id === pick.orgId && c.selectable));
+        if (!group) {
+            this.error = 'Changes can\'t be raised from that org here: pick a developer org (or use a hotfix from a stage).';
+            this.pendingPick = undefined;
+            return;
+        }
+        this.envChoice = group.value;
+        this.orgId = pick.orgId;
+        this.windowChoice = 'any';
+        if (pick.title) {
+            this.title = pick.title;
+        }
+        if (Array.isArray(pick.steps) && pick.steps.length) {
+            this.manualSteps = pick.steps;
+        }
+        this.search = '';
+        this.step = 'select';
+        this.scan(false).then(() => this.applyPickSelect());
+    }
+
+    /** After the list is read: the picked changes are selected and the picked deletions join as deletions. */
+    applyPickSelect() {
+        const pick = this.pendingPick;
+        this.pendingPick = undefined;
+        if (!pick) {
+            return;
+        }
+        const have = new Set(this.changes.map((c) => c.key));
+        const found = (pick.keys || []).filter((k) => have.has(k));
+        const missing = (pick.keys || []).length - found.length;
+        const dels = (pick.deleted || []).map((k) => asDeletion({ key: k, type: k.substring(0, k.indexOf(':')),
+            name: k.substring(k.indexOf(':') + 1), standard: false, deleted: true }));
+        this.changes = mergeChanges(this.changes, dels);
+        this.selected = new Set([...this.selected, ...found, ...dels.map((c) => c.key)]);
+        const bits = [];
+        if (found.length) {
+            bits.push(found.length + (found.length === 1 ? ' change' : ' changes'));
+        }
+        if (dels.length) {
+            bits.push(dels.length + (dels.length === 1 ? ' deletion' : ' deletions'));
+        }
+        this.deletionResult = (bits.length ? bits.join(' and ') + ' picked on the Sync status tab are selected.' : 'Nothing picked was found.')
+            + (missing ? ' ' + missing + ' picked ' + (missing === 1 ? 'component isn\'t' : 'components aren\'t') + ' in the org\'s list any more.' : '');
+        this.deletionResultBad = missing > 0;
     }
 
     // ---------- steps ----------

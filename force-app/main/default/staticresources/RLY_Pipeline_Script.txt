@@ -1,5 +1,25 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 22
+// Release Relay pipeline files: version 23
+// Version 23 (the hub's Sync status tab, request ids SYN-<13 digits>):
+//   MODE=drift (STEP=drift): signs in to an org (ENVIRONMENT, the org's own GitHub environment), builds a manifest of
+//     everything in it (sf project generate manifest --from-org: managed packages left out; plus the hub's skipped
+//     types and Release Relay's own components left out), retrieves it in chunks, converts it, turns the org's values
+//     into {{relay:NAME}} placeholders and compares it with TARGET (that org's branch). Writes results/<id>/drift.json
+//     (components only in the org, only on the branch, or different) and results/<id>/f/<n>.json (left = branch,
+//     right = org).
+//   MODE=compare with options.full = true: the same drift.json for a developer org the hub retrieved in parts
+//     (compare-inbox/<id>/<n>.zip): branch components of the types the hub listed (options.folders) that no part
+//     holds are only on the branch.
+//   MODE=routediff (STEP=routediff): Git only. For each pair of branches down options.route (high to low), what the
+//     higher branch changed since their merge base that the lower one doesn't have (same content now is skipped);
+//     results/<id>/route.json and f/<n>.json (left = higher, right = lower).
+//   MODE=sync with options.paths: back promote picked files only: the paths are taken from BRANCH onto TARGET (a path
+//     BRANCH no longer has is removed) instead of a full merge; a path TARGET changed too is a conflict, nothing is
+//     overwritten. The validate and deploy that follow are sync's own. With BRANCH = TARGET (Push to the org) the
+//     picked components are deployed from the branch as it is and the branch isn't changed.
+//   MODE=sync with options.branchOnly and no TARGET_ENVIRONMENT (a developer org, no sign-in in GitHub): the lower
+//     branch is updated (merge or picked paths) and nothing is deployed; result Succeeded.
+//   MODE=routediff takes options.pairs [[higher, lower], ...] when given (the route as a tree), else options.route.
 // Version 22: STEP=compare (MODE=compare, request id CMP-<13 digits>) compares a developer org's copy with a target
 // branch for the hub's Compare before raising, without the zip ever being read in Salesforce: the hub commits each
 // batch's Metadata API zip to release-relay-results at compare-inbox/<id>/<n>.zip (every zip there is read, in number
@@ -419,9 +439,20 @@ function runUrl() {
 }
 
 function checkCommonInputs() {
+    if (mode === 'drift' || mode === 'routediff') {
+        // Sync status (version 23): id SYN-<13 digits>; drift reads TARGET, routediff the branches in options.route.
+        if (!SYNC_ID_RE.test(requestId)) { fail(`REQUEST_ID must look like SYN-1762400000000 for ${mode}.`); }
+        if (mode === 'drift' && (!REF_RE.test(target) || target.includes('..') || target === RESULTS_BRANCH || target === SNAPSHOT_BRANCH)) { fail(`Target "${target}" isn't a valid branch.`); }
+        if (!/^[A-Za-z0-9_./-]+$/.test(sourcePath()) || sourcePath().includes('..')) { fail('SOURCE_PATH is invalid.'); }
+        if (!['github', 'gitlab', 'bitbucket', 'azure'].includes(PROVIDER)) { fail('RELAY_PROVIDER must be github, gitlab, bitbucket or azure.'); }
+        return;
+    }
     if (mode === 'compare') {
-        // A compare (version 22) has no release: its id is CMP-<13 digits>, and it reads TARGET only (BRANCH isn't used).
-        if (!COMPARE_ID_RE.test(requestId)) { fail('REQUEST_ID must look like CMP-1762400000000 for a compare.'); }
+        // A compare (version 22) has no release: its id is CMP-<13 digits> (SYN-<13 digits> for a full compare from the
+        // Sync status tab, version 23), and it reads TARGET only (BRANCH isn't used).
+        const idOk = COMPARE_ID_RE.test(requestId) || (options.full === true && SYNC_ID_RE.test(requestId));
+        if (!idOk) { fail('REQUEST_ID must look like CMP-1762400000000 for a compare.'); }
+        if (options.syncId !== undefined && !SYNC_ID_RE.test(String(options.syncId))) { fail('options.syncId must look like SYN-1762400000000.'); }
         if (!REF_RE.test(target) || target.includes('..') || target === RESULTS_BRANCH || target === SNAPSHOT_BRANCH) { fail(`Target "${target}" isn't a valid target branch.`); }
         if (!/^[A-Za-z0-9_./-]+$/.test(sourcePath()) || sourcePath().includes('..')) { fail('SOURCE_PATH is invalid.'); }
         if (!['github', 'gitlab', 'bitbucket', 'azure'].includes(PROVIDER)) { fail('RELAY_PROVIDER must be github, gitlab, bitbucket or azure.'); }
@@ -436,7 +467,9 @@ function checkCommonInputs() {
         // A back promote takes the hub's production branch (any branch name) into a back-promote org's branch.
         if (!REF_RE.test(branch) || branch.includes('..')) { fail(`Branch "${branch}" isn't a valid source branch.`); }
     } else if (!BRANCH_RE.test(branch)) { fail(`Branch "${branch}" must look like feature/short-name.`); }
-    if (mode !== 'rollback' && (!REF_RE.test(target) || target.includes('..') || target === branch || target === RESULTS_BRANCH || target === SNAPSHOT_BRANCH)) { fail(`Target "${target}" isn't a valid target branch.`); }
+    // Push to the org (version 23): sync with picked paths from an org's own branch to that org (BRANCH = TARGET).
+    const pushToOrg = mode === 'sync' && Array.isArray(options.paths) && options.paths.length > 0 && target === branch;
+    if (mode !== 'rollback' && (!REF_RE.test(target) || target.includes('..') || (target === branch && !pushToOrg) || target === RESULTS_BRANCH || target === SNAPSHOT_BRANCH)) { fail(`Target "${target}" isn't a valid target branch.`); }
     if (!/^[A-Za-z0-9_./-]+$/.test(sourcePath()) || sourcePath().includes('..')) { fail('SOURCE_PATH is invalid.'); }
     if (!['github', 'gitlab', 'bitbucket', 'azure'].includes(PROVIDER)) { fail('RELAY_PROVIDER must be github, gitlab, bitbucket or azure.'); }
 }
@@ -1368,7 +1401,16 @@ function gatesSummary(step, result) {
  * using the files as they are at head. Returns null when nothing deployable changed.
  */
 function buildDeployment(base, head) {
-    const all = changedFiles(base, head);
+    return buildFromFiles(changedFiles(base, head), base);
+}
+
+/** The deployment for picked repo paths as the checked-out branch has them (a path it hasn't got is a deletion). */
+function buildForPaths(paths, ref) {
+    return buildFromFiles(paths.map((f) => ({ status: fs.existsSync(f) ? 'M' : 'D', file: f })), ref);
+}
+
+/** The deployment (manifests, counts, Apex) for changed files [{status A|M|D, file}]; base is used for the exclude list's label checks. */
+function buildFromFiles(all, base) {
     const skipped = new Set(all.filter((f) => isExcluded(f.file, base)).map((f) => f.file));
     const files = all.filter((f) => !skipped.has(f.file));
     deployExcluded = [...skipped].sort();
@@ -3074,6 +3116,125 @@ function deployFailureText(r) {
  * Writes results/<REQUEST_ID>/sync.json:
  * { status: 'Deployed' | 'Nothing to deploy' | 'Conflict' | 'Failed', sha, deployId, testsRun, conflicts, message }.
  */
+/** options.paths (version 23): the picked repo paths of a back promote, checked; null for a full back promote. */
+function pickedPaths() {
+    if (!Array.isArray(options.paths) || !options.paths.length) {
+        return null;
+    }
+    if (options.paths.length > 2000) {
+        fail('A back promote takes at most 2,000 picked paths.');
+    }
+    const root = sourcePath().replace(/\/+$/, '') + '/';
+    return options.paths.map((p) => {
+        const f = String(p).trim();
+        if (!f.startsWith(root) || f.includes('..') || !/^[A-Za-z0-9 _.,@()+'%&$#~=\[\]/-]{1,400}$/.test(f)) {
+            fail(`Picked path "${f.slice(0, 120)}" isn't a file under ${root}.`);
+        }
+        return f;
+    });
+}
+
+/** A file's blob id at a commit, or null when it isn't there. */
+function blobAt(ref, file) {
+    return gitQuiet(['rev-parse', '--verify', '-q', `${ref}:${file}`]) || null;
+}
+
+/**
+ * Takes the picked paths from BRANCH onto the checked-out TARGET (a path BRANCH no longer has is removed) and commits.
+ * A path TARGET changed since the merge base, to something else than BRANCH has, is a conflict: then nothing is taken.
+ * Returns the conflicting paths.
+ */
+function takePickedPaths(paths, lowerHead) {
+    const higher = `refs/remotes/origin/${branch}`;
+    const base = gitQuiet(['merge-base', higher, lowerHead]) || null;
+    const take = [];
+    const remove = [];
+    const conflicts = [];
+    for (const f of paths) {
+        const hi = blobAt(higher, f);
+        const lo = blobAt(lowerHead, f);
+        if (hi === lo) {
+            continue; // already the same
+        }
+        const was = base ? blobAt(base, f) : null;
+        if (lo !== was && base) {
+            conflicts.push(f); // changed below too: never overwritten
+            continue;
+        }
+        (hi ? take : remove).push(f);
+    }
+    if (conflicts.length) {
+        return conflicts;
+    }
+    for (let i = 0; i < take.length; i += 200) {
+        git(['checkout', higher, '--', ...take.slice(i, i + 200)]);
+    }
+    for (let i = 0; i < remove.length; i += 200) {
+        git(['rm', '-q', '--ignore-unmatch', '--', ...remove.slice(i, i + 200)]);
+    }
+    if (take.length || remove.length) {
+        const keys = Array.isArray(options.keys) ? options.keys.map(String).slice(0, 20).join(', ') : '';
+        git(['-c', 'user.name=Release Relay', '-c', 'user.email=release-relay@users.noreply.local', 'commit', '-q', '-m',
+            `Release Relay ${requestId}: back promote ${take.length + remove.length} file(s) from ${branch}`
+                + (keys ? `\n\nPicked: ${keys}${options.keys.length > 20 ? ', …' : ''}` : '')]);
+    }
+    return [];
+}
+
+/**
+ * Push to the org (version 23): BRANCH = TARGET, options.paths picked. Deploys just those components from the branch as
+ * it is (a picked path the branch hasn't got is deleted from the org); the branch isn't changed.
+ */
+async function pushPickedToOrg(result, stop, branchOnly) {
+    const paths = pickedPaths();
+    if (!paths) {
+        stop({ message: 'Pushing to the org needs picked paths.' });
+    }
+    if (branchOnly || !targetEnv) {
+        stop({ message: `Pushing to the org needs its environment: ${target}'s org has no sign-in in GitHub.` });
+    }
+    let head;
+    let plan;
+    try {
+        if (!remoteBranchExists(target)) {
+            throw new Error(`Branch ${target} doesn't exist.`);
+        }
+        fetchBranch(target);
+        head = git(['rev-parse', `refs/remotes/origin/${target}`]);
+        git(['checkout', '-q', '--force', '--detach', head]);
+        plan = buildForPaths(paths, head);
+        if (!plan) {
+            result('Nothing to deploy', { sha: head, message: `Nothing deployable among the picked files.${excludedNote()}` });
+            return;
+        }
+        const valuesProblem = prepareDeployValues(plan, targetEnv);
+        if (valuesProblem) {
+            stop({ sha: head, message: `${valuesProblem} Nothing was deployed.`.slice(0, 1500) });
+        }
+        login('target-org');
+    } catch (e) {
+        stop({ sha: head || null, message: String(e.message || e).slice(0, 1500) });
+    }
+    plan.ownTests = false;
+    plan.defaultTestLevel = plan.apex.length ? 'RunLocalTests' : 'NoTestRun';
+    const snapshot = takeSnapshot(plan, head);
+    const r = deployTo('target-org', plan, false);
+    if (!r.ok) {
+        stop({ sha: head, deployId: r.deployId || null, testsRun: r.testsRun || 0, snapshot,
+            message: `Deploying the picked components to ${targetEnv} failed: ${deployFailureText(r)}` });
+    }
+    result('Deployed', { sha: head, deployId: r.deployId || null, testsRun: r.testsRun || 0, snapshot,
+        message: `Deployed ${pickedCount(plan.sources)} picked component(s)${plan.deleted ? ` and deleted ${plan.deleted}` : ''} from ${target} to ${targetEnv} (${r.testLevel}). The branch wasn't changed.${excludedNote()}` });
+}
+
+/** How many components some deployed files are (a class and its -meta.xml are one). */
+function pickedCount(files) {
+    return new Set(files.map((f) => {
+        const c = componentFor(f);
+        return c ? `${c.type}:${c.name}` : f;
+    })).size;
+}
+
 async function stepSync() {
     orgEnv = sourceEnv;
     if (mode !== 'sync') {
@@ -3087,8 +3248,13 @@ async function stepSync() {
     };
     checkAllowedTarget(); // runs not started by the hub: TARGET must be in the source's ALLOWED_TARGETS
     orgEnv = targetEnv;
-    if (!targetEnv) {
+    const branchOnly = options.branchOnly === true; // version 23: a developer org's branch only (no GitHub sign-in)
+    if (!targetEnv && !branchOnly) {
         stop({ message: 'No target environment: a back promote needs the org to deploy to.' });
+    }
+    if (branch === target) {
+        await pushPickedToOrg(result, stop, branchOnly);
+        return;
     }
     let oldHead = null;
     let head;
@@ -3098,24 +3264,37 @@ async function stepSync() {
             fetchBranch(target);
             oldHead = git(['rev-parse', `refs/remotes/origin/${target}`]);
             git(['checkout', '-q', '-B', target, oldHead]);
-            try {
-                run('git', ['merge', '--no-edit', '-m', `Release Relay ${requestId}: back promote ${branch} into ${target}`,
-                    `refs/remotes/origin/${branch}`], { stdio: ['ignore', 'pipe', 'pipe'] });
-            } catch (e) {
-                if (resolveAddedFiles()) {
-                    git(['commit', '-q', '--no-edit']);
-                } else {
-                    const files = conflictedFiles();
-                    gitQuiet(['merge', '--abort']);
-                    if (!files.length) {
-                        throw new Error(`Merging ${branch} into ${target} failed: ${String(e.stderr || e.message).slice(0, 500)}`);
-                    }
-                    result('Conflict', { sha: git(['rev-parse', `refs/remotes/origin/${branch}`]), conflicts: files.slice(0, 200),
-                        message: `${files.length} file(s) in ${target} conflict with ${branch}. Nothing was deployed or pushed. `
-                            + `Bring ${branch} into ${target} by hand (keep ${branch}'s lines), then sync again.` });
+            if (pickedPaths()) {
+                // Version 23: back promote picked files only (the Sync status tab), never a full merge.
+                const conflicts = takePickedPaths(pickedPaths(), oldHead);
+                if (conflicts.length) {
+                    result('Conflict', { sha: git(['rev-parse', `refs/remotes/origin/${branch}`]), conflicts: conflicts.slice(0, 200),
+                        message: `${conflicts.length} picked file(s) were changed in ${target} too. Nothing was deployed or pushed. `
+                            + `Bring them into ${target} by hand (or pick without them), then back promote again.` });
                     process.exit(1);
                 }
+            } else {
+                try {
+                    run('git', ['merge', '--no-edit', '-m', `Release Relay ${requestId}: back promote ${branch} into ${target}`,
+                        `refs/remotes/origin/${branch}`], { stdio: ['ignore', 'pipe', 'pipe'] });
+                } catch (e) {
+                    if (resolveAddedFiles()) {
+                        git(['commit', '-q', '--no-edit']);
+                    } else {
+                        const files = conflictedFiles();
+                        gitQuiet(['merge', '--abort']);
+                        if (!files.length) {
+                            throw new Error(`Merging ${branch} into ${target} failed: ${String(e.stderr || e.message).slice(0, 500)}`);
+                        }
+                        result('Conflict', { sha: git(['rev-parse', `refs/remotes/origin/${branch}`]), conflicts: files.slice(0, 200),
+                            message: `${files.length} file(s) in ${target} conflict with ${branch}. Nothing was deployed or pushed. `
+                                + `Bring ${branch} into ${target} by hand (keep ${branch}'s lines), then sync again.` });
+                        process.exit(1);
+                    }
+                }
             }
+        } else if (pickedPaths()) {
+            throw new Error(`Back promoting picked components needs ${target} to exist.`);
         } else {
             git(['checkout', '-q', '-B', target, `refs/remotes/origin/${branch}`]);
         }
@@ -3125,6 +3304,19 @@ async function stepSync() {
     }
 
     const push = () => git(['push', '-q', 'origin', `HEAD:refs/heads/${target}`]);
+    if (branchOnly) {
+        // A developer org has no sign-in in GitHub: only its branch is brought up to date.
+        try {
+            push();
+        } catch (e) {
+            stop({ sha: head, message: `Pushing ${target} failed (branch rules?): ${String(e.message || e).slice(0, 500)}` });
+        }
+        const what = pickedPaths() ? `${pickedPaths().length} picked file(s)` : `everything from ${branch}`;
+        result('Succeeded', { sha: head, message: oldHead === head ? `${target} already had ${what}; nothing changed.`
+            : `${target} was updated with ${what}. The org itself wasn't deployed to (a developer org has no sign-in in GitHub): `
+                + 'deploy to it from the branch, or raise from it again.' });
+        return;
+    }
     let plan = null;
     let apexChanged = false;
     try {
@@ -3139,7 +3331,7 @@ async function stepSync() {
             push();
             result('Nothing to deploy', { sha: head, message: !oldHead
                 ? `Made ${target} from ${branch}. The org is taken to match ${branch} already, so nothing was deployed; later syncs deploy what changes.`
-                : oldHead === head ? `${target} already includes ${branch}.`
+                : oldHead === head ? (pickedPaths() ? `The picked files are already the same in ${target}.` : `${target} already includes ${branch}.`)
                     : `Nothing deployable changed under ${sourcePath()}. ${target} now includes ${branch}.${excludedNote()}` });
             return;
         }
@@ -3553,6 +3745,8 @@ async function stepNotify() {
 
 /** A compare's id: CMP- and the hub's clock in milliseconds. */
 const COMPARE_ID_RE = /^CMP-(\d{13})$/;
+/** Sync status runs (version 23): SYN-<13 digits>. */
+const SYNC_ID_RE = /^SYN-(\d{13})$/;
 /** Where the hub leaves a compare's zips on the results branch: compare-inbox/<id>/<n>.zip. */
 const COMPARE_INBOX = 'compare-inbox';
 /** The most characters a side (or a unified diff) can have to be shown by the hub. */
@@ -3562,9 +3756,19 @@ const COMPARE_KEEP_DAYS = 3;
 
 /** The compare's result: results/<id>/compare.json (and the files' JSON), then the run fails with the message. */
 function compareFailed(message) {
-    writeCompareResults({ status: 'Failed', message: String(message).slice(0, 1500), targetBranch: target,
-        source: orgLabel(), components: [], counts: {} }, []);
+    if (options.full === true) {
+        writeCompareResults({ status: 'Failed', message: String(message).slice(0, 1500), org: orgLabel(), branch: target,
+            components: [], counts: {} }, [], 'drift.json', 'drift');
+    } else {
+        writeCompareResults({ status: 'Failed', message: String(message).slice(0, 1500), targetBranch: target,
+            source: orgLabel(), components: [], counts: {} }, []);
+    }
     fail(message);
+}
+
+/** Where this run's results go: results/<id>/ (a full compare can name its Sync status id in options.syncId). */
+function resultsId() {
+    return mode === 'compare' && options.full === true && SYNC_ID_RE.test(String(options.syncId || '')) ? String(options.syncId) : requestId;
 }
 
 /** A file's bytes at HEAD, or null when HEAD hasn't got it. */
@@ -3627,8 +3831,8 @@ function unpackComparePart(n, tmp) {
     }
     convertFromHub(mdapi, out, compareFailed);
     const converted = [path.join(out, 'force-app', 'main', 'default'), path.join(out, 'force-app')].find((p) => fs.existsSync(p));
-    // A whole object is compared as the org has it; its fields come with it.
-    return converted ? copyConverted(converted, sourcePath(), new Set()).map((r) => path.join(sourcePath(), r)) : [];
+    // A whole object is compared as the org has it (its own file too, not only its fields).
+    return converted ? copyConverted(converted, sourcePath(), ALL_OBJECTS).map((r) => path.join(sourcePath(), r)) : [];
 }
 
 /** Whether a repo file belongs to a component (a bundle or object: anything in its folder). */
@@ -3711,7 +3915,8 @@ async function stepCompare() {
     if (mode !== 'compare') { fail('STEP=compare needs MODE=compare.'); }
     const components = parseList(input('COMPONENTS'), 'COMPONENTS');
     const deletions = parseList(input('DELETIONS'), 'DELETIONS');
-    if (!components.length && !deletions.length) { compareFailed('Nothing to compare.'); }
+    const full = options.full === true;
+    if (!full && !components.length && !deletions.length) { compareFailed('Nothing to compare.'); }
     if (!remoteBranchExists(target)) { compareFailed(`Branch ${target} doesn't exist.`); }
     fetchBranch(target);
     // Every <n>.zip in the inbox is read (options.batches is only a hint: a part the hub split gets new numbers).
@@ -3720,7 +3925,7 @@ async function stepCompare() {
         fetchBranch(RESULTS_BRANCH);
         parts = compareParts();
     }
-    if (components.length && !parts.length) {
+    if ((components.length || full) && !parts.length) {
         compareFailed(`The parts of this compare weren't found on ${RESULTS_BRANCH} (${COMPARE_INBOX}/${requestId}/). Compare again from Release Relay.`);
     }
     git(['checkout', '-q', '--force', '--detach', `refs/remotes/origin/${target}`]);
@@ -3739,6 +3944,15 @@ async function stepCompare() {
     const tokens = tokenizeFiles(copied, sourceEnv);
     if (tokens.error) {
         compareFailed(tokens.error);
+    }
+    if (full) {
+        // Sync status (version 23): the developer org's whole copy against its branch.
+        const folders = folderOption();
+        const drift = driftOf(copied, pathRules(folders), typesFrom(folders), {});
+        git(['checkout', '-q', '--force', '--detach', `refs/remotes/origin/${target}`]);
+        gitQuiet(['clean', '-fdq', '--', sourcePath()]);
+        saveDrift(drift);
+        return;
     }
 
     const files = [];
@@ -3781,8 +3995,8 @@ function staleCompares(dir) {
             continue;
         }
         for (const name of fs.readdirSync(full)) {
-            const m = COMPARE_ID_RE.exec(name);
-            if (m && name !== requestId && Number(m[1]) < cutoff) {
+            const m = COMPARE_ID_RE.exec(name) || SYNC_ID_RE.exec(name);
+            if (m && name !== requestId && name !== resultsId() && Number(m[1]) < cutoff) {
                 stale.push(`${parent}/${name}`);
             }
         }
@@ -3794,8 +4008,8 @@ function staleCompares(dir) {
  * Saves a compare's result in one commit on the results branch: results/<id>/compare.json and results/<id>/f/<n>.json,
  * removes compare-inbox/<id> and prunes old compares. Pushes retry on races, as writeResult does.
  */
-function writeCompareResults(data, files) {
-    const result = { request: requestId, step: 'compare', ...data, runUrl: runUrl(), finishedAt: new Date().toISOString() };
+function writeCompareResults(data, files, fileName = 'compare.json', stepName = 'compare') {
+    const result = { request: resultsId(), step: stepName, ...data, runUrl: runUrl(), finishedAt: new Date().toISOString() };
     if (runToken) {
         result.attempt = runToken;
     }
@@ -3804,7 +4018,7 @@ function writeCompareResults(data, files) {
     if (env.RELAY_LOCAL_RESULTS === 'true') {
         return;
     }
-    const base = path.join('results', requestId);
+    const base = path.join('results', resultsId());
     for (let attempt = 1; attempt <= 4; attempt++) {
         const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-results-'));
         try {
@@ -3823,33 +4037,534 @@ function writeCompareResults(data, files) {
             }
             fs.rmSync(path.join(dir, base), { recursive: true, force: true });
             fs.mkdirSync(path.join(dir, base, 'f'), { recursive: true });
-            fs.writeFileSync(path.join(dir, base, 'compare.json'), json + '\n');
+            fs.writeFileSync(path.join(dir, base, fileName), json + '\n');
             files.forEach((f, i) => fs.writeFileSync(path.join(dir, base, 'f', `${i + 1}.json`), JSON.stringify(f) + '\n'));
             git(['add', '-A', '--', base], { cwd: dir });
             const remove = [`${COMPARE_INBOX}/${requestId}`, ...staleCompares(dir)];
             gitQuietIn(dir, ['rm', '-r', '-q', '--ignore-unmatch', '--', ...remove]);
             git(['-c', 'user.name=Release Relay', '-c', 'user.email=release-relay@users.noreply.local',
-                'commit', '-q', '-m', `${requestId} compare: ${result.status}`], { cwd: dir });
+                'commit', '-q', '-m', `${resultsId()} ${stepName}: ${result.status}`], { cwd: dir });
             git(['push', '-q', 'origin', `HEAD:refs/heads/${RESULTS_BRANCH}`], { cwd: dir });
             return;
         } catch (e) {
-            console.log(`Saving the compare result failed (attempt ${attempt}); retrying.`);
+            console.log(`Saving the ${stepName} result failed (attempt ${attempt}); retrying.`);
         } finally {
             gitQuiet(['worktree', 'remove', '--force', dir]);
             fs.rmSync(dir, { recursive: true, force: true });
         }
     }
-    fail(`Couldn't save the compare result to the ${RESULTS_BRANCH} branch. The pipeline needs permission to push to it, and it must not be protected.`);
+    fail(`Couldn't save the ${stepName} result to the ${RESULTS_BRANCH} branch. The pipeline needs permission to push to it, and it must not be protected.`);
+}
+
+// ---------- version 23: Sync status (drift, full compare, routediff) ----------
+
+/** Child folders of an object folder in source format: folder -> [type, suffix]. */
+const OBJECT_CHILDREN = {
+    fields: ['CustomField', '.field-meta.xml'], validationRules: ['ValidationRule', '.validationRule-meta.xml'],
+    recordTypes: ['RecordType', '.recordType-meta.xml'], listViews: ['ListView', '.listView-meta.xml'],
+    compactLayouts: ['CompactLayout', '.compactLayout-meta.xml'], webLinks: ['WebLink', '.webLink-meta.xml'],
+    fieldSets: ['FieldSet', '.fieldSet-meta.xml'], businessProcesses: ['BusinessProcess', '.businessProcess-meta.xml'],
+    sharingReasons: ['SharingReason', '.sharingReason-meta.xml'], indexes: ['Index', '.index-meta.xml']
+};
+/** Folders whose components are a folder each (a bundle): folder -> type. */
+const BUNDLE_FOLDERS = { lwc: 'LightningComponentBundle', aura: 'AuraDefinitionBundle', experiences: 'ExperienceBundle',
+    waveTemplates: 'WaveTemplateBundle', staticresources: 'StaticResource' };
+/** Types listed in folders (reports/<Folder>/<Name>.report-meta.xml): folder -> [type, suffix, folder type]. */
+const IN_FOLDER = { reports: ['Report', '.report-meta.xml', 'ReportFolder'], dashboards: ['Dashboard', '.dashboard-meta.xml', 'DashboardFolder'],
+    email: ['EmailTemplate', '.email', 'EmailFolder'], documents: ['Document', '', 'DocumentFolder'] };
+/** Types the hub doesn't list (RlyMetadata.SKIP): never compared. */
+const DRIFT_SKIP = new Set(['ApexTestSuite', 'Certificate', 'ConnectedApp', 'ExternalClientApplication', 'ExtlClntAppOauthSettings',
+    'ExtlClntAppGlobalOauthSettings', 'ExtlClntAppOauthConfigurablePolicies', 'Index', 'InstalledPackage', 'ManagedTopics',
+    'Package', 'Portal', 'SiteDotCom', 'Territory', 'Scontrol']);
+/** For copyConverted: every object is taken whole (its own -object-meta.xml too). */
+const ALL_OBJECTS = { has: () => true };
+/** Custom suffixes that aren't a namespace. */
+const CUSTOM_SUFFIX_RE = /__(c|mdt|e|b|x|r|kav|pc|history|share|feed|s)$/i;
+
+/** Whether a component name belongs to a managed package (a token that still has __ after its custom suffix). */
+function isManagedName(name) {
+    return String(name).split(/[./-]/).some((t) => t.replace(CUSTOM_SUFFIX_RE, '').includes('__'));
+}
+
+/** The most components a drift lists (then truncated). */
+const DRIFT_MAX = 5000;
+/** Members per retrieve when an org is read whole. */
+const DRIFT_CHUNK = 2500;
+
+/** options.folders from the hub ({"classes":"ApexClass", ...}): only plain folder and type names are kept. */
+function folderOption() {
+    const out = {};
+    const f = options.folders && typeof options.folders === 'object' && !Array.isArray(options.folders) ? options.folders : {};
+    Object.keys(f).slice(0, 800).forEach((k) => {
+        const t = String(f[k]);
+        if (/^[A-Za-z0-9]{1,80}$/.test(k) && /^[A-Za-z0-9]{2,80}$/.test(t)) {
+            out[k] = { type: t, suffix: null };
+        }
+    });
+    return out;
+}
+
+/**
+ * Folder -> {type, suffix} rules: the built-in layout (FILE_TYPES, bundles, objects, folders, territory models,
+ * settings) plus those given (a describe, or the hub's options.folders) for folders the built-in layout doesn't know.
+ */
+function pathRules(extra) {
+    const rules = {};
+    Object.keys(extra || {}).forEach((k) => { rules[k] = extra[k]; });
+    Object.keys(FILE_TYPES).forEach((t) => { rules[FILE_TYPES[t][0]] = { type: t, suffix: FILE_TYPES[t][1] }; });
+    return rules;
+}
+
+/**
+ * The types an org was read for, from the folders its describe (or the hub's options.folders) names: only these can be
+ * "only on the branch". Nested layouts come with their folder (objects: the object's children too).
+ */
+function typesFrom(folders) {
+    const types = new Set();
+    Object.keys(folders).forEach((k) => {
+        types.add(folders[k].type);
+        if (k === 'objects') {
+            Object.keys(OBJECT_CHILDREN).forEach((c) => types.add(OBJECT_CHILDREN[c][0]));
+        }
+        if (k === 'territory2Models') {
+            ['Territory2Model', 'Territory2', 'Territory2Rule'].forEach((t) => types.add(t));
+        }
+        if (BUNDLE_FOLDERS[k]) {
+            types.add(BUNDLE_FOLDERS[k]);
+        }
+        if (IN_FOLDER[k]) {
+            types.add(IN_FOLDER[k][0]);
+            types.add(IN_FOLDER[k][2]);
+        }
+        if (k === 'settings') {
+            types.add('Settings');
+        }
+    });
+    return types;
+}
+
+/** A file name without its suffix: the given one, else -meta.xml and the last extension. */
+function stemOf(base, suffix) {
+    if (suffix && base.endsWith(suffix)) {
+        return base.slice(0, -suffix.length);
+    }
+    if (suffix && base.endsWith(suffix + '-meta.xml')) {
+        return base.slice(0, -(suffix.length + '-meta.xml'.length));
+    }
+    const noMeta = base.endsWith('-meta.xml') ? base.slice(0, -'-meta.xml'.length) : base;
+    const dot = noMeta.indexOf('.');
+    return dot > 0 ? noMeta.slice(0, dot) : noMeta;
+}
+
+/** The component (type, name, key) a repo file under SOURCE_PATH belongs to, or null. */
+function componentOf(file, rules) {
+    const rel = path.relative(sourcePath(), file).split(path.sep);
+    if (rel[0] === '..' || rel.length < 2) {
+        return null;
+    }
+    const folder = rel[0];
+    const base = rel[rel.length - 1];
+    const make = (type, name) => (type && name ? { type, name, key: `${type}:${name}` } : null);
+    if (folder === 'objects') {
+        if (rel.length === 3 && base === `${rel[1]}.object-meta.xml`) { return make('CustomObject', rel[1]); }
+        if (rel.length === 4 && OBJECT_CHILDREN[rel[2]]) {
+            const [type, suffix] = OBJECT_CHILDREN[rel[2]];
+            return base.endsWith(suffix) ? make(type, `${rel[1]}.${base.slice(0, -suffix.length)}`) : null;
+        }
+        return rel.length >= 3 ? make('CustomObject', rel[1]) : null;
+    }
+    if (folder === 'territory2Models' && rel.length >= 3) {
+        if (rel.length === 3) { return make('Territory2Model', rel[1]); }
+        if (rel[2] === 'territories') { return make('Territory2', `${rel[1]}.${stemOf(base, '.territory2-meta.xml')}`); }
+        if (rel[2] === 'rules') { return make('Territory2Rule', `${rel[1]}.${stemOf(base, '.territory2Rule-meta.xml')}`); }
+        return make('Territory2Model', rel[1]);
+    }
+    if (BUNDLE_FOLDERS[folder]) {
+        return make(BUNDLE_FOLDERS[folder], rel.length >= 3 ? rel[1] : stemOf(rel[1], null));
+    }
+    if (IN_FOLDER[folder]) {
+        const [type, suffix, folderType] = IN_FOLDER[folder];
+        const folderMeta = new RegExp(`\\.${folderType.charAt(0).toLowerCase() + folderType.slice(1)}-meta\\.xml$`);
+        if (folderMeta.test(base)) {
+            return make(folderType, rel.slice(1, -1).concat([base.replace(folderMeta, '')]).join('/'));
+        }
+        return make(type, rel.slice(1, -1).concat([stemOf(base, suffix || null)]).join('/'));
+    }
+    if (folder === 'settings' && rel.length === 2) {
+        const name = stemOf(base, '.settings-meta.xml');
+        return make(`${name}Settings`, name);
+    }
+    const rule = rules[folder];
+    if (!rule || rel.length !== 2) {
+        return null;
+    }
+    return make(rule.type, stemOf(base, rule.suffix));
+}
+
+/** Files at HEAD under SOURCE_PATH. */
+function branchFiles() {
+    const out = git(['ls-tree', '-r', '--name-only', 'HEAD', '--', sourcePath()]);
+    return out.split('\n').filter(Boolean).map((f) => f.split('/').join(path.sep));
+}
+
+/**
+ * The drift of an org's copy (orgFiles, already written over a checkout of TARGET) against TARGET's files:
+ * components only in the org, only on the branch (of the types the org was read for) and different. Same ones left out.
+ */
+function driftOf(orgFiles, rules, types, lastChanged) {
+    const byKey = new Map();
+    const add = (file, side) => {
+        const c = componentOf(file, rules);
+        if (!c || DRIFT_SKIP.has(c.type) || componentExcluded(c.type, c.name) || isManagedName(c.name)) {
+            return; // skipped types, Release Relay's own components and managed packages are never compared
+        }
+        if (!byKey.has(c.key)) {
+            byKey.set(c.key, { c, org: new Set(), branch: new Set() });
+        }
+        byKey.get(c.key)[side].add(file);
+    };
+    orgFiles.forEach((f) => add(f, 'org'));
+    branchFiles().forEach((f) => add(f, 'branch'));
+    const files = [];
+    const components = [];
+    const counts = { onlyInOrg: 0, onlyOnBranch: 0, different: 0, same: 0 };
+    let truncated = false;
+    for (const key of [...byKey.keys()].sort()) {
+        const { c, org, branch: onBranch } = byKey.get(key);
+        if (!org.size && !types.has(c.type) && !(c.type.endsWith('Settings') && types.has('Settings'))) {
+            continue; // the org wasn't read for this type: no claim either way
+        }
+        let status;
+        if (!onBranch.size) {
+            status = 'onlyInOrg';
+        } else if (!org.size) {
+            status = 'onlyOnBranch';
+        } else {
+            status = null;
+        }
+        const all = [...new Set([...org, ...onBranch])].sort(compareOrder);
+        if (status === null) {
+            const quick = all.map((f) => fileStatus(f, !org.has(f)));
+            if (quick.every((x) => x === 'same')) {
+                counts.same++;
+                continue;
+            }
+            status = 'different';
+        }
+        counts[status]++;
+        if (components.length >= DRIFT_MAX) {
+            truncated = true;
+            continue;
+        }
+        const shown = status === 'different' ? all.filter((f) => fileStatus(f, !org.has(f)) !== 'same') : all;
+        const entries = shown.map((f) => compareFile(f, !org.has(f), files));
+        const entry = { key, type: c.type, status, files: entries };
+        const lc = lastChanged[key];
+        if (lc) {
+            entry.lastChangedBy = lc.by || null;
+            entry.lastChangedAt = lc.at || null;
+        }
+        components.push(entry);
+    }
+    return { components, counts, files, truncated };
+}
+
+/** A file's status without reading it for the hub: same / changed / new / deleted. */
+function fileStatus(file, deleted) {
+    const leftBuf = headBytes(file);
+    if (deleted) {
+        return leftBuf === null ? 'same' : 'deleted';
+    }
+    if (leftBuf === null) {
+        return 'new';
+    }
+    const rightBuf = fs.readFileSync(file);
+    const left = compareText(leftBuf);
+    const right = compareText(rightBuf);
+    if (left !== undefined && right !== undefined && left !== null && right !== null) {
+        return left.replace(/\r\n/g, '\n') === right.replace(/\r\n/g, '\n') ? 'same' : 'changed';
+    }
+    return leftBuf.equals(rightBuf) ? 'same' : 'changed';
+}
+
+/** Saves a drift as results/<id>/drift.json (+ f/<n>.json). */
+function saveDrift(drift) {
+    writeCompareResults({ status: 'Succeeded', message: '', org: orgLabel(), branch: target, checkedAt: new Date().toISOString(),
+        counts: drift.counts, truncated: drift.truncated, components: drift.components }, drift.files, 'drift.json', 'drift');
+    summary(`**Org vs branch:** ${orgLabel()} against ${target}: ${drift.counts.onlyInOrg} only in the org, `
+        + `${drift.counts.onlyOnBranch} only on the branch, ${drift.counts.different} different, ${drift.counts.same} the same`
+        + `${drift.truncated ? ` (the first ${DRIFT_MAX} listed)` : ''}; ${drift.files.length} file(s) for the hub.`);
+}
+
+/** A drift run's failure: drift.json with the message, then the run fails. */
+function driftFailed(message) {
+    writeCompareResults({ status: 'Failed', message: String(message).slice(0, 1500), org: orgLabel(), branch: target,
+        components: [], counts: {} }, [], 'drift.json', 'drift');
+    fail(message);
+}
+
+/** The org's metadata types as the CLI describes them: folder -> {type, suffix}. */
+function describedRules(alias) {
+    let out;
+    try {
+        out = JSON.parse(execFileSync('sf', ['org', 'list', 'metadata-types', '--target-org', alias, '--json'],
+            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 }));
+    } catch (e) {
+        return {};
+    }
+    const rules = {};
+    const objects = (out.result && out.result.metadataObjects) || [];
+    objects.forEach((o) => {
+        if (o && o.directoryName && o.xmlName && !rules[o.directoryName]) {
+            rules[o.directoryName] = { type: o.xmlName, suffix: o.suffix ? `.${o.suffix}` : null };
+        }
+    });
+    return rules;
+}
+
+/** sf project generate manifest --from-org: the org's components (managed packages left out), skipped types removed. */
+function orgManifest(alias, dir) {
+    try {
+        execFileSync('sf', ['project', 'generate', 'manifest', '--from-org', alias, '--output-dir', dir, '--name', 'package.xml', '--json'],
+            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], cwd: dir, maxBuffer: 64 * 1024 * 1024 });
+    } catch (e) {
+        driftFailed(`Listing ${orgLabel()}'s components failed: ${String(e.stdout || e.stderr || e.message).replace(/\s+/g, ' ').slice(0, 500)}`);
+    }
+    const file = path.join(dir, 'package.xml');
+    if (!fs.existsSync(file)) {
+        driftFailed(`Listing ${orgLabel()}'s components gave no manifest.`);
+    }
+    return parsePackageXml(fs.readFileSync(file, 'utf8'))
+        .filter((c) => !c.name.includes('*') && !DRIFT_SKIP.has(c.type) && !componentExcluded(c.type, c.name));
+}
+
+/** Retrieves components into Metadata API folders, DRIFT_CHUNK at a time; the extracted folders and last-changed data. */
+function retrieveAll(alias, items, tmp) {
+    const folders = [];
+    const lastChanged = {};
+    for (let i = 0; i < items.length; i += DRIFT_CHUNK) {
+        const n = folders.length + 1;
+        const pkg = path.join(tmp, `package-${n}.xml`);
+        fs.writeFileSync(pkg, manifest(apiVersion(), items.slice(i, i + DRIFT_CHUNK)));
+        const dir = path.join(tmp, `retrieve-${n}`);
+        fs.mkdirSync(dir);
+        let raw;
+        try {
+            raw = execFileSync('sf', ['project', 'retrieve', 'start', '--manifest', pkg, '--target-metadata-dir', dir,
+                '--target-org', alias, '--wait', '60', '--json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 256 * 1024 * 1024 });
+        } catch (e) {
+            raw = e.stdout ? String(e.stdout) : '';
+            if (!raw) {
+                driftFailed(`Retrieving part ${n} from ${orgLabel()} failed: ${String(e.stderr || e.message).replace(/\s+/g, ' ').slice(0, 400)}`);
+            }
+        }
+        let out = {};
+        try { out = JSON.parse(raw); } catch (e) { driftFailed('The Salesforce CLI returned output that isn\'t JSON.'); }
+        const r = out.result || {};
+        asList(r.fileProperties).forEach((p) => {
+            if (p && p.type && p.fullName) {
+                lastChanged[`${p.type}:${p.fullName}`] = { by: p.lastModifiedByName || null, at: p.lastModifiedDate || null };
+            }
+        });
+        const zip = walkFiles(dir).find((f) => f.endsWith('.zip'));
+        const extracted = path.join(tmp, `mdapi-${n}`);
+        fs.mkdirSync(extracted);
+        if (zip) {
+            execFileSync('unzip', ['-q', '-o', path.join(dir, zip), '-d', extracted], { stdio: ['ignore', 'pipe', 'pipe'] });
+        }
+        // The zip holds an unpackaged/ folder (or the files at its root).
+        const root = fs.existsSync(path.join(extracted, 'unpackaged')) ? path.join(extracted, 'unpackaged') : extracted;
+        folders.push(root);
+    }
+    return { folders, lastChanged };
+}
+
+/**
+ * STEP=drift (MODE=drift, version 23): ENVIRONMENT's org read whole against TARGET (its branch). Nothing is committed to
+ * TARGET; only results go to the results branch.
+ */
+async function stepDrift() {
+    orgEnv = sourceEnv;
+    if (mode !== 'drift') { fail('STEP=drift needs MODE=drift.'); }
+    if (!remoteBranchExists(target)) { driftFailed(`Branch ${target} doesn't exist.`); }
+    fetchBranch(target);
+    if (remoteBranchExists(RESULTS_BRANCH)) {
+        fetchBranch(RESULTS_BRANCH);
+    }
+    git(['checkout', '-q', '--force', '--detach', `refs/remotes/origin/${target}`]);
+    try {
+        login('drift-org');
+    } catch (e) {
+        driftFailed(e.message);
+    }
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-drift-'));
+    let copied = [];
+    let rules;
+    let described = {};
+    let lastChanged = {};
+    try {
+        described = describedRules('drift-org');
+        rules = pathRules(described);
+        const items = orgManifest('drift-org', tmp);
+        if (!items.length) {
+            driftFailed(`${orgLabel()} has no components to compare.`);
+        }
+        const got = retrieveAll('drift-org', items, tmp);
+        lastChanged = got.lastChanged;
+        got.folders.forEach((mdapi, i) => {
+            const out = path.join(tmp, `source-${i + 1}`);
+            convertFromHub(mdapi, out, driftFailed);
+            const converted = [path.join(out, 'force-app', 'main', 'default'), path.join(out, 'force-app')].find((p) => fs.existsSync(p));
+            if (converted) {
+                copied = copied.concat(copyConverted(converted, sourcePath(), ALL_OBJECTS).map((r) => path.join(sourcePath(), r)));
+            }
+        });
+    } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+    }
+    copied = [...new Set(copied)].sort(compareOrder);
+    const tokens = tokenizeFiles(copied, sourceEnv);
+    if (tokens.error) {
+        driftFailed(tokens.error);
+    }
+    const drift = driftOf(copied, rules, typesFrom(described), lastChanged);
+    git(['checkout', '-q', '--force', '--detach', `refs/remotes/origin/${target}`]);
+    gitQuiet(['clean', '-fdq', '--', sourcePath()]);
+    saveDrift(drift);
+}
+
+/** A file's text at a commit, or null when it isn't there (undefined for a binary file). */
+function textAtRef(ref, file) {
+    let buf;
+    try {
+        buf = execFileSync('git', ['show', `${ref}:${file}`], { stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024 });
+    } catch (e) {
+        return null;
+    }
+    return compareText(buf);
+}
+
+/** One file of a route pair: left = higher, right = lower; its text for the hub when it can be shown. */
+function routeFile(file, higher, lower, lowerChanged, files) {
+    const left = textAtRef(higher, file);
+    const right = textAtRef(lower, file);
+    let status;
+    if (left === null) {
+        status = 'deleted';
+    } else if (right === null) {
+        status = 'new';
+    } else {
+        status = 'changed';
+    }
+    const entry = { path: file, status, lowerChangedToo: lowerChanged };
+    if (left === undefined || right === undefined) {
+        entry.reason = 'Binary file: open it in GitHub.';
+        return entry;
+    }
+    const chars = Math.max(left ? left.length : 0, right ? right.length : 0);
+    if (chars <= COMPARE_TEXT_LIMIT) {
+        files.push({ path: file, left, right });
+        return { ...entry, n: files.length, kind: 'text' };
+    }
+    let patch = '';
+    try {
+        patch = execFileSync('git', ['diff', '--no-color', '-U3', lower, higher, '--', file], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024 });
+    } catch (e) {
+        patch = String(e.stdout || '');
+    }
+    if (patch && patch.length <= COMPARE_TEXT_LIMIT) {
+        files.push({ path: file, patch });
+        return { ...entry, n: files.length, kind: 'patch' };
+    }
+    entry.reason = `Too large to show here (over ${COMPARE_TEXT_LIMIT.toLocaleString('en-US')} characters): open it in GitHub.`;
+    return entry;
+}
+
+/** Where a file's latest change on a branch came from: the release named in the commit, or the commit itself. */
+function cameFrom(ref, file) {
+    const line = gitQuiet(['log', '-1', '--format=%s%x09%h%x09%cs', ref, '--', file]) || '';
+    const [subject, sha, day] = line.split('\t');
+    const m = /\b(REL-\d{5,})\b/.exec(subject || '');
+    return m ? m[1] : (sha ? `commit ${sha} ${day || ''}`.trim() : null);
+}
+
+/** One pair down the route: what the higher branch changed since the merge base that the lower one doesn't have. */
+function routePair(higher, lower, rules, files) {
+    const hi = `refs/remotes/origin/${higher}`;
+    const lo = `refs/remotes/origin/${lower}`;
+    const base = gitQuiet(['merge-base', hi, lo]);
+    const changedHigh = (base ? git(['diff', '--name-only', '--no-renames', base, hi, '--', sourcePath()])
+        : git(['ls-tree', '-r', '--name-only', hi, '--', sourcePath()])).split('\n').filter(Boolean);
+    const changedLow = new Set(base ? git(['diff', '--name-only', '--no-renames', base, lo, '--', sourcePath()]).split('\n').filter(Boolean) : []);
+    const byKey = new Map();
+    for (const f of changedHigh) {
+        const a = textAtRef(hi, f);
+        const b = textAtRef(lo, f);
+        if (a === b || (typeof a === 'string' && typeof b === 'string' && a.replace(/\r\n/g, '\n') === b.replace(/\r\n/g, '\n'))) {
+            continue; // the same now in both (the change came down another way)
+        }
+        const c = componentOf(f.split('/').join(path.sep), rules) || { type: 'File', name: f, key: `File:${f}` };
+        if (!byKey.has(c.key)) {
+            byKey.set(c.key, { c, files: [] });
+        }
+        byKey.get(c.key).files.push(f);
+    }
+    const components = [...byKey.keys()].sort().map((key) => {
+        const { c, files: paths } = byKey.get(key);
+        const lowerChangedToo = paths.some((f) => changedLow.has(f));
+        const entries = paths.sort(compareOrder).map((f) => routeFile(f, hi, lo, changedLow.has(f), files));
+        const status = entries.every((e) => e.status === 'new') ? 'onlyInHigher' : 'different';
+        return { key, type: c.type, status, lowerChangedToo, files: entries, cameFrom: cameFrom(hi, paths[0]) };
+    });
+    return { higher, lower, count: components.length, components };
+}
+
+/** STEP=routediff (MODE=routediff, version 23): each pair down options.route, Git only; results/<id>/route.json. */
+async function stepRouteDiff() {
+    if (mode !== 'routediff') { fail('STEP=routediff needs MODE=routediff.'); }
+    const route = Array.isArray(options.route) ? options.route.map(String) : [];
+    const routeFailed = (message) => {
+        writeCompareResults({ status: 'Failed', message: String(message).slice(0, 1500), pairs: [] }, [], 'route.json', 'routediff');
+        fail(message);
+    };
+    // options.pairs [[higher, lower], ...] (several developer orgs make the route a tree) wins over options.route.
+    let wanted;
+    if (Array.isArray(options.pairs) && options.pairs.length) {
+        if (options.pairs.length > 30 || !options.pairs.every((p) => Array.isArray(p) && p.length === 2)) {
+            routeFailed('options.pairs must list 1 to 30 [higher, lower] pairs of branches.');
+        }
+        wanted = options.pairs.map((p) => [String(p[0]), String(p[1])]);
+    } else {
+        if (route.length < 2 || route.length > 12) {
+            routeFailed('options.route must list 2 to 12 branches, highest first.');
+        }
+        wanted = route.slice(0, -1).map((b, i) => [b, route[i + 1]]);
+    }
+    for (const b of [...new Set([].concat(...wanted))]) {
+        if (!REF_RE.test(b) || b.includes('..') || b === RESULTS_BRANCH || b === SNAPSHOT_BRANCH) { routeFailed(`"${b}" isn't a valid branch.`); }
+        if (!remoteBranchExists(b)) { routeFailed(`Branch ${b} doesn't exist.`); }
+        fetchBranch(b);
+    }
+    if (wanted.some(([h, l]) => h === l)) {
+        routeFailed('A pair compares a branch with itself.');
+    }
+    const rules = pathRules(folderOption());
+    const files = [];
+    const pairs = wanted.map(([h, l]) => routePair(h, l, rules, files));
+    writeCompareResults({ status: 'Succeeded', message: '', checkedAt: new Date().toISOString(), pairs }, files, 'route.json', 'routediff');
+    summary('**Down the route:** ' + pairs.map((p) => `${p.higher} → ${p.lower}: ${p.count}`).join(' · ') + `; ${files.length} file(s) for the hub.`);
 }
 
 // ---------- step: monitor (version 20) ----------
 
 /** What a run does, by mode, as the hub's Pipeline Monitor shows it. */
 const MONITOR_STEPS = { org: 'Raise', branch: 'Raise', promote: 'Raise', hub: 'Raise', resolve: 'Resolve conflicts',
-    check: 'Check-only deploy', merge: 'Merge', sync: 'Back promote', rollback: 'Rollback', archive: 'Archive', compare: 'Compare' };
+    check: 'Check-only deploy', merge: 'Merge', sync: 'Back promote', rollback: 'Rollback', archive: 'Archive', compare: 'Compare',
+    drift: 'Org vs branch', routediff: 'Down the route' };
 /** The pipeline's jobs whose outcomes make the run's status, with the names the hub shows. */
 const MONITOR_JOBS = { raise: 'Raise pull request', scan: 'Code scan', validate: 'Check-only deploy', merge: 'Merge',
-    deploy: 'Deploy', sync: 'Back promote', rollback: 'Rollback', archive: 'Archive', compare: 'Compare' };
+    deploy: 'Deploy', sync: 'Back promote', 'sync-branch': 'Back promote (branch only)', rollback: 'Rollback', archive: 'Archive',
+    compare: 'Compare', drift: 'Org vs branch', routediff: 'Down the route' };
 
 function monitorWarn(message) {
     console.log('::warning::Pipeline Monitor: ' + message);
@@ -3947,7 +4662,9 @@ async function stepMonitor() {
     }
     const body = {
         runId: gh.runId, attempt: gh.attempt, mode: runMode, step,
-        branch: runMode === 'sync' || runMode === 'compare' ? target : (runMode === 'archive' ? env.GITHUB_REF_NAME : branch) || null,
+        branch: runMode === 'sync' || runMode === 'compare' || runMode === 'drift' ? target
+            : (runMode === 'routediff' ? (target || (Array.isArray(options.route) ? options.route.map(String).join(' → ').slice(0, 255) : null))
+                : (runMode === 'archive' ? env.GITHUB_REF_NAME : branch)) || null,
         targetOrg: targetEnv || sourceEnv || (runMode === 'archive' ? input('RELAY_HUB_ENVIRONMENT') || 'prod' : null),
         status: ending ? monitorEndStatus() : 'In progress',
         started: startedAt, actor: scheduled ? 'Schedule' : (env.GITHUB_TRIGGERING_ACTOR || env.GITHUB_ACTOR || null),
@@ -3979,7 +4696,7 @@ async function stepMonitor() {
 // ---------- main ----------
 
 const STEPS = { raise: stepRaise, scan: stepScan, validate: stepValidate, merge: stepMerge, deploy: stepDeploy, sync: stepSync,
-    rollback: stepRollback, auto: stepAuto, compare: stepCompare };
+    rollback: stepRollback, auto: stepAuto, compare: stepCompare, drift: stepDrift, routediff: stepRouteDiff };
 
 async function main() {
     if (step === 'notify') {
@@ -4005,7 +4722,7 @@ async function main() {
         summary(`**Note:** selfUpdate is set but the target is ${target}; the hub's own updates belong on release-relay-hub.`);
     }
     if (!STEPS[step]) {
-        fail('STEP must be raise, scan, validate, merge, deploy, sync, rollback, auto or compare.');
+        fail('STEP must be raise, scan, validate, merge, deploy, sync, rollback, auto, compare, drift or routediff.');
     }
     preparePush();
     await STEPS[step]();

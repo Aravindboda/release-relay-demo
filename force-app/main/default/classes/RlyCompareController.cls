@@ -103,6 +103,9 @@ public with sharing class RlyCompareController {
             RlyHubGuard.requireHub();
             RlyComparePipeline.RunJob job = String.isBlank(jobJson) ? null
                 : (RlyComparePipeline.RunJob) JSON.deserialize(jobJson, RlyComparePipeline.RunJob.class);
+            if (job != null) {
+                job.full = false; // a whole-org check starts only from the Sync status tab (RlySyncRuns)
+            }
             return RlyComparePipeline.run(job);
         } catch (Exception e) {
             throw handled(e);

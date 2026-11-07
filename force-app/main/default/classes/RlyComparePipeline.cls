@@ -52,6 +52,14 @@ public with sharing class RlyComparePipeline {
         public List<String> deleted;
         /** @description How many parts were sent. */
         public Integer parts;
+        /** @description Sync status: the whole developer org against its own branch (components may be empty). */
+        public Boolean full;
+        /** @description Sync status: the org check the result is for (SYN-…), with full. */
+        public String syncId;
+        /** @description Sync status: the check's token, echoed in the result (blank: a new one). */
+        public String attempt;
+        /** @description Sync status: the source folders read, folder => type (only those can be only on the branch). */
+        public Map<String, String> folders;
     }
 
     /** @description The started run. */
@@ -119,23 +127,33 @@ public with sharing class RlyComparePipeline {
      * @return the run's token and title
      */
     public static Started run(RunJob job) {
-        RlyComparePipelineInput.checkRun(job);
+        if (job != null && job.full == true) {
+            RlySyncRuns.checkWhole(job);
+        } else {
+            RlyComparePipelineInput.checkRun(job);
+        }
         RlyGit git = gitHub();
         RLY_Org__c source = RlyRaiseRoute.source(job.sourceOrgId);
-        RLY_Org__c target = RlyCompareTarget.of(source, job.targetBranch);
+        Boolean whole = job.full == true;
+        RLY_Org__c target = whole ? source : RlyCompareTarget.of(source, job.targetBranch);
         Started s = new Started();
-        s.token = RlyPipelineRun.newToken();
+        s.token = String.isNotBlank(job.attempt) ? job.attempt : RlyPipelineRun.newToken();
         s.runTitle = runTitle(job.compareId);
         s.sourceName = source.Name;
         s.targetName = target.Name;
         s.targetBranch = target.Branch__c.trim();
         Map<String, Object> options = new Map<String, Object>{ 'hub' => true, 'label' => source.Name.left(40),
             'attempt' => s.token, 'batches' => job.parts };
+        if (whole) {
+            options.put('full', true);
+            options.put('syncId', job.syncId);
+            options.put('folders', job.folders);
+        }
         git.startPipeline(new Map<String, String>{
             'request_id' => job.compareId, 'mode' => 'compare',
             'environment' => String.isBlank(source.Git_Environment__c) ? '' : source.Git_Environment__c,
             'target_environment' => '', 'branch' => '', 'target' => s.targetBranch,
-            'title' => ('Compare ' + source.Name + ' with ' + s.targetBranch).left(200),
+            'title' => ((whole ? 'Org vs branch: ' : 'Compare ') + source.Name + ' with ' + s.targetBranch).left(200),
             'components' => joined(job.keys), 'deletions' => joined(job.deleted), 'options' => JSON.serialize(options)
         });
         return s;
