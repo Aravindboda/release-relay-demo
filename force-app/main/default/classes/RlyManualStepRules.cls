@@ -60,7 +60,7 @@ public with sharing class RlyManualStepRules {
             return RlyManualSteps.CATEGORY_DEFAULT;
         }
         if (!RlyManualSteps.CATEGORIES.contains(category.trim())) {
-            throw new RlyReleaseException('Pick the manual step\'s category: Permissions, Data, Setup or Other.');
+            throw new RlyReleaseException('Pick the manual step\'s category: Permissions, Data, Setup, Managed package or Other.');
         }
         return category.trim();
     }
