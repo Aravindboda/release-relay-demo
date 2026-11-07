@@ -1,0 +1,15 @@
+.rr-rem { margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e5e5; padding-bottom: 6px; }
+.rr-row { display: flex; align-items: center; gap: 8px; }
+.rr-grow { flex: 1; }
+.rr-end { justify-content: flex-end; margin-top: 8px; }
+.rr-h4 { font-size: 13px; font-weight: 700; margin: 0; }
+.rr-hint { font-size: 12px; color: #5c5c5c; margin: 6px 0; }
+.rr-msg { font-size: 12px; padding: 6px 8px; border-radius: 4px; margin: 6px 0; }
+.rr-msg-bad { background: #feded8; color: #8c0000; }
+.rr-form { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.rr-line { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+.rr-num { max-width: 300px; }
+.rr-hour { min-width: 140px; }
+.rr-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 16px; margin: 6px 0 0; }
+.rr-fact dt { font-size: 12px; color: #5c5c5c; }
+.rr-fact dd { margin: 0; font-size: 13px; }

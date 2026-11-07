@@ -1,0 +1,159 @@
+<template>
+    <template lwc:if={error}><div class="rr-msg rr-msg-bad rr-inset" role="alert">{error}</div></template>
+    <template lwc:if={loaded}>
+        <div class="rr-data">
+            <!-- data sets -->
+            <section class="rr-card rr-col" aria-label="Data sets">
+                <div class="rr-bar">
+                    <span class="rr-strong">Data sets</span>
+                    <span class="rr-grow"></span>
+                    <template lwc:if={isAdmin}><lightning-button label="New" onclick={newSet}></lightning-button></template>
+                </div>
+                <div class="rr-scroll">
+                    <template lwc:if={hasSets}>
+                        <template for:each={sets} for:item="s">
+                            <button key={s.id} type="button" class={s.cls} data-id={s.id} onclick={pickSet}>
+                                <span class="rr-strong rr-block rr-trunc">{s.title}</span>
+                                <span class="rr-small rr-weak rr-block">{s.sub}</span>
+                            </button>
+                        </template>
+                    </template>
+                    <template lwc:else><p class="rr-small rr-weak rr-pad">No data sets yet. An admin adds them: the objects, which records, and how records match in the target.</p></template>
+                </div>
+            </section>
+
+            <section class="rr-card rr-col" aria-label="Runs">
+                <template lwc:if={selectedSet}>
+                    <div class="rr-bar">
+                        <span class="rr-strong">{selectedSet.title}</span>
+                        <span class="rr-small rr-weak rr-trunc">{selectedSet.description}</span>
+                        <span class="rr-grow"></span>
+                        <template lwc:if={isAdmin}>
+                            <lightning-button label="Edit" onclick={editSet}></lightning-button>
+                            <lightning-button label="Delete" onclick={deleteSet} disabled={busy}></lightning-button>
+                        </template>
+                    </div>
+                    <template lwc:if={selectedSet.problem}><div class="rr-msg rr-msg-bad rr-inset">{selectedSet.problem}</div></template>
+                    <table class="rr-table" aria-label="Objects in load order">
+                        <thead><tr><th>Object (order)</th><th>Records</th><th>Match key</th><th>Parent</th><th>Masked</th></tr></thead>
+                        <tbody>
+                            <template for:each={selectedObjects} for:item="o">
+                                <tr key={o.key}><td>{o.order} · {o.objectName}</td><td class="rr-mono">{o.filter}</td><td class="rr-mono">{o.matchKey}</td><td class="rr-small">{o.parents}</td><td class="rr-small">{o.masks}</td></tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <p class="rr-small rr-weak rr-pad">{bypassText}</p>
+                </template>
+
+                <template for:each={refills} for:item="r">
+                    <div key={r.key} class="rr-note"><span>{r.text}</span><lightning-button label="Refill this org" data-id={r.id} onclick={refill}></lightning-button></div>
+                </template>
+
+                <div class="rr-form">
+                    <div class="rr-segs" role="group" aria-label="Direction">
+                        <template for:each={directionButtons} for:item="d">
+                            <button key={d.value} type="button" class={d.cls} aria-pressed={d.pressed} data-value={d.value} onclick={handleDirection}>{d.label}</button>
+                        </template>
+                    </div>
+                    <lightning-combobox label="From" value={sourceOrgId} options={sourceOptions} placeholder="Source org" onchange={handleSource}></lightning-combobox>
+                    <lightning-combobox label="To" value={targetOrgId} options={targetOptions} placeholder="An org the pipeline can load" onchange={handleTarget}></lightning-combobox>
+                    <lightning-input type="toggle" label="Mask personal data" checked={mask} onchange={handleMask} message-toggle-active="" message-toggle-inactive="" field-level-help={maskHint}></lightning-input>
+                    <template lwc:if={isUp}>
+                        <lightning-input label="Release (optional)" value={releaseName} placeholder="REL-00041" onchange={handleRelease}></lightning-input>
+                    </template>
+                    <lightning-button variant="brand" label="Start dry run" onclick={start} disabled={cantStart}></lightning-button>
+                </div>
+                <template lwc:if={exportState}><p class="rr-small rr-pad" aria-live="polite">{exportState}</p></template>
+
+                <div class="rr-scroll">
+                    <template lwc:if={hasRuns}>
+                        <table class="rr-table" aria-label="Data runs">
+                            <thead><tr><th>Run</th><th>Data set</th><th>Route</th><th>Status</th><th>Counts</th><th>Started by</th><th></th></tr></thead>
+                            <tbody>
+                                <template for:each={runs} for:item="r">
+                                    <tr key={r.key}>
+                                        <td><button type="button" class="rr-link rr-mono" data-id={r.runId} onclick={toggleRun}>{r.runId}</button><span class="rr-small rr-weak rr-block">{r.direction}</span></td>
+                                        <td>{r.setTitle}<template lwc:if={r.releaseName}><span class="rr-small rr-weak rr-block">{r.releaseName}</span></template></td>
+                                        <td class="rr-small">{r.route}</td>
+                                        <td><span class={r.pillCls}>{r.pillLabel}</span><template lwc:if={r.message}><span class="rr-small rr-bad-text rr-block">{r.message}</span></template></td>
+                                        <td class="rr-small">{r.countsText}</td>
+                                        <td class="rr-small">{r.requestedBy}<template lwc:if={r.approvedBy}><span class="rr-weak rr-block">loaded by {r.approvedBy}</span></template></td>
+                                        <td>
+                                            <template lwc:if={r.canLoad}><lightning-button variant="brand" label={r.loadLabel} data-id={r.runId} onclick={load} disabled={busy}></lightning-button></template>
+                                            <template lwc:if={r.hint}><span class="rr-small rr-weak">{r.hint}</span></template>
+                                            <template lwc:if={r.runUrl}><a class="rr-a rr-small rr-block" href={r.runUrl} target="_blank" rel="noopener noreferrer">Open the run</a></template>
+                                        </td>
+                                    </tr>
+                                    <template lwc:if={r.open}>
+                                        <tr key={r.detailKey} class="rr-detail"><td colspan="7">
+                                            <table class="rr-table" aria-label="Per object">
+                                                <thead><tr><th>Object</th><th>Insert</th><th>Update</th><th>Unchanged</th><th>Failed</th><th>Notes</th></tr></thead>
+                                                <tbody>
+                                                    <template for:each={r.detailRows} for:item="o">
+                                                        <tr key={o.key}>
+                                                            <td>{o.objectName}</td><td>{o.inserts}</td><td>{o.updates}</td><td>{o.unchanged}</td><td>{o.failed}</td>
+                                                            <td class="rr-small">
+                                                                <template lwc:if={o.triggers}><span class="rr-pill rr-pill-warn">Triggers fire</span> </template>
+                                                                <template lwc:if={o.dupText}><span class="rr-bad-text rr-block">{o.dupText}</span></template>
+                                                                <template lwc:if={o.missingText}><span class="rr-bad-text rr-block">{o.missingText}</span></template>
+                                                                <template lwc:if={o.errText}><span class="rr-bad-text rr-block">{o.errText}</span></template>
+                                                            </td>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </td></tr>
+                                    </template>
+                                </template>
+                            </tbody>
+                        </table>
+                    </template>
+                    <template lwc:else><p class="rr-small rr-weak rr-pad">No data runs yet. Pick a data set, where from and where to, and start a dry run: nothing changes until someone presses Load.</p></template>
+                </div>
+            </section>
+            <span class="rr-ticks" aria-hidden="true">
+                <template for:each={ticks} for:item="t"><span key={t.key} class="rr-tick rr-tick-5" onanimationend={handleTick}></span></template>
+            </span>
+        </div>
+    </template>
+
+    <template lwc:if={editor}>
+        <div class="rr-modal" role="dialog" aria-modal="true" aria-label={editor.heading}>
+            <div class="rr-dialog">
+                <div class="rr-dialog-head"><strong>{editor.heading}</strong><span class="rr-grow"></span><button type="button" class="rr-link" onclick={closeEditor}>Close</button></div>
+                <template lwc:if={editor.error}><div class="rr-msg rr-msg-bad rr-inset" role="alert">{editor.error}</div></template>
+                <div class="rr-form">
+                    <lightning-input label="Title" value={editor.title} data-field="title" max-length="80" placeholder="Claims config" onchange={handleEditorField}></lightning-input>
+                    <lightning-input label="What it's for" value={editor.description} data-field="description" placeholder="Claim types and rules every org needs" onchange={handleEditorField}></lightning-input>
+                </div>
+                <p class="rr-small rr-weak rr-pad">Objects in load order: parents before children. Lists are comma-separated; parents and masks are Field:Value.</p>
+                <template for:each={editorObjects} for:item="o">
+                    <div key={o.index} class="rr-obj">
+                        <div class="rr-obj-head"><span class="rr-strong">{o.label}</span><span class="rr-grow"></span><button type="button" class="rr-link" data-index={o.index} onclick={removeObject}>Remove</button></div>
+                        <lightning-input label="Object" value={o.objectName} data-index={o.index} data-field="objectName" placeholder="Claim_Rule__c" onchange={handleObjectField}></lightning-input>
+                        <lightning-input label="Fields" value={o.fields} data-index={o.index} data-field="fields" placeholder="Name, Code__c, Claim_Type__c, Active__c" onchange={handleObjectField}></lightning-input>
+                        <lightning-input label="Records (filter)" value={o.filter} data-index={o.index} data-field="filter" placeholder="Active__c = true (blank: all)" onchange={handleObjectField}></lightning-input>
+                        <lightning-input label="Match key" value={o.matchKey} data-index={o.index} data-field="matchKey" placeholder="Code__c, or Claim_Type__c, Name" onchange={handleObjectField}></lightning-input>
+                        <lightning-input label="Parent lookups" value={o.parents} data-index={o.index} data-field="parents" placeholder="Claim_Type__c:Claim_Type__c" onchange={handleObjectField}></lightning-input>
+                        <lightning-input label="Masked fields" value={o.masks} data-index={o.index} data-field="masks" placeholder="Email:email, Phone:phone, LastName:name" onchange={handleObjectField}></lightning-input>
+                    </div>
+                </template>
+                <div class="rr-foot"><lightning-button label="Add an object" onclick={addObject}></lightning-button></div>
+                <div class="rr-form">
+                    <div class="rr-segs" role="group" aria-label="Trigger bypass">
+                        <template for:each={editorBypassButtons} for:item="b">
+                            <button key={b.value} type="button" class={b.cls} aria-pressed={b.pressed} data-value={b.value} onclick={handleBypassKind}>{b.label}</button>
+                        </template>
+                    </div>
+                    <template lwc:if={editorHasBypass}>
+                        <lightning-input label="API name" value={editor.bypassName} data-field="bypassName" placeholder="Claims_Settings__c" onchange={handleEditorField}></lightning-input>
+                    </template>
+                    <template lwc:if={editorIsSetting}>
+                        <lightning-input label="Checkbox field" value={editor.bypassField} data-field="bypassField" placeholder="Bypass_Triggers__c" onchange={handleEditorField}></lightning-input>
+                    </template>
+                </div>
+                <div class="rr-foot"><span class="rr-grow"></span><lightning-button label="Cancel" onclick={closeEditor}></lightning-button><lightning-button variant="brand" label="Save" onclick={saveEditor} disabled={busy}></lightning-button></div>
+            </div>
+        </div>
+    </template>
+</template>

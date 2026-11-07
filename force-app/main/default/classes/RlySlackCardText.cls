@@ -42,7 +42,13 @@ public with sharing class RlySlackCardText {
         if (manual != null) {
             out += RlySlackMessage.esc(manual) + '\n';
         }
-        return out;
+        return out + ticketLine(rel); // build 40: the release's tickets
+    }
+
+    // Tickets: <link|CLAIMS-412>, … when the release's tickets were read (build 40).
+    private static String ticketLine(RLY_Release__c rel) {
+        Object tickets = rel.getPopulatedFieldsAsMap().get('Work_Items__c');
+        return tickets == null ? '' : 'Tickets: ' + RlyWorkLinks.slackLinks(String.valueOf(tickets)) + '\n';
     }
 
     /**

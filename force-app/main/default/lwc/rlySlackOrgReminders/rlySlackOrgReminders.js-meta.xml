@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>63.0</apiVersion>
+    <isExposed>false</isExposed>
+    <masterLabel>Release Relay: Slack Reminders</masterLabel>
+    <description>An org's Slack reminders, daily digest, mentions and hotfix alerts (Pipeline tab, org window).</description>
+</LightningComponentBundle>

@@ -403,6 +403,7 @@
                                 <lightning-input label="Title" value={title} max-length="200" required onchange={handleTitle}
                                     placeholder="What this release does, for example: Account region field and layout"></lightning-input>
                                 <lightning-textarea label="Description (optional)" value={description} max-length="5000" onchange={handleDescription}></lightning-textarea>
+                                <c-rly-ticket-input value={workItems} onchange={handleWorkItems} disabled={raising}></c-rly-ticket-input>
                                 <!-- the hotfix flag (board HubHotfixBackPromote, 1): only with the Hotfix permission -->
                                 <template lwc:if={canHotfix}>
                                     <div class="rr-hotfix">

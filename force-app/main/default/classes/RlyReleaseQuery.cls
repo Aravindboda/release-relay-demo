@@ -20,12 +20,13 @@ public with sharing class RlyReleaseQuery {
 
     /** @description Statuses that still need something (the open state). */
     private static final Set<String> OPEN_STATES = new Set<String>{ 'Submitted', 'Retrieving', 'Workflow running', 'Validating',
-        'PR open', 'Checks failed', 'Ready for approval', 'Approved', 'Merging', 'Merged', 'Deploying' };
+        'PR open', 'Checks failed', 'Ready for approval', 'Approved', 'Merging', 'Merged', 'Deploying', RlyWindowGate.WAITING };
 
     /** @description The Releases tab's states and the statuses each one groups. */
     public static final Map<String, Set<String>> STATE_STATUSES = new Map<String, Set<String>>{
         STATE_OPEN => OPEN_STATES,
         'checks' => new Set<String>{ 'Checks failed' },
+        'window' => new Set<String>{ RlyWindowGate.WAITING },
         STATE_DEPLOYED => new Set<String>{ 'Deployed' },
         STATE_ROLLED_BACK => everyStatus(),
         'failed' => new Set<String>{ 'Failed', 'Deploy failed' },
@@ -37,7 +38,7 @@ public with sharing class RlyReleaseQuery {
     public class Filter {
         /** @description The user who raised the releases, or blank for everyone. */
         public String raisedById;
-        /** @description open, checks, deployed, rolledback, failed, closed or all (blank: open). */
+        /** @description open, checks, window, deployed, rolledback, failed, closed or all (blank: open). */
         public String state;
         /** @description Part of the release number or title, or blank. */
         public String searchText;
@@ -166,7 +167,7 @@ public with sharing class RlyReleaseQuery {
                                CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
                                Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
                         FROM RLY_Release__c WHERE Source_Org__c != null AND Status__c IN :statuses AND (Rollback_Status__c = null OR Rollback_Status__c NOT IN :hidden)
-                            AND (Name LIKE :pattern OR Title__c LIKE :pattern)
+                            AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
                         WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
             }
             Id userId = c.userId;
@@ -174,7 +175,7 @@ public with sharing class RlyReleaseQuery {
                            CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
                            Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
                     FROM RLY_Release__c WHERE Source_Org__c != null AND CreatedById = :userId AND Status__c IN :statuses
-                        AND (Rollback_Status__c = null OR Rollback_Status__c NOT IN :hidden) AND (Name LIKE :pattern OR Title__c LIKE :pattern)
+                        AND (Rollback_Status__c = null OR Rollback_Status__c NOT IN :hidden) AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
                     WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
         }
 
@@ -192,14 +193,14 @@ public with sharing class RlyReleaseQuery {
                                CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
                                Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
                         FROM RLY_Release__c WHERE Source_Org__c != null AND Rollback_Status__c = :rolled
-                            AND (Name LIKE :pattern OR Title__c LIKE :pattern)
+                            AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
                         WITH SYSTEM_MODE ORDER BY Rollback_On__c DESC LIMIT 200];
             }
             return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
                            CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
                            Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
                     FROM RLY_Release__c WHERE Source_Org__c != null AND CreatedById = :userId AND Rollback_Status__c = :rolled
-                        AND (Name LIKE :pattern OR Title__c LIKE :pattern)
+                        AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
                     WITH SYSTEM_MODE ORDER BY Rollback_On__c DESC LIMIT 200];
         }
 

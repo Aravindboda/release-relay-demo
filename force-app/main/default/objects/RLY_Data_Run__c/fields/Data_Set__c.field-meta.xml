@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Data_Set__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>The data set run.</description>
+    <externalId>false</externalId>
+    <label>Data Set</label>
+    <referenceTo>RLY_Data_Set__c</referenceTo>
+    <relationshipLabel>Data Runs</relationshipLabel>
+    <relationshipName>Data_Runs</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

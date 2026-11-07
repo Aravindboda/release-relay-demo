@@ -76,6 +76,7 @@ public with sharing class RlyPromotion {
             RlyManualOnly.mark(promotion); // nothing to cherry-pick: no promote run, its page's next read takes it to approval
         }
         RlyPromoteStore.insertPromotion(promotion, items, new Map<Id, RLY_Release__c>(carried).keySet());
+        RlyWorkItems.carry(promotion, new Map<Id, RLY_Release__c>(carried).keySet()); // the carried releases' tickets (build 40)
         RlyManualStepRuns.forPromotion(promotion, nextOrg);
         RlyReleaseLog.promoted(promotion, carried, stage.Name + ' to ' + nextOrg.Name);
         return promotion.Id;

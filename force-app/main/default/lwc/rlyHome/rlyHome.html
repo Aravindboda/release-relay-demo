@@ -32,6 +32,9 @@
 
                 <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
 
+                <template lwc:if={hasFreezes}>
+                    <template for:each={freezes} for:item="fz"><div key={fz.key} class={fz.cls} role="status">{fz.text}</div></template>
+                </template>
                 <template lwc:if={hasHome}>
                     <!-- health line (saved checks only) -->
                     <section class="rr-card rr-hs" aria-label="Health">

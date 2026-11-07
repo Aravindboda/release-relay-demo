@@ -47,6 +47,8 @@ public with sharing class RlyRaiseService {
         public List<RlyManualSteps.StepInput> manualSteps;
         /** @description What happens to each selected flow after the deploy: Keep (default), Activate or Inactive. */
         public List<RlyFlowChoices.FlowChoice> flowChoices;
+        /** @description The release's tickets (Work items), for example PROJ-123. */
+        public List<String> workItems;
     }
 
     /**
@@ -57,6 +59,7 @@ public with sharing class RlyRaiseService {
     public static Id raise(RaiseRequest req) {
         RlyHubGuard.requireHub();
         RlyRaiseRules.checkRequest(req);
+        List<String> tickets = RlyWorkItems.checked(req.workItems, RlyWorkStore.trackingSettings()); // the release's tickets (build 40)
         String hotfixReason = RlyHotfix.reason(req);
         RlyRaiseRules.Route route = RlyRaiseRules.route(req.sourceOrgId);
         List<Item> added = RlyDeletionRules.added(req);
@@ -84,6 +87,7 @@ public with sharing class RlyRaiseService {
         List<RLY_Release_Item__c> items = buildItems(added);
         items.addAll(deletionItems(deletions));
         RlyReleaseStore.insertRelease(rel, items);
+        RlyWorkItems.attach(rel, tickets);
         RlyManualStepRuns.addToRaised(rel, steps, route.target);
         RlyStepFileDrafts.linkDrafts(steps, req.manualSteps); // the New Release draft files, linked to the saved steps
         RlyReleaseLog.add(rel, 'Raised', 'Raised from ' + route.source.Name + ' into ' + route.target.Name + ': ' + contentWords(rel, deletions, steps))
