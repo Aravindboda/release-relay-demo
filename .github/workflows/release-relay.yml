@@ -5,7 +5,9 @@
 # (Down the route): Git only, no environment: what each higher branch in options.route has that the next one down
 # doesn't; results/<id>/route.json. Mode "compare" with options.full: a developer org read whole by the hub, same
 # drift.json. Mode "sync" with options.paths: back promote only the picked files (a file the lower branch changed too
-# is a conflict, never overwritten). The Pipeline Monitor shows "Org vs branch" and "Down the route".
+# is a conflict, never overwritten); with branch = target, Push to the org: just the picked components are deployed
+# from the branch. Mode "sync" with options.branchOnly and no target environment (a developer org): the sync-branch job
+# (no environment) only updates the lower branch. The Pipeline Monitor shows "Org vs branch" and "Down the route".
 # Version 22: mode "compare" (the hub's Compare before raising, for big releases). The hub commits the developer org's
 # copy as Metadata API zips to release-relay-results (compare-inbox/<id>/<n>.zip) and starts the run with request_id
 # CMP-<13 digits>, target = the branch to compare with, components/deletions and options.batches. The compare job signs
@@ -443,6 +445,39 @@ jobs:
           git show "$GITHUB_SHA:scripts/release-relay.js" > "$RUNNER_TEMP/release-relay.js"
           node "$RUNNER_TEMP/release-relay.js"
 
+  # Back promote into a developer org's branch only (version 23): a developer org has no sign-in in GitHub, so no
+  # environment and no deploy; the lower branch gets the merge or the picked files.
+  sync-branch:
+    if: ${{ inputs.mode == 'sync' && inputs.target_environment == '' && fromJSON(inputs.options || '{}').branchOnly == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # Optional: a GitHub App token, when branch rules only let the app push to the developer branch.
+      - name: Create GitHub App token
+        id: app
+        if: ${{ vars.RELAY_APP_ID != '' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.RELAY_APP_ID }}
+          private-key: ${{ secrets.RELAY_APP_PRIVATE_KEY }}
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app.outputs.token || github.token }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Back promote into the branch
+        env:
+          STEP: sync
+          OPTIONS: ${{ inputs.options }}
+          ALLOWED_TARGETS: ${{ vars.ALLOWED_TARGETS }}
+          SOURCE_PATH: ${{ vars.SOURCE_PATH }}
+        # The script checks out other branches: run a copy of the pipeline's own from outside the checkout.
+        run: |
+          git show "$GITHUB_SHA:scripts/release-relay.js" > "$RUNNER_TEMP/release-relay.js"
+          node "$RUNNER_TEMP/release-relay.js"
+
   # Rollback: deploys a snapshot (taken before an earlier deploy) back into the org. Runs in the target org's
   # environment, like deploy, so its login and protection rules apply. Release branches aren't touched.
   rollback:
@@ -772,7 +807,7 @@ jobs:
   # the hub how the run ended: Succeeded, Failed or Cancelled from the jobs' results, the finished time and duration,
   # each job's outcome and the first failure (read from this run with its own token: actions and checks read). Never fails the run.
   monitor-end:
-    needs: [monitor-start, raise, scan, validate, merge, deploy, sync, rollback, notify, archive, compare, drift, routediff]
+    needs: [monitor-start, raise, scan, validate, merge, deploy, sync, sync-branch, rollback, notify, archive, compare, drift, routediff]
     if: ${{ always() && vars.RELAY_MONITOR != 'off' }}
     runs-on: ubuntu-latest
     environment: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}

@@ -15,7 +15,11 @@
 //     results/<id>/route.json and f/<n>.json (left = higher, right = lower).
 //   MODE=sync with options.paths: back promote picked files only: the paths are taken from BRANCH onto TARGET (a path
 //     BRANCH no longer has is removed) instead of a full merge; a path TARGET changed too is a conflict, nothing is
-//     overwritten. The validate and deploy that follow are sync's own.
+//     overwritten. The validate and deploy that follow are sync's own. With BRANCH = TARGET (Push to the org) the
+//     picked components are deployed from the branch as it is and the branch isn't changed.
+//   MODE=sync with options.branchOnly and no TARGET_ENVIRONMENT (a developer org, no sign-in in GitHub): the lower
+//     branch is updated (merge or picked paths) and nothing is deployed; result Succeeded.
+//   MODE=routediff takes options.pairs [[higher, lower], ...] when given (the route as a tree), else options.route.
 // Version 22: STEP=compare (MODE=compare, request id CMP-<13 digits>) compares a developer org's copy with a target
 // branch for the hub's Compare before raising, without the zip ever being read in Salesforce: the hub commits each
 // batch's Metadata API zip to release-relay-results at compare-inbox/<id>/<n>.zip (every zip there is read, in number
@@ -463,7 +467,9 @@ function checkCommonInputs() {
         // A back promote takes the hub's production branch (any branch name) into a back-promote org's branch.
         if (!REF_RE.test(branch) || branch.includes('..')) { fail(`Branch "${branch}" isn't a valid source branch.`); }
     } else if (!BRANCH_RE.test(branch)) { fail(`Branch "${branch}" must look like feature/short-name.`); }
-    if (mode !== 'rollback' && (!REF_RE.test(target) || target.includes('..') || target === branch || target === RESULTS_BRANCH || target === SNAPSHOT_BRANCH)) { fail(`Target "${target}" isn't a valid target branch.`); }
+    // Push to the org (version 23): sync with picked paths from an org's own branch to that org (BRANCH = TARGET).
+    const pushToOrg = mode === 'sync' && Array.isArray(options.paths) && options.paths.length > 0 && target === branch;
+    if (mode !== 'rollback' && (!REF_RE.test(target) || target.includes('..') || (target === branch && !pushToOrg) || target === RESULTS_BRANCH || target === SNAPSHOT_BRANCH)) { fail(`Target "${target}" isn't a valid target branch.`); }
     if (!/^[A-Za-z0-9_./-]+$/.test(sourcePath()) || sourcePath().includes('..')) { fail('SOURCE_PATH is invalid.'); }
     if (!['github', 'gitlab', 'bitbucket', 'azure'].includes(PROVIDER)) { fail('RELAY_PROVIDER must be github, gitlab, bitbucket or azure.'); }
 }
@@ -1395,7 +1401,16 @@ function gatesSummary(step, result) {
  * using the files as they are at head. Returns null when nothing deployable changed.
  */
 function buildDeployment(base, head) {
-    const all = changedFiles(base, head);
+    return buildFromFiles(changedFiles(base, head), base);
+}
+
+/** The deployment for picked repo paths as the checked-out branch has them (a path it hasn't got is a deletion). */
+function buildForPaths(paths, ref) {
+    return buildFromFiles(paths.map((f) => ({ status: fs.existsSync(f) ? 'M' : 'D', file: f })), ref);
+}
+
+/** The deployment (manifests, counts, Apex) for changed files [{status A|M|D, file}]; base is used for the exclude list's label checks. */
+function buildFromFiles(all, base) {
     const skipped = new Set(all.filter((f) => isExcluded(f.file, base)).map((f) => f.file));
     const files = all.filter((f) => !skipped.has(f.file));
     deployExcluded = [...skipped].sort();
@@ -3166,6 +3181,60 @@ function takePickedPaths(paths, lowerHead) {
     return [];
 }
 
+/**
+ * Push to the org (version 23): BRANCH = TARGET, options.paths picked. Deploys just those components from the branch as
+ * it is (a picked path the branch hasn't got is deleted from the org); the branch isn't changed.
+ */
+async function pushPickedToOrg(result, stop, branchOnly) {
+    const paths = pickedPaths();
+    if (!paths) {
+        stop({ message: 'Pushing to the org needs picked paths.' });
+    }
+    if (branchOnly || !targetEnv) {
+        stop({ message: `Pushing to the org needs its environment: ${target}'s org has no sign-in in GitHub.` });
+    }
+    let head;
+    let plan;
+    try {
+        if (!remoteBranchExists(target)) {
+            throw new Error(`Branch ${target} doesn't exist.`);
+        }
+        fetchBranch(target);
+        head = git(['rev-parse', `refs/remotes/origin/${target}`]);
+        git(['checkout', '-q', '--force', '--detach', head]);
+        plan = buildForPaths(paths, head);
+        if (!plan) {
+            result('Nothing to deploy', { sha: head, message: `Nothing deployable among the picked files.${excludedNote()}` });
+            return;
+        }
+        const valuesProblem = prepareDeployValues(plan, targetEnv);
+        if (valuesProblem) {
+            stop({ sha: head, message: `${valuesProblem} Nothing was deployed.`.slice(0, 1500) });
+        }
+        login('target-org');
+    } catch (e) {
+        stop({ sha: head || null, message: String(e.message || e).slice(0, 1500) });
+    }
+    plan.ownTests = false;
+    plan.defaultTestLevel = plan.apex.length ? 'RunLocalTests' : 'NoTestRun';
+    const snapshot = takeSnapshot(plan, head);
+    const r = deployTo('target-org', plan, false);
+    if (!r.ok) {
+        stop({ sha: head, deployId: r.deployId || null, testsRun: r.testsRun || 0, snapshot,
+            message: `Deploying the picked components to ${targetEnv} failed: ${deployFailureText(r)}` });
+    }
+    result('Deployed', { sha: head, deployId: r.deployId || null, testsRun: r.testsRun || 0, snapshot,
+        message: `Deployed ${pickedCount(plan.sources)} picked component(s)${plan.deleted ? ` and deleted ${plan.deleted}` : ''} from ${target} to ${targetEnv} (${r.testLevel}). The branch wasn't changed.${excludedNote()}` });
+}
+
+/** How many components some deployed files are (a class and its -meta.xml are one). */
+function pickedCount(files) {
+    return new Set(files.map((f) => {
+        const c = componentFor(f);
+        return c ? `${c.type}:${c.name}` : f;
+    })).size;
+}
+
 async function stepSync() {
     orgEnv = sourceEnv;
     if (mode !== 'sync') {
@@ -3179,8 +3248,13 @@ async function stepSync() {
     };
     checkAllowedTarget(); // runs not started by the hub: TARGET must be in the source's ALLOWED_TARGETS
     orgEnv = targetEnv;
-    if (!targetEnv) {
+    const branchOnly = options.branchOnly === true; // version 23: a developer org's branch only (no GitHub sign-in)
+    if (!targetEnv && !branchOnly) {
         stop({ message: 'No target environment: a back promote needs the org to deploy to.' });
+    }
+    if (branch === target) {
+        await pushPickedToOrg(result, stop, branchOnly);
+        return;
     }
     let oldHead = null;
     let head;
@@ -3230,6 +3304,19 @@ async function stepSync() {
     }
 
     const push = () => git(['push', '-q', 'origin', `HEAD:refs/heads/${target}`]);
+    if (branchOnly) {
+        // A developer org has no sign-in in GitHub: only its branch is brought up to date.
+        try {
+            push();
+        } catch (e) {
+            stop({ sha: head, message: `Pushing ${target} failed (branch rules?): ${String(e.message || e).slice(0, 500)}` });
+        }
+        const what = pickedPaths() ? `${pickedPaths().length} picked file(s)` : `everything from ${branch}`;
+        result('Succeeded', { sha: head, message: oldHead === head ? `${target} already had ${what}; nothing changed.`
+            : `${target} was updated with ${what}. The org itself wasn't deployed to (a developer org has no sign-in in GitHub): `
+                + 'deploy to it from the branch, or raise from it again.' });
+        return;
+    }
     let plan = null;
     let apexChanged = false;
     try {
@@ -4440,20 +4527,30 @@ async function stepRouteDiff() {
         writeCompareResults({ status: 'Failed', message: String(message).slice(0, 1500), pairs: [] }, [], 'route.json', 'routediff');
         fail(message);
     };
-    if (route.length < 2 || route.length > 12) {
-        routeFailed('options.route must list 2 to 12 branches, highest first.');
+    // options.pairs [[higher, lower], ...] (several developer orgs make the route a tree) wins over options.route.
+    let wanted;
+    if (Array.isArray(options.pairs) && options.pairs.length) {
+        if (options.pairs.length > 30 || !options.pairs.every((p) => Array.isArray(p) && p.length === 2)) {
+            routeFailed('options.pairs must list 1 to 30 [higher, lower] pairs of branches.');
+        }
+        wanted = options.pairs.map((p) => [String(p[0]), String(p[1])]);
+    } else {
+        if (route.length < 2 || route.length > 12) {
+            routeFailed('options.route must list 2 to 12 branches, highest first.');
+        }
+        wanted = route.slice(0, -1).map((b, i) => [b, route[i + 1]]);
     }
-    for (const b of route) {
+    for (const b of [...new Set([].concat(...wanted))]) {
         if (!REF_RE.test(b) || b.includes('..') || b === RESULTS_BRANCH || b === SNAPSHOT_BRANCH) { routeFailed(`"${b}" isn't a valid branch.`); }
         if (!remoteBranchExists(b)) { routeFailed(`Branch ${b} doesn't exist.`); }
         fetchBranch(b);
     }
+    if (wanted.some(([h, l]) => h === l)) {
+        routeFailed('A pair compares a branch with itself.');
+    }
     const rules = pathRules(folderOption());
     const files = [];
-    const pairs = [];
-    for (let i = 0; i + 1 < route.length; i++) {
-        pairs.push(routePair(route[i], route[i + 1], rules, files));
-    }
+    const pairs = wanted.map(([h, l]) => routePair(h, l, rules, files));
     writeCompareResults({ status: 'Succeeded', message: '', checkedAt: new Date().toISOString(), pairs }, files, 'route.json', 'routediff');
     summary('**Down the route:** ' + pairs.map((p) => `${p.higher} → ${p.lower}: ${p.count}`).join(' · ') + `; ${files.length} file(s) for the hub.`);
 }
@@ -4466,8 +4563,8 @@ const MONITOR_STEPS = { org: 'Raise', branch: 'Raise', promote: 'Raise', hub: 'R
     drift: 'Org vs branch', routediff: 'Down the route' };
 /** The pipeline's jobs whose outcomes make the run's status, with the names the hub shows. */
 const MONITOR_JOBS = { raise: 'Raise pull request', scan: 'Code scan', validate: 'Check-only deploy', merge: 'Merge',
-    deploy: 'Deploy', sync: 'Back promote', rollback: 'Rollback', archive: 'Archive', compare: 'Compare',
-    drift: 'Org vs branch', routediff: 'Down the route' };
+    deploy: 'Deploy', sync: 'Back promote', 'sync-branch': 'Back promote (branch only)', rollback: 'Rollback', archive: 'Archive',
+    compare: 'Compare', drift: 'Org vs branch', routediff: 'Down the route' };
 
 function monitorWarn(message) {
     console.log('::warning::Pipeline Monitor: ' + message);
@@ -4566,7 +4663,7 @@ async function stepMonitor() {
     const body = {
         runId: gh.runId, attempt: gh.attempt, mode: runMode, step,
         branch: runMode === 'sync' || runMode === 'compare' || runMode === 'drift' ? target
-            : (runMode === 'routediff' ? (Array.isArray(options.route) ? options.route.map(String).join(' → ').slice(0, 255) : null)
+            : (runMode === 'routediff' ? (target || (Array.isArray(options.route) ? options.route.map(String).join(' → ').slice(0, 255) : null))
                 : (runMode === 'archive' ? env.GITHUB_REF_NAME : branch)) || null,
         targetOrg: targetEnv || sourceEnv || (runMode === 'archive' ? input('RELAY_HUB_ENVIRONMENT') || 'prod' : null),
         status: ending ? monitorEndStatus() : 'In progress',
