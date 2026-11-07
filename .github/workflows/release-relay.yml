@@ -1,4 +1,15 @@
-# Release Relay pipeline files: version 25
+# Release Relay pipeline files: version 26
+# Version 26: mode "migrate" (the hub's Move repository wizard, request ids MIG-<13 digits>). The migrate job runs in
+# this (the SOURCE) repository: no environment and no org. It mirror-clones this repository and pushes every branch and
+# tag to the new, empty repository at options.targetUrl (https, never with credentials) with the repository secret
+# RELAY_MIGRATE_TOKEN (a token that can push to the new repository; delete it after the move). Repository variable
+# RELAY_MIGRATE_USER overrides the push user name (default from options.targetProvider). A target with any branch or
+# tag is refused (options.force overrides; the hub never sets it). Progress and the result: results/<id>/migrate.json
+# on release-relay-results. Open pull requests, run history and comments don't move. Every other mode is unchanged.
+# options.method: lift (every branch, tag and commit; the default), fresh (each branch in options.branches seeded with
+# its latest files, one commit, no history) or verify (nothing pushed: a copy made by the provider's importer compared
+# ref by ref). options.dryRun reads both sides and reports (what would move, size, access, empty or matching) first.
+# (Version 25 notes follow.)
 # Version 25: clearer run names and a run summary. A run's name keeps "Release Relay <request id> (<mode>)" (the hub
 # finds its run by it; hubs from build 44 also accept the added parts) and adds " · <title>" when the title input is set
 # and " · by <name>" when the options JSON has "by" (who raised the release). Scheduled runs keep their names. Each step's
@@ -119,10 +130,10 @@ on:
         required: false
         type: string
       mode:
-        description: org, branch, promote, hub, resolve, check, merge, sync, rollback, compare, drift, routediff, data (from the hub), archive (the nightly archive, by hand) or slack (Slack reminders and digests, by hand)
+        description: org, branch, promote, hub, resolve, check, merge, sync, rollback, compare, drift, routediff, data, migrate (from the hub), archive (the nightly archive, by hand) or slack (Slack reminders and digests, by hand)
         required: true
         type: choice
-        options: [org, branch, promote, hub, resolve, check, merge, sync, rollback, compare, drift, routediff, data, archive, slack]
+        options: [org, branch, promote, hub, resolve, check, merge, sync, rollback, compare, drift, routediff, data, migrate, archive, slack]
       environment:
         description: GitHub environment of the source org (sync = the hub's production org)
         required: false
@@ -167,7 +178,7 @@ permissions:
 # One run at a time per release branch; back promotes, one at a time per back-promote branch; rollbacks, one at
 # a time per org; the nightly archive, one at a time; each compare on its own.
 concurrency:
-  group: release-relay-${{ ((github.event_name == 'schedule' && github.event.schedule == '17 * * * *') || inputs.mode == 'slack') && 'slack-due' || github.event_name == 'schedule' && 'archive' || ((inputs.mode == 'compare' || inputs.mode == 'drift' || inputs.mode == 'routediff' || inputs.mode == 'data') && format('{0}-{1}', inputs.mode, inputs.request_id) || (inputs.mode == 'rollback' && format('rollback-{0}', inputs.target_environment) || (inputs.mode == 'sync' && inputs.target || inputs.branch))) }}
+  group: release-relay-${{ ((github.event_name == 'schedule' && github.event.schedule == '17 * * * *') || inputs.mode == 'slack') && 'slack-due' || github.event_name == 'schedule' && 'archive' || ((inputs.mode == 'compare' || inputs.mode == 'drift' || inputs.mode == 'routediff' || inputs.mode == 'data' || inputs.mode == 'migrate') && format('{0}-{1}', inputs.mode, inputs.request_id) || (inputs.mode == 'rollback' && format('rollback-{0}', inputs.target_environment) || (inputs.mode == 'sync' && inputs.target || inputs.branch))) }}
   cancel-in-progress: false
 
 env:
@@ -681,6 +692,28 @@ jobs:
           SOURCE_PATH: ${{ vars.SOURCE_PATH }}
         run: node scripts/release-relay.js
 
+  # Move repository (version 26): this repository mirrored into a new, empty one (another provider). Git only, no
+  # environment and no org. The target's token is the repository secret RELAY_MIGRATE_TOKEN; the target address comes
+  # in options.targetUrl without credentials.
+  migrate:
+    if: ${{ inputs.mode == 'migrate' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Copy the repository to the new one
+        env:
+          STEP: migrate
+          OPTIONS: ${{ inputs.options }}
+          RELAY_MIGRATE_TOKEN: ${{ secrets.RELAY_MIGRATE_TOKEN }}
+          RELAY_MIGRATE_USER: ${{ vars.RELAY_MIGRATE_USER }}
+        run: node scripts/release-relay.js
+
   # Data sets (version 24): the source's records, saved to release-relay-results (data-inbox/<id>/). Skipped when the
   # hub already sent them (a developer org has no sign-in here).
   data-export:
@@ -991,7 +1024,7 @@ jobs:
   # the hub how the run ended: Succeeded, Failed or Cancelled from the jobs' results, the finished time and duration,
   # each job's outcome and the first failure (read from this run with its own token: actions and checks read). Never fails the run.
   monitor-end:
-    needs: [monitor-start, raise, scan, validate, merge, deploy, sync, sync-branch, rollback, notify, archive, compare, drift, routediff, data-export, data-load]
+    needs: [monitor-start, raise, scan, validate, merge, deploy, sync, sync-branch, rollback, notify, archive, compare, drift, routediff, data-export, data-load, migrate]
     if: ${{ always() && vars.RELAY_MONITOR != 'off' && github.event.schedule != '17 * * * *' && inputs.mode != 'slack' }}
     runs-on: ubuntu-latest
     environment: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
