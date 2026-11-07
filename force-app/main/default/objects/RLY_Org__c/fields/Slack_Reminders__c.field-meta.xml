@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Slack_Reminders__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Slack reminders for releases into this org: a nudge in the release&apos;s thread when it has waited for approval (approvers) or for manual steps (deploy team) longer than Slack_Reminder_Hours__c. Off: nothing is checked or sent for this org.</description>
+    <label>Slack Reminders</label>
+    <type>Checkbox</type>
+</CustomField>

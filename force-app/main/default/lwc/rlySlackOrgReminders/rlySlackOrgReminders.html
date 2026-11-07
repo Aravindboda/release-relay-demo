@@ -1,0 +1,46 @@
+<template>
+    <div class="rr-rem" aria-label="Slack reminders">
+        <div class="rr-row">
+            <h4 class="rr-h4 rr-grow">Reminders and alerts</h4>
+            <template lwc:if={canEdit}><lightning-button label="Edit" onclick={startEdit} disabled={busy}></lightning-button></template>
+        </div>
+        <template lwc:if={error}><p class="rr-msg rr-msg-bad" role="alert">{error}</p></template>
+        <template lwc:if={ready}>
+            <template lwc:if={slackOff}><p class="rr-hint">Slack is off for the hub: nothing is sent until it is on (Slack card above).</p></template>
+            <template lwc:if={noChannel}><p class="rr-hint">Set this org's channel first: reminders, the digest and hotfix alerts post there.</p></template>
+            <template lwc:if={editing}>
+                <div class="rr-form">
+                    <div class="rr-line">
+                        <lightning-input type="toggle" label="Reminders" checked={form.reminders} data-field="reminders" onchange={handleToggle}
+                            message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                        <lightning-input type="number" label="Hours waiting before a nudge (and between nudges)" value={form.hours} min="1" max="72"
+                            step="1" data-field="hours" onchange={handleNumber} disabled={remindersOff} placeholder="4" class="rr-num"></lightning-input>
+                    </div>
+                    <div class="rr-line">
+                        <lightning-input type="toggle" label="Daily digest" checked={form.digest} data-field="digest" onchange={handleToggle}
+                            message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                        <lightning-combobox label="Send at" options={hourOptions} value={digestHourValue} data-field="digestHour"
+                            onchange={handleNumber} disabled={digestOff} class="rr-hour"></lightning-combobox>
+                    </div>
+                    <lightning-input type="toggle" label="Mentions (the developer when checks fail, approvers when ready)" checked={form.mentions}
+                        data-field="mentions" onchange={handleToggle} message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                    <lightning-input type="toggle" label="Hotfix alerts (post even when reminders are off)" checked={form.hotfixAlerts}
+                        data-field="hotfixAlerts" onchange={handleToggle} message-toggle-active="On" message-toggle-inactive="Off"></lightning-input>
+                    <p class="rr-hint">Times use the hub's time zone ({s.timeZone}). Reminders are quiet between 8 PM and 7 AM. With reminders and the digest off, nothing is checked for this org.</p>
+                    <div class="rr-row rr-end">
+                        <lightning-button label="Cancel" onclick={cancel} disabled={busy}></lightning-button>
+                        <lightning-button variant="brand" label="Save" onclick={save} disabled={busy}></lightning-button>
+                    </div>
+                </div>
+            </template>
+            <template lwc:else>
+                <dl class="rr-facts">
+                    <template for:each={facts} for:item="f">
+                        <div key={f.key} class="rr-fact"><dt>{f.label}</dt><dd>{f.value}</dd></div>
+                    </template>
+                </dl>
+            </template>
+        </template>
+        <template lwc:elseif={busy}><p class="rr-hint">Reading…</p></template>
+    </div>
+</template>

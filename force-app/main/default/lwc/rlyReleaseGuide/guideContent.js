@@ -867,6 +867,22 @@ const SETUP_SECTIONS = [
                                 links: [{ label: 'How to use: Pipeline tab', to: 'pipelinetab' }]
                             },
                             {
+                                title: 'Reminders, daily digest, mentions and hotfix alerts (optional, per org)',
+                                who: 'Release Relay admin',
+                                where: 'Release Relay → Pipeline → Connected orgs → click the org → Slack → Reminders and alerts → Edit',
+                                goal: 'Nudge people when a release waits, send one summary a day, tag the right person, and always flag a hotfix.',
+                                items: [
+                                    '**Reminders**: a nudge in the release\'s Slack thread when it has waited for approval (approvers) or still has manual steps to do after a deploy (deploy team) longer than the hours you set (4 when blank), then again every that many hours. Quiet between 8 PM and 7 AM.',
+                                    '**Daily digest**: one message in the org\'s channel from the hour you pick: deployed yesterday, waiting for approval, manual steps to do, failed. Nothing to say, no message.',
+                                    '**Mentions**: tags the developer when checks fail and the approvers when a release is ready (and in reminders). Only people linked to Slack (Approvers window) are tagged.',
+                                    '**Hotfix alerts** (on by default): "Hotfix in progress" in the org\'s channel when a hotfix into it is raised, even with reminders off.',
+                                    'With reminders and the digest off, nothing is checked or sent for that org.'
+                                ],
+                                text: ['Reminders and digests go out from the pipeline\'s hourly schedule (pipeline files version 24, job **slack-due**), which calls the production hub; times use the hub\'s time zone. Repository variable `RELAY_SLACK_DUE=off` stops it. Slack being busy (rate limited) just moves the rest to the next hour.'],
+                                check: 'With reminders on and a short wait (1 hour), a release waiting for approval gets a nudge in its thread within the next hour.',
+                                problems: [['Nothing arrives', 'The org needs a channel and Slack on; the pipeline files must be version 24 (Pipeline tab → Pipeline files); the run "Release Relay Slack reminders" in GitHub Actions logs what the hub answered.']]
+                            },
+                            {
                                 title: 'Approve in Slack: save the signing secret',
                                 who: 'Slack admin + Release Relay admin',
                                 where: 'Slack app settings → your app → Basic Information → App Credentials; then Release Relay → Pipeline → Slack connection → Edit',

@@ -66,7 +66,7 @@ public with sharing class RlySlackDelivery {
             RlySlackApi.call('chat.update', card);
         }
         RlySlackApi.call('chat.postMessage', new Map<String, Object>{ 'channel' => rel.Slack_Channel_Id__c,
-            'thread_ts' => rel.Slack_Ts__c, 'text' => RlySlackReply.forEvent(rel, event, approverName) });
+            'thread_ts' => rel.Slack_Ts__c, 'text' => RlySlackReply.forEvent(rel, event, approverName) + RlySlackAlert.mentionsFor(rel, event) });
         return 'Sent: ' + rel.Name + ' · ' + event;
     }
 
