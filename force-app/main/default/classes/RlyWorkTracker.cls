@@ -92,6 +92,7 @@ public with sharing class RlyWorkTracker {
                 c.message = changeNo + ' wasn\'t found in ServiceNow.';
                 return c;
             }
+            c.record = rec;
             readChange(rec, changeNo, c);
         } catch (Exception e) {
             c.message = 'Couldn\'t read ' + changeNo + ' in ServiceNow: ' + e.getMessage();

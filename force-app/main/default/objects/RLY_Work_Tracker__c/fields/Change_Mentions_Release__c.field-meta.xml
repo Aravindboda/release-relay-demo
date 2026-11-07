@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Change_Mentions_Release__c</fullName>
+    <defaultValue>true</defaultValue>
+    <description>Build 48, ServiceNow: the change gate only accepts a change request whose short description or description names the release (REL-00052). On by default; trackers that existed before build 48 get it on too.</description>
+    <label>Change Mentions Release</label>
+    <type>Checkbox</type>
+</CustomField>

@@ -6,6 +6,8 @@
  * checks again and starts the deploy once the change allows it. Callouts only (the callers save the release).
  * Build 47: only tickets that went to an active ServiceNow tracker count, and that tracker's Named Credential reads
  * the change; the switch and the change format are global (RLY_Work_Tracking__c).
+ * Build 48: the change must also name the release in its short description or description (RlyWorkChangeMention),
+ * unless the tracker's "Change must mention the release" is off.
  */
 public with sharing class RlyWorkGate {
 
@@ -31,7 +33,8 @@ public with sharing class RlyWorkGate {
             return true;
         }
         String changeNo = change.Ticket__c;
-        RlyWorkTypes.Change c = RlyWorkTracker.change(RlyWorkRouting.trackerOf(change), changeNo);
+        RLY_Work_Tracker__c tracker = RlyWorkRouting.trackerOf(change);
+        RlyWorkTypes.Change c = RlyWorkChangeMention.checked(RlyWorkTracker.change(tracker, changeNo), tracker, rel.Name); // build 48
         if (c.allowed) {
             if (isWaiting(rel)) {
                 rel.Error_Message__c = null;

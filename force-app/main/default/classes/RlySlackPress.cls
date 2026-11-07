@@ -62,6 +62,8 @@ public with sharing class RlySlackPress {
             whisper(RlySlackAction.refusal(rel), null);
         } else if (found.notApprover) {
             whisper(RlySlackLink.CANT_APPROVE, null);
+        } else if (!found.matched) {
+            whisper(RlySlackLink.ASK_ADMIN, null); // build 48: no link token for someone who matches no user
         } else {
             RLY_Notification__c s = RlySlack.settings();
             String url = RlySlackLink.url(RlySlackLink.token(memberId, teamId, s.Signing_Secret__c), rel.Id);
