@@ -84,6 +84,10 @@
         <apexClass>RlySyncController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>RlyDataController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <customPermissions>
         <enabled>true</enabled>
         <name>RLY_Approver</name>
@@ -810,6 +814,24 @@
         <allowRead>true</allowRead>
         <modifyAllRecords>false</modifyAllRecords>
         <object>RLY_Sync_Check__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>RLY_Data_Run__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>RLY_Data_Set__c</object>
         <viewAllRecords>true</viewAllRecords>
     </objectPermissions>
     <tabSettings>
