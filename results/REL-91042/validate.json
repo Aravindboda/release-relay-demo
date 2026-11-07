@@ -1,15 +1,15 @@
 {
  "request": "REL-91042",
  "step": "validate",
- "status": "Failed",
+ "status": "Passed",
  "changed": 36,
  "deleted": [],
  "mergedWith": "9127b295ec0aec78b9cb3a87c0b065acdb0b1f50",
- "validatedTree": "476c8d7d078a4f881dd6bedd51b692289957a6ab",
+ "validatedTree": "5ad5990e06792761f445a01cf4dd5b27cd73f6f3",
  "environment": "sit",
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d7PCvSAM",
+ "deployId": "0AfgL00000d7TJlSAM",
  "testsRun": 436,
  "tests": [
   "RlyAppendTest",
@@ -76,33 +76,17 @@
   "RlyTwoApproversTest",
   "RlyMetricsTest"
  ],
- "coverageWarnings": [
-  {
-   "name": "RlyMetricsChecks",
-   "message": "Test coverage of selected Apex Class is 28.333%, at least 75% test coverage is required"
-  }
- ],
+ "coverageWarnings": [],
  "componentErrors": [],
- "testFailures": [
-  {
-   "name": "RlyMetricsTest",
-   "method": "theDeveloperOrgFilterAndAllOrgs",
-   "message": "System.AuraHandledException: List index out of bounds: 0"
-  },
-  {
-   "name": "RlyMetricsTest",
-   "method": "whyChecksFailAndTheFilesInConflicts",
-   "message": "System.AuraHandledException: List index out of bounds: 0"
-  }
- ],
- "message": "2 test failure(s)",
+ "testFailures": [],
+ "message": "",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42393106223",
- "finishedAt": "2026-11-07T16:59:06.248Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42394144202",
+ "finishedAt": "2026-11-07T17:16:57.610Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
