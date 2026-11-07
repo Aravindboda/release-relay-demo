@@ -38,7 +38,9 @@ private class RlyRaisePartsTest {
             System.assertEquals(4, parts.size(), 'Classes 25 + 5, and each static resource alone');
             System.assertEquals(25, parts[0].get('ApexClass').size(), 'A full part first');
             System.assert(parts[0].get('ApexClass').contains('C01'), 'Names sorted');
-            System.assertEquals(new Set<String>{ 'banner' }, parts[2].get('StaticResource'), 'Heavy types alone, sorted');
+            System.assertEquals(new Set<String>{ 'banner' }, parts[1].get('StaticResource'), 'Heavy types alone, sorted');
+            System.assertEquals(new Set<String>{ 'logo' }, parts[2].get('StaticResource'), 'One heavy component a part');
+            System.assertEquals(5, parts[3].get('ApexClass').size(), 'The rest last');
             System.assertEquals(JSON.serialize(parts), JSON.serialize(again), 'The same parts every time');
             System.assertEquals(1, small.size(), 'A small release is one part');
             System.assert(RlyRaiseParts.isParted('2:09S000000000001AAA'), 'k:id is a release in parts');
@@ -103,7 +105,8 @@ private class RlyRaisePartsTest {
     static void aBigRaiseStartsWithItsFirstPart() {
         System.runAs(RlyTestData.admin()) {
             RLY_Release__c rel = RlyReleaseTestData.release('Retrieving', null);
-            RLY_Org__c dev = RlyReleaseStore.org(rel.Source_Org__c);
+            Id devId = [SELECT Source_Org__c FROM RLY_Release__c WHERE Id = :rel.Id].Source_Org__c;
+            RLY_Org__c dev = RlyReleaseStore.org(devId);
             RlyOrgSession.testToken = RlyTestData.TOKEN;
             Test.setMock(HttpCalloutMock.class, RlyFlowScenario.forRelease(rel).build());
             Map<String, Set<String>> big = new Map<String, Set<String>>{ 'StaticResource' => new Set<String>{ 'logo' },
