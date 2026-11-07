@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Release Relay pipeline files: version 21
 // Version 21: step notify and the monitor send their JSON body inline. "sf api request rest --body <file>" sent the
-// file's path as the body, so the hub refused it (runId missing) or ignored it.
+// file's path as the body, so the hub refused it (runId missing) or ignored it. Runs started from a debug/ or test/
+// workflow branch are not posted to the Pipeline Monitor.
 // Version 20: STEP=monitor tells the hub about this run for its Pipeline Monitor tab (POST
 // /services/apexrest/rly/pipeline-run, signed in with the hub environment's login through "sf api request rest"):
 // MONITOR_STATUS=in_progress when the run starts, MONITOR_STATUS=end when it ends (Succeeded, Failed or Cancelled from
@@ -3599,6 +3600,10 @@ async function stepMonitor() {
     const gh = monitorRun();
     if (!gh) {
         monitorWarn('not a GitHub Actions run; nothing to post.');
+        return;
+    }
+    if (/^(debug|test)\//.test(env.GITHUB_REF_NAME || '')) {
+        console.log('Pipeline Monitor: a debug or test run (' + env.GITHUB_REF_NAME + '); not shown on the monitor.');
         return;
     }
     const hasKey = (v('SF_JKS') && v('SF_JKS_PASSWORD') && v('SF_JKS_ALIAS')) || v('SF_JWT_KEY');
