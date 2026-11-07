@@ -61,7 +61,7 @@ public with sharing class RlyComparePipelineInput {
         if (conn == null || conn.Status__c != 'Connected') {
             throw new RlyReleaseException('The Git connection isn\'t set up and checked yet (Pipeline tab).');
         }
-        if (conn.Provider__c != 'GitHub') {
+        if (conn.Provider__c != 'GitHub' && conn.Provider__c != 'GitLab') { // build 45: GitLab runs the pipeline jobs too
             throw new RlyReleaseException(RlyComparePipeline.GITHUB_ONLY);
         }
         return RlyGit.forConnection(conn);

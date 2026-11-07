@@ -86,7 +86,7 @@ private class RlyStatusReaderTest {
     static void unreachableGitKeepsTheStatus() {
         System.runAs(RlyTestData.admin()) {
             RLY_Release__c rel = RlyReleaseTestData.release('Validating', 'hub');
-            update new RLY_Git_Connection__c(Id = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1].Id, Provider__c = 'GitLab', Repository__c = 'acme/release');
+            update new RLY_Git_Connection__c(Id = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1].Id, Provider__c = 'Bitbucket', Repository__c = 'acme/release');
             Test.startTest();
             RlyStatusReader.advance(rel.Id);
             Test.stopTest();

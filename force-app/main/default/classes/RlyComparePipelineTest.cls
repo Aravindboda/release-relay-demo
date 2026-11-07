@@ -143,7 +143,7 @@ private class RlyComparePipelineTest {
         System.runAs(RlyTestData.admin()) {
             RLY_Org__c dev = RlyReleaseTestData.route();
             RLY_Git_Connection__c conn = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
-            conn.Provider__c = 'GitLab';
+            conn.Provider__c = 'Bitbucket';
             update conn;
             String error;
             Test.startTest();
@@ -153,7 +153,7 @@ private class RlyComparePipelineTest {
                 error = e.getMessage();
             }
             Test.stopTest();
-            System.assertEquals(RlyComparePipeline.GITHUB_ONLY, error, 'GitLab has no compare job yet');
+            System.assertEquals(RlyComparePipeline.GITHUB_ONLY, error, 'Bitbucket has no compare job yet');
         }
     }
 
