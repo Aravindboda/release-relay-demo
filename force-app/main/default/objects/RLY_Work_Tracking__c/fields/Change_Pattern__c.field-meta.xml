@@ -2,7 +2,6 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Change_Pattern__c</fullName>
     <description>ServiceNow: which tickets are change requests, for example CHG\d{7}.</description>
-    <externalId>false</externalId>
     <label>Change Format</label>
     <length>80</length>
     <required>false</required>

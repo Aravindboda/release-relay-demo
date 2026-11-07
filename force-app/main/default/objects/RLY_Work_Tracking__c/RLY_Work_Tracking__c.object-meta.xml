@@ -1,22 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
-    <deploymentStatus>Deployed</deploymentStatus>
-    <description>The hub&apos;s work tracking settings (Pipeline tab, admins): which tracker (Jira, Azure Boards, ServiceNow, none or a link only), the ticket formats, the link, whether tickets are required, the Named Credential that signs in to the tracker, and the ServiceNow change gate. One record.</description>
-    <enableActivities>false</enableActivities>
-    <enableBulkApi>true</enableBulkApi>
+    <customSettingsType>Hierarchy</customSettingsType>
+    <description>Work tracking settings (build 40), org default row only: the tracker, ticket formats and link, tickets required, the Named Credential that signs in to the tracker, and the ServiceNow change gate. Read and written only by RlyWorkStore.</description>
     <enableFeeds>false</enableFeeds>
-    <enableHistory>false</enableHistory>
-    <enableReports>false</enableReports>
-    <enableSearch>false</enableSearch>
-    <enableSharing>true</enableSharing>
-    <enableStreamingApi>true</enableStreamingApi>
     <label>RLY Work Tracking</label>
-    <nameField>
-        <label>Name</label>
-        <trackHistory>false</trackHistory>
-        <type>Text</type>
-    </nameField>
-    <pluralLabel>RLY Work Tracking</pluralLabel>
-    <searchLayouts></searchLayouts>
-    <sharingModel>ReadWrite</sharingModel>
+    <visibility>Protected</visibility>
 </CustomObject>

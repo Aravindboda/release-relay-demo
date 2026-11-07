@@ -2,7 +2,6 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Link_Pattern__c</fullName>
     <description>The address of a ticket with {id} where the number goes, for example https://acme.atlassian.net/browse/{id}.</description>
-    <externalId>false</externalId>
     <label>Link</label>
     <length>255</length>
     <required>false</required>

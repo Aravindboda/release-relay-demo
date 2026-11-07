@@ -3,7 +3,6 @@
     <fullName>Require_Change__c</fullName>
     <defaultValue>false</defaultValue>
     <description>ServiceNow: a deploy into production waits until the release has an approved change request whose planned window includes now.</description>
-    <externalId>false</externalId>
     <label>Require Approved Change</label>
     <type>Checkbox</type>
 </CustomField>

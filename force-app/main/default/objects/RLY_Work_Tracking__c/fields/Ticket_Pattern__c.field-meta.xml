@@ -2,7 +2,6 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Ticket_Pattern__c</fullName>
     <description>Regular expressions a ticket must match, separated by spaces, for example [A-Z][A-Z0-9]+-\d+ CHG\d{7}. Blank: anything up to 80 characters.</description>
-    <externalId>false</externalId>
     <label>Ticket Format</label>
     <length>255</length>
     <required>false</required>

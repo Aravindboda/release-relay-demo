@@ -3,7 +3,6 @@
     <fullName>Required__c</fullName>
     <defaultValue>false</defaultValue>
     <description>On: a release can only be raised with at least one ticket.</description>
-    <externalId>false</externalId>
     <label>Tickets Required</label>
     <type>Checkbox</type>
 </CustomField>

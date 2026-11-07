@@ -1,26 +1,20 @@
 /**
- * @description Work items (build 40): every query and save of the work tracking settings (RLY_Work_Tracking__c, one
- * record), the tickets on releases (RLY_Work_Item__c) and the release fields the work items read, in system mode: any
- * Release Relay user sees the tickets of the releases they can open, and only admins change the settings (checked by
- * the callers).
+ * @description Work items (build 40): every read and save of the work tracking settings (RLY_Work_Tracking__c, a
+ * hierarchy custom setting: its org default row, read without a query), the tickets on releases (RLY_Work_Item__c)
+ * and the release fields the work items read, in system mode: any Release Relay user sees the tickets of the releases
+ * they can open, and only admins change the settings (checked by the callers).
  */
 public with sharing class RlyWorkStore {
 
     /** @description Most work item rows one read takes (the Work items tab, newest first). */
     public static final Integer MAX_ROWS = 2000;
 
-    // The settings, read once per request (raise, approval and deploy each ask).
-    private static List<RLY_Work_Tracking__c> cachedSettings;
-
     /**
-     * @description The settings, or null before an admin saved them (read once per request).
+     * @description The settings (the org default row, no query), or null before an admin saved them.
      * @return the record
      */
     public static RLY_Work_Tracking__c trackingSettings() {
-        if (cachedSettings == null) {
-            cachedSettings = new List<RLY_Work_Tracking__c>{ new SystemAccess().settings() };
-        }
-        return cachedSettings[0];
+        return new SystemAccess().settings();
     }
 
     /**
@@ -29,7 +23,6 @@ public with sharing class RlyWorkStore {
      */
     public static void saveSettings(RLY_Work_Tracking__c row) {
         new SystemAccess().upsertSettings(row);
-        cachedSettings = null;
     }
 
     /**
@@ -85,14 +78,12 @@ public with sharing class RlyWorkStore {
          * @return the record, or null
          */
         public RLY_Work_Tracking__c settings() {
-            List<RLY_Work_Tracking__c> rows = [SELECT Id, Tracker__c, Required__c, Ticket_Pattern__c, Link_Pattern__c, Named_Credential__c,
-                                                      Post_Updates__c, State_Map__c, ServiceNow_Table__c, Require_Change__c, Change_Pattern__c
-                                               FROM RLY_Work_Tracking__c WITH SYSTEM_MODE ORDER BY CreatedDate LIMIT 1];
-            return rows.isEmpty() ? null : rows[0];
+            RLY_Work_Tracking__c row = RLY_Work_Tracking__c.getOrgDefaults();
+            return row == null || row.Id == null ? null : row;
         }
 
         /**
-         * @description Inserts or updates the settings.
+         * @description Inserts or updates the org default row.
          * @param row the settings
          */
         public void upsertSettings(RLY_Work_Tracking__c row) {
@@ -101,7 +92,7 @@ public with sharing class RlyWorkStore {
                 row.Id = current.Id;
                 Database.update(row, true, AccessLevel.SYSTEM_MODE);
             } else {
-                row.Name = 'Work tracking';
+                row.SetupOwnerId = UserInfo.getOrganizationId();
                 Database.insert(row, true, AccessLevel.SYSTEM_MODE);
             }
         }

@@ -3,7 +3,6 @@
     <fullName>Post_Updates__c</fullName>
     <defaultValue>false</defaultValue>
     <description>On: Release Relay posts each release moment to the ticket (a comment, and the mapped state).</description>
-    <externalId>false</externalId>
     <label>Post Updates</label>
     <type>Checkbox</type>
 </CustomField>

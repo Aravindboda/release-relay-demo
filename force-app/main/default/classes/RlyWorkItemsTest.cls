@@ -15,7 +15,7 @@ private class RlyWorkItemsTest {
     }
 
     private static RLY_Work_Tracking__c settings(String tracker, Boolean post) {
-        RLY_Work_Tracking__c s = new RLY_Work_Tracking__c(Name = 'Work tracking', Tracker__c = tracker, Post_Updates__c = post,
+        RLY_Work_Tracking__c s = new RLY_Work_Tracking__c(SetupOwnerId = UserInfo.getOrganizationId(), Tracker__c = tracker, Post_Updates__c = post,
             Named_Credential__c = 'Tracker_NC', Ticket_Pattern__c = '[A-Z][A-Z0-9]+-\\d+ CHG\\d{7}',
             Link_Pattern__c = 'https://tracker.example.com/browse/{id}', State_Map__c = '{"Deployed to SIT":"In QA"}',
             Change_Pattern__c = 'CHG\\d{7}');

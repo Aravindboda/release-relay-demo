@@ -4,8 +4,6 @@
  */
 public with sharing class RlyWorkLinks {
 
-    private static List<RLY_Work_Tracking__c> shown;
-
     /**
      * @description A ticket's link from the admin's pattern ({id}), or null.
      * @param ticket the ticket
@@ -31,7 +29,7 @@ public with sharing class RlyWorkLinks {
         }
         List<String> out = new List<String>();
         for (String t : joined.split(',\\s*')) {
-            String link = linkOf(t.trim(), shownSettings());
+            String link = linkOf(t.trim(), RlyWorkStore.trackingSettings());
             out.add(link == null ? t.trim() : t.trim() + ' (' + link + ')');
         }
         return String.join(out, ', ');
@@ -48,18 +46,10 @@ public with sharing class RlyWorkLinks {
         }
         List<String> out = new List<String>();
         for (String t : joined.split(',\\s*')) {
-            String link = linkOf(t.trim(), shownSettings());
+            String link = linkOf(t.trim(), RlyWorkStore.trackingSettings());
             String label = RlySlackMessage.esc(t.trim());
             out.add(link == null ? label : '<' + link + '|' + label + '>');
         }
         return String.join(out, ', ');
-    }
-
-    // The settings for links in lists and messages, read once per request.
-    private static RLY_Work_Tracking__c shownSettings() {
-        if (shown == null) {
-            shown = new List<RLY_Work_Tracking__c>{ RlyWorkStore.trackingSettings() };
-        }
-        return shown[0];
     }
 }
