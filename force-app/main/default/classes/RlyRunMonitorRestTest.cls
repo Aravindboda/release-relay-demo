@@ -155,9 +155,9 @@ private class RlyRunMonitorRestTest {
             System.assertEquals(null, RlyRunMonitorInput.moment('6 Nov'), 'Not ISO');
             System.assertEquals(null, RlyRunMonitorInput.releaseNumber('REL-1'), 'Too short');
             System.assertEquals('REL-00042', RlyRunMonitorInput.releaseNumber('rel-00042'), 'Upper-cased');
-            String steps = RlyRunMonitorInput.steps('[{"name":"Code scan","outcome":"success","seconds":"12","extra":1}]');
+            String steps = RlyRunMonitorSteps.steps('[{"name":"Code scan","outcome":"success","seconds":"12","extra":1}]');
             System.assert(steps.contains('Code scan') && !steps.contains('extra'), 'Only name, outcome and seconds: ' + steps);
-            System.assertEquals(null, RlyRunMonitorInput.steps(new List<Object>{ 'x' }), 'No usable job');
+            System.assertEquals(null, RlyRunMonitorSteps.steps(new List<Object>{ 'x' }), 'No usable job');
             System.assertEquals(0, RlyRunMonitorRows.steps('{bad').size(), 'Bad saved JSON gives no jobs');
             System.assertEquals(true, RlyRunMonitorInput.isFinal('Failed'), 'Failed is final');
             System.assertEquals(false, RlyRunMonitorInput.isFinal('Queued'), 'Queued is not');

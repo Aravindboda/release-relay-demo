@@ -17,7 +17,6 @@ public with sharing class RlyRunMonitorInput {
     /** @description Cancelled. */
     public static final String CANCELLED = 'Cancelled';
 
-    private static final Integer MAX_STEPS = 50;
     private static final Pattern RELEASE_NUMBER = Pattern.compile('^REL-\\d{5,10}$');
     private static final Map<String, String> STATUS_WORDS = new Map<String, String>{
         'queued' => QUEUED, 'waiting' => QUEUED, 'pending' => QUEUED, 'requested' => QUEUED,
@@ -133,47 +132,5 @@ public with sharing class RlyRunMonitorInput {
         String s = text(o, 40);
         s = s == null ? null : s.toUpperCase();
         return s != null && RELEASE_NUMBER.matcher(s).matches() ? s : null;
-    }
-
-    /**
-     * @description The jobs list ([{name, outcome, seconds}], or the same as a JSON text) as compact JSON with at most
-     * 50 entries and only those three keys, or null when there are none.
-     * @param o the value
-     * @return the JSON, or null
-     */
-    public static String steps(Object o) {
-        Object list = o instanceof String ? parseList((String) o) : o;
-        if (!(list instanceof List<Object>)) {
-            return null;
-        }
-        List<Map<String, Object>> out = new List<Map<String, Object>>();
-        for (Object item : (List<Object>) list) {
-            Map<String, Object> row = stepRow(item);
-            if (row != null && out.size() < MAX_STEPS) {
-                out.add(row);
-            }
-        }
-        return out.isEmpty() ? null : JSON.serialize(out).left(32768);
-    }
-
-    private static Map<String, Object> stepRow(Object item) {
-        if (!(item instanceof Map<String, Object>)) {
-            return null;
-        }
-        Map<String, Object> m = (Map<String, Object>) item;
-        String name = text(m.get('name'), 120);
-        if (name == null) {
-            return null;
-        }
-        Long seconds = whole(m.get('seconds'));
-        return new Map<String, Object>{ 'name' => name, 'outcome' => text(m.get('outcome'), 20), 'seconds' => seconds };
-    }
-
-    private static Object parseList(String s) {
-        try {
-            return JSON.deserializeUntyped(s);
-        } catch (JSONException e) {
-            return null;
-        }
     }
 }

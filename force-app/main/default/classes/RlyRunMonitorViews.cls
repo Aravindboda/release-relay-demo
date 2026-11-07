@@ -155,7 +155,7 @@ public with sharing class RlyRunMonitorViews {
     }
 
     /** @description A page of older runs. */
-    public class Page {
+    public class OlderPage {
         /** @description The runs, newest first. */
         @AuraEnabled public List<Run> runs = new List<Run>();
         /** @description Still older runs can be read. */

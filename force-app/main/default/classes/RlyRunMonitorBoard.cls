@@ -59,14 +59,14 @@ public with sharing class RlyRunMonitorBoard {
      * @param idBefore that run's record
      * @return the page
      */
-    public static RlyRunMonitorViews.Page older(String repository, Datetime startedBefore, Id idBefore) {
+    public static RlyRunMonitorViews.OlderPage older(String repository, Datetime startedBefore, Id idBefore) {
         List<RLY_Git_Connection__c> conns = RlyRunMonitorStore.connections();
         String filter = filterFor(conns, pick(conns, repository));
         RlyRunMonitorQueries.Cursor after = new RlyRunMonitorQueries.Cursor();
         after.started = startedBefore;
         after.recordId = idBefore;
         List<RLY_Pipeline_Run__c> rows = RlyRunMonitorQueries.finished(filter, after, PAGE_SIZE + 1);
-        RlyRunMonitorViews.Page p = new RlyRunMonitorViews.Page();
+        RlyRunMonitorViews.OlderPage p = new RlyRunMonitorViews.OlderPage();
         p.hasMore = rows.size() > PAGE_SIZE;
         while (rows.size() > PAGE_SIZE) {
             rows.remove(rows.size() - 1);

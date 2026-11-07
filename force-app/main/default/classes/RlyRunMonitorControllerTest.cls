@@ -108,7 +108,7 @@ private class RlyRunMonitorControllerTest {
             RlyRunMonitorViews.Board b = RlyRunMonitorController.readBoard('acme/release');
             RlyRunMonitorViews.Run oldest = b.runs[b.runs.size() - 1];
             Test.startTest();
-            RlyRunMonitorViews.Page p = RlyRunMonitorController.readOlder('acme/release',
+            RlyRunMonitorViews.OlderPage p = RlyRunMonitorController.readOlder('acme/release',
                 JSON.serialize(oldest.started).remove('"'), oldest.id);
             String refused;
             try {
