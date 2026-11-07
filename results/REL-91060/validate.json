@@ -1,16 +1,16 @@
 {
  "request": "REL-91060",
  "step": "validate",
- "status": "Failed",
+ "status": "Passed",
  "changed": 167,
  "deleted": [],
  "mergedWith": "5dad1699b106d7ec57d49012c258f13d238c9462",
- "validatedTree": "f40097484bd0a20fa5fcf342b0bcedea17221595",
+ "validatedTree": "aba9345543d3fc97385cab3eeba3df242c3aa234",
  "environment": "sit",
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d8olxSAA",
- "testsRun": 565,
+ "deployId": "0AfgL00000d8puwSAA",
+ "testsRun": 568,
  "tests": [
   "RlyAppendTest",
   "RlyApprovalRulesTest",
@@ -91,32 +91,17 @@
   "RlyRolesTest",
   "RlyProdApprovalTest"
  ],
- "coverageWarnings": [
-  {
-   "name": "RlyCredentialHubChecks",
-   "message": "Test coverage of selected Apex Class is 57.377%, at least 75% test coverage is required"
-  },
-  {
-   "name": "RlyAccessController",
-   "message": "Test coverage of selected Apex Class is 38.889%, at least 75% test coverage is required"
-  }
- ],
+ "coverageWarnings": [],
  "componentErrors": [],
- "testFailures": [
-  {
-   "name": "RlySlackDueTest",
-   "method": "mentionsFollowTheOrgsSwitch",
-   "message": "System.AssertException: Assertion Failed: The approvers when ready:"
-  }
- ],
- "message": "1 test failure(s)",
+ "testFailures": [],
+ "message": "",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42425333568",
- "finishedAt": "2026-11-07T23:35:47.600Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42426090131",
+ "finishedAt": "2026-11-07T23:46:22.007Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
