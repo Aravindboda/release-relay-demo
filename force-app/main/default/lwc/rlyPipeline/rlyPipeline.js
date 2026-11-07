@@ -34,6 +34,7 @@ import previewRetention from '@salesforce/apex/RlyArchiveController.previewReten
 import saveRetention from '@salesforce/apex/RlyArchiveController.saveRetention';
 import readBuiltLock from '@salesforce/apex/RlyBuildLock.status';
 import saveBuiltLock from '@salesforce/apex/RlyBuildLock.setPassword';
+import readWindows from '@salesforce/apex/RlyWindowController.windows';
 import { MIN_DAYS, about, count, longDate, nextNightlyText, nightlyClock, num, stamp, toDate } from 'c/rlyArchiveText';
 
 /** A list shows its search box from this many rows (or while a search is typed); Connected orgs from more than 6 orgs. */
@@ -626,6 +627,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
         this.error = undefined;
         this.loadRetention();
         this.loadBuiltLock();
+        this.loadWindows();
         return Promise.all([getOrgs(), getSetup(), getSlack(), this.readBackPromote()])
             .then(([h, s, sl, bp]) => {
                 this.applySlack(sl);
@@ -650,6 +652,36 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
             .finally(() => {
                 this.loading = false;
             });
+    }
+
+    // ---------- release windows (build 39) ----------
+
+    /** Release windows by org Id (RlyWindowController.windows): the org cards' summary and the org window's section. */
+    windowViews = {};
+
+    loadWindows() {
+        readWindows()
+            .then((list) => {
+                const byId = {};
+                (list || []).forEach((v) => { byId[v.orgId] = v; });
+                this.windowViews = byId;
+            })
+            .catch(() => {
+                this.windowViews = {};
+            });
+    }
+
+    /** The open org's window (orgs releases deploy into only). */
+    get dialogWindow() {
+        const o = this.dialogOrg;
+        return o && o.Id ? this.windowViews[o.Id] : undefined;
+    }
+
+    handleWindowSaved(event) {
+        const v = event.detail;
+        if (v && v.orgId) {
+            this.windowViews = { ...this.windowViews, [v.orgId]: v };
+        }
     }
 
     /** Back promote is for admins: anyone else gets no board, and the page shows no back promote settings. */
@@ -885,6 +917,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
             branch: o.Branch__c || 'No branch',
             branchCls: o.Branch__c ? 'rr-mono' : 'rr-weak',
             approvalText,
+            windowText: (this.windowViews[o.Id] && this.windowViews[o.Id].summary) || '',
             checkedText: o.Last_Checked__c ? 'Checked ' + new Date(o.Last_Checked__c).toLocaleString([], {
                 month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Not checked yet',
             openLabel: 'Open ' + o.Name + ' to see or edit it',

@@ -117,6 +117,7 @@
                         </ol>
 
                         <template lwc:if={detail.notice}><div class="rr-msg rr-msg-warn rr-notice" role="status">{detail.notice}</div></template>
+                        <template lwc:if={waitsForWindow}><c-rly-window-deploy release-id={releaseId} ondeployed={handleWindowDeployed}></c-rly-window-deploy></template>
                         <template lwc:if={secondApproverNotice}><div class="rr-msg rr-msg-info rr-notice" role="status">{secondApproverNotice}</div></template>
 
                         <template lwc:if={hasConflicts}>
@@ -206,6 +207,7 @@
                             <template lwc:if={hotfixReason}>
                                 <dt>Why it's a hotfix</dt><dd class="rr-break">{hotfixReason}</dd>
                             </template>
+                            <dt>Work items</dt><dd><c-rly-release-tickets compact release-id={rel.Id} status={rel.Status__c} onchanged={refresh}></c-rly-release-tickets></dd>
                             <template lwc:if={hasCarried}>
                                 <dt>Carries</dt>
                                 <dd>

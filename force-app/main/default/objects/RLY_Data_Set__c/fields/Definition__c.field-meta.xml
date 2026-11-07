@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Definition__c</fullName>
+    <description>The objects in load order as JSON: object, fields, record filter, match key, parent lookups, masked fields and value fields; plus the trigger bypass for the target org. Edited on the Sync status tab (Data).</description>
+    <externalId>false</externalId>
+    <label>Definition</label>
+    <length>131072</length>
+    <type>LongTextArea</type>
+    <visibleLines>5</visibleLines>
+</CustomField>

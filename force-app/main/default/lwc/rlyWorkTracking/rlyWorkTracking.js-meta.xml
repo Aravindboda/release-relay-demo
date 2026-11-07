@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>65.0</apiVersion>
+    <isExposed>false</isExposed>
+    <description>Pipeline tab card: work tracking (Jira, Azure Boards, ServiceNow, no integration or a link only), ticket formats, link, required tickets, the Named Credential, posting moments and the ServiceNow change gate. Admins edit; everyone reads.</description>
+</LightningComponentBundle>

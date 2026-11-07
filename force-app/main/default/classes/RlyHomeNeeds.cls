@@ -20,7 +20,7 @@ public with sharing class RlyHomeNeeds {
     private static final String STATUS_DEPLOYED = 'Deployed';
     /** @description Release statuses whose manual steps the deployment team may be working on. */
     private static final Set<String> STEP_STATUSES = new Set<String>{ 'Ready for approval', 'Approved', 'Merging', 'Merged',
-        'Deploying', STATUS_DEPLOYED };
+        'Deploying', RlyWindowGate.WAITING, STATUS_DEPLOYED };
 
     /** @description What needs the viewer. */
     public class Needs {

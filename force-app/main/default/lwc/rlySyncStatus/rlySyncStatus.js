@@ -31,7 +31,8 @@ const AT_ONCE = 3;
 const VIEWS = [
     { value: 'org', label: 'Org vs branch' },
     { value: 'route', label: 'Down the route' },
-    { value: 'packages', label: 'Installed packages' }
+    { value: 'packages', label: 'Installed packages' },
+    { value: 'data', label: 'Data' }
 ];
 const FILTERS = [
     { value: 'all', label: 'All' },
@@ -166,6 +167,7 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
     get isOrgView() { return this.view === 'org'; }
     get isRouteView() { return this.view === 'route'; }
     get isPackagesView() { return this.view === 'packages'; }
+    get isDataView() { return this.view === 'data'; }
     handleView(event) {
         this.view = event.currentTarget.dataset.value;
         this.openKey = undefined;

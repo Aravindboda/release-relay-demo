@@ -48,6 +48,12 @@ public with sharing class RlyEvidenceHtml {
         return String.join(parts, '\n');
     }
 
+    // The release's tickets (build 40), when they were read.
+    private static String ticketsOf(RLY_Release__c rel) {
+        Object tickets = rel.getPopulatedFieldsAsMap().get('Work_Items__c');
+        return tickets == null ? '' : RlyEvidenceText.text(RlyWorkLinks.withLinks(String.valueOf(tickets)));
+    }
+
     private static String summary(RLY_Release__c rel) {
         Boolean manualOnly = RlyManualOnly.isManualOnly(rel);
         String route = RlyEvidenceTables.orgName(rel.Source_Org__r) + ' to ' + RlyEvidenceTables.orgName(rel.Target_Org__r);
@@ -55,6 +61,7 @@ public with sharing class RlyEvidenceHtml {
             new List<String>{ 'Route', manualOnly ? route : route + ' (' + RlyEvidenceText.text(rel.Target_Branch__c) + ')' },
             new List<String>{ 'Type', RlyPromotion.typeOf(rel) + (manualOnly ? ' · ' + RlyManualOnly.PILL : '')
                 + (RlyHotfix.isHotfix(rel) ? ' · hotfix: ' + RlyEvidenceText.text(rel.Hotfix_Reason__c) : '') },
+            new List<String>{ 'Tickets', ticketsOf(rel) },
             new List<String>{ 'Raised by', (rel.CreatedBy == null ? '' : rel.CreatedBy.Name) + ', ' + RlyEvidenceTables.stamp(rel.CreatedDate) },
             new List<String>{ 'Status', RlyEvidenceText.text(rel.Status__c) },
             new List<String>{ 'Pull request', manualOnly ? RlyManualOnly.NOT_NEEDED : RlyEvidenceText.text(rel.PR_URL__c) },

@@ -33,7 +33,7 @@ const BRANCH_BADGE = { running: 'rr-badge rr-b-run', failed: 'rr-badge rr-b-bad'
 /** A release's status as a colour, for branches with no pipeline run yet. */
 const RELEASE_TONE = {
     'Checks failed': 'failed', Conflict: 'failed', Rejected: 'failed', Failed: 'failed', 'Deploy failed': 'failed',
-    'Ready for approval': 'warn', 'Waiting for approval': 'warn', 'Needs a second approver': 'warn',
+    'Ready for approval': 'warn', 'Waiting for approval': 'warn', 'Needs a second approver': 'warn', 'Waiting for window': 'warn',
     Approved: 'ok', Deployed: 'ok', Merged: 'ok'
 };
 /** Space kept under the page inside the tab (the :host bottom padding plus a little air). */

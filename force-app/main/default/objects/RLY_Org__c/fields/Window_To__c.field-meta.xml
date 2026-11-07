@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Window_To__c</fullName>
+    <description>Release window: the time the window ends (HH:mm). Earlier than From: the window runs past midnight.</description>
+    <externalId>false</externalId>
+    <label>Window To</label>
+    <length>5</length>
+    <required>false</required>
+    <trackHistory>true</trackHistory>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

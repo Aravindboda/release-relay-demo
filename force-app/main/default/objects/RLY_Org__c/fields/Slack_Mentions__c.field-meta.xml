@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Slack_Mentions__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Tag people in Slack for releases into this org: the developer when checks fail, the approvers when it is ready and in reminders (linked Slack users only).</description>
+    <label>Slack Mentions</label>
+    <type>Checkbox</type>
+</CustomField>
