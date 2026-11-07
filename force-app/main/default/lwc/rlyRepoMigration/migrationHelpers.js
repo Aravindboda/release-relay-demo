@@ -78,8 +78,8 @@ export const STEPS = [
 
 /** The providers a new connection can be on, with the grey hints. */
 export const PROVIDERS = [
-    { value: 'GitHub', label: 'GitHub', repo: 'owner/repository', cred: 'RLY_GitHub', pipe: 'release-relay.yml' },
-    { value: 'GitLab', label: 'GitLab', repo: 'group/project', cred: 'RLY_GitLab', pipe: '.gitlab-ci.yml' },
-    { value: 'Bitbucket', label: 'Bitbucket', repo: 'workspace/repository', cred: 'RLY_Bitbucket', pipe: 'bitbucket-pipelines.yml' },
-    { value: 'AzureDevOps', label: 'Azure DevOps', repo: 'organization/project/repository', cred: 'RLY_AzureDevOps', pipe: 'azure-pipelines.yml' }
+    { value: 'GitHub', label: 'GitHub', repo: 'owner/repository', cred: 'RLY_Git_GitHub', pipe: 'release-relay.yml' },
+    { value: 'GitLab', label: 'GitLab', repo: 'group/project', cred: 'RLY_Git_GitLab', pipe: '.gitlab-ci.yml' },
+    { value: 'Bitbucket', label: 'Bitbucket', repo: 'workspace/repository', cred: 'RLY_Git_Bitbucket', pipe: 'bitbucket-pipelines.yml' },
+    { value: 'AzureDevOps', label: 'Azure DevOps', repo: 'organization/project/repository', cred: 'RLY_Git_AzureDevOps', pipe: 'azure-pipelines.yml' }
 ];

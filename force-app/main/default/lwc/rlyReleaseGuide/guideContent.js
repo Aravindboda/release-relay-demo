@@ -55,21 +55,21 @@ const SHOT_NOTE = 'Screenshots are examples from a demo hub on GitHub.';
 const TOKENS = {
     GitHub: [
         'A fine-grained personal access token on the repository: **Contents**, **Pull requests**, **Actions** and **Workflows**, all Read and write (**Metadata** Read-only comes with it). See Set up → B. Hub org.',
-        'Named Credential `RLY_GitHub` (Pipeline → Git connection: provider GitHub, repository `owner/repository`).'
+        'Named Credential `RLY_Git_GitHub` (Pipeline → Git connection: provider GitHub, repository `owner/repository`).'
     ],
     GitLab: [
         'A project access token (role Maintainer) with the scope `api`. Also Settings → CI/CD → Variables → **Minimum role to use pipeline variables**: Maintainer, so the hub can pass the release.',
-        'Named Credential `RLY_GitLab` (Pipeline → Git connection: provider GitLab, repository `group/project`). Paste the token into its principal `ProjectToken` (Setup → Named Credentials → External Credentials → RLY_GitLab → Principals → Edit). Access comes with the Release Relay permission sets: no profile step is needed.',
+        'Named Credential `RLY_Git_GitLab` (Pipeline → Git connection: provider GitLab, repository `group/project`). Paste the token into its principal `RLY_Git_GitLab` (Setup → Named Credentials → External Credentials → RLY_Git_GitLab → Principals → Edit). Access comes with the Release Relay permission sets: no profile step is needed.',
         'CI/CD variables per GitLab environment (dev1, sit, prod...): `SF_CLIENT_ID`, `SF_USERNAME`, `SF_INSTANCE_URL`, `SF_JKS_ALIAS`, `ORG_LABEL`; for all environments `SF_JKS`, `SF_JKS_PASSWORD` and `RELAY_TOKEN` (the project access token, for the jobs\' pushes).'
     ],
     Bitbucket: [
         'A repository access token with **Repositories**, **Pull requests** and **Pipelines**: Read and write.',
-        'Named Credential `RLY_Bitbucket` (Pipeline → Git connection: provider Bitbucket, repository `workspace/repository`).',
+        'Named Credential `RLY_Git_Bitbucket` (Pipeline → Git connection: provider Bitbucket, repository `workspace/repository`).',
         'Running releases from the hub on this provider is coming in a later version; the pipeline file is ready.'
     ],
     AzureDevOps: [
         'A personal access token with **Code**: Read and write, and **Build**: Read and execute.',
-        'Named Credential `RLY_AzureDevOps` (Pipeline → Git connection: provider Azure DevOps, repository `organization/project/repository`, and the pipeline id).',
+        'Named Credential `RLY_Git_AzureDevOps` (Pipeline → Git connection: provider Azure DevOps, repository `organization/project/repository`, and the pipeline id).',
         'Create the pipeline from `azure-pipelines.yml` (Pipelines → New pipeline → Azure Repos Git → Existing Azure Pipelines YAML file). Its id is the number after `definitionId=`.',
         'Running releases from the hub on this provider is coming in a later version; the pipeline file is ready.'
     ]
@@ -353,7 +353,7 @@ const SETUP_SECTIONS = [
                                     'Leave **Active** ticked.',
                                     'Press **Save**. Repeat for every org you will register, **the hub\'s own My Domain included**.'
                                 ],
-                                text: ['Git and Slack need no Remote Site: the hub reaches them through Named Credentials (`RLY_GitHub`, `RLY_Slack`).'],
+                                text: ['Git and Slack need no Remote Site: the hub reaches them through Named Credentials (`RLY_Git_GitHub`, `RLY_Slack`).'],
                                 check: 'Remote Site Settings lists one active row per org.',
                                 problems: [['"Add https://… as a Remote Site Setting in the hub"', 'The URL is missing or different (http vs https, a typo, the old instance URL instead of My Domain). It must match the org card\'s My Domain URL.']],
                                 shot: { ill: 'remote-site', cap: 'Remote Site Edit: name, URL, Active, Save.', alt: 'Drawing of the Remote Site Edit form with callouts 1 Remote Site Name, 2 Remote Site URL, 3 Active, 4 Save.' }
@@ -374,7 +374,7 @@ const SETUP_SECTIONS = [
                                 text: ['Why each permission: Contents (branches, commits, the release files), Pull requests (open, comment, close), Actions (start the workflow and read its runs), Workflows (update the pipeline file in `.github/workflows` from the Pipeline tab). If an organization owns the repository, an owner may have to approve the token.'],
                                 check: 'The token shows under Fine-grained tokens with access to one repository.',
                                 problems: [
-                                    ['"… failed with HTTP 401. The token in Named Credential RLY_GitHub was refused"', 'The token expired, was revoked or was pasted wrongly. Make a new one and update the External Credential (step 9).'],
+                                    ['"… failed with HTTP 401. The token in Named Credential RLY_Git_GitHub was refused"', 'The token expired, was revoked or was pasted wrongly. Make a new one and update the External Credential (step 9).'],
                                     ['"… failed with HTTP 403. The token lacks permission for this"', 'Add the missing permission to the token (list above). Organization-owned repositories may also need the token approved.'],
                                     ['"… failed with HTTP 404. Not found: check the repository name and that the token can see it"', 'Repository on the Git connection must be `owner/repository`, and the token must include that repository.'],
                                     ['"The token needs Workflows: Read and write to change files in .github/workflows."', 'Edit the token: Workflows → Read and write.']
@@ -391,33 +391,33 @@ const SETUP_SECTIONS = [
                             {
                                 title: 'Paste the token into its Named Credential\'s principal',
                                 who: 'Salesforce admin',
-                                where: 'Setup → Named Credentials → External Credentials → RLY_GitHub → Principals → Edit',
-                                goal: 'Release Relay comes with the External Credential and the Named Credential RLY_GitHub. Salesforce stores the token encrypted; no page or person can read it back.',
+                                where: 'Setup → Named Credentials → External Credentials → RLY_Git_GitHub → Principals → Edit',
+                                goal: 'Release Relay comes with the External Credential and the Named Credential RLY_Git_GitHub. Salesforce stores the token encrypted; no page or person can read it back.',
                                 items: [
-                                    'Open External Credential `RLY_GitHub` (it comes with Release Relay).',
-                                    'Under **Principals**, on `RLY_GitHub` press Edit.',
+                                    'Open External Credential `RLY_Git_GitHub` (it comes with Release Relay).',
+                                    'Under **Principals**, on `RLY_Git_GitHub` press Edit.',
                                     'Under Authentication Parameters: Name `Token`, Value: the token (`github_pat_…`).',
                                     'Press **Save**.'
                                 ],
                                 text: ['Paste each token into its Named Credential\'s principal (Setup → Named Credentials → External Credentials → <name> → Principals → Edit). Access comes with the Release Relay permission sets.'],
-                                check: 'External Credential RLY_GitHub has the principal RLY_GitHub with the parameter Token.',
-                                shot: { ill: 'gh-extcred', cap: 'External Credential RLY_GitHub: principal RLY_GitHub, parameter Token.', alt: 'Drawing of the New External Credential form with callouts 1 Name RLY_GitHub, 2 Authentication Protocol Custom, 3 principal Parameter Name GitHub, 4 authentication parameter Token with the token value, 5 Save.' }
+                                check: 'External Credential RLY_Git_GitHub has the principal RLY_Git_GitHub with the parameter Token.',
+                                shot: { ill: 'gh-extcred', cap: 'External Credential RLY_Git_GitHub: principal RLY_Git_GitHub, parameter Token.', alt: 'Drawing of the New External Credential form with callouts 1 Name RLY_GitHub, 2 Authentication Protocol Custom, 3 principal Parameter Name GitHub, 4 authentication parameter Token with the token value, 5 Save.' }
                             },
                             {
-                                title: 'Look at the Named Credential RLY_GitHub',
+                                title: 'Look at the Named Credential RLY_Git_GitHub',
                                 who: 'Salesforce admin',
-                                where: 'Setup → Named Credentials → Named Credentials tab → RLY_GitHub',
-                                goal: 'Release Relay calls `callout:RLY_GitHub`. It comes with Release Relay: nothing to create.',
+                                where: 'Setup → Named Credentials → Named Credentials tab → RLY_Git_GitHub',
+                                goal: 'Release Relay calls `callout:RLY_Git_GitHub`. It comes with Release Relay: nothing to create.',
                                 items: [
-                                    'Label and Name: `RLY_GitHub`.',
+                                    'Label and Name: `RLY_Git_GitHub`.',
                                     'URL: `https://api.github.com`, **Enabled for Callouts** on.',
-                                    'External Credential: `RLY_GitHub`.',
+                                    'External Credential: `RLY_Git_GitHub`.',
                                     '**Generate Authorization Header** off, **Allow Formulas in HTTP Header** on.',
-                                    'Custom Header `Authorization`: `Bearer {!$Credential.RLY_GitHub.Token}`.',
+                                    'Custom Header `Authorization`: `Bearer {!$Credential.RLY_Git_GitHub.Token}`.',
                                     'Nothing to change: press Cancel.'
                                 ],
                                 check: 'The Named Credential shows URL https://api.github.com and one custom header, Authorization.',
-                                shot: { ill: 'gh-namedcred', cap: 'Named Credential RLY_GitHub with its Authorization header.', alt: 'Drawing of the New Named Credential form with callouts 1 Name RLY_GitHub, 2 URL https://api.github.com, 3 External Credential RLY GitHub, 4 Generate Authorization Header unticked, 5 Allow Formulas in HTTP Header ticked, 6 custom header Authorization, 7 Save.' }
+                                shot: { ill: 'gh-namedcred', cap: 'Named Credential RLY_Git_GitHub with its Authorization header.', alt: 'Drawing of the New Named Credential form with callouts 1 Name RLY_GitHub, 2 URL https://api.github.com, 3 External Credential RLY GitHub, 4 Generate Authorization Header unticked, 5 Allow Formulas in HTTP Header ticked, 6 custom header Authorization, 7 Save.' }
                             },
                             {
                                 title: 'Let Release Relay users use the token',
@@ -425,13 +425,13 @@ const SETUP_SECTIONS = [
                                 where: 'Setup → Permission Sets → (a permission set) → External Credential Principal Access → Edit',
                                 goal: 'Raising, approving and promoting call Git as the person who presses the button, so each of them needs access to the principal.',
                                 items: [
-                                    'Nothing to do: `RLY_GitHub - RLY_GitHub`, `RLY_GitLab - ProjectToken` and `RLY_Slack - Bot` are already Enabled in `RLY_Admin`, `RLY_Deploy_Team`, `RLY_Developer` and `RLY_Approver`.',
+                                    'Nothing to do: `RLY_Git_GitHub - RLY_Git_GitHub`, `RLY_Git_GitLab - RLY_Git_GitLab` and `RLY_Slack - Bot` are already Enabled in `RLY_Admin`, `RLY_Deploy_Team`, `RLY_Developer` and `RLY_Approver`.',
                                     'Only if people use Release Relay through another permission set: add the same principals there.'
                                 ],
                                 text: ['Paste each token into its Named Credential\'s principal (Setup → Named Credentials → External Credentials → <name> → Principals → Edit). Access comes with the Release Relay permission sets.'],
                                 check: 'Pipeline → Git connection → Check connection shows Connected (after step 12).',
-                                problems: [['"Named Credential RLY_GitHub wasn\'t found or you can\'t use it. Check it exists, and that your permission set has its principal under External Credential Principal Access."', 'Do this step for the user who saw it, and check the Named Credential\'s name.']],
-                                shot: { ill: 'perm-principal', cap: 'External Credential Principal Access: RLY_GitHub - RLY_GitHub is Enabled in the Release Relay permission sets.', alt: 'Drawing of the External Credential Principal Access edit page with callouts 1 RLY_GitHub - GitHub in Enabled, 2 Save.' }
+                                problems: [['"Named Credential RLY_Git_GitHub wasn\'t found or you can\'t use it. Check it exists, and that your permission set has its principal under External Credential Principal Access."', 'Do this step for the user who saw it, and check the Named Credential\'s name.']],
+                                shot: { ill: 'perm-principal', cap: 'External Credential Principal Access: RLY_Git_GitHub - RLY_Git_GitHub is Enabled in the Release Relay permission sets.', alt: 'Drawing of the External Credential Principal Access edit page with callouts 1 RLY_GitHub - GitHub in Enabled, 2 Save.' }
                             },
                             {
                                 title: 'Connect the repository on the Pipeline tab',
@@ -443,7 +443,7 @@ const SETUP_SECTIONS = [
                                     'Repository: `owner/repository`.',
                                     'Workflow file: `release-relay.yml`.',
                                     'Pipeline branch: `main` (where the pipeline files live).',
-                                    'Named Credential (token): `RLY_GitHub`.',
+                                    'Named Credential (token): `RLY_Git_GitHub`.',
                                     'Source path: `force-app/main/default`.',
                                     '**Code scan on every pull request**: on (the default) or off. Each org can follow it or set its own (D. Each org).',
                                     'Press **Save**: it tests the connection. **Check connection** on the card tests it again later.'
@@ -930,7 +930,7 @@ const SETUP_SECTIONS = [
                                 items: [
                                     'On the Site press **Public Access Settings**: this opens the Site\'s **guest profile**. Do both changes below there.',
                                     '**Edit** → Standard Object Permissions → **User External Credentials** → tick **Read** → **Save**.',
-                                    'On the same profile page scroll to **Enabled External Credential Principal Access** → **Edit** → add your Git credential\'s principal (`RLY_GitHub - RLY_GitHub`, or your provider\'s) so it is Enabled next to `RLY_Slack - Bot` → **Save**. If `RLY_Slack - Bot` isn\'t in that list, add it too.',
+                                    'On the same profile page scroll to **Enabled External Credential Principal Access** → **Edit** → add your Git credential\'s principal (`RLY_Git_GitHub - RLY_Git_GitHub`, or your provider\'s) so it is Enabled next to `RLY_Slack - Bot` → **Save**. If `RLY_Slack - Bot` isn\'t in that list, add it too.',
                                     'Not on the `RLY_Slack_Site` permission set: deploying or upgrading Release Relay replaces that permission set\'s principal list, so a Git principal added there disappears with the next deploy. The guest profile keeps it.'
                                 ],
                                 check: 'The guest profile\'s Enabled External Credential Principal Access lists your Git principal and RLY_Slack - Bot, and the profile has Read on User External Credentials.',
@@ -1193,8 +1193,8 @@ const SETUP_SECTIONS = [
                             ['`release_relay.crt` and the `.jks` + password', 'Your computer / password manager', 'Both files kept safe'],
                             ['Remote Site per org (the hub too)', 'Hub: Setup → Remote Site Settings', 'One active row per org'],
                             ['Git token', 'Git provider → Fine-grained tokens', 'Actions, Contents, Pull requests, Workflows: read and write'],
-                            ['External Credential + Named Credential `RLY_GitHub`', 'Hub: Setup → Named Credentials', 'Principal GitHub with Token; header Authorization'],
-                            ['Principal access `RLY_GitHub - RLY_GitHub`', 'Hub: comes with the Release Relay permission sets', 'No "can\'t use it" errors'],
+                            ['External Credential + Named Credential `RLY_Git_GitHub`', 'Hub: Setup → Named Credentials', 'Principal RLY_Git_GitHub with Token; header Authorization'],
+                            ['Principal access `RLY_Git_GitHub - RLY_Git_GitHub`', 'Hub: comes with the Release Relay permission sets', 'No "can\'t use it" errors'],
                             ['Git connection', 'Pipeline → 1 · Where the code lives', 'Connected'],
                             ['Pipeline files on `main`', 'Repository / Guide → Repository files', 'Pipeline files: up to date'],
                             ['Workflow permissions', 'Repository → Settings → Actions → General', 'Read and write; may create pull requests'],
@@ -2987,7 +2987,7 @@ const REF_SECTIONS = [
                             ['`RLY_Deploy_Team`', 'Release Relay Deployment Team: Approvals, Releases and Promote tabs (Promote read-only: what waits in each stage); tick manual steps done or not needed in each org, **Open org ▾** / **Log in to <org>**, and roll a deployed release back.'],
                             ['`RLY_Admin`', 'Pipeline tab: Git connection, orgs, route, approval rules, Slack, linked approvers, back promote. Promote tab. The pipeline\'s hub user needs it to post runs to the Pipeline Monitor. Includes Hotfix and the deployment team (so admins can roll back too). Shows the Set up sections of this Guide.'],
                             ['`RLY_Slack_Site`', 'For the Site guest user only, so Approve in Slack can reach the hub. Your Git credential\'s principal and Read on User External Credentials go on the Site\'s guest profile, not on this permission set (deploying Release Relay replaces its principal list): Set up → E. Needed only when an org is approved in Slack.'],
-                            ['Your Git access permission set', 'External Credential Principal Access to `RLY_GitHub` (or your provider\'s credential), for everyone who uses Release Relay. See Set up → B. Hub org.']
+                            ['Your Git access permission set', 'External Credential Principal Access to `RLY_Git_GitHub` (or your provider\'s credential), for everyone who uses Release Relay. See Set up → B. Hub org.']
                         ]
                     }
                 ]
@@ -3176,6 +3176,74 @@ const MIGRATION_SECTIONS = [
                         ]
                     },
                     { type: 'links', links: [{ label: 'Open the Migration tab', tab: 'RLY_Migration' }] }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'git-credentials',
+        group: 'setup',
+        label: 'J. Git credentials (after the update)',
+        adminOnly: true,
+        cards: [
+            {
+                key: 'gc-main',
+                title: 'J. Paste the Git tokens into the packaged credentials',
+                aside: 'Once, after the update that brings RLY_Git_GitHub and RLY_Git_GitLab',
+                blocks: [
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Paste each token into its Named Credential\'s principal',
+                                who: 'Salesforce admin',
+                                where: 'Setup → Named Credentials → External Credentials → <name> → Principals → Edit',
+                                goal: 'Release Relay comes with one credential per provider, RLY_Git_<Provider>: you only paste the token. Access comes with the Release Relay permission sets.',
+                                items: [
+                                    'External Credential `RLY_Git_GitHub` → principal `RLY_Git_GitHub` → Edit → Authentication Parameter `Token` = the GitHub token → **Save**.',
+                                    'External Credential `RLY_Git_GitLab` → principal `RLY_Git_GitLab` → Edit → Authentication Parameter `Token` = the GitLab project access token → **Save**.'
+                                ],
+                                check: 'Each principal shows the parameter Token.'
+                            },
+                            {
+                                title: 'Point the connection at its new credential',
+                                who: 'Release Relay admin',
+                                where: 'Release Relay → Pipeline → Git connection → Edit',
+                                goal: 'A connection keeps working with the credential name it has until you change it.',
+                                items: ['Named Credential: `RLY_Git_GitHub` (or `RLY_Git_GitLab` for a GitLab connection) → **Save** → **Check**.', 'The Migration tab\'s new-connection step does the same for the provider you move to.'],
+                                check: 'Check says Connected.'
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'naming',
+        group: 'ref',
+        label: 'Naming',
+        cards: [
+            {
+                key: 'naming-main',
+                title: 'How Release Relay names things',
+                blocks: [
+                    {
+                        type: 'table',
+                        stack: true,
+                        cols: ['What', 'Name'],
+                        rows: [
+                            ['Objects, tabs, permission sets, custom permissions, credentials, static resources, documents, the cache partition', 'Metadata API name starts with `RLY_`'],
+                            ['Apex classes and triggers', 'Start with `Rly`'],
+                            ['Lightning web components', 'Start with `rly`'],
+                            ['Fields on Release Relay\'s own objects', 'No prefix'],
+                            ['Fields on standard objects', 'Start with `RLY_`'],
+                            ['Credentials', '`RLY_Git_<Provider>` (`RLY_Git_GitHub`, `RLY_Git_GitLab`, `RLY_Git_Bitbucket`, `RLY_Git_AzureDevOps`), `RLY_Slack`, `RLY_Org_Self`'],
+                            ['Git branches it owns', '`release-relay-*` (results, snapshots, hub)'],
+                            ['Request ids', '`REL-` releases, `SYN-` sync checks, `CMP-` compares, `DAT-` data runs, `MIG-` migrations']
+                        ]
+                    },
+                    { type: 'note', text: 'Known exception, to be renamed later: the app `Release_Relay`. The Slack member field on User is `RLY_Slack_Member_Id__c`.' }
                 ]
             }
         ]

@@ -111,11 +111,11 @@
     </externalCredentialPrincipalAccesses>
     <externalCredentialPrincipalAccesses>
         <enabled>true</enabled>
-        <externalCredentialPrincipal>RLY_GitHub-RLY_GitHub</externalCredentialPrincipal>
+        <externalCredentialPrincipal>RLY_Git_GitHub-RLY_Git_GitHub</externalCredentialPrincipal>
     </externalCredentialPrincipalAccesses>
     <externalCredentialPrincipalAccesses>
         <enabled>true</enabled>
-        <externalCredentialPrincipal>RLY_GitLab-ProjectToken</externalCredentialPrincipal>
+        <externalCredentialPrincipal>RLY_Git_GitLab-RLY_Git_GitLab</externalCredentialPrincipal>
     </externalCredentialPrincipalAccesses>
     <fieldPermissions>
         <editable>false</editable>

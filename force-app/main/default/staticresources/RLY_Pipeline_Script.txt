@@ -525,7 +525,7 @@ const BUILT_IN_EXCLUDES = [ // RLY-EXCLUDES: generated from the hub package.xml,
     'classes/RlyGitLabDiffs.cls*', 'classes/RlyGitLabRuns.cls*', 'classes/RlyGitLabTree.cls*', 'classes/RlyGitLabTest.cls*',
     'labels/CustomLabels.labels-meta.xml only-labels:RLY_App_Name', 'objects/RLY_Release__c',
     'objects/RLY_Release_Item__c',
-    // Build 46: the Migration tab, one active Git connection, the packaged GitHub credential.
+    // Build 46: the Migration tab, one active Git connection, the packaged Git credentials (RLY_Git_<Provider>).
     'classes/RlyGitConnections.cls*', 'classes/RlyRepoBadges.cls*', 'classes/RlyMigrationActions.cls*',
     'classes/RlyMigrationChecklist.cls*',
     'classes/RlyMigrationController.cls*', 'classes/RlyMigrationGate.cls*', 'classes/RlyMigrationGuard.cls*',
@@ -535,8 +535,9 @@ const BUILT_IN_EXCLUDES = [ // RLY-EXCLUDES: generated from the hub package.xml,
     'classes/RlyMigrationStore.cls*', 'classes/RlyMigrationSummary.cls*', 'classes/RlyMigrationSwitch.cls*',
     'classes/RlyMigrationSync.cls*', 'classes/RlyMigrationTest.cls*', 'classes/RlyMigrationView.cls*',
     'classes/RlyMigrationViews.cls*', 'objects/RLY_Migration__c', 'lwc/rlyRepoMigration',
-    'tabs/RLY_Migration.tab-meta.xml', 'externalCredentials/RLY_GitHub.externalCredential-meta.xml',
-    'namedCredentials/RLY_GitHub.namedCredential-meta.xml'
+    'tabs/RLY_Migration.tab-meta.xml', 'externalCredentials/RLY_Git_GitHub.externalCredential-meta.xml',
+    'namedCredentials/RLY_Git_GitHub.namedCredential-meta.xml', 'externalCredentials/RLY_Git_GitLab.externalCredential-meta.xml',
+    'namedCredentials/RLY_Git_GitLab.namedCredential-meta.xml'
 ];
 const PROVIDER = (env.RELAY_PROVIDER || 'github').toLowerCase();
 /** The provider's name for messages (version 25, GitLab): GitHub unless RELAY_PROVIDER says otherwise. */
