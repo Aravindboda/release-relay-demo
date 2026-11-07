@@ -145,7 +145,7 @@ function repoRows(provider) {
 export const PIPELINE_FILES = [
     {
         resource: 'RLY_Pipeline_GitHub', provider: 'GitHub', name: 'release-relay.yml', path: PIPE_FILE.GitHub,
-        what: 'The GitHub Actions workflow: starts the jobs (raise, scan, validate, merge, deploy) when the hub asks.'
+        what: 'The GitHub Actions workflow: starts the jobs (raise, scan, validate, merge, deploy) when the hub asks, and tells the hub about each run for the Pipeline Monitor.'
     },
     {
         resource: 'RLY_Pipeline_GitLab', provider: 'GitLab', name: '.gitlab-ci.yml', path: PIPE_FILE.GitLab,
@@ -1388,6 +1388,37 @@ const USE_SECTIONS = [
         ]
     },
     {
+        key: 'monitor',
+        group: 'daily',
+        label: 'Pipeline Monitor',
+        cards: [
+            {
+                key: 'monitor-main',
+                title: 'Pipeline Monitor: what the pipeline is doing now',
+                blocks: [
+                    { type: 'text', paras: [
+                        '**Pipeline Monitor** shows every run of the Git pipeline in one place: what is running, where, for which release, and what failed. Everyone with a Release Relay permission set can open it; nobody can change anything there.',
+                        'The pipeline tells the hub when each run starts and when it ends (pipeline files version 20 or later). The tab reads only what the hub has saved, never Git itself. It reads again every **10 seconds** while a run is queued or running and every **30 seconds** otherwise; the header says when it last read and counts down to the next read. It pauses while the browser tab is hidden and reads at once when you come back. **Refresh** reads now.'
+                    ] },
+                    { type: 'table', cols: ['Part', 'What it shows', 'Click it to'], rows: [
+                        ['Tiles', '**Running now**, **Branches in progress**, **Succeeded today** and **Failed today** (your day).', '**Failed today** shows only the failed runs below.'],
+                        ['Route', 'One lane per org, grouped as on the Pipeline tab: developer orgs, the route in order with production last, then back promote orgs. Each lane shows the org\'s latest run: status, branch, release, how long it took, who started it and a four-part progress bar. **No runs today** when it had none (with its last run).', 'Open that run\'s details.'],
+                        ['Active branches', 'The branches of open releases and of runs in the last 24 hours: pull request number and state (from the release), last activity, where it ran last and a status dot. Running and failed first.', 'Open the branch\'s latest run.'],
+                        ['Runs', 'Every run, running first, then newest: status, workflow step, branch, target org, release, started, duration, who started it and **View in GitHub**. **All**, **Running**, **Failed**, **Succeeded** filter it; **Load older runs** reads 50 more.', 'Open the run\'s details; the release number opens the release.']
+                    ] },
+                    { type: 'list', items: [
+                        'Each section has its own search box and scrolls on its own; the count shows how many match, for example **3 of 12**.',
+                        '**Run details** (on the right, or over the page on a smaller screen): status, release, step and org, branch, start and duration, who started it, the GitHub run number and attempt, each job with its outcome, the failure message, and links to the release and to the run log in GitHub.',
+                        'More than one Git connection? Pick the repository at the top.',
+                        'Old runs leave with the nightly archive, after the same Retention days as releases (Pipeline → Retention).'
+                    ] },
+                    { type: 'note', text: 'Nothing shows? Update the pipeline files to version 20 (Pipeline → Pipeline files). The two monitor jobs sign in to the hub with the hub environment\'s login, like the nightly archive, and its user needs `RLY_Admin`. If that environment asks for a reviewer, set the repository variable `RELAY_MONITOR` to `off` to skip them. A failed monitor call never fails a run.' },
+                    { type: 'links', links: [{ label: 'Open Pipeline Monitor', tab: 'RLY_Pipeline_Monitor' }, { label: 'Pipeline files', to: 'pipelinetab', kind: 'neutral' }] }
+                ]
+            }
+        ]
+    },
+    {
         key: 'built',
         group: 'daily',
         label: 'What\'s built',
@@ -1942,7 +1973,7 @@ const USE_SECTIONS = [
                                     '**Also in back promote orgs** is on by default. **Orgs**: all orgs on the route, or pick the orgs it applies to.',
                                     'Order them with the up and down arrows: the deployment team does them in that order. Up to 50 steps.',
                                     'A flow set to **Leave inactive** adds the step **Activate flow <name>** (Setup, After deploy, every org) for you.',
-                                    '**Attach files** under a step: press **Upload Files** or drop files on it. Any type, up to the Salesforce file size limit. They upload straight to Salesforce Files and wait in your own files until you raise; **Raise pull request** links them to the saved steps. **×** removes a file.',
+                                    '**Attach files** is part of the Add a manual step form (and of Edit step): press **Upload Files** or drop files on it while you fill in the step. Any type, up to the Salesforce file size limit. They upload straight to Salesforce Files and belong to the step once you press **Add step** or **Save step**; **Cancel** deletes the files you uploaded in that form. Until you raise they wait in your own files; **Raise pull request** links them to the saved steps. The step then lists its files; **×** removes one.',
                                     'Until the release is first deployed, the person who raised it (or an admin) can add, edit, reorder and delete steps on the release page, and attach or remove step files until it is approved.',
                                     'Nothing to deploy, only steps? On Select switch on **No metadata — only manual steps** and raise **manual steps only**: no Git or pipeline, approval then the steps (see Raise a release, step 6). Such a release keeps at least one step.'
                                 ],
@@ -2709,10 +2740,10 @@ const REF_SECTIONS = [
                         type: 'table',
                         cols: ['Permission set', 'Gives'],
                         rows: [
-                            ['`RLY_Developer`', 'New Release, Releases, Guide and What\'s built tabs: raise and follow releases, read their history, download evidence and export CSV.'],
+                            ['`RLY_Developer`', 'New Release, Releases, Pipeline Monitor, Guide and What\'s built tabs: raise and follow releases, read their history, download evidence and export CSV.'],
                             ['`RLY_Approver`', 'Approvals, Releases and Promote tabs (Releases for following releases and Export CSV): approve, reject, bypass a code scan, resolve conflicts, promote what is deployed to a stage. Linked to a Slack member ID, approve from the Slack card.'],
                             ['`RLY_Deploy_Team`', 'Release Relay Deployment Team: Approvals, Releases and Promote tabs (Promote read-only: what waits in each stage); tick manual steps done or not needed in each org, **Open org ▾** / **Log in to <org>**, and roll a deployed release back.'],
-                            ['`RLY_Admin`', 'Pipeline tab: Git connection, orgs, route, approval rules, Slack, linked approvers, back promote. Promote tab. Includes Hotfix and the deployment team (so admins can roll back too). Shows the Set up sections of this Guide.'],
+                            ['`RLY_Admin`', 'Pipeline tab: Git connection, orgs, route, approval rules, Slack, linked approvers, back promote. Promote tab. The pipeline\'s hub user needs it to post runs to the Pipeline Monitor. Includes Hotfix and the deployment team (so admins can roll back too). Shows the Set up sections of this Guide.'],
                             ['`RLY_Slack_Site`', 'For the Site guest user only, so Approve in Slack can reach the hub. Your Git credential\'s principal and Read on User External Credentials go on the Site\'s guest profile, not on this permission set (deploying Release Relay replaces its principal list): Set up → E. Needed only when an org is approved in Slack.'],
                             ['Your Git access permission set', 'External Credential Principal Access to `RLY_GitHub` (or your provider\'s credential), for everyone who uses Release Relay. See Set up → B. Hub org.']
                         ]

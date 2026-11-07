@@ -1,4 +1,11 @@
-# Release Relay pipeline files: version 19
+# Release Relay pipeline files: version 20
+# Version 20: Pipeline Monitor. Two small jobs tell the hub about every run, signed in with the hub environment's login
+# (vars.RELAY_HUB_ENVIRONMENT, default prod) like the archive job, through "sf api request rest": monitor-start posts
+# "In progress" when the run starts, monitor-end (always, after every other job) posts how it ended (Succeeded, Failed
+# or Cancelled), when, how long, the jobs' outcomes and the first failure (read with this run's token: actions, checks).
+# The hub shows them on its Pipeline Monitor tab and keeps them for its Retention days. They never fail the run: a
+# failed call is a warning. Set the repository variable RELAY_MONITOR to off to skip both (for example when the hub
+# environment needs a reviewer). The nightly archive's log also says how many old monitor runs the hub removed.
 # Version 19: the archive job calls the hub with "sf api request rest" (newer Salesforce CLIs hide the access token in
 # "sf org display", so the old curl call was sent without a sign-in and got INVALID_AUTH_HEADER).
 # Version 18: the nightly archive can also be started by hand: Actions → Release Relay → Run workflow → mode "archive"
@@ -586,7 +593,7 @@ jobs:
               echo "Nightly archive: $(printf '%s' "$answer" | jq -r '.reason')" >> "$GITHUB_STEP_SUMMARY"
               break
             fi
-            line="$(printf '%s' "$answer" | jq -r '"Pass \(.pass): \(.removed) releases, \(.records) records removed, \(.remaining // "?") eligible left. \(.reason // "")"')"
+            line="$(printf '%s' "$answer" | jq -r '"Pass \(.pass): \(.removed) releases, \(.records) records removed, \(.remaining // "?") eligible left, \(.pipelineRuns // 0) old monitor runs removed. \(.reason // "")"')"
             echo "$line"
             echo "- $line" >> "$GITHUB_STEP_SUMMARY"
             run_id="$(printf '%s' "$answer" | jq -r '.runId // ""')"
@@ -597,3 +604,102 @@ jobs:
               break
             fi
           done
+
+  # Pipeline Monitor (version 20): tells the hub this run started, for its Pipeline Monitor tab. Signs in with the hub
+  # environment's login (as the archive job does) and posts to /services/apexrest/rly/pipeline-run. It runs beside the
+  # other jobs and never fails the run: a failed call is a warning. Repository variable RELAY_MONITOR=off skips it.
+  monitor-start:
+    if: ${{ vars.RELAY_MONITOR != 'off' }}
+    runs-on: ubuntu-latest
+    environment: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      - name: Salesforce CLI cache key
+        id: sfkey
+        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+      - name: Cache Salesforce CLI
+        uses: actions/cache@v4
+        with:
+          path: ~/.relay-sf
+          key: ${{ steps.sfkey.outputs.key }}
+      - name: Install Salesforce CLI
+        run: |
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
+      - name: Tell the hub the run started
+        env:
+          STEP: monitor
+          MONITOR_STATUS: in_progress
+          GH_TOKEN: ${{ github.token }}
+          RELAY_HUB_ENVIRONMENT: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
+          SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+          SF_USERNAME: ${{ secrets.SF_USERNAME }}
+          SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+          SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+          SF_JKS: ${{ secrets.SF_JKS }}
+          SF_JKS_PASSWORD: ${{ secrets.SF_JKS_PASSWORD }}
+          SF_JKS_ALIAS: ${{ vars.SF_JKS_ALIAS }}
+        run: |
+          node scripts/release-relay.js || echo "::warning::Pipeline Monitor: couldn't tell the hub this run started; the run isn't affected."
+
+  # Pipeline Monitor (version 20): after every other job (always, also when one failed or the run was cancelled) tells
+  # the hub how the run ended: Succeeded, Failed or Cancelled from the jobs' results, the finished time and duration,
+  # each job's outcome and the first failure (read from this run with its own token: actions and checks read). Never fails the run.
+  monitor-end:
+    needs: [monitor-start, raise, scan, validate, merge, deploy, sync, rollback, notify, archive]
+    if: ${{ always() && vars.RELAY_MONITOR != 'off' }}
+    runs-on: ubuntu-latest
+    environment: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The Salesforce CLI (major version 2) is cached per runner OS and month, so most runs skip the install.
+      - name: Salesforce CLI cache key
+        id: sfkey
+        run: echo "key=relay-sf-cli2-${RUNNER_OS}-node22-$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+      - name: Cache Salesforce CLI
+        uses: actions/cache@v4
+        with:
+          path: ~/.relay-sf
+          key: ${{ steps.sfkey.outputs.key }}
+      - name: Install Salesforce CLI
+        run: |
+          [ -x "$HOME/.relay-sf/bin/sf" ] || npm install --global --prefix "$HOME/.relay-sf" @salesforce/cli@2 --no-audit --no-fund
+          echo "$HOME/.relay-sf/bin" >> "$GITHUB_PATH"
+      - name: Tell the hub how the run ended
+        env:
+          STEP: monitor
+          MONITOR_STATUS: end
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          GH_TOKEN: ${{ github.token }}
+          RELAY_HUB_ENVIRONMENT: ${{ vars.RELAY_HUB_ENVIRONMENT || 'prod' }}
+          SF_INSTANCE_URL: ${{ vars.SF_INSTANCE_URL }}
+          SF_USERNAME: ${{ secrets.SF_USERNAME }}
+          SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+          SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+          SF_JKS: ${{ secrets.SF_JKS }}
+          SF_JKS_PASSWORD: ${{ secrets.SF_JKS_PASSWORD }}
+          SF_JKS_ALIAS: ${{ vars.SF_JKS_ALIAS }}
+        run: |
+          node scripts/release-relay.js || echo "::warning::Pipeline Monitor: couldn't tell the hub how this run ended; the run isn't affected."

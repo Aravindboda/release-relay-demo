@@ -1,11 +1,12 @@
 /**
  * @description The nightly archive call (RlyArchiveRest, POST /services/apexrest/rly/archive) from the Git pipeline's
  * scheduled job, one pass per call. Body: {"runUrl": the GitHub Actions run, "runId": the run of the previous call}.
- * Answer: {"runId", "pass", "removed", "records", "remaining", "done", "skipped", "reason"}. Every call stamps
- * Last_Nightly_Call__c and Last_Nightly_Result__c. A call is skipped (no run row) outside the production hub, for a
+ * Answer: {"runId", "pass", "removed", "records", "remaining", "done", "skipped", "reason", "pipelineRuns"}.
+ * Every call stamps Last_Nightly_Call__c and Last_Nightly_Result__c. A call is skipped (no run row) outside the production hub, for a
  * caller who isn't an admin, with nightly off or no days, or while another run is going. Nothing eligible on the first
  * call leaves a Succeeded row "Nothing to remove". Otherwise the first call starts a Nightly run and makes pass 1;
- * later calls pass its runId.
+ * later calls pass its runId. Build 35: every call that isn't skipped also removes pipeline runs (RLY_Pipeline_Run__c)
+ * older than the Retention days (RlyRunMonitorRetention); the answer says how many in "pipelineRuns".
  */
 public with sharing class RlyArchiveNightly {
 
@@ -42,11 +43,14 @@ public with sharing class RlyArchiveNightly {
             skipped.put('skipped', true);
             return skipped;
         }
+        Integer pipelineRuns = RlyRunMonitorRetention.prune(RlyArchiveSettings.days(conn));
         if (run == null) {
             run = firstRun(conn, url(input.get('runUrl')));
             if (run.Status__c != RlyArchiveRuns.RUNNING) {
                 RlyArchiveSettings.stampCall(conn, RlyArchiveRuns.SUCCEEDED + ': ' + NOTHING.toLowerCase());
-                return answer(run.Id, NOTHING);
+                Map<String, Object> nothing = answer(run.Id, NOTHING);
+                nothing.put('pipelineRuns', pipelineRuns);
+                return nothing;
             }
         }
         RlyArchiveViews.PassResult p = RlyArchiveRunner.pass(run);
@@ -57,6 +61,7 @@ public with sharing class RlyArchiveNightly {
         out.put('removed', p.releases);
         out.put('records', p.records);
         out.put('remaining', p.remaining);
+        out.put('pipelineRuns', pipelineRuns);
         return out;
     }
 
