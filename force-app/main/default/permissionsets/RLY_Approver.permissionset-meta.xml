@@ -109,6 +109,14 @@
         <enabled>true</enabled>
         <externalCredentialPrincipal>RLY_Slack-Bot</externalCredentialPrincipal>
     </externalCredentialPrincipalAccesses>
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal>RLY_Git_GitHub-RLY_Git_GitHub</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal>RLY_Git_GitLab-RLY_Git_GitLab</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
     <fieldPermissions>
         <editable>false</editable>
         <field>RLY_Release__c.Work_Items__c</field>
@@ -207,6 +215,11 @@
     <fieldPermissions>
         <editable>false</editable>
         <field>RLY_Release__c.Is_Hotfix__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>RLY_Release__c.Git_Connection__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>

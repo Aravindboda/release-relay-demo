@@ -1,5 +1,22 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 25
+// Release Relay pipeline files: version 26
+// Version 26 (hub build 46, the Move repository wizard): MODE=migrate (STEP=migrate, request ids MIG-<13 digits>) runs
+//   in the SOURCE connection's pipeline and copies this repository into a new, empty one at another provider: a
+//   git clone --mirror of this repository, then every branch (the default branch first) and every tag pushed to
+//   options.targetUrl (https, no credentials) in batches of 25, a failed batch again one ref at a time. The token is
+//   RELAY_MIGRATE_TOKEN (a CI secret / variable on the source; Basic user from options.targetProvider: github
+//   x-access-token, gitlab oauth2, bitbucket x-token-auth, azure any; RELAY_MIGRATE_USER overrides it), given to git
+//   through GIT_CONFIG_* environment variables, never on the command line or in a URL. A target with any branch or tag
+//   is refused unless options.force is true (the hub never sets it). options.method: "lift" (lift and shift, the
+//   default: every branch and tag with all history), "fresh" (fresh start: each branch in options.branches gets one
+//   commit with the source branch's latest files and no parent; no tags) or "verify" (nothing pushed: every branch
+//   and tag compared with a copy made by the provider's own importer). options.dryRun reads both sides and reports
+//   without pushing: what would move (branches, tags, commits, size), whether the target is empty or matches, read and
+//   push rights (a dry-run push of an unused branch name), and the named Release Relay branches found and missing;
+//   "ready" says whether the real run can go. Progress and the result go to results/<id>/migrate.json (status
+//   In progress / Succeeded / Failed, ready, problems, phase, branches and tags found / pushed / failed, commits, size,
+//   default branch, each ref with its commit in the source and in the target and a match mark, failures per ref).
+//   Every other mode is unchanged.
 // Version 25 (GitLab, hub build 45): RELAY_PROVIDER=gitlab runs every step the GitHub workflow runs. STEP=monitor posts
 //   GitLab pipelines too (CI_PIPELINE_ID, CI_PIPELINE_URL; at the end the jobs' outcomes and the first failure from the
 //   GitLab API with RELAY_TOKEN, instead of NEEDS_JSON and GH_TOKEN). Messages name the run's provider (PROVIDER_NAME)
@@ -507,7 +524,20 @@ const BUILT_IN_EXCLUDES = [ // RLY-EXCLUDES: generated from the hub package.xml,
     'classes/RlyGitCore.cls*', 'classes/RlyGitChanges.cls*', 'classes/RlyGitHubChanges.cls*', 'classes/RlyGitLabChanges.cls*',
     'classes/RlyGitLabDiffs.cls*', 'classes/RlyGitLabRuns.cls*', 'classes/RlyGitLabTree.cls*', 'classes/RlyGitLabTest.cls*',
     'labels/CustomLabels.labels-meta.xml only-labels:RLY_App_Name', 'objects/RLY_Release__c',
-    'objects/RLY_Release_Item__c'
+    'objects/RLY_Release_Item__c',
+    // Build 46: the Migration tab, one active Git connection, the packaged Git credentials (RLY_Git_<Provider>).
+    'classes/RlyGitConnections.cls*', 'classes/RlyRepoBadges.cls*', 'classes/RlyMigrationActions.cls*',
+    'classes/RlyMigrationChecklist.cls*',
+    'classes/RlyMigrationController.cls*', 'classes/RlyMigrationGate.cls*', 'classes/RlyMigrationGuard.cls*',
+    'classes/RlyMigrationMethods.cls*', 'classes/RlyMigrationMoved.cls*', 'classes/RlyMigrationOrgController.cls*', 'classes/RlyMigrationPartsTest.cls*',
+    'classes/RlyMigrationRepo.cls*', 'classes/RlyMigrationReport.cls*', 'classes/RlyMigrationRun.cls*',
+    'classes/RlyMigrationSecrets.cls*', 'classes/RlyMigrationState.cls*', 'classes/RlyMigrationSteps.cls*',
+    'classes/RlyMigrationStore.cls*', 'classes/RlyMigrationSummary.cls*', 'classes/RlyMigrationSwitch.cls*',
+    'classes/RlyMigrationSync.cls*', 'classes/RlyMigrationTest.cls*', 'classes/RlyMigrationView.cls*',
+    'classes/RlyMigrationViews.cls*', 'objects/RLY_Migration__c', 'lwc/rlyRepoMigration',
+    'tabs/RLY_Migration.tab-meta.xml', 'externalCredentials/RLY_Git_GitHub.externalCredential-meta.xml',
+    'namedCredentials/RLY_Git_GitHub.namedCredential-meta.xml', 'externalCredentials/RLY_Git_GitLab.externalCredential-meta.xml',
+    'namedCredentials/RLY_Git_GitLab.namedCredential-meta.xml'
 ];
 const PROVIDER = (env.RELAY_PROVIDER || 'github').toLowerCase();
 /** The provider's name for messages (version 25, GitLab): GitHub unless RELAY_PROVIDER says otherwise. */
@@ -577,6 +607,14 @@ function runUrl() {
 }
 
 function checkCommonInputs() {
+    if (mode === 'migrate') {
+        // Repository migration (version 26): id MIG-<13 digits>; options.targetUrl is https without credentials.
+        if (!MIGRATE_ID_RE.test(requestId)) { fail('REQUEST_ID must look like MIG-1762400000000 for migrate.'); }
+        if (!MIGRATE_URL_RE.test(migrateTargetUrl()) || migrateTargetUrl().includes('..')) { fail('options.targetUrl must be the new repository\'s https address, without a user name or token.'); }
+        if (options.targetProvider !== undefined && !Object.keys(MIGRATE_USERS).includes(String(options.targetProvider).toLowerCase())) { fail('options.targetProvider must be github, gitlab, bitbucket or azure.'); }
+        if (!['github', 'gitlab', 'bitbucket', 'azure'].includes(PROVIDER)) { fail('RELAY_PROVIDER must be github, gitlab, bitbucket or azure.'); }
+        return;
+    }
     if (mode === 'data') {
         // Data sets (version 24): id DAT-<13 digits>; the load needs TARGET_ENVIRONMENT.
         if (!DATA_ID_RE.test(requestId)) { fail('REQUEST_ID must look like DAT-1762400000000 for data.'); }
@@ -5334,11 +5372,12 @@ async function stepDataLoad() {
 /** What a run does, by mode, as the hub's Pipeline Monitor shows it. */
 const MONITOR_STEPS = { org: 'Raise', branch: 'Raise', promote: 'Raise', hub: 'Raise', resolve: 'Resolve conflicts',
     check: 'Check-only deploy', merge: 'Merge', sync: 'Back promote', rollback: 'Rollback', archive: 'Archive', compare: 'Compare',
-    drift: 'Org vs branch', routediff: 'Down the route', data: 'Data' };
+    drift: 'Org vs branch', routediff: 'Down the route', data: 'Data', migrate: 'Repository copy' };
 /** The pipeline's jobs whose outcomes make the run's status, with the names the hub shows. */
 const MONITOR_JOBS = { raise: 'Raise pull request', scan: 'Code scan', validate: 'Check-only deploy', merge: 'Merge',
     deploy: 'Deploy', sync: 'Back promote', 'sync-branch': 'Back promote (branch only)', rollback: 'Rollback', archive: 'Archive',
-    compare: 'Compare', drift: 'Org vs branch', routediff: 'Down the route', 'data-export': 'Data export', 'data-load': 'Data load' };
+    compare: 'Compare', drift: 'Org vs branch', routediff: 'Down the route', 'data-export': 'Data export', 'data-load': 'Data load',
+    migrate: 'Repository copy' };
 
 function monitorWarn(message) {
     console.log('::warning::Pipeline Monitor: ' + message);
@@ -5532,11 +5571,370 @@ async function stepMonitor() {
     }
 }
 
+// ---------- version 26: repository migration (MODE=migrate, request ids MIG-<13 digits>) ----------
+//
+// The hub's Move repository wizard. Runs in the SOURCE connection's pipeline (the new repository is empty and has no
+// pipeline file yet): a mirror clone of this repository, then every branch and tag pushed to options.targetUrl (https,
+// no credentials in it) with the token in RELAY_MIGRATE_TOKEN (a CI secret / variable on the source; the user name
+// for the push comes from options.targetProvider, or RELAY_MIGRATE_USER). The target must have no branches or tags,
+// unless options.force is true (the hub never sets it). Progress and the result: results/<id>/migrate.json on this
+// repository's release-relay-results branch. Open pull / merge requests, pipeline history and comments don't move.
+
+/** A migration's id: MIG- and the hub's clock in milliseconds. */
+const MIGRATE_ID_RE = /^MIG-(\d{13})$/;
+/** An https repository address without credentials, query or fragment. */
+const MIGRATE_URL_RE = /^https:\/\/[A-Za-z0-9.-]+(:\d{2,5})?\/[A-Za-z0-9._~\/-]+$/;
+/** The push user name each provider takes with a token (Basic authentication). */
+const MIGRATE_USERS = { github: 'x-access-token', gitlab: 'oauth2', bitbucket: 'x-token-auth', azure: 'release-relay' };
+/** Refs pushed in one git push; a failed batch is retried one ref at a time, so each failure is named. */
+const MIGRATE_BATCH = 25;
+/** The most refs listed with both commit SHAs in migrate.json (the counts always cover all of them). */
+const MIGRATE_REFS_KEPT = 2000;
+
+let migrateState = null;
+
+/** The target address as given (never holds a token), with ".git" left as it is. */
+function migrateTargetUrl() {
+    return String(options.targetUrl || '').trim();
+}
+
+/** Text from git with any token, Authorization header or user:password@ removed. */
+function migrateClean(text) {
+    let out = String(text || '');
+    for (const secret of [input('RELAY_MIGRATE_TOKEN'), input('RELAY_TOKEN'), input('GH_TOKEN'), input('GITHUB_TOKEN')]) {
+        if (secret && secret.length >= 6) {
+            out = out.split(secret).join('•••');
+        }
+    }
+    return out.replace(/(https?:\/\/)[^\/\s@]+@/g, '$1').replace(/(authorization:\s*)(basic|bearer)\s+\S+/gi, '$1•••')
+        .replace(/[\r\t]+/g, ' ').trim().slice(0, 600);
+}
+
+/**
+ * Git configuration passed through the environment (never on the command line, so no token is printed): extra is
+ * a list of [key, value] pairs.
+ */
+function migrateGitEnv(extra) {
+    const out = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+    out.GIT_CONFIG_COUNT = String(extra.length);
+    extra.forEach(([key, value], i) => {
+        out['GIT_CONFIG_KEY_' + i] = key;
+        out['GIT_CONFIG_VALUE_' + i] = value;
+    });
+    return out;
+}
+
+/** The Authorization header for the target: Basic user:token. */
+function migrateTargetConfig() {
+    const provider = String(options.targetProvider || '').toLowerCase();
+    const user = input('RELAY_MIGRATE_USER') || MIGRATE_USERS[provider] || 'x-access-token';
+    const basic = Buffer.from(`${user}:${input('RELAY_MIGRATE_TOKEN')}`).toString('base64');
+    const origin = migrateTargetUrl().replace(/^(https:\/\/[^\/]+\/).*$/, '$1');
+    return [[`http.${origin}.extraheader`, `Authorization: Basic ${basic}`]];
+}
+
+/** The source's own sign-in for the mirror clone: the checkout's extra headers (GitHub) ride along. */
+function migrateSourceConfig() {
+    const listed = gitQuiet(['config', '--get-regexp', '^http\\..*\\.extraheader$']) || '';
+    return listed.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+        const cut = line.indexOf(' ');
+        return cut > 0 ? [line.slice(0, cut), line.slice(cut + 1)] : null;
+    }).filter(Boolean);
+}
+
+/** git with configuration from the environment; returns { ok, out, err } and never throws. */
+function migrateGit(args, extra, cwd) {
+    try {
+        const out = execFileSync('git', args, { cwd, env: migrateGitEnv(extra), encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: CLI_BUFFER });
+        return { ok: true, out: String(out || '').trim(), err: '' };
+    } catch (e) {
+        return { ok: false, out: String(e.stdout || '').trim(), err: migrateClean(e.stderr || e.message) };
+    }
+}
+
+/** Saves migrate.json (progress while running, the result at the end). A failed progress save never stops the copy. */
+function migrateSave(status, message, final, ready) {
+    const s = migrateState;
+    const data = { status, phase: s.phase, message: message ? String(message).slice(0, 1500) : '',
+        source: s.source, target: migrateTargetUrl(), targetProvider: String(options.targetProvider || ''),
+        defaultBranch: s.defaultBranch, commits: s.commits, startedAt: s.startedAt,
+        branches: { found: s.branches.length, pushed: s.pushedBranches, failed: s.failedBranches },
+        tags: { found: s.tags.length, pushed: s.pushedTags, failed: s.failedTags },
+        branchNames: s.branches.slice(0, 500), failures: s.failures.slice(0, 200), forced: options.force === true,
+        mainCommits: s.mainCommits, refs: s.refs.slice(0, MIGRATE_REFS_KEPT), refsTotal: s.refs.length,
+        matched: s.refs.filter((r) => r.match).length, method: s.method, dryRun: s.dryRun, ready: ready === true,
+        problems: s.problems.slice(0, 20), access: s.access, targetEmpty: s.targetEmpty, targetRefCount: s.targetRefCount,
+        sizeKb: s.sizeKb, namedBranches: s.named };
+    if (final) {
+        writeResult('migrate', data);
+        return;
+    }
+    try {
+        execFileSync(process.execPath, [__filename], { env: { ...process.env, STEP: 'migrate-progress', GITHUB_STEP_SUMMARY: '',
+            RELAY_MIGRATE_PROGRESS: JSON.stringify(data) }, stdio: ['ignore', 'inherit', 'inherit'] });
+    } catch (e) {
+        console.log('::warning::The migration progress couldn\'t be saved; the copy goes on.');
+    }
+}
+
+/** STEP=migrate-progress (internal): one progress save in a child process, so a failed save can't end the copy. */
+function stepMigrateProgress() {
+    let data = {};
+    try { data = JSON.parse(input('RELAY_MIGRATE_PROGRESS') || '{}'); } catch (ignore) { data = {}; }
+    writeResult('migrate', data);
+}
+
+function migrateFailed(message) {
+    if (migrateState) {
+        migrateState.problems.push(String(message).slice(0, 600));
+        migrateSave('Failed', message, true, false);
+    }
+    fail(message);
+}
+
+/** Pushes refs in batches; a failed batch is pushed again one ref at a time, so each failure is named. */
+function migratePushRefs(dir, refs, kind, extra) {
+    let pushed = 0;
+    let failed = 0;
+    const one = (ref) => {
+        const r = migrateGit(['push', '--quiet', 'relay-target', `+${ref}:${ref}`], extra, dir);
+        if (r.ok) {
+            pushed++;
+        } else {
+            failed++;
+            migrateState.failures.push({ ref, error: r.err || 'push failed' });
+        }
+    };
+    for (let i = 0; i < refs.length; i += MIGRATE_BATCH) {
+        const batch = refs.slice(i, i + MIGRATE_BATCH);
+        const r = migrateGit(['push', '--quiet', 'relay-target', ...batch.map((ref) => `+${ref}:${ref}`)], extra, dir);
+        if (r.ok) {
+            pushed += batch.length;
+        } else {
+            console.log(`A ${kind} batch failed (${r.err}); pushing its refs one at a time.`);
+            batch.forEach(one);
+        }
+        if (kind === 'branch') {
+            migrateState.pushedBranches = pushed;
+            migrateState.failedBranches = failed;
+        } else {
+            migrateState.pushedTags = pushed;
+            migrateState.failedTags = failed;
+        }
+        if (i + MIGRATE_BATCH < refs.length && (i / MIGRATE_BATCH) % 4 === 3) {
+            migrateSave('In progress', `Pushing ${kind === 'branch' ? 'branches' : 'tags'}: ${pushed + failed} of ${refs.length}.`, false);
+        }
+    }
+    return { pushed, failed };
+}
+
+/** The Release Relay branches the hub named (options.branches): pipeline branch first, then each org's, results, snapshots. */
+function migrateNamedBranches() {
+    const list = Array.isArray(options.branches) ? options.branches.map(String) : [];
+    return [...new Set(list.filter((b) => REF_RE.test(b) && !b.includes('..')))].slice(0, 60);
+}
+
+/** The target's branches and tags with their commits ({ ok, err, refs: { ref: sha } }). */
+function migrateTargetRefs(extra) {
+    const listed = migrateGit(['ls-remote', '--heads', '--tags', migrateTargetUrl()], extra);
+    const refs = {};
+    (listed.out || '').split('\n').filter(Boolean).forEach((line) => {
+        const [sha, ref] = line.split(/\s+/);
+        if (ref && !ref.endsWith('^{}')) {
+            refs[ref] = sha;
+        }
+    });
+    return { ok: listed.ok, err: listed.err, refs };
+}
+
+/** Whether the token may push: a dry-run push of a branch name nobody uses (nothing is created). */
+function migratePushAllowed(dir, extra) {
+    const probe = `refs/heads/relay-access-check-${requestId.toLowerCase()}`;
+    const r = migrateGit(['push', '--dry-run', '--quiet', 'relay-target', `${migrateState.defaultRef}:${probe}`], extra, dir);
+    return { ok: r.ok, err: r.err };
+}
+
+/** Fresh start: one commit per named branch with the source branch's files (its tree) and no parent. */
+function migrateSeed(dir, branchName, extra) {
+    const ref = 'refs/heads/' + branchName;
+    const tree = migrateGit(['rev-parse', `${ref}^{tree}`], [], dir).out;
+    const who = { GIT_AUTHOR_NAME: 'Release Relay', GIT_AUTHOR_EMAIL: 'release-relay@users.noreply.local',
+        GIT_COMMITTER_NAME: 'Release Relay', GIT_COMMITTER_EMAIL: 'release-relay@users.noreply.local' };
+    let commit = '';
+    try {
+        commit = execFileSync('git', ['commit-tree', tree, '-m', `Release Relay fresh start: ${branchName} as it was at `
+            + `${migrateState.sourceShas[ref].slice(0, 12)} in ${PROVIDER_NAME} (history stays there)`],
+        { cwd: dir, env: { ...process.env, ...who }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+    } catch (e) {
+        return { ok: false, err: migrateClean(e.stderr || e.message), tree, commit };
+    }
+    const r = migrateGit(['push', '--quiet', 'relay-target', `${commit}:${ref}`], extra, dir);
+    return { ok: r.ok, err: r.err, tree, commit };
+}
+
+/** Each branch and tag with its commit on both sides (fresh start: the seeded commit and the shared tree). */
+function migrateCompare(targetRefs, seeded) {
+    const s = migrateState;
+    const refs = seeded ? Object.keys(seeded).map((b) => 'refs/heads/' + b) : s.allRefs;
+    return refs.map((ref) => {
+        const name = ref.replace(/^refs\/(heads|tags)\//, '');
+        const row = { ref, kind: ref.startsWith('refs/tags/') ? 'tag' : 'branch', name, source: s.sourceShas[ref] || '',
+            target: targetRefs[ref] || '' };
+        if (seeded) {
+            row.tree = seeded[name].tree;
+            row.match = Boolean(row.target) && row.target === seeded[name].commit;
+        } else {
+            row.match = Boolean(row.source) && row.source === row.target;
+        }
+        return row;
+    });
+}
+
+/** STEP=migrate (MODE=migrate, version 26): lift and shift, fresh start or verify, with or without options.dryRun. */
+async function stepMigrate() {
+    if (mode !== 'migrate') { fail('STEP=migrate needs MODE=migrate.'); }
+    const method = ['lift', 'fresh', 'verify'].includes(options.method) ? options.method : 'lift';
+    const dryRun = options.dryRun === true || method === 'verify';
+    const sourceUrl = gitQuiet(['remote', 'get-url', 'origin']) || '';
+    migrateState = { phase: 'checking', source: migrateClean(sourceUrl), defaultBranch: '', defaultRef: '', commits: 0,
+        startedAt: new Date().toISOString(), branches: [], tags: [], pushedBranches: 0, failedBranches: 0,
+        pushedTags: 0, failedTags: 0, failures: [], mainCommits: 0, refs: [], allRefs: [], sourceShas: {},
+        method, dryRun, problems: [], access: { read: false, push: null }, targetEmpty: false, targetRefCount: 0,
+        sizeKb: 0, named: [] };
+    if (!input('RELAY_MIGRATE_TOKEN')) {
+        migrateFailed('RELAY_MIGRATE_TOKEN (a token that can push to the new repository) isn\'t set in this pipeline.');
+    }
+    const targetConfig = migrateTargetConfig();
+    // 1. The target: readable, and empty (lift and fresh) or holding the copy (verify).
+    const before = migrateTargetRefs(targetConfig);
+    if (!before.ok) {
+        migrateFailed(`The new repository can't be read with RELAY_MIGRATE_TOKEN: ${before.err || 'no answer'}`);
+    }
+    migrateState.access.read = true;
+    const existing = Object.keys(before.refs);
+    migrateState.targetRefCount = existing.length;
+    migrateState.targetEmpty = existing.length === 0;
+    if (!migrateState.targetEmpty && method !== 'verify' && options.force !== true) {
+        const names = existing.slice(0, 5).map((r) => r.replace(/^refs\/(heads|tags)\//, '')).join(', ');
+        migrateState.problems.push(`The new repository isn't empty (${existing.length} branch(es) or tag(s): ${names}${existing.length > 5 ? ', …' : ''}). `
+            + (method === 'fresh' ? 'A fresh start needs an empty repository.' : 'Lift and shift needs an empty repository; use Verify for a copy made by the provider\'s importer.'));
+    }
+    // 2. Mirror clone of the source (every branch, tag and commit).
+    migrateState.phase = 'cloning';
+    migrateSave('In progress', 'Reading the current repository.', false);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-mirror-'));
+    const cloned = migrateGit(['clone', '--mirror', '--quiet', sourceUrl, dir], migrateSourceConfig());
+    if (!cloned.ok) {
+        migrateFailed(`The current repository couldn't be cloned: ${cloned.err}`);
+    }
+    const refs = (migrateGit(['for-each-ref', '--format=%(refname) %(objectname)', 'refs/heads', 'refs/tags'], [], dir).out || '')
+        .split('\n').filter(Boolean).map((line) => {
+            const [ref, sha] = line.split(' ');
+            migrateState.sourceShas[ref] = sha;
+            return ref;
+        });
+    migrateState.allRefs = refs;
+    migrateState.branches = refs.filter((r) => r.startsWith('refs/heads/')).map((r) => r.slice('refs/heads/'.length));
+    migrateState.tags = refs.filter((r) => r.startsWith('refs/tags/')).map((r) => r.slice('refs/tags/'.length));
+    const head = migrateGit(['symbolic-ref', '--short', 'HEAD'], [], dir);
+    migrateState.defaultBranch = head.ok && migrateState.branches.includes(head.out) ? head.out : (migrateState.branches[0] || '');
+    migrateState.defaultRef = 'refs/heads/' + migrateState.defaultBranch;
+    migrateState.commits = Number(migrateGit(['rev-list', '--all', '--count'], [], dir).out) || 0;
+    migrateState.mainCommits = migrateState.defaultBranch
+        ? Number(migrateGit(['rev-list', '--count', migrateState.defaultRef], [], dir).out) || 0 : 0;
+    const sizes = migrateGit(['count-objects', '-v'], [], dir).out || '';
+    migrateState.sizeKb = sizes.split('\n').reduce((n, line) => n + (/^size(-pack)?:/.test(line) ? Number(line.split(':')[1]) || 0 : 0), 0);
+    if (!migrateState.branches.length) {
+        migrateFailed('The current repository has no branches to copy.');
+    }
+    const named = migrateNamedBranches();
+    migrateState.named = named.map((b) => ({ name: b, inSource: migrateState.branches.includes(b),
+        inTarget: Boolean(before.refs['refs/heads/' + b]) }));
+    migrateGit(['remote', 'add', 'relay-target', migrateTargetUrl()], [], dir);
+    // 3. Push rights (lift and fresh), checked without pushing anything.
+    if (method !== 'verify') {
+        const access = migratePushAllowed(dir, targetConfig);
+        migrateState.access.push = access.ok;
+        if (!access.ok) {
+            migrateState.problems.push(`RELAY_MIGRATE_TOKEN can't push to the new repository: ${access.err || 'refused'}`);
+        }
+    }
+    if (method === 'fresh' && !named.some((b) => migrateState.branches.includes(b))) {
+        migrateState.problems.push('A fresh start needs the Release Relay branches (options.branches); none is in the current repository.');
+    }
+    // 4. A dry run (and Verify) reads and reports only.
+    if (dryRun) {
+        fs.rmSync(dir, { recursive: true, force: true });
+        migrateState.phase = 'done';
+        migrateState.refs = method === 'verify' || !migrateState.targetEmpty ? migrateCompare(before.refs, null) : [];
+        // The results branch moves on with every run (this one too): listed, never counted as a difference.
+        const differ = migrateState.refs.filter((r) => !r.match && r.ref !== 'refs/heads/' + RESULTS_BRANCH).length;
+        if (method === 'verify' && differ) {
+            migrateState.problems.push(`${differ} branch(es) or tag(s) differ from the current repository (missing or at another commit).`);
+        }
+        const ready = migrateState.problems.length === 0;
+        migrateSave('Succeeded', ready ? 'Ready.' : migrateState.problems.join(' '), true, ready);
+        summary(`**Dry run (${method}):** ${ready ? 'ready' : 'not ready'}; ${migrateState.branches.length} branch(es), `
+            + `${migrateState.tags.length} tag(s), ${migrateState.commits} commits, ${Math.round(migrateState.sizeKb / 1024)} MB.`);
+        return;
+    }
+    if (migrateState.problems.length) {
+        migrateFailed(migrateState.problems.join(' '));
+    }
+    let seeded = null;
+    if (method === 'fresh') {
+        // 5a. Fresh start: each named branch that exists, one commit with its latest files; no tags, no history.
+        migrateState.phase = 'branches';
+        seeded = {};
+        for (const b of named.filter((x) => migrateState.branches.includes(x))) {
+            const r = migrateSeed(dir, b, targetConfig);
+            seeded[b] = r;
+            if (r.ok) {
+                migrateState.pushedBranches++;
+            } else {
+                migrateState.failedBranches++;
+                migrateState.failures.push({ ref: 'refs/heads/' + b, error: r.err || 'push failed' });
+            }
+        }
+    } else {
+        // 5b. Lift and shift: branches, the default branch first (GitLab and Azure make the first branch pushed the
+        // default one), then tags.
+        migrateState.phase = 'branches';
+        migrateSave('In progress', `Pushing ${migrateState.branches.length} branch(es) and ${migrateState.tags.length} tag(s).`, false);
+        const branchRefs = [migrateState.defaultBranch, ...migrateState.branches.filter((b) => b !== migrateState.defaultBranch)]
+            .map((b) => 'refs/heads/' + b);
+        migratePushRefs(dir, branchRefs, 'branch', targetConfig);
+        migrateState.phase = 'tags';
+        if (migrateState.tags.length) {
+            migrateSave('In progress', `Pushing ${migrateState.tags.length} tag(s).`, false);
+            migratePushRefs(dir, migrateState.tags.map((t) => 'refs/tags/' + t), 'tag', targetConfig);
+        }
+    }
+    fs.rmSync(dir, { recursive: true, force: true });
+    // 6. What moved: read back from the target.
+    migrateState.phase = 'verifying';
+    migrateState.refs = migrateCompare(migrateTargetRefs(targetConfig).refs, seeded);
+    migrateState.phase = 'done';
+    const unmatched = migrateState.refs.filter((r) => !r.match).length;
+    const failedCount = Math.max(migrateState.failedBranches + migrateState.failedTags, unmatched);
+    const text = seeded
+        ? `${migrateState.pushedBranches} branch(es) seeded with their latest files (no history); default branch ${named[0] || ''}.`
+        : `${migrateState.pushedBranches} of ${migrateState.branches.length} branch(es) and ${migrateState.pushedTags} of `
+            + `${migrateState.tags.length} tag(s) copied (${migrateState.commits} commits); default branch ${migrateState.defaultBranch}.`;
+    if (failedCount) {
+        migrateSave('Failed', `${failedCount} ref(s) failed. ${text}`, true, false);
+        fail(`${failedCount} ref(s) couldn't be pushed to the new repository; migrate.json lists them.`);
+    }
+    migrateSave('Succeeded', text, true, true);
+    summary(`**Repository ${seeded ? 'seeded' : 'copied'}:** ${text} Open pull / merge requests, pipeline history and comments don't move.`);
+}
+
 // ---------- main ----------
 
 const STEPS = { raise: stepRaise, scan: stepScan, validate: stepValidate, merge: stepMerge, deploy: stepDeploy, sync: stepSync,
     rollback: stepRollback, auto: stepAuto, compare: stepCompare, drift: stepDrift, routediff: stepRouteDiff,
-    'data-export': stepDataExport, 'data-load': stepDataLoad };
+    'data-export': stepDataExport, 'data-load': stepDataLoad, migrate: stepMigrate };
 
 async function main() {
     if (step === 'notify') {
@@ -5552,6 +5950,12 @@ async function main() {
         }
         return;
     }
+    if (step === 'migrate-progress') {
+        // Version 26: one progress save for a running migration (a child of STEP=migrate).
+        preparePush();
+        stepMigrateProgress();
+        return;
+    }
     checkCommonInputs();
     // The pipeline's own settings, read before any step checks out another commit.
     loadExcludes();
@@ -5562,7 +5966,7 @@ async function main() {
         summary(`**Note:** selfUpdate is set but the target is ${target}; the hub's own updates belong on release-relay-hub.`);
     }
     if (!STEPS[step]) {
-        fail('STEP must be raise, scan, validate, merge, deploy, sync, rollback, auto, compare, drift, routediff, data-export or data-load.');
+        fail('STEP must be raise, scan, validate, merge, deploy, sync, rollback, auto, compare, drift, routediff, data-export, data-load or migrate.');
     }
     preparePush();
     await STEPS[step]();

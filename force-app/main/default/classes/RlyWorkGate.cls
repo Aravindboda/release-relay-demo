@@ -61,7 +61,7 @@ public with sharing class RlyWorkGate {
             return false;
         }
         String before = rel.Error_Message__c;
-        RlyApprovalRuns.dispatchMerge(rel, RlyGit.forConnection(RlyReleaseStore.git()));
+        RlyApprovalRuns.dispatchMerge(rel, RlyGit.forConnection(RlyReleaseStore.gitFor(rel)));
         return rel.Status__c != 'Ready for approval' || rel.Error_Message__c != before;
     }
 
