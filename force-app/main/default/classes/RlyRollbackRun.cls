@@ -56,8 +56,12 @@ public with sharing class RlyRollbackRun {
 
     private static Map<String, Object> readResult(RlyGit git, String owner, String token) {
         String raw = git.getFileRaw('results/' + owner + '/' + RlyRollback.MODE + '.json', RlyPipelineRun.RESULTS_BRANCH);
-        Map<String, Object> r = RlyEvidenceText.parse(raw);
-        return r.isEmpty() || token == null || !token.equals(String.valueOf(r.get('attempt'))) ? null : r;
+        Map<String, Object> r = RlyResultSignature.open(raw, owner, RlyRollback.MODE).data; // build 48: signed results only
+        if (r == null || token == null || !token.equals(String.valueOf(r.get('attempt')))) {
+            return null;
+        }
+        r.put('runUrl', RlyRunMonitorInput.url(r.get('runUrl'))); // only https links are shown
+        return r;
     }
 
     // A run that failed before it wrote a result (looked for a minute after the start, so an earlier run isn't taken).

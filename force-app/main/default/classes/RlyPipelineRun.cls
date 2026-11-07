@@ -104,7 +104,9 @@ public with sharing class RlyPipelineRun {
 
     /**
      * @description A step's result file from the latest run: its attempt must be the release's token; a result without
-     * attempt (an older pipeline script) must have finished after the latest run was requested.
+     * attempt (an older pipeline script) must have finished after the latest run was requested. Build 48: the file must
+     * carry the pipeline's signature while the hub has a run-signing key (RlyResultSignature); a file that fails the
+     * check is treated as no result and the release says so (Error_Message__c), so it never moves the release.
      * @param git the Git provider
      * @param rel the release
      * @param step scan, validate, merge or deploy
@@ -115,8 +117,12 @@ public with sharing class RlyPipelineRun {
         if (String.isBlank(raw)) {
             return null;
         }
-        Map<String, Object> r = (Map<String, Object>) JSON.deserializeUntyped(raw);
-        return isFromEarlierRun(r, rel) ? null : r;
+        RlyResultSignature.Opened opened = RlyResultSignature.open(raw, rel.Name, step);
+        if (opened.rejected) {
+            rel.Error_Message__c = RlyResultSignature.rejectedMessage(step).left(2000);
+        }
+        Map<String, Object> r = opened.data;
+        return r == null || isFromEarlierRun(r, rel) ? null : r;
     }
 
     private static Boolean isFromEarlierRun(Map<String, Object> r, RLY_Release__c rel) {

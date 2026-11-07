@@ -38,6 +38,7 @@ public with sharing class RlyApprovalRuns {
         if (RlyPromotion.typeOf(rel) == RlyPromotion.TYPE_BACK_PROMOTE) {
             RlyBackPromoteRun.dispatch(rel, git);
         } else {
+            RlyRunKeyStore.requireValidatedHead(rel); // build 48: no merge without the validated head once runs are signed
             git.startPipeline(RlyPipelineRun.inputs(rel, 'merge', rel.Source_Branch__c));
             rel.Pending_Run__c = 'merge';
         }
@@ -76,6 +77,8 @@ public with sharing class RlyApprovalRuns {
         rel.Scan_Bypassed_By__c = null;
         rel.Scan_Bypass_Reason__c = null;
         rel.Error_Message__c = null;
+        rel.Validated_Head__c = null; // build 48: the new check pins the head (and its attempt) again
+        rel.Validated_Attempt__c = null;
     }
 
     /**

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Validated_Attempt__c</fullName>
+    <description>Build 48: the run token (attempt) of the check run whose passing validate.json set Validated_Head__c. The merge sends it as options.validationAttempt so the pipeline can quick-deploy that validation; without it the deploy runs in full with tests. Cleared when the checks run again.</description>
+    <label>Validated Attempt</label>
+    <length>40</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

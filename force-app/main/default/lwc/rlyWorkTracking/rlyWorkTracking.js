@@ -135,6 +135,9 @@ export default class RlyWorkTracking extends LightningElement {
         if (this.integrates) {
             out.push({ value: 'postUpdates', label: 'Post each moment to the ticket' });
         }
+        if (this.isServiceNow) {
+            out.push({ value: 'changeMentionsRelease', label: 'Change must mention the release' });
+        }
         out.push({ value: 'active', label: 'Active' });
         return out;
     }
@@ -142,13 +145,14 @@ export default class RlyWorkTracking extends LightningElement {
         if (!this.form) {
             return [];
         }
-        return ['postUpdates', 'active'].filter((v) => this.form[v] && (v !== 'postUpdates' || this.integrates));
+        return ['postUpdates', 'changeMentionsRelease', 'active'].filter((v) => this.form[v]
+            && (v !== 'postUpdates' || this.integrates) && (v !== 'changeMentionsRelease' || this.isServiceNow));
     }
     get stateHint() { return '{"Deployed to SIT":"In QA","Deployed to PROD":"Done"}'; }
 
     startAdd() {
         this.form = { id: null, kind: 'Jira', name: '', ticketPattern: '', linkPattern: '', namedCredential: '', postUpdates: false,
-            stateMap: '', serviceNowTable: '', active: true };
+            stateMap: '', serviceNowTable: '', active: true, changeMentionsRelease: true };
         this.saved = undefined;
         this.error = undefined;
     }
@@ -165,7 +169,8 @@ export default class RlyWorkTracking extends LightningElement {
     handleText(event) { this.form = { ...this.form, [event.target.dataset.field]: event.target.value }; }
     handleFormChips(event) {
         const v = event.detail.value;
-        this.form = { ...this.form, postUpdates: v.includes('postUpdates'), active: v.includes('active') };
+        this.form = { ...this.form, postUpdates: v.includes('postUpdates'), active: v.includes('active'),
+            changeMentionsRelease: this.isServiceNow ? v.includes('changeMentionsRelease') : this.form.changeMentionsRelease };
     }
     handleTry(event) { this.tryText = event.target.value; }
 

@@ -72,7 +72,12 @@ public with sharing class RlyDataResult {
             return v;
         }
         RlyGit git = RlyComparePipelineInput.gitHub();
-        Map<String, Object> result = parsed(git.getFileRaw('results/' + runId + '/data.json', RlyPipelineRun.RESULTS_BRANCH));
+        RlyResultSignature.Opened opened = RlyResultSignature.open(git.getFileRaw('results/' + runId + '/data.json', RlyPipelineRun.RESULTS_BRANCH),
+            runId, 'data');
+        Map<String, Object> result = opened.data;
+        if (opened.rejected) {
+            v.message = RlyResultSignature.REJECTED + ' (data.json).';
+        }
         if (result != null && run.Token__c != null && run.Token__c.equals(String.valueOf(result.get('attempt')))) {
             settle(v, run, result);
         } else {
@@ -84,7 +89,7 @@ public with sharing class RlyDataResult {
     // The result is there: status from it, saved with the counts and the summary.
     private static void settle(View v, RLY_Data_Run__c run, Map<String, Object> result) {
         v.done = true;
-        v.runUrl = result.get('runUrl') == null ? v.runUrl : String.valueOf(result.get('runUrl'));
+        v.runUrl = result.get('runUrl') == null ? v.runUrl : RlyRunMonitorInput.url(result.get('runUrl'));
         v.dryRun = result.get('dryRun') != false;
         Boolean ok = String.valueOf(result.get('status')) == 'Succeeded';
         Boolean blocked = result.get('blocked') == true;

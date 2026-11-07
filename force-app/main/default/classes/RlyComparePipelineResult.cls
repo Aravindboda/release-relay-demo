@@ -35,14 +35,15 @@ public with sharing class RlyComparePipelineResult {
         RlyComparePipeline.checkId(compareId);
         RlyGit git = RlyComparePipeline.gitHub();
         Result r = new Result();
-        Map<String, Object> summary = parsed(git.getFileRaw('results/' + compareId + '/compare.json', RlyPipelineRun.RESULTS_BRANCH));
+        Map<String, Object> summary = RlyResultSignature.lenient(git.getFileRaw('results/' + compareId + '/compare.json', RlyPipelineRun.RESULTS_BRANCH),
+            compareId, 'compare');
         Boolean fromThisRun = summary != null && String.isNotBlank(token) && token.equals(String.valueOf(summary.get('attempt')));
         if (!fromThisRun) {
             readRun(git, compareId, r);
             return r;
         }
         r.done = true;
-        r.runUrl = summary.get('runUrl') == null ? null : String.valueOf(summary.get('runUrl'));
+        r.runUrl = RlyRunMonitorInput.url(summary.get('runUrl'));
         if (String.valueOf(summary.get('status')) != 'Succeeded') {
             r.failed = true;
             r.message = summary.get('message') == null ? 'The compare run failed. Open the run for the reason.' : String.valueOf(summary.get('message'));

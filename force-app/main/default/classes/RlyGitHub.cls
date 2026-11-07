@@ -166,10 +166,10 @@ public with sharing class RlyGitHub extends RlyGit {
     }
 
     /**
-     * @description Starts the workflow (workflow_dispatch) with these inputs.
+     * @description Starts the workflow (workflow_dispatch) with these inputs (signed by RlyGit.startPipeline).
      * @param inputs the workflow inputs
      */
-    public override void startPipeline(Map<String, String> inputs) {
+    protected override void dispatchPipeline(Map<String, String> inputs) {
         HttpResponse res = send('POST', repo() + '/actions/workflows/' + enc(conn.Pipeline__c.trim()) + '/dispatches',
             JSON.serialize(new Map<String, Object>{ 'ref' => conn.Pipeline_Branch__c.trim(), 'inputs' => inputs }));
         assertOk(res, 'Starting the pipeline');
