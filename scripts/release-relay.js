@@ -3663,7 +3663,7 @@ async function main() {
         try {
             await stepMonitor();
         } catch (e) {
-            monitorWarn(`couldn't post this run to the hub (${String((e && (e.stderr || e.message)) || e).trim().slice(0, 300)}).`);
+            monitorWarn(`couldn't post this run to the hub (${String((e && (e.stderr || e.message)) || e).trim().slice(0, 300)}) ${String((e && e.stdout) || '').trim().slice(0, 600)}`);
         }
         return;
     }
