@@ -1,0 +1,261 @@
+<template>
+    <!-- design board: Sync status (2026-11-07) — fits the screen, each section scrolls on its own -->
+    <template lwc:if={statusRead}>
+        <c-rly-org-gate status={hubStatus}></c-rly-org-gate>
+        <template lwc:if={showPage}>
+            <div class="rr-page">
+                <template lwc:if={showSpinner}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+
+                <section class="rr-card rr-head">
+                    <span class="rr-head-icon"><lightning-icon icon-name="utility:sync" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
+                    <div class="rr-head-text">
+                        <p class="rr-kicker">{appName}</p>
+                        <h1 class="rr-title">Sync status</h1>
+                    </div>
+                    <div class="rr-segs" role="group" aria-label="View">
+                        <template for:each={viewButtons} for:item="v">
+                            <button key={v.value} type="button" class={v.cls} data-value={v.value} aria-pressed={v.pressed} onclick={handleView}>{v.label}</button>
+                        </template>
+                    </div>
+                    <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Read again" title="Read again" onclick={refresh}></lightning-button-icon>
+                    <span class="rr-ticks" aria-hidden="true">
+                        <template for:each={ticks} for:item="t">
+                            <span key={t.key} class={t.cls} data-id={t.id} onanimationend={handleTick}></span>
+                        </template>
+                    </span>
+                </section>
+
+                <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+
+                <!-- org vs branch -->
+                <template lwc:if={isOrgView}>
+                    <div class="rr-orgs">
+                        <template for:each={orgCards} for:item="o">
+                            <div key={o.orgId} class={o.cls}>
+                                <button type="button" class="rr-org-pick" data-id={o.orgId} aria-pressed={o.current} onclick={pickOrg}>
+                                    <span class="rr-org-top"><strong>{o.name}</strong><span class={o.tagCls}>{o.tagLabel}</span></span>
+                                    <span class={o.bigCls}>{o.big}</span>
+                                    <span class="rr-small rr-weak"><span class="rr-mono">{o.branch}</span> · {o.checked}</span>
+                                    <template lwc:if={o.detail}><span class="rr-small rr-weak">{o.detail}</span></template>
+                                    <template lwc:if={o.message}><span class="rr-small rr-bad-text">{o.message}</span></template>
+                                </button>
+                                <div class="rr-org-actions">
+                                    <lightning-button label="Check now" data-id={o.orgId} onclick={checkOrg} disabled={o.cantCheck}></lightning-button>
+                                    <template lwc:if={o.runUrl}><a class="rr-a rr-small" href={o.runUrl} target="_blank" rel="noopener noreferrer">Open the run</a></template>
+                                    <span class="rr-small rr-weak">{o.how}</span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <section class="rr-card rr-split-card">
+                        <template lwc:if={orgNever}>
+                            <div class="rr-empty">Press <strong>Check now</strong> on {selectedName} to compare the org with its branch.</div>
+                        </template>
+                        <template lwc:elseif={orgWaiting}>
+                            <div class="rr-empty"><lightning-spinner alternative-text="Checking" size="small" class="rr-inline-spin"></lightning-spinner>Comparing {selectedName} with its branch… the result shows here when the run ends.</div>
+                        </template>
+                        <template lwc:elseif={orgFailed}>
+                            <div class="rr-msg rr-msg-bad rr-inset">{orgFailMessage}</div>
+                        </template>
+                        <template lwc:elseif={orgResultEmpty}>
+                            <div class="rr-empty"><span class="rr-pill rr-pill-ok">In sync</span> {selectedName} and its branch are the same.</div>
+                        </template>
+                        <template lwc:elseif={hasOrgResult}>
+                            <div class="rr-split">
+                                <nav class="rr-types" aria-label="Types">
+                                    <template for:each={typeRows} for:item="t">
+                                        <button key={t.value} type="button" class={t.cls} data-value={t.value} aria-pressed={t.pressed} onclick={pickType}>
+                                            <span class="rr-trunc">{t.label}</span><span class="rr-weak">{t.count}</span>
+                                        </button>
+                                    </template>
+                                </nav>
+                                <div class="rr-list">
+                                    <div class="rr-bar">
+                                        <c-rly-search-box class="rr-search" label="Search the differences" placeholder="Search name, type or person"
+                                            shown={orgShownCount} total={orgTotal} onsearch={handleSearch}></c-rly-search-box>
+                                        <div class="rr-segs" role="group" aria-label="Difference">
+                                            <template for:each={filterButtons} for:item="f">
+                                                <button key={f.value} type="button" class={f.cls} data-value={f.value} aria-pressed={f.pressed} onclick={handleFilter}>{f.label}</button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <template lwc:if={truncatedNote}><p class="rr-small rr-weak rr-pad">{truncatedNote}</p></template>
+                                    <div class="rr-rows">
+                                        <div class="rr-row rr-row-head"><span>Pick</span><span>Component</span><span>Difference</span><span>Last changed</span></div>
+                                        <template for:each={orgRows} for:item="r">
+                                            <div key={r.key} class={r.rowCls}>
+                                                <button type="button" class={r.pickCls} data-key={r.key} aria-pressed={r.pressed} onclick={togglePick}>{r.pickLabel}</button>
+                                                <button type="button" class="rr-link rr-name" data-key={r.key} onclick={openComponent}>
+                                                    <span class="rr-strong"><template for:each={r.nameParts} for:item="p"><span key={p.key} class={p.cls}>{p.text}</span></template></span>
+                                                    <span class="rr-small rr-weak">{r.type}</span>
+                                                </button>
+                                                <span><span class={r.chipCls}>{r.chipLabel}</span></span>
+                                                <span class="rr-small rr-weak rr-trunc">{r.changed}</span>
+                                            </div>
+                                        </template>
+                                        <template lwc:if={noOrgMatch}><p class="rr-empty">No differences match.</p></template>
+                                    </div>
+                                    <template lwc:if={hasOpen}>
+                                        <div class="rr-open">
+                                            <div class="rr-open-head"><strong>{openTitle}</strong><span class="rr-grow"></span><button type="button" class="rr-link" onclick={closeComponent}>Close</button></div>
+                                            <template lwc:if={hasFilePicker}>
+                                                <div class="rr-fpick" role="group" aria-label="Files">
+                                                    <template for:each={openFiles} for:item="f">
+                                                        <button key={f.path} type="button" class={f.cls} aria-pressed={f.pressed} data-path={f.path} onclick={pickFile}>{f.label}</button>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            <template lwc:if={fileLoading}><p class="rr-small rr-weak rr-pad">Reading the file…</p></template>
+                                            <template lwc:if={fileError}><div class="rr-msg rr-msg-bad rr-inset">{fileError}</div></template>
+                                            <template lwc:if={openReason}><p class="rr-small rr-weak rr-pad">{openReason}</p></template>
+                                            <template lwc:if={showDiff}>
+                                                <c-rly-diff-view title={diffTitle} left-label={leftLabel} right-label={rightLabel} left={leftText} right={rightText}></c-rly-diff-view>
+                                            </template>
+                                            <template lwc:if={showPatch}>
+                                                <pre class="rr-patch"><template for:each={patchLines} for:item="l"><span key={l.key} class={l.cls}>{l.text}</span></template></pre>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="rr-foot">
+                                <span class="rr-small"><strong>{pickText}</strong><template lwc:if={pushHint}> · <span class="rr-weak">{pushHint}</span></template></span>
+                                <span class="rr-grow"></span>
+                                <lightning-button label="Bring into the branch" onclick={bringIntoBranch} disabled={noPicks}></lightning-button>
+                                <lightning-button variant="brand" label="Push to the org" onclick={pushPicked} disabled={cantPush}></lightning-button>
+                            </div>
+                        </template>
+                    </section>
+                </template>
+
+                <!-- down the route -->
+                <template lwc:if={isRouteView}>
+                    <section class="rr-card rr-split-card">
+                        <div class="rr-bar">
+                            <span class="rr-small rr-weak">{routeChecked}</span>
+                            <template lwc:if={routeRunUrl}><a class="rr-a rr-small" href={routeRunUrl} target="_blank" rel="noopener noreferrer">Open the run</a></template>
+                            <span class="rr-grow"></span>
+                            <lightning-button label="Check the route" onclick={checkRoute} disabled={cantCheckRoute}></lightning-button>
+                        </div>
+                        <div class="rr-lane" role="group" aria-label="Pairs">
+                            <template for:each={lanePairs} for:item="p">
+                                <button key={p.key} type="button" class="rr-pair" data-index={p.index} aria-pressed={p.pressed} onclick={pickPair}>
+                                    <span class="rr-stage"><strong>{p.higherName}</strong><span class="rr-mono rr-weak">{p.higherBranch}</span></span>
+                                    <span class={p.cls}>{p.label}</span>
+                                    <span class="rr-stage"><strong>{p.lowerName}</strong><span class="rr-mono rr-weak">{p.lowerBranch}</span></span>
+                                </button>
+                            </template>
+                        </div>
+                        <template lwc:if={routeRunning}><div class="rr-empty"><lightning-spinner alternative-text="Checking" size="small" class="rr-inline-spin"></lightning-spinner>Comparing the branches… the result shows here when the run ends.</div></template>
+                        <template lwc:elseif={routeFailed}><div class="rr-msg rr-msg-bad rr-inset">{routeMessage}</div></template>
+                        <template lwc:elseif={pairEmpty}><div class="rr-empty"><span class="rr-pill rr-pill-ok">In step</span> The {pairTitle} branches have nothing to bring down.</div></template>
+                        <template lwc:else>
+                            <div class="rr-list">
+                                <div class="rr-bar">
+                                    <span class="rr-small"><strong>{pairTitle}</strong> · {pairCountText}</span>
+                                    <span class="rr-grow"></span>
+                                    <c-rly-search-box class="rr-search" label="Search" placeholder="Search name, type or release" onsearch={handleSearch}></c-rly-search-box>
+                                </div>
+                                <template lwc:if={branchOnlyNote}><p class="rr-small rr-weak rr-pad">{branchOnlyNote}</p></template>
+                                <div class="rr-rows">
+                                    <div class="rr-row rr-row-route rr-row-head"><span>Pick</span><span>Component</span><span>Came from</span><span>Status</span></div>
+                                    <template for:each={pairRows} for:item="r">
+                                        <div key={r.key} class={r.rowCls}>
+                                            <button type="button" class={r.pickCls} data-key={r.key} aria-pressed={r.pressed} onclick={toggleRoutePick}>{r.pickLabel}</button>
+                                            <button type="button" class="rr-link rr-name" data-key={r.key} onclick={openComponent}>
+                                                <span class="rr-strong"><template for:each={r.nameParts} for:item="p"><span key={p.key} class={p.cls}>{p.text}</span></template></span>
+                                                <span class="rr-small rr-weak">{r.type}</span>
+                                            </button>
+                                            <span class="rr-small rr-weak rr-trunc">{r.cameFrom}</span>
+                                            <span><span class={r.chipCls}>{r.chipLabel}</span></span>
+                                        </div>
+                                    </template>
+                                </div>
+                                <template lwc:if={hasOpen}>
+                                    <div class="rr-open">
+                                        <div class="rr-open-head"><strong>{openTitle}</strong><span class="rr-grow"></span><button type="button" class="rr-link" onclick={closeComponent}>Close</button></div>
+                                        <template lwc:if={hasFilePicker}>
+                                            <div class="rr-fpick" role="group" aria-label="Files">
+                                                <template for:each={openFiles} for:item="f">
+                                                    <button key={f.path} type="button" class={f.cls} aria-pressed={f.pressed} data-path={f.path} onclick={pickFile}>{f.label}</button>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template lwc:if={fileLoading}><p class="rr-small rr-weak rr-pad">Reading the file…</p></template>
+                                        <template lwc:if={fileError}><div class="rr-msg rr-msg-bad rr-inset">{fileError}</div></template>
+                                        <template lwc:if={openReason}><p class="rr-small rr-weak rr-pad">{openReason}</p></template>
+                                        <template lwc:if={showDiff}>
+                                            <c-rly-diff-view title={diffTitle} left-label={leftLabel} right-label={rightLabel} left={leftText} right={rightText}></c-rly-diff-view>
+                                        </template>
+                                        <template lwc:if={showPatch}>
+                                            <pre class="rr-patch"><template for:each={patchLines} for:item="l"><span key={l.key} class={l.cls}>{l.text}</span></template></pre>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <div class="rr-foot">
+                            <span class="rr-small"><strong>{routePickText}</strong><template lwc:if={promoteHint}> · <span class="rr-weak">{promoteHint}</span></template></span>
+                            <span class="rr-grow"></span>
+                            <lightning-button label={allLabel} onclick={backPromoteAllNow} disabled={cantBackPromoteAll}></lightning-button>
+                            <lightning-button variant="brand" label={pickedLabel} onclick={backPromotePickedNow} disabled={cantBackPromotePicked}></lightning-button>
+                        </div>
+                    </section>
+                </template>
+
+                <!-- installed packages -->
+                <template lwc:if={isPackagesView}>
+                    <section class="rr-card rr-split-card">
+                        <div class="rr-bar">
+                            <span class="rr-small rr-weak">{packagesChecked}</span>
+                            <span class="rr-grow"></span>
+                            <lightning-button label="Read packages" onclick={readPackagesNow} disabled={busy}></lightning-button>
+                        </div>
+                        <template for:each={packageErrors} for:item="e"><div key={e.key} class="rr-msg rr-msg-bad rr-inset">{e.text}</div></template>
+                        <template lwc:if={noPackages}><div class="rr-empty">No managed packages are installed in the route's orgs.</div></template>
+                        <div class="rr-rows">
+                            <div class="rr-pkg rr-row-head">
+                                <span>Package</span>
+                                <span class="rr-pkg-versions"><template for:each={packageHead} for:item="h"><span key={h.key}>{h.name}</span></template></span>
+                                <span>Status</span><span></span>
+                            </div>
+                            <template for:each={packageRows} for:item="p">
+                                <div key={p.key} class="rr-pkg">
+                                    <span><span class="rr-strong">{p.name}</span><span class="rr-mono rr-weak rr-block">{p.namespace}</span></span>
+                                    <span class="rr-pkg-versions"><template for:each={p.versions} for:item="v"><span key={v.key} class="rr-small">{v.version}</span></template></span>
+                                    <span><span class={p.statusCls}>{p.statusLabel}</span></span>
+                                    <span class="rr-pkg-actions">
+                                        <template lwc:if={p.upgrade}><lightning-button label="Add upgrade step" data-key={p.key} onclick={addUpgradeStep}></lightning-button></template>
+                                        <template lwc:if={p.canUninstall}><lightning-button label="Uninstall…" data-key={p.namespace} onclick={openUninstall}></lightning-button></template>
+                                    </span>
+                                </div>
+                            </template>
+                        </div>
+                        <template lwc:if={showUninstall}>
+                            <div class="rr-uninstall">
+                                <div class="rr-open-head"><strong>{uninstallTitle}</strong><span class="rr-grow"></span><button type="button" class="rr-link" onclick={closeUninstall}>Close</button></div>
+                                <p class="rr-small rr-weak">Release Relay can't uninstall a package (Salesforce allows that only in Setup → Installed Packages). This starts a release with a ready-made manual step; Salesforce refuses the uninstall while your own metadata in {usageOrg} still uses the package, so those deletions go first.</p>
+                                <template lwc:if={usageLoading}><p class="rr-small rr-weak">Reading what uses the package…</p></template>
+                                <template lwc:if={usageNote}><p class="rr-small rr-weak">{usageNote}</p></template>
+                                <template lwc:if={usageNone}><p class="rr-small">Nothing in {usageOrg} uses it, as far as Salesforce reports.</p></template>
+                                <template for:each={usageRows} for:item="u">
+                                    <div key={u.key} class="rr-use">
+                                        <button type="button" class={u.pickCls} data-key={u.key} aria-pressed={u.pressed} onclick={toggleUsage}>{u.pickLabel}</button>
+                                        <span><span class="rr-strong">{u.name}</span> <span class="rr-small rr-weak">{u.type} · uses {u.uses}</span></span>
+                                        <span class="rr-pill rr-pill-bad">Delete first</span>
+                                    </div>
+                                </template>
+                                <div class="rr-foot">
+                                    <span class="rr-small">{uninstallSummary}</span>
+                                    <span class="rr-grow"></span>
+                                    <lightning-button variant="brand" label="Start the release" onclick={startUninstallRelease} disabled={usageLoading}></lightning-button>
+                                </div>
+                            </div>
+                        </template>
+                    </section>
+                </template>
+            </div>
+        </template>
+    </template>
+</template>

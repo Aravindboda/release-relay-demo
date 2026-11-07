@@ -50,6 +50,8 @@ public with sharing class RlyPipelineOptions {
             }
         } else if (mode == 'hub') {
             RlyAppendInputs.addOptions(rel, options);
+        } else if (mode == 'sync') {
+            RlySyncPaths.addOptions(rel, options);
         }
     }
 
