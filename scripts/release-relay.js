@@ -1,5 +1,10 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 19
+// Release Relay pipeline files: version 20
+// Version 20: STEP=monitor tells the hub about this run for its Pipeline Monitor tab (POST
+// /services/apexrest/rly/pipeline-run, signed in with the hub environment's login through "sf api request rest"):
+// MONITOR_STATUS=in_progress when the run starts, MONITOR_STATUS=end when it ends (Succeeded, Failed or Cancelled from
+// NEEDS_JSON, the finished jobs' outcomes and the first failure read from the GitHub API with GH_TOKEN). It never fails
+// the run: any problem is a warning and the step exits 0.
 // Version 17: a release whose Apex is only deletions and inactive triggers (<status>Inactive</status> in the trigger's
 // -meta.xml), sent with no tests, runs the local tests in production (options.production, set by the hub from its org
 // record) and no tests elsewhere; the tests and coverage gates leave inactive triggers (and the tests gate deleted
@@ -49,6 +54,9 @@
  *   STEP=auto      Run the steps MODE needs, in order (GitLab and Bitbucket use one job).
  *   STEP=notify    Tell the Salesforce org that raised the release to read the results now
  *                  (POST /services/apexrest/release-relay/v1/status). Never fails the run.
+ *   STEP=monitor   Tell the hub about this run for its Pipeline Monitor (POST /services/apexrest/rly/pipeline-run):
+ *                  MONITOR_STATUS=in_progress at the start, MONITOR_STATUS=end at the end (status from NEEDS_JSON,
+ *                  the jobs and the first failure from the GitHub API with GH_TOKEN). Never fails the run.
  *
  * RELAY_PROVIDER: github, gitlab, bitbucket or azure.
  * Each org's login is read as PREFIX_NAME first (DEV_SF_USERNAME, prefix from the org's
@@ -3508,6 +3516,138 @@ async function stepNotify() {
     }
 }
 
+// ---------- step: monitor (version 20) ----------
+
+/** What a run does, by mode, as the hub's Pipeline Monitor shows it. */
+const MONITOR_STEPS = { org: 'Raise', branch: 'Raise', promote: 'Raise', hub: 'Raise', resolve: 'Resolve conflicts',
+    check: 'Check-only deploy', merge: 'Merge', sync: 'Back promote', rollback: 'Rollback', archive: 'Archive' };
+/** The pipeline's jobs whose outcomes make the run's status, with the names the hub shows. */
+const MONITOR_JOBS = { raise: 'Raise pull request', scan: 'Code scan', validate: 'Check-only deploy', merge: 'Merge',
+    deploy: 'Deploy', sync: 'Back promote', rollback: 'Rollback', archive: 'Archive' };
+
+function monitorWarn(message) {
+    console.log('::warning::Pipeline Monitor: ' + message);
+}
+
+/** The run's GitHub numbers and address, or null outside GitHub Actions. */
+function monitorRun() {
+    const runId = String(env.GITHUB_RUN_ID || '');
+    if (!/^\d+$/.test(runId) || !env.GITHUB_REPOSITORY) {
+        return null;
+    }
+    const attempt = /^\d+$/.test(String(env.GITHUB_RUN_ATTEMPT || '')) ? Number(env.GITHUB_RUN_ATTEMPT) : 1;
+    const server = env.GITHUB_SERVER_URL || 'https://github.com';
+    const api = env.GITHUB_API_URL || 'https://api.github.com';
+    return { runId, attempt, url: `${server}/${env.GITHUB_REPOSITORY}/actions/runs/${runId}`,
+        api: `${api}/repos/${env.GITHUB_REPOSITORY}` };
+}
+
+/** GET from the GitHub API with this job's token; null when it can't be read (the monitor goes on without it). */
+async function monitorApi(url) {
+    if (!env.GH_TOKEN) {
+        return null;
+    }
+    try {
+        const res = await http('GET', url, { Authorization: `Bearer ${env.GH_TOKEN}`, 'X-GitHub-Api-Version': '2022-11-28' });
+        return res.ok ? res.json : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+/** The run's status from the main jobs' results in NEEDS_JSON: Failed, Cancelled or Succeeded. */
+function monitorEndStatus() {
+    let needs = {};
+    try {
+        needs = JSON.parse(input('NEEDS_JSON') || '{}') || {};
+    } catch (e) {
+        needs = {};
+    }
+    const results = Object.keys(MONITOR_JOBS).map((j) => needs[j] && needs[j].result).filter(Boolean);
+    if (results.includes('failure')) {
+        return 'Failed';
+    }
+    return results.includes('cancelled') ? 'Cancelled' : 'Succeeded';
+}
+
+function monitorSeconds(from, to) {
+    const a = Date.parse(from || '');
+    const b = Date.parse(to || '');
+    return isNaN(a) || isNaN(b) ? null : Math.max(0, Math.round((b - a) / 1000));
+}
+
+/** The finished main jobs as [{name, outcome, seconds}], and the first failures as text (job › step: message). */
+async function monitorJobs(gh) {
+    const data = await monitorApi(`${gh.api}/actions/runs/${gh.runId}/attempts/${gh.attempt}/jobs?per_page=100`);
+    const jobs = (data && Array.isArray(data.jobs) ? data.jobs : []).filter((j) => MONITOR_JOBS[j.name] && j.conclusion);
+    const steps = jobs.map((j) => ({ name: MONITOR_JOBS[j.name], outcome: j.conclusion, seconds: monitorSeconds(j.started_at, j.completed_at) }));
+    const failed = jobs.filter((j) => j.conclusion === 'failure').slice(0, 3);
+    const notes = await Promise.all(failed.map((j) => monitorApi(`${gh.api}/check-runs/${j.id}/annotations?per_page=20`)));
+    const lines = failed.map((j, i) => {
+        const step = (j.steps || []).find((st) => st.conclusion === 'failure');
+        const errors = (Array.isArray(notes[i]) ? notes[i] : []).filter((a) => a.annotation_level === 'failure')
+            .map((a) => String(a.message || '').trim()).filter((m) => m && !/^Process completed with exit code/.test(m));
+        return `${MONITOR_JOBS[j.name]}${step ? ' › ' + step.name : ''} failed` + (errors.length ? ': ' + errors.slice(0, 3).join(' | ') : '');
+    });
+    return { steps, failure: lines.join('\n').slice(0, 30000) };
+}
+
+/** Signs in to the hub and posts this run's start or end. Never fails the run. */
+async function stepMonitor() {
+    orgEnv = ''; // this job's environment holds the hub's login
+    const gh = monitorRun();
+    if (!gh) {
+        monitorWarn('not a GitHub Actions run; nothing to post.');
+        return;
+    }
+    const hasKey = (v('SF_JKS') && v('SF_JKS_PASSWORD') && v('SF_JKS_ALIAS')) || v('SF_JWT_KEY');
+    if (!v('SF_USERNAME') || !v('SF_CLIENT_ID') || !v('SF_INSTANCE_URL') || !hasKey) {
+        monitorWarn('the hub environment\'s login (SF_USERNAME, SF_CLIENT_ID, SF_INSTANCE_URL and SF_JKS or SF_JWT_KEY) isn\'t set; nothing posted.');
+        return;
+    }
+    const scheduled = env.GITHUB_EVENT_NAME === 'schedule';
+    const runMode = scheduled ? 'archive' : mode;
+    const ending = input('MONITOR_STATUS') === 'end';
+    const now = new Date().toISOString();
+    const runInfo = await monitorApi(`${gh.api}/actions/runs/${gh.runId}/attempts/${gh.attempt}`);
+    const startedAt = runInfo && runInfo.run_started_at ? runInfo.run_started_at : (ending ? null : now);
+    let step = MONITOR_STEPS[runMode] || runMode || 'Run';
+    if (runMode === 'merge' && targetEnv) {
+        step = 'Merge and deploy';
+    }
+    const body = {
+        runId: gh.runId, attempt: gh.attempt, mode: runMode, step,
+        branch: runMode === 'sync' ? target : (runMode === 'archive' ? env.GITHUB_REF_NAME : branch) || null,
+        targetOrg: targetEnv || sourceEnv || (runMode === 'archive' ? input('RELAY_HUB_ENVIRONMENT') || 'prod' : null),
+        status: ending ? monitorEndStatus() : 'In progress',
+        started: startedAt, actor: scheduled ? 'Schedule' : (env.GITHUB_TRIGGERING_ACTOR || env.GITHUB_ACTOR || null),
+        runUrl: gh.url, requestId: /^REL-\d{5,}$/.test(requestId) ? requestId : null
+    };
+    if (ending) {
+        const jobs = await monitorJobs(gh);
+        body.finished = now;
+        body.durationSeconds = monitorSeconds(startedAt, now);
+        if (jobs.steps.length) {
+            body.steps = jobs.steps;
+        }
+        body.failureMessage = body.status === 'Failed' ? jobs.failure || 'A job failed; the run log has the details.' : null;
+    }
+    login('relay-hub');
+    // The CLI signs the call itself: newer CLIs hide the access token in "sf org display".
+    const bodyFile = path.join(os.tmpdir(), 'relay-monitor-body.json');
+    fs.writeFileSync(bodyFile, JSON.stringify(body));
+    const out = run('sf', ['api', 'request', 'rest', '/services/apexrest/rly/pipeline-run', '--method', 'POST',
+        '--body', bodyFile, '--target-org', 'relay-hub']);
+    let json = null;
+    try { json = JSON.parse(out); } catch (ignore) { json = null; }
+    if (json && json.ok === true) {
+        console.log(`Pipeline Monitor: run ${gh.runId} (attempt ${gh.attempt}) is ${json.status} in the hub.`);
+        (json.warnings || []).forEach((w) => monitorWarn(w));
+    } else {
+        monitorWarn(`the hub didn't save the run: ${json && json.error ? json.error : String(out).slice(0, 300)}`);
+    }
+}
+
 // ---------- main ----------
 
 const STEPS = { raise: stepRaise, scan: stepScan, validate: stepValidate, merge: stepMerge, deploy: stepDeploy, sync: stepSync,
@@ -3516,6 +3656,15 @@ const STEPS = { raise: stepRaise, scan: stepScan, validate: stepValidate, merge:
 async function main() {
     if (step === 'notify') {
         await stepNotify();
+        return;
+    }
+    if (step === 'monitor') {
+        // The monitor never fails the run: any problem is a warning.
+        try {
+            await stepMonitor();
+        } catch (e) {
+            monitorWarn(`couldn't post this run to the hub (${String((e && (e.stderr || e.message)) || e).trim().slice(0, 300)}).`);
+        }
         return;
     }
     checkCommonInputs();
