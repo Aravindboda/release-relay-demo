@@ -11,7 +11,7 @@ public with sharing class RlyMetricsFlow {
 
     private final RlyMetricsFilter f;
     private final RlyMetricsBuckets buckets;
-    private final List<Id> failedNewestFirst = new List<Id>();
+    private final List<Id> failedOldestFirst = new List<Id>();
     private RlyMetricsViews.Metrics metrics;
 
     /**
@@ -51,7 +51,8 @@ public with sharing class RlyMetricsFlow {
 
     // The failed validations' releases, newest first, each once, at most MAX_REASON_RELEASES.
     private void keepFailed(RlyMetricsViews.Metrics m) {
-        for (Id i : failedNewestFirst) {
+        for (Integer k = failedOldestFirst.size() - 1; k >= 0; k--) {
+            Id i = failedOldestFirst[k];
             if (!m.failedReleaseIds.contains(i) && m.failedReleaseIds.size() < MAX_REASON_RELEASES) {
                 m.failedReleaseIds.add(i);
             }
@@ -71,7 +72,7 @@ public with sharing class RlyMetricsFlow {
         if (e.Event_Type__c == 'Scan') {
             metrics.scanFailures++;
         } else {
-            failedNewestFirst.add(0, e.Release__c);
+            failedOldestFirst.add(e.Release__c);
         }
     }
 
