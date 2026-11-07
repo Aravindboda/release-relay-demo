@@ -1,15 +1,15 @@
 {
  "request": "REL-91034",
  "step": "validate",
- "status": "Failed",
- "changed": 56,
+ "status": "Passed",
+ "changed": 57,
  "deleted": [],
  "mergedWith": "600f686359cae5e3bb836aa2ad49da2cb645ff26",
- "validatedTree": "4fe345f6f967f2fbfc169009853f65f385e112eb",
+ "validatedTree": "de38eda4dab8605d83a2ecb6f1c23bb3e83b4789",
  "environment": "sit",
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d7FDZSA2",
+ "deployId": "0AfgL00000d7HDlSAM",
  "testsRun": 430,
  "tests": [
   "RlyAppendTest",
@@ -75,22 +75,17 @@
   "RlySyncTest",
   "RlyTwoApproversTest"
  ],
- "coverageWarnings": [
-  {
-   "name": "RlyRunMonitorRetention",
-   "message": "Test coverage of selected Apex Class is 69.231%, at least 75% test coverage is required"
-  }
- ],
+ "coverageWarnings": [],
  "componentErrors": [],
  "testFailures": [],
- "message": "Deployment failed",
+ "message": "",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42389871257",
- "finishedAt": "2026-11-07T16:15:02.282Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42390434371",
+ "finishedAt": "2026-11-07T16:24:07.761Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
