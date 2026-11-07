@@ -1,6 +1,7 @@
 /**
  * @description The Changes card on the release page: the files a release's pull request changes, read through the hub's
- * Git connection (RlyGitHub lists them; other providers get a message to open the pull request). Build 37: one page of
+ * Git connection (RlyGitChanges: GitHub and, from build 45, GitLab list them; other providers get a message to open the
+ * pull request). Build 37: one page of
  * files per call, without their patches (files, then filesPage while nextPage is set), so a big pull request never
  * holds every patch at once; a file's patch is read when it's opened (filePatch), cut at MAX_PATCH characters. Anyone
  * who can open the release can read them. No DML: callouts only.
@@ -15,7 +16,7 @@ public with sharing class RlyPullRequestFiles {
     public static final Integer MAX_PATCH = 20000;
 
     /** @description The provider of this call (start sets it). */
-    private static RlyGitHub github;
+    private static RlyGitChanges reader;
 
     /** @description What the Changes card shows. */
     public class Changes {
@@ -121,7 +122,7 @@ public with sharing class RlyPullRequestFiles {
             for (Object o : filesOf(c, pageNo)) {
                 Map<String, Object> raw = (Map<String, Object>) o;
                 if (filename != null && filename.equals(RlyPullRequestFileRow.text(raw.get('filename')))) {
-                    return RlyPullRequestFileRow.withPatch(RlyPullRequestFileRow.listed(c, raw, pageNo), RlyPullRequestFileRow.text(raw.get('patch')), c.provider);
+                    return RlyPullRequestFileRow.withPatch(listed(c, raw, pageNo), RlyPullRequestFileRow.text(raw.get('patch')), c.provider);
                 }
             }
             throw new RlyReleaseException('That file isn\'t in the pull request any more: refresh the Changes tab.');
@@ -148,13 +149,13 @@ public with sharing class RlyPullRequestFiles {
         RlyGit git = RlyGit.forConnection(conn);
         c.provider = git.providerLabel();
         c.prNumber = rel.PR_Number__c.intValue();
-        if (!(git instanceof RlyGitHub)) {
-            c.message = 'Changes are shown for GitHub only; open the pull request.';
+        reader = RlyGitChanges.of(git);
+        if (reader == null) {
+            c.message = 'Changes are shown for GitHub and GitLab only; open the ' + git.changeRequestLabel().toLowerCase() + '.';
             return c;
         }
-        c.filesUrl = String.isBlank(rel.PR_URL__c) ? null : rel.PR_URL__c.trim().removeEnd('/') + '/files';
+        c.filesUrl = reader.filesUrl(rel.PR_URL__c);
         c.available = true;
-        github = (RlyGitHub) git;
         return c;
     }
 
@@ -162,7 +163,7 @@ public with sharing class RlyPullRequestFiles {
     private static void readPage(Changes c, Integer pageNo) {
         List<Object> page = filesOf(c, pageNo);
         for (Object o : page) {
-            FileChange f = RlyPullRequestFileRow.listed(c, (Map<String, Object>) o, pageNo);
+            FileChange f = listed(c, (Map<String, Object>) o, pageNo);
             c.additions += f.additions;
             c.deletions += f.deletions;
             c.files.add(f);
@@ -170,7 +171,7 @@ public with sharing class RlyPullRequestFiles {
         Boolean full = page.size() == PAGE_SIZE;
         c.nextPage = full && pageNo < MAX_PAGE ? pageNo + 1 : null;
         if (full && pageNo == 1) {
-            Map<String, Object> pr = (Map<String, Object>) github.readPullRequest(c.prNumber, '');
+            Map<String, Object> pr = reader.totals(c.prNumber, c.additions, c.deletions);
             c.totalFiles = RlyPullRequestFileRow.count(pr.get('changed_files'));
             c.additions = RlyPullRequestFileRow.count(pr.get('additions'));
             c.deletions = RlyPullRequestFileRow.count(pr.get('deletions'));
@@ -179,7 +180,14 @@ public with sharing class RlyPullRequestFiles {
     }
 
     private static List<Object> filesOf(Changes c, Integer pageNo) {
-        return (List<Object>) github.readPullRequest(c.prNumber, '/files?per_page=' + PAGE_SIZE + '&page=' + pageNo);
+        return reader.page(c.prNumber, pageNo, PAGE_SIZE);
+    }
+
+    // A file of the list, linked at the provider's own anchor in its files view.
+    private static FileChange listed(Changes c, Map<String, Object> raw, Integer pageNo) {
+        FileChange f = RlyPullRequestFileRow.listed(c, raw, pageNo);
+        f.url = reader.fileUrl(c.filesUrl, f.filename);
+        return f;
     }
 
     private static void checkPage(Integer pageNo) {

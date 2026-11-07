@@ -16,6 +16,12 @@ public with sharing class RlyGitAdvice {
         400 => 'The provider rejected the request.',
         422 => 'The provider rejected the request.'
     };
+    /** @description Advice by a phrase in the provider's answer (build 45: GitLab project settings). */
+    private static final Map<String, String> BY_ANSWER = new Map<String, String>{
+        'pipeline variables' => 'In GitLab, let the token set pipeline variables: Settings > CI/CD > Variables > '
+            + 'Minimum role to use pipeline variables: Maintainer.',
+        'insufficient_scope' => 'The GitLab token needs the api and write_repository scopes.'
+    };
 
     /**
      * @description Throws a GitException with advice unless the response is a 2xx.
@@ -30,8 +36,20 @@ public with sharing class RlyGitAdvice {
         }
         String advice = BY_STATUS.containsKey(code)
             ? BY_STATUS.get(code).replace('{credential}', String.valueOf(conn.Named_Credential__c)) : '';
+        advice += byAnswer(res.getBody());
         throw new RlyGit.GitException((action + ' failed with HTTP ' + code + '. ' + advice + ' '
             + String.valueOf(res.getBody()).left(300)).trim());
+    }
+
+    // The advice for a phrase in the answer, with a leading space, or blank.
+    private static String byAnswer(String body) {
+        String text = body == null ? '' : body;
+        for (String phrase : BY_ANSWER.keySet()) {
+            if (text.containsIgnoreCase(phrase)) {
+                return ' ' + BY_ANSWER.get(phrase);
+            }
+        }
+        return '';
     }
 
     /**

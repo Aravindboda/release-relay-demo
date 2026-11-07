@@ -1,7 +1,8 @@
 /**
  * @description Matches a pipeline run's name to the title the hub looks for (build 44). From pipeline version 25 a run's
  * name keeps the hub's title ("Release Relay REL-1 (hub)") and may add " · <release title>" and " · by <name>", so a run
- * matches when its name is the title or starts with the title and " · ". No SOQL, DML or callouts.
+ * matches when its name is the title or starts with the title and " · ". Build 45: GitLab pipelines' names (the CI file's
+ * workflow:name, version 25) have the same shape, without " · by <name>". No SOQL, DML or callouts.
  */
 public with sharing class RlyRunTitles {
 

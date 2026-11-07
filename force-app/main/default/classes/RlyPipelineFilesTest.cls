@@ -186,24 +186,24 @@ private class RlyPipelineFilesTest {
             System.assert(unconnected.packagedVersion != null, 'The packaged version is known without a connection');
             System.assertEquals('RLY_Pipeline_Script', unconnected.files[0].resourceName, 'Only the script is for every hub');
             System.assertEquals(false, RlyRouteController.updatePipelineFiles(RlyPipelineFiles.VIA_COMMIT).ok, 'Nothing to update');
-            insert new RLY_Git_Connection__c(Provider__c = 'GitLab', Repository__c = 'acme/salesforce', Named_Credential__c = 'RLY_GitLab',
-                Pipeline__c = '.gitlab-ci.yml', Pipeline_Branch__c = 'main', Source_Path__c = 'force-app/main/default');
-            Test.setMock(HttpCalloutMock.class, new RlyHttpMock().match('GET', '/repository/branches/').reply(200, '{}'));
+            insert new RLY_Git_Connection__c(Provider__c = 'Bitbucket', Repository__c = 'ws/repo', Named_Credential__c = 'RLY_Bitbucket',
+                Pipeline_Branch__c = 'main', Source_Path__c = 'force-app/main/default');
+            Test.setMock(HttpCalloutMock.class, new RlyHttpMock().match('GET', '/refs/branches/').reply(200, '{}'));
             Test.startTest();
             RlyPipelineFiles.Status s = RlyRouteController.getPipelineFiles();
             RlyPipelineFiles.UpdateResult r = RlyRouteController.updatePipelineFiles(RlyPipelineFiles.VIA_PULL_REQUEST);
             String unsupported;
             try {
-                RlyGit.forConnection(new RLY_Git_Connection__c(Provider__c = 'GitLab', Repository__c = 'acme/salesforce',
-                    Named_Credential__c = 'RLY_GitLab')).openPullRequest('a', 'main', 'Title');
+                RlyGit.forConnection(new RLY_Git_Connection__c(Provider__c = 'Bitbucket', Repository__c = 'ws/repo',
+                    Named_Credential__c = 'RLY_Bitbucket')).openPullRequest('a', 'main', 'Title');
             } catch (RlyGit.GitException e) {
                 unsupported = e.getMessage();
             }
             Test.stopTest();
-            System.assertEquals('GitLab', s.provider, 'GitLab hub');
-            System.assertEquals('.gitlab-ci.yml', s.files[0].repoPath, 'GitLab\'s file first');
-            System.assert(s.message.contains('isn\'t available for GitLab'), s.message);
-            System.assert(!r.ok && r.message.contains('isn\'t available for GitLab'), r.message);
+            System.assertEquals('Bitbucket', s.provider, 'Bitbucket hub');
+            System.assertEquals('bitbucket-pipelines.yml', s.files[0].repoPath, 'Bitbucket\'s file first');
+            System.assert(s.message.contains('isn\'t available for Bitbucket'), s.message);
+            System.assert(!r.ok && r.message.contains('Bitbucket'), r.message);
             System.assert(unsupported != null && unsupported.startsWith('Opening pull requests'), unsupported);
         }
     }
