@@ -87,6 +87,8 @@ private class RlyArchiveTest {
             System.assertEquals(3, ok.eligibleReleases, 'Three rejected releases');
             System.assertEquals(15, ok.eligibleRecords, 'Five records each');
             System.assertEquals(15, estimated.eligibleRecords, 'Estimated from one release');
+            System.assertEquals(false, ok.recordsEstimated, 'Counted exactly');
+            System.assertEquals(true, estimated.recordsEstimated, 'Worked out from a sample: the page says about');
         }
     }
 
@@ -219,11 +221,37 @@ private class RlyArchiveTest {
             Test.stopTest();
             System.assertEquals(2, first.releases, 'Two per pass');
             System.assertEquals(3, first.remaining, 'Three left');
-            System.assertEquals(1, second.releases, 'The record limit takes one release (5 records) per pass');
+            System.assertEquals(0, second.releases, 'A release of 5 records is larger than a pass of 4: it goes in slices');
+            System.assertEquals(4, second.records, 'Its four children go in this pass');
             System.assert(second.done, 'Stopped');
             System.assertEquals(RlyArchiveRuns.PARTIAL, second.status, 'Partial at the pass limit');
             System.assert(second.message.startsWith('Stopped at the 2-pass limit'), second.message);
-            System.assertEquals(2, releaseCount(), 'Two left for the next run');
+            System.assertEquals(3, releaseCount(), 'Three left for the next run');
+        }
+    }
+
+    @IsTest
+    static void aLargeReleaseGoesInSlices() {
+        System.runAs(RlyTestData.admin()) {
+            RlyArchiveTestData.hub();
+            RlyArchiveTestData.finished('Deployed', 1);
+            RlyArchiveTestData.retention(30);
+            RlyArchiveTestData.later(60);
+            RlyArchiveBatch.passRecords = 3;
+            Test.startTest();
+            RlyArchiveViews.Run run = RlyArchiveController.startRun(30);
+            RlyArchiveViews.PassResult first = RlyArchiveController.runPass(run.id, 30);
+            RlyArchiveViews.PassResult second = RlyArchiveController.runPass(run.id, 30);
+            Test.stopTest();
+            System.assertEquals(0, first.releases, 'The release stays in the first pass');
+            System.assertEquals(3, first.records, 'Three of its children go, oldest first (step run, history, item)');
+            System.assert(!first.done, 'The run goes on after a slice');
+            System.assertEquals(1, first.remaining, 'Still eligible');
+            System.assertEquals(1, second.releases, 'What is left fits a pass: the release goes');
+            System.assertEquals(2, second.records, 'The release and its manual step');
+            System.assertEquals(RlyArchiveRuns.SUCCEEDED, second.status, 'All removed');
+            System.assertEquals(0, releaseCount(), 'Nothing left');
+            System.assertEquals(0, [SELECT COUNT() FROM RLY_Manual_Step__c WHERE Id != null], 'No step left behind');
         }
     }
 

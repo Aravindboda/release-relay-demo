@@ -1,12 +1,21 @@
 /**
- * @description The Changes card on the release page: the files a release's pull request changes, with their
- * patches, read through the hub's Git connection (RlyGitHub lists them; other providers get a message to open the
- * pull request). Anyone who can open the release can read them. No DML: callouts only.
+ * @description The Changes card on the release page: the files a release's pull request changes, read through the hub's
+ * Git connection (RlyGitHub lists them; other providers get a message to open the pull request). Build 37: one page of
+ * files per call, without their patches (files, then filesPage while nextPage is set), so a big pull request never
+ * holds every patch at once; a file's patch is read when it's opened (filePatch), cut at MAX_PATCH characters. Anyone
+ * who can open the release can read them. No DML: callouts only.
  */
 public with sharing class RlyPullRequestFiles {
 
-    private static final Integer PAGE_SIZE = 100;
-    private static final Integer MAX_PAGES = 3;
+    /** @description Files per page. */
+    public static final Integer PAGE_SIZE = 30;
+    /** @description Most pages: GitHub lists up to 3,000 files of a pull request. */
+    public static final Integer MAX_PAGE = 100;
+    /** @description Most characters of one file's patch shown. */
+    public static final Integer MAX_PATCH = 20000;
+
+    /** @description The provider of this call (start sets it). */
+    private static RlyGitHub github;
 
     /** @description What the Changes card shows. */
     public class Changes {
@@ -26,10 +35,12 @@ public with sharing class RlyPullRequestFiles {
         @AuraEnabled public Integer additions = 0;
         /** @description Lines removed, all files. */
         @AuraEnabled public Integer deletions = 0;
-        /** @description More files than could be read (the first 300 are listed). */
+        /** @description More files than GitHub lists (the first 3,000 are listed). */
         @AuraEnabled public Boolean truncated = false;
-        /** @description How many files the pull request changes in all, when more than are listed; otherwise null. */
+        /** @description How many files the pull request changes in all, when more than one page; otherwise null. */
         @AuraEnabled public Integer totalFiles;
+        /** @description The next page to read (filesPage), or null when this was the last. */
+        @AuraEnabled public Integer nextPage;
         /** @description The org the release goes to (the left side of a compare). */
         @AuraEnabled public String targetName;
         /** @description The branch the pull request merges into. */
@@ -48,8 +59,12 @@ public with sharing class RlyPullRequestFiles {
         @AuraEnabled public Integer additions;
         /** @description Lines removed. */
         @AuraEnabled public Integer deletions;
-        /** @description The unified-diff patch, or null when the provider gives none (binary or too big). */
+        /** @description The unified-diff patch: only from filePatch (null in the list). */
         @AuraEnabled public String patch;
+        /** @description The provider has a patch for it (false: binary or too big). */
+        @AuraEnabled public Boolean hasPatch = false;
+        /** @description The page it's on, to read its patch. */
+        @AuraEnabled public Integer pageNo;
         /** @description The path before a rename, or null. */
         @AuraEnabled public String previousFilename;
         /** @description Link to this file in the pull request's files view, or null. */
@@ -59,20 +74,64 @@ public with sharing class RlyPullRequestFiles {
     }
 
     /**
-     * @description The files of a release's pull request.
+     * @description The first page of a release's pull request files, without their patches.
      * @param releaseId the release (a release or a promotion with a pull request)
      * @return the changes, or a message when they can't be listed
      */
     @AuraEnabled
     public static Changes files(Id releaseId) {
+        return filesPage(releaseId, 1);
+    }
+
+    /**
+     * @description One page of a release's pull request files, without their patches.
+     * @param releaseId the release
+     * @param pageNo the page, from 1
+     * @return the page's files and the next page, or a message when they can't be listed
+     */
+    @AuraEnabled
+    public static Changes filesPage(Id releaseId, Integer pageNo) {
         try {
-            return read(releaseId);
+            checkPage(pageNo);
+            Changes c = start(releaseId);
+            if (c.available) {
+                readPage(c, pageNo);
+            }
+            return c;
         } catch (Exception e) {
             throw handled(e);
         }
     }
 
-    private static Changes read(Id releaseId) {
+    /**
+     * @description One file's patch, read when it's opened (cut at MAX_PATCH characters, with a note).
+     * @param releaseId the release
+     * @param pageNo the page the file is on
+     * @param filename the file's path
+     * @return the file with its patch
+     */
+    @AuraEnabled
+    public static FileChange filePatch(Id releaseId, Integer pageNo, String filename) {
+        try {
+            checkPage(pageNo);
+            Changes c = start(releaseId);
+            if (!c.available) {
+                throw new RlyReleaseException(c.message);
+            }
+            for (Object o : filesOf(c, pageNo)) {
+                Map<String, Object> raw = (Map<String, Object>) o;
+                if (filename != null && filename.equals(RlyPullRequestFileRow.text(raw.get('filename')))) {
+                    return RlyPullRequestFileRow.withPatch(RlyPullRequestFileRow.listed(c, raw, pageNo), RlyPullRequestFileRow.text(raw.get('patch')), c.provider);
+                }
+            }
+            throw new RlyReleaseException('That file isn\'t in the pull request any more: refresh the Changes tab.');
+        } catch (Exception e) {
+            throw handled(e);
+        }
+    }
+
+    // The release, its pull request and the Git connection; available = false with a message when nothing can be read.
+    private static Changes start(Id releaseId) {
         RLY_Release__c rel = RlyReleaseStore.release(releaseId);
         if (rel == null) {
             throw new RlyReleaseException('Release not found.');
@@ -95,61 +154,38 @@ public with sharing class RlyPullRequestFiles {
         }
         c.filesUrl = String.isBlank(rel.PR_URL__c) ? null : rel.PR_URL__c.trim().removeEnd('/') + '/files';
         c.available = true;
-        readPages((RlyGitHub) git, c);
+        github = (RlyGitHub) git;
         return c;
     }
 
-    // Reads the pages while they are full, up to MAX_PAGES.
-    private static void readPages(RlyGitHub git, Changes c) {
-        Integer pageNo = 1;
-        List<Object> page = filesPage(git, c.prNumber, pageNo);
-        while (page != null) {
-            for (Object o : page) {
-                add(c, (Map<String, Object>) o);
-            }
-            if (page.size() < PAGE_SIZE) {
-                page = null;
-            } else if (pageNo == MAX_PAGES) {
-                c.truncated = true;
-                c.totalFiles = toCount(((Map<String, Object>) git.readPullRequest(c.prNumber, '')).get('changed_files'));
-                page = null;
-            } else {
-                pageNo++;
-                page = filesPage(git, c.prNumber, pageNo);
-            }
+    // One page: its files without patches; a full first page reads the pull request's totals too.
+    private static void readPage(Changes c, Integer pageNo) {
+        List<Object> page = filesOf(c, pageNo);
+        for (Object o : page) {
+            FileChange f = RlyPullRequestFileRow.listed(c, (Map<String, Object>) o, pageNo);
+            c.additions += f.additions;
+            c.deletions += f.deletions;
+            c.files.add(f);
+        }
+        Boolean full = page.size() == PAGE_SIZE;
+        c.nextPage = full && pageNo < MAX_PAGE ? pageNo + 1 : null;
+        if (full && pageNo == 1) {
+            Map<String, Object> pr = (Map<String, Object>) github.readPullRequest(c.prNumber, '');
+            c.totalFiles = RlyPullRequestFileRow.count(pr.get('changed_files'));
+            c.additions = RlyPullRequestFileRow.count(pr.get('additions'));
+            c.deletions = RlyPullRequestFileRow.count(pr.get('deletions'));
+            c.truncated = c.totalFiles > MAX_PAGE * PAGE_SIZE;
         }
     }
 
-    private static List<Object> filesPage(RlyGitHub git, Integer prNumber, Integer pageNo) {
-        return (List<Object>) git.readPullRequest(prNumber, '/files?per_page=' + PAGE_SIZE + '&page=' + pageNo);
+    private static List<Object> filesOf(Changes c, Integer pageNo) {
+        return (List<Object>) github.readPullRequest(c.prNumber, '/files?per_page=' + PAGE_SIZE + '&page=' + pageNo);
     }
 
-    private static void add(Changes c, Map<String, Object> raw) {
-        FileChange f = new FileChange();
-        f.filename = toText(raw.get('filename'));
-        f.status = toText(raw.get('status'));
-        f.additions = toCount(raw.get('additions'));
-        f.deletions = toCount(raw.get('deletions'));
-        f.patch = toText(raw.get('patch'));
-        f.previousFilename = toText(raw.get('previous_filename'));
-        f.url = c.filesUrl == null || f.filename == null ? c.filesUrl : c.filesUrl + '#diff-' + anchor(f.filename);
-        f.note = String.isBlank(f.patch) ? 'No preview: open in ' + c.provider + '.' : null;
-        c.additions += f.additions;
-        c.deletions += f.deletions;
-        c.files.add(f);
-    }
-
-    // The files view's anchor of a file: the SHA-256 of its path, in hex.
-    private static String anchor(String filename) {
-        return EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', Blob.valueOf(filename)));
-    }
-
-    private static String toText(Object value) {
-        return value == null ? null : String.valueOf(value);
-    }
-
-    private static Integer toCount(Object value) {
-        return value == null ? 0 : Integer.valueOf(value);
+    private static void checkPage(Integer pageNo) {
+        if (pageNo == null || pageNo < 1 || pageNo > MAX_PAGE) {
+            throw new RlyReleaseException('Pages go from 1 to ' + MAX_PAGE + '.');
+        }
     }
 
     private static AuraHandledException handled(Exception e) {

@@ -4,7 +4,7 @@
  *   saveGit         add or change the Git connection (admins)
  *   checkGit        repository, default branch, pipeline files, and every route branch (RlyGitCheck)
  *   saveRoute       the order of the stages (admins)
- *   createBranches  creates the route branches that are missing, from the pipeline branch (admins)
+ *   createBranches / createBranchesPart  creates the missing route branches from the pipeline branch, in parts (admins)
  *   getPipelineFiles     the packaged pipeline files' version and the repository's (RlyPipelineFiles)
  *   updatePipelineFiles  writes the packaged pipeline files to the repository, by pull request or commit (admins)
  *   getBackPromote       back promote: on or off and each back promote org (RlyBackPromote); starts queued syncs first
@@ -110,22 +110,28 @@ public with sharing class RlyRouteController {
     }
 
     /**
-     * @description Creates the missing route branches from the pipeline branch.
+     * @description Creates the missing route branches from the pipeline branch: the first part (see createBranchesPart).
      * @return the branches created
      */
     @AuraEnabled
     public static List<String> createBranches() {
+        return createBranchesPart(0).created;
+    }
+
+    /**
+     * @description Creates the missing route branches in parts (RlyBranchCreate): the page calls again from nextIndex
+     * until it's null, so many developer orgs never pass the callout limit in one request.
+     * @param fromIndex where this part starts (0 first)
+     * @return the branches created and where the next part starts
+     */
+    @AuraEnabled
+    public static RlyBranchCreate.Result createBranchesPart(Integer fromIndex) {
         RlyHubGuard.requireHub();
         requireAdmin();
         Data data = new Data();
         RLY_Git_Connection__c g = requireGit(data);
         try {
-            RlyGit git = RlyGit.forConnection(g);
-            List<String> missing = RlyGitCheck.missingBranches(git, data.orgs());
-            for (String b : missing) {
-                git.createBranch(b, g.Pipeline_Branch__c);
-            }
-            return missing;
+            return RlyBranchCreate.part(g, RlyBranchCreate.branchesOf(data.orgs()), fromIndex);
         } catch (Exception e) {
             throw new AuraHandledException(e.getMessage());
         }

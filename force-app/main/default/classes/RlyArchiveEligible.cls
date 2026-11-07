@@ -5,7 +5,9 @@
  * none of the releases it carried is left, so a group never loses its promotion first. The finished date is the
  * release's last RLY_Release_Event__c (its LastModifiedDate when it has none), or its rollback when that is later; a
  * release is eligible when that date is before the cutoff (now minus the Retention days): it was raised before the
- * cutoff and has no history from the cutoff on. Counts use COUNT() queries (one query row each). RlyArchiveBatch picks
+ * cutoff and has no history from the cutoff on. Counts use COUNT() queries (one query row each); the records that go
+ * with them are counted for a sample of sampleSize releases and worked out for the rest (isEstimate), so a big hub
+ * stays far below the query row and time limits. RlyArchiveBatch picks
  * a pass from the oldest-raised eligible releases. Releases are shared hub records: read in system mode in the private
  * inner without sharing class.
  */
@@ -20,7 +22,9 @@ public with sharing class RlyArchiveEligible {
 
     /** @description Most eligible releases whose children are counted for the records estimate. */
     @TestVisible
-    private static Integer sampleSize = 10000;
+    private static Integer sampleSize = 300;
+    /** @description Most promotions read to find those that still carry a release. */
+    private static final Integer MAX_PROMOTIONS = 5000;
 
     /**
      * @description How many finished releases are eligible at a cutoff.
@@ -35,7 +39,7 @@ public with sharing class RlyArchiveEligible {
 
     /**
      * @description About how many records go with the eligible releases (the releases included). Children are counted
-     * for up to 10,000 eligible releases; more are estimated from those.
+     * for up to sampleSize (300) eligible releases, the oldest raised; more are worked out from those (isEstimate).
      * @param cutoff releases finished before this are eligible
      * @param releases how many releases are eligible (countReleases)
      * @return the count
@@ -53,6 +57,15 @@ public with sharing class RlyArchiveEligible {
             return counted;
         }
         return (Decimal.valueOf(counted) * releases / ids.size()).round().intValue();
+    }
+
+    /**
+     * @description Whether countRecords works the number out from a sample for this many releases.
+     * @param releases how many releases are eligible
+     * @return true when there are more than the sample
+     */
+    public static Boolean isEstimate(Integer releases) {
+        return releases != null && releases > sampleSize;
     }
 
     /**
@@ -83,7 +96,7 @@ public with sharing class RlyArchiveEligible {
             Set<Id> out = new Set<Id>();
             for (AggregateResult a : [SELECT Promoted_In__c p, COUNT(Id) n FROM RLY_Release__c
                                       WHERE Promoted_In__c != null AND Promoted_In__r.CreatedDate < :cutoff
-                                      WITH SYSTEM_MODE GROUP BY Promoted_In__c]) {
+                                      WITH SYSTEM_MODE GROUP BY Promoted_In__c LIMIT :MAX_PROMOTIONS]) {
                 out.add((Id) a.get('p'));
             }
             return out;

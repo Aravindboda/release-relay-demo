@@ -3,7 +3,9 @@
  * runs of its steps), manual steps, history (RLY_Release_Event__c), items, its Files linked only to it (links to users
  * don't count), then the release itself, and empties the Recycle Bin for them. The caller holds the savepoint, so a
  * failure removes nothing of this pass. Deletes run in system mode in the private inner without sharing class; files
- * are deleted one by one where allowed (a file that can't be deleted loses only its link to the release).
+ * are deleted one by one where allowed (a file that can't be deleted loses only its link to the release). A release too
+ * large for one pass (RlyArchiveBatch.Candidate.slice) loses only a slice of its children, oldest first: step runs,
+ * history, items, then the steps left without runs; the release and its files go in a later pass.
  */
 public with sharing class RlyArchivePass {
 
@@ -37,6 +39,9 @@ public with sharing class RlyArchivePass {
         if (pass == null || pass.isEmpty()) {
             return o;
         }
+        if (pass.size() == 1 && pass[0].slice != null) {
+            return slice(pass[0]);
+        }
         Set<Id> ids = new Set<Id>();
         for (RlyArchiveBatch.Candidate c : pass) {
             ids.add(c.id);
@@ -57,6 +62,19 @@ public with sharing class RlyArchivePass {
         o.files = filesRemoved.size();
         data.emptyBin(removed);
         o.filesEmptied = data.emptyFiles(filesRemoved);
+        return o;
+    }
+
+    // A slice of one large release's children; the release stays for a later pass.
+    private static Outcome slice(RlyArchiveBatch.Candidate c) {
+        Outcome o = new Outcome();
+        Data data = new Data();
+        List<Id> removed = data.removeSlice(c.id, c.slice);
+        if (failForTest) {
+            throw new RlyReleaseException('UNABLE_TO_LOCK_ROW on a release (test)');
+        }
+        o.records = removed.size();
+        data.emptyBin(removed);
         return o;
     }
 
@@ -111,6 +129,36 @@ public with sharing class RlyArchivePass {
             out.addAll(remove(steps));
             out.addAll(remove([SELECT Id FROM RLY_Release_Event__c WHERE Release__c IN :ids WITH SYSTEM_MODE]));
             out.addAll(remove([SELECT Id FROM RLY_Release_Item__c WHERE Release__c IN :ids WITH SYSTEM_MODE]));
+            return out;
+        }
+
+        /**
+         * @description Deletes up to max of one release's children, oldest first: its step runs (and runs of its steps),
+         * history, items, then its steps that have no runs left.
+         * @param releaseId the release
+         * @param max the most records to delete
+         * @return the Ids deleted
+         */
+        public List<Id> removeSlice(Id releaseId, Integer max) {
+            List<Id> out = new List<Id>();
+            out.addAll(remove([SELECT Id FROM RLY_Manual_Step_Run__c WHERE Release__c = :releaseId OR Step__r.Release__c = :releaseId
+                               WITH SYSTEM_MODE ORDER BY CreatedDate ASC, Id ASC LIMIT :max]));
+            Integer left = max - out.size();
+            if (left > 0) {
+                out.addAll(remove([SELECT Id FROM RLY_Release_Event__c WHERE Release__c = :releaseId
+                                   WITH SYSTEM_MODE ORDER BY CreatedDate ASC, Id ASC LIMIT :left]));
+                left = max - out.size();
+            }
+            if (left > 0) {
+                out.addAll(remove([SELECT Id FROM RLY_Release_Item__c WHERE Release__c = :releaseId
+                                   WITH SYSTEM_MODE ORDER BY CreatedDate ASC, Id ASC LIMIT :left]));
+                left = max - out.size();
+            }
+            if (left > 0) {
+                out.addAll(remove([SELECT Id FROM RLY_Manual_Step__c WHERE Release__c = :releaseId
+                                   AND Id NOT IN (SELECT Step__c FROM RLY_Manual_Step_Run__c WHERE Step__c != null)
+                                   WITH SYSTEM_MODE ORDER BY CreatedDate ASC, Id ASC LIMIT :left]));
+            }
             return out;
         }
 

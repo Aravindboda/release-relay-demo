@@ -81,14 +81,17 @@ public with sharing class RlySharedRead {
 
     /**
      * @description Reads a release for its page (RlyReleasesController.refreshRelease and checkRelease): a running one moves
-     * along (RlyStatusReader.advanceWithin, shared within the window), one with nothing running reads its rollback or the
-     * back promote syncs (RlyRollbackRun.readIdle).
+     * along (RlyStatusReader.advanceWithin, shared within the window), a deployed one with flows left activates the next
+     * batch (RlyFlowBatch), one with nothing running reads its rollback or the back promote syncs (RlyRollbackRun.readIdle).
      * @param releaseId the release
      * @param seconds the freshness window (FRESH_SECONDS, or CHECK_NOW_SECONDS for Check now)
      */
     public static void refresh(Id releaseId, Integer seconds) {
-        if (RlyStatusReader.isOpen(RlyReleaseStore.release(releaseId))) {
+        RLY_Release__c rel = RlyReleaseStore.release(releaseId);
+        if (RlyStatusReader.isOpen(rel)) {
             RlyStatusReader.advanceWithin(releaseId, seconds);
+        } else if (RlyFlowBatch.hasPending(rel)) {
+            RlyFlowBatch.continueAfterDeploy(rel, seconds); // deployed, flows left to activate: the next batch
         } else {
             RlyRollbackRun.readIdle(releaseId);
         }

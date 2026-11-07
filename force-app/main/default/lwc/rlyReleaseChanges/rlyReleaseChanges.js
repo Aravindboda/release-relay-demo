@@ -1,5 +1,7 @@
 import { LightningElement, api } from 'lwc';
 import files from '@salesforce/apex/RlyPullRequestFiles.files';
+import filesPage from '@salesforce/apex/RlyPullRequestFiles.filesPage';
+import filePatch from '@salesforce/apex/RlyPullRequestFiles.filePatch';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
 
 const BLOCKS = 5;
@@ -37,8 +39,10 @@ function bar(added, removed) {
 }
 
 /**
- * The Changes tab of the release page: the files of the release's pull request as GitHub shows them (loaded once,
- * when the tab first opens), and a wide dialog that steps through their diffs (rlyDiffView, from each file's patch).
+ * The Changes tab of the release page: the files of the release's pull request as GitHub shows them, and a wide dialog
+ * that steps through their diffs (rlyDiffView, from each file's patch). Build 37: the files come a page at a time
+ * without their patches (the next page is read as soon as one arrives, so the list fills in), and a file's patch is
+ * read when it's opened, then kept.
  */
 export default class RlyReleaseChanges extends LightningElement {
     @api releaseId;
@@ -49,6 +53,13 @@ export default class RlyReleaseChanges extends LightningElement {
     loading = false;
     error;
     data;
+    /** Reading more pages after the first. */
+    more = false;
+    moreError;
+    /** Patches read so far, by file name. */
+    patches = {};
+    patchLoading = false;
+    patchError;
     openIndex = -1;
     focusClose = false;
 
@@ -69,14 +80,55 @@ export default class RlyReleaseChanges extends LightningElement {
     async load() {
         this.loading = true;
         this.error = undefined;
+        this.patches = {};
         try {
             this.data = await files({ releaseId: this.releaseId });
-            const count = this.data && this.data.available ? this.data.files.length : null;
+            const d = this.data;
+            const count = d && d.available ? (d.totalFiles || d.files.length) : null;
             this.dispatchEvent(new CustomEvent('loaded', { detail: { count } }));
         } catch (e) {
             this.error = errorText(e);
         } finally {
             this.loading = false;
+        }
+        this.readMore();
+    }
+
+    /** Reads the next pages one after another; a page that fails offers Try again. */
+    async readMore() {
+        this.moreError = undefined;
+        while (this.data && this.data.available && this.data.nextPage && !this.moreError) {
+            this.more = true;
+            try {
+                const next = await filesPage({ releaseId: this.releaseId, pageNo: this.data.nextPage });
+                this.data = { ...this.data, files: this.data.files.concat(next.files || []), nextPage: next.nextPage };
+            } catch (e) {
+                this.moreError = errorText(e);
+            }
+        }
+        this.more = false;
+    }
+
+    get moreText() {
+        const total = this.data && this.data.totalFiles;
+        return 'Reading the files: ' + this.fileCount.toLocaleString() + (total ? ' of ' + Math.min(total, 3000).toLocaleString() : '') + '…';
+    }
+
+    /** The open file's patch, read once. */
+    async readPatch() {
+        const f = this.data && this.data.files[this.openIndex];
+        if (!f || !f.hasPatch || this.patches[f.filename] || this.patchLoading) {
+            return;
+        }
+        this.patchLoading = true;
+        this.patchError = undefined;
+        try {
+            const got = await filePatch({ releaseId: this.releaseId, pageNo: f.pageNo, filename: f.filename });
+            this.patches = { ...this.patches, [f.filename]: got };
+        } catch (e) {
+            this.patchError = errorText(e);
+        } finally {
+            this.patchLoading = false;
         }
     }
 
@@ -106,12 +158,17 @@ export default class RlyReleaseChanges extends LightningElement {
         return this.available ? this.data.files.length : 0;
     }
 
+    /** All files, for the summary: the pull request's count when it has more than one page. */
+    get allCount() {
+        return this.available ? Math.max(this.data.totalFiles || 0, this.fileCount) : 0;
+    }
+
     get hasFiles() {
         return this.fileCount > 0;
     }
 
     get changedText() {
-        return plural(this.fileCount, 'file') + ' changed';
+        return plural(this.allCount, 'file') + ' changed';
     }
 
     get addedText() {
@@ -132,7 +189,7 @@ export default class RlyReleaseChanges extends LightningElement {
             return null;
         }
         const total = this.data.totalFiles;
-        return 'Showing ' + this.fileCount.toLocaleString() + (total ? ' of ' + total.toLocaleString() : '') + ' files';
+        return 'GitHub lists the first 3,000 files' + (total ? ' of ' + total.toLocaleString() : '');
     }
 
     get rows() {
@@ -197,7 +254,20 @@ export default class RlyReleaseChanges extends LightningElement {
     }
 
     get current() {
-        return this.isOpen ? this.data.files[this.openIndex] : null;
+        if (!this.isOpen) {
+            return null;
+        }
+        const f = this.data.files[this.openIndex];
+        const got = this.patches[f.filename];
+        return got ? { ...f, patch: got.patch, note: got.note || f.note } : f;
+    }
+
+    get patchWaiting() {
+        return !!(this.current && this.current.hasPatch && !this.current.patch && !this.patchError);
+    }
+
+    get patchNote() {
+        return this.current && this.current.patch ? this.current.note : null;
     }
 
     get modalTitle() {
@@ -231,7 +301,7 @@ export default class RlyReleaseChanges extends LightningElement {
     }
 
     get noteText() {
-        return this.current ? this.current.note : null;
+        return this.patchError || (this.current ? this.current.note : null);
     }
 
     get options() {
@@ -239,16 +309,22 @@ export default class RlyReleaseChanges extends LightningElement {
     }
 
     openFile(event) {
-        this.openIndex = Number(event.currentTarget.dataset.index);
+        this.show(Number(event.currentTarget.dataset.index));
         this.focusClose = true;
     }
 
     pickFile(event) {
-        this.openIndex = Number(event.currentTarget.dataset.index);
+        this.show(Number(event.currentTarget.dataset.index));
     }
 
     pickFromSelect(event) {
-        this.openIndex = Number(event.target.value);
+        this.show(Number(event.target.value));
+    }
+
+    show(index) {
+        this.openIndex = index;
+        this.patchError = undefined;
+        this.readPatch();
     }
 
     close() {
@@ -263,7 +339,7 @@ export default class RlyReleaseChanges extends LightningElement {
             const next = this.openIndex + step;
             if (next >= 0 && next < this.fileCount) {
                 event.preventDefault();
-                this.openIndex = next;
+                this.show(next);
             }
         }
     }

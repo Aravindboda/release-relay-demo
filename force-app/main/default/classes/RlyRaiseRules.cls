@@ -27,6 +27,7 @@ public with sharing class RlyRaiseRules {
         if (String.isBlank(req.title) || req.title.trim().length() > 200) {
             throw new RlyReleaseException('Give the release a title (up to 200 characters).');
         }
+        RlyReleaseSize.checkRaise(req);
     }
 
     private static Boolean isEmpty(List<RlyRaiseService.Item> items) {

@@ -74,7 +74,7 @@ public with sharing class RlyEvidenceHtml {
             }
         }
         return RlyEvidenceTables.section('Components (' + byKey.size() + ')', new List<String>{ 'Change', 'Type', 'Name' },
-            byKey.values());
+            RlyEvidenceCap.capped(byKey.values(), 3, 'more components: the release page and the Releases CSV list them all.'));
     }
 
     private static String checks(RLY_Release__c rel) {
