@@ -1,6 +1,7 @@
 /**
  * @description Work items (build 40): the Work items tab. One row per ticket (RlyWorkBoardRow), worked out from the
- * releases that carry it, with a cell per route org (the stages by their order, then the hub). Reads only.
+ * releases that carry it, with a cell per route org (the stages by their order, then the hub) and its tracker (build
+ * 47). Reads only.
  */
 public with sharing class RlyWorkBoard {
 
@@ -10,8 +11,10 @@ public with sharing class RlyWorkBoard {
      */
     public static RlyWorkTypes.Board build() {
         RlyWorkTypes.Board b = new RlyWorkTypes.Board();
-        RLY_Work_Tracking__c s = RlyWorkStore.trackingSettings();
-        b.trackerLabel = trackerLabel(s);
+        b.trackerLabel = trackerLabel();
+        for (RLY_Work_Tracker__c t : RlyWorkStore.trackers()) {
+            b.trackers.add(t.Name);
+        }
         for (RLY_Org__c o : routeInOrder()) {
             b.orgs.add(o.Name);
         }
@@ -26,22 +29,35 @@ public with sharing class RlyWorkBoard {
         }
         for (String t : byTicket.keySet()) {
             RlyWorkTypes.TicketRow r = RlyWorkBoardRow.rowOf(t, byTicket.get(t), b.orgs);
-            r.link = RlyWorkLinks.linkOf(t, s);
+            withTracker(r, RlyWorkRouting.trackerOf(byTicket.get(t)[0]));
             b.tickets.add(r);
         }
         return b;
     }
 
     /**
-     * @description The tracker in words.
-     * @param s the settings, or null
-     * @return for example Jira, or Tracked in Release Relay
+     * @description The active trackers in words (build 47: a hub can have several).
+     * @return for example Jira, or Claims stories, Change requests, or Tracked in Release Relay
      */
-    public static String trackerLabel(RLY_Work_Tracking__c s) {
-        if (s == null || s.Tracker__c == null || s.Tracker__c == RlyWorkTracker.NONE) {
-            return 'Tracked in Release Relay';
+    public static String trackerLabel() {
+        List<String> names = new List<String>();
+        for (RLY_Work_Tracker__c t : RlyWorkRouting.active()) {
+            if (t.Type__c != RlyWorkTracker.NONE) {
+                names.add(t.Name);
+            }
         }
-        return s.Tracker__c == RlyWorkTracker.AZURE ? 'Azure Boards' : s.Tracker__c;
+        return names.isEmpty() ? 'Tracked in Release Relay' : String.join(names, ', ');
+    }
+
+    // The ticket's tracker (from its newest row): name, kind, link, and searchable by the tracker's name.
+    private static void withTracker(RlyWorkTypes.TicketRow r, RLY_Work_Tracker__c t) {
+        r.link = RlyWorkLinks.linkOf(r.ticket, t);
+        if (t == null) {
+            return;
+        }
+        r.tracker = t.Name;
+        r.trackerType = RlyWorkRouting.kindLabel(t.Type__c);
+        r.searchText = r.searchText + ' ' + t.Name.toLowerCase();
     }
 
     // The stages (by their order) then the hub.

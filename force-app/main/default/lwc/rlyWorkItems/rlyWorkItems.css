@@ -52,5 +52,8 @@
 .rr-pill-warn { background: var(--rr-warn-2); color: var(--rr-warn); }
 .rr-pill-bad { background: var(--rr-bad-2); color: var(--rr-bad); }
 .rr-pill-none { background: #f3f3f3; color: var(--rr-muted); }
+.rr-pill-vio { background: #f2ecfc; color: #5a1ba9; }
+.rr-tracker { white-space: nowrap; }
+.rr-tracker-filter { min-width: 170px; }
 .rr-empty { padding: 14px; font-size: 12.5px; color: var(--rr-muted); }
 .rr-seg:focus-visible, .rr-link:focus-visible, .rr-a:focus-visible { outline: 2px solid var(--rr-blue); outline-offset: 2px; }

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
     <customSettingsType>Hierarchy</customSettingsType>
-    <description>Work tracking settings (build 40), org default row only: the tracker, ticket formats and link, tickets required, the Named Credential that signs in to the tracker, and the ServiceNow change gate. Read and written only by RlyWorkStore.</description>
+    <description>Work tracking switches for every tracker (build 47): tickets required, the ServiceNow change gate and its format. The build 40 tracker fields are read once to make the first RLY_Work_Tracker__c. Only RlyWorkStore reads and writes it.</description>
     <enableFeeds>false</enableFeeds>
     <label>RLY Work Tracking</label>
     <visibility>Protected</visibility>

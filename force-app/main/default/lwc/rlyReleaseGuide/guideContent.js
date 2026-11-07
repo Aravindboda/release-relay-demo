@@ -2650,8 +2650,8 @@ const USE_SECTIONS = [
                 title: 'Work items: tickets on every release',
                 blocks: [
                     { type: 'text', paras: [
-                        'Every release can carry the tickets it delivers (Jira issues, Azure Boards work items, ServiceNow records, or your own numbers). Add them on **New release** under **Work items**: type a ticket and press Enter or a comma. When the admin made tickets required, a release can\'t be raised without one; when the admin set a ticket format, a ticket in another format is refused with the format shown.',
-                        'A **promotion** carries the tickets of the releases it carries. A release\'s tickets can be added or removed on its page until it is deployed, rejected or closed. The tickets show as links on the release page, in Approvals, in Releases search (search by ticket), in the CSV and evidence PDF, and in Slack messages.'
+                        'Every release can carry the tickets it delivers (Jira issues, Azure Boards work items, ServiceNow records, or your own numbers). Add them on **New release** under **Work items**: type a ticket and press Enter or a comma. Each ticket goes to its own tracker by its pattern (for example `CLAIMS-412` to Jira and `CHG0012345` to ServiceNow), and its chip names that tracker. When the admin made tickets required, a release can\'t be raised without one; a ticket no tracker takes is refused with the patterns shown: "No tracker matches …".',
+                        'A **promotion** carries the tickets of the releases it carries. A release\'s tickets can be added or removed on its page until it is deployed, rejected or closed (see **Add tickets after raising**). The tickets show as links to their own tracker on the release page, in Approvals, in Releases search (search by ticket), in the CSV and evidence PDF, and in Slack messages.'
                     ] },
                     { type: 'table', cols: ['Moment', 'When'], rows: [
                         ['Raised from DEV1 / Promoted to SIT', 'The release or promotion was raised.'],
@@ -2666,54 +2666,73 @@ const USE_SECTIONS = [
                         '**Without an integration** Release Relay keeps each ticket\'s status itself: the **Work items** tab shows one row per ticket with a dot per org of the route, its status (**In PROD**, **Waiting for PROD**, **In SIT approval**, **Blocked**, **In progress**) and the releases that carry it.',
                         '**With an integration** each moment is also posted to the ticket, once: a Jira comment (and the mapped transition), an Azure Boards history entry (and state), a ServiceNow work note (and state), or a JSON POST to your own address. Each ticket shows its last sync: **Synced**, **Couldn\'t post** (with what the tracker said) or **Tracked here**. **Try again** on the release page posts it again.',
                         'Posting happens while someone has the release page or the Work items tab open (**Sync now**), never in the background.',
-                        'The Work items tab has a search box (ticket, release, title, person) and chips: **All**, **In progress**, **In PROD**, **Blocked**.'
+                        'The Work items tab has a search box (ticket, release, title, person, tracker), chips (**All**, **In progress**, **In PROD**, **Blocked**), a **Tracker** column (the ticket\'s own tracker) and a **Tracker** filter (every tracker by name, or **Untracked**).'
                     ] }
                 ]
             },
             {
                 key: 'wi-admin',
-                title: 'Work tracking settings (admin)',
+                title: 'Work trackers (admin)',
                 blocks: [
+                    { type: 'text', paras: [
+                        'A hub can use several trackers at once, for example Jira for stories and ServiceNow for change requests, or two Jira projects. **Pipeline → Work tracking** lists them in routing order; each has **Edit**, **Test**, **Active** and the up and down arrows.',
+                        'A ticket goes to the first active tracker whose ticket pattern matches; a tracker with no pattern takes every ticket the others don\'t (a **No integration** tracker without a pattern keeps those as tracked in Release Relay). With no match the ticket is refused: "No tracker matches AB#123. Expected one of: CLAIMS-\\d+ (Claims stories), CHG\\d{7} (Change requests)". With no active tracker at all, any ticket is taken and tracked in Release Relay. **Try a ticket** under the list shows where a ticket would go.',
+                        'Each ticket keeps the tracker it went to: posting, Sync now, its link and the change gate use that tracker. A tracker turned off takes no new tickets and gets no posts; its tickets keep their links.',
+                        'Hubs set up before build 47 had one tracker in the Work tracking settings: the first time the Pipeline tab, New Release or the Work items tab is opened, it becomes the first tracker in the list, with the same pattern, link, Named Credential and state map, so nothing changes until you add a second one.'
+                    ] },
                     {
                         type: 'steps',
                         steps: [
                             {
-                                title: 'Choose the tracker',
+                                title: 'Add a tracker',
                                 who: 'Admin',
-                                where: 'Pipeline → Work tracking → Edit',
-                                goal: 'Say where tickets live and how they look.',
+                                where: 'Pipeline → Work tracking → Add tracker',
+                                goal: 'Say where one kind of ticket lives and how it looks.',
                                 items: [
-                                    'Pick **Jira**, **Azure Boards**, **ServiceNow**, **No integration** or **Other**.',
-                                    '**Tickets required** makes every release carry at least one ticket.',
-                                    '**Ticket format**: one or more regular expressions, separated by spaces, for example `[A-Z][A-Z0-9]+-\\d+`. Leave it empty to accept any ticket.',
-                                    '**Link**: the ticket\'s address with `{id}` where the number goes, for example `https://yourcompany.atlassian.net/browse/{id}`.'
+                                    'Pick the tile: **Jira**, **Azure Boards**, **ServiceNow**, **No integration** or **Other (link)**.',
+                                    '**Name**: what people see on tickets and in the Tracker column, for example Claims stories.',
+                                    '**Ticket pattern**: one or more regular expressions, separated by spaces, for example `CLAIMS-\\d+` or `CHG\\d{7}`. Two active trackers can\'t have the same pattern, and only one can have none.',
+                                    '**Link**: the ticket\'s address with `{id}` where the number goes, for example `https://yourcompany.atlassian.net/browse/{id}`.',
+                                    'The grey text in each field is an example for the tile you picked; nothing is filled in for you.'
                                 ]
                             },
                             {
                                 title: 'Post updates to the tracker',
                                 who: 'Admin',
-                                where: 'Setup → Named Credentials, then Pipeline → Work tracking',
+                                where: 'Setup → Named Credentials, then Pipeline → Work tracking → Edit',
                                 goal: 'Let Release Relay post each moment to the ticket without storing a password.',
                                 items: [
-                                    'In Setup create a **Named Credential** (with its External Credential) for the tracker\'s address: Jira `https://yourcompany.atlassian.net`, Azure Boards `https://dev.azure.com/<org>/<project>`, ServiceNow `https://<instance>.service-now.com`, or your own address for Other. Give the Release Relay permission sets access to its principal.',
-                                    'In Work tracking enter the Named Credential\'s API name and turn on **Post updates**.',
+                                    'In Setup create a **Named Credential** (with its External Credential) per tracker, named `RLY_Work_<Tracker>`: `RLY_Work_Jira` for `https://yourcompany.atlassian.net`, `RLY_Work_AzureBoards` for `https://dev.azure.com/<org>/<project>`, `RLY_Work_ServiceNow` for `https://<instance>.service-now.com`, or your own address for Other. A second tracker of the same kind gets its own, for example `RLY_Work_Billing` for a second Jira site. Give the Release Relay permission sets access to its principal.',
+                                    'In the tracker enter the Named Credential\'s API name and turn on the **Post each moment to the ticket** chip.',
                                     'Optional **State map**: JSON from a moment to the tracker\'s state, for example `{"Deployed to SIT":"In QA","Deployed to PROD":"Done"}`. For Jira it is the transition\'s name.',
-                                    'ServiceNow: the table for work notes is `change_request` unless you enter another (for example `incident`).'
+                                    'ServiceNow: the table for work notes is `change_request` unless you enter another (for example `incident`).',
+                                    '**Test** signs in through the Named Credential (Jira: who you are; Azure Boards: the work item types; ServiceNow: one row of the table) and says what came back.'
                                 ]
                             },
                             {
-                                title: 'Require an approved change (ServiceNow)',
+                                title: 'Switches for every tracker',
                                 who: 'Admin',
-                                where: 'Pipeline → Work tracking → Require an approved change',
-                                goal: 'Deploy to production only inside an approved change window.',
+                                where: 'Pipeline → Work tracking → For every tracker',
+                                goal: 'Require tickets, and deploy to production only inside an approved change window.',
                                 items: [
-                                    'With this on, a deploy into the hub org starts only when the release carries a change request (format `CHG\\d{7}` unless you set another) that ServiceNow shows **approved** with now inside its planned start and end.',
+                                    '**Tickets required to raise** makes every release carry at least one ticket.',
+                                    '**Approved ServiceNow change before production** needs an active ServiceNow tracker with its Named Credential. A deploy into the hub org then starts only when the release carries a ticket that went to that ServiceNow tracker, in the change format (`CHG\\d{7}` unless you set another), and ServiceNow shows it **approved** with now inside its planned start and end. Tickets in other trackers never count.',
                                     'Otherwise the release stays approved and says what it waits for. Opening the release page checks again and starts the deploy once the change allows it.'
                                 ]
                             }
                         ]
                     },
-                    { type: 'note', text: 'Release Relay never stores the tracker\'s password or token: the calls go through the Named Credential.' }
+                    { type: 'note', text: 'Release Relay never stores a tracker\'s password or token: the calls go through each tracker\'s Named Credential.' }
+                ]
+            },
+            {
+                key: 'wi-add',
+                title: 'Add tickets after raising',
+                blocks: [
+                    { type: 'text', paras: [
+                        'The release page has a **Work items** card: each ticket with its tracker, what was last posted to it, and **Try again** when a post failed.',
+                        'Until the release is deployed, rejected or closed, **Add tickets** opens the same ticket input as New Release: each ticket is matched to its tracker as you type. **Add** saves them; the release\'s **History** records "Tickets added: BILL-81 (Billing stories), at Ready for approval in SIT", and the new tickets start at the release\'s current stage (their first post is that moment, not Raised). **Remove** takes a ticket off, also recorded in History.'
+                    ] }
                 ]
             }
         ]

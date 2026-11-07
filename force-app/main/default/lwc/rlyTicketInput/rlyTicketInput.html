@@ -4,6 +4,7 @@
         <div class="rr-ti-box">
             <template for:each={chips} for:item="c">
                 <span key={c.key} class="rr-ti-chip">{c.label}
+                    <template lwc:if={c.tracker}><span class="rr-ti-tracker">{c.tracker}</span></template>
                     <button type="button" class="rr-ti-x" data-key={c.key} onclick={remove} disabled={disabled} aria-label="Remove">&times;</button>
                 </span>
             </template>

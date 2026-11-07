@@ -15,6 +15,10 @@ const FILTERS = [
     { value: 'blocked', label: 'Blocked' }
 ];
 const TONE_PILL = { ok: 'rr-pill rr-pill-ok', run: 'rr-pill rr-pill-run', wait: 'rr-pill rr-pill-warn', bad: 'rr-pill rr-pill-bad', none: 'rr-pill rr-pill-none' };
+const KIND_PILL = { Jira: 'rr-pill rr-pill-run', 'Azure Boards': 'rr-pill rr-pill-run', ServiceNow: 'rr-pill rr-pill-vio' };
+/** The Tracker filter's values for every tracker and for tickets without one. */
+const ALL_TRACKERS = '__all';
+const UNTRACKED = '__none';
 const TONE_DOT = { ok: 'rr-dot rr-dot-ok', run: 'rr-dot rr-dot-run', wait: 'rr-dot rr-dot-warn', bad: 'rr-dot rr-dot-bad', none: 'rr-dot' };
 
 function errorText(e) {
@@ -24,6 +28,7 @@ function errorText(e) {
 /**
  * Work items tab (build 40): one row per ticket, where it is on the route (a cell per stage and production) and its
  * status, worked out from the releases that carry it; how the tracker updates went. Search, filter, Sync now.
+ * Build 47: each ticket's own tracker (column and filter).
  */
 export default class RlyWorkItems extends NavigationMixin(LightningElement) {
     appName = APP_NAME;
@@ -36,6 +41,7 @@ export default class RlyWorkItems extends NavigationMixin(LightningElement) {
     notice;
     term = '';
     filter = 'all';
+    trackerFilter = ALL_TRACKERS;
 
     connectedCallback() {
         getHubStatus()
@@ -88,18 +94,30 @@ export default class RlyWorkItems extends NavigationMixin(LightningElement) {
             ...t,
             pillCls: TONE_PILL[t.tone] || TONE_PILL.none,
             syncCls: TONE_PILL[t.syncTone] || TONE_PILL.none,
+            kindCls: KIND_PILL[t.trackerType] || TONE_PILL.none,
             releaseRefs: t.releases.map((r) => ({ ...r, label: r.name + (r.kind ? ' (' + r.kind + ')' : '') })),
             cellRows: t.cells.map((c) => ({ ...c, key: t.ticket + c.org, dotCls: TONE_DOT[c.tone] || TONE_DOT.none, textCls: 'rr-cell rr-cell-' + c.tone })),
             raisedText: t.raisedOn ? new Date(t.raisedOn).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : ''
         }));
     }
     get rows() {
-        return this.allRows.filter((r) => (this.filter === 'all' || r.bucket === this.filter) && matchesSearch([r.searchText], this.term));
+        return this.allRows.filter((r) => (this.filter === 'all' || r.bucket === this.filter) && this.trackerMatches(r)
+            && matchesSearch([r.searchText], this.term));
+    }
+    trackerMatches(r) {
+        if (this.trackerFilter === ALL_TRACKERS) {
+            return true;
+        }
+        return this.trackerFilter === UNTRACKED ? !r.tracker : r.tracker === this.trackerFilter;
+    }
+    get trackerOptions() {
+        const names = this.data && this.data.trackers ? this.data.trackers : [];
+        return [{ value: ALL_TRACKERS, label: 'All trackers' }, ...names.map((n) => ({ value: n, label: n })), { value: UNTRACKED, label: 'Untracked' }];
     }
     get noRows() { return this.rows.length === 0; }
     get emptyText() {
         if (!this.data || this.data.tickets.length === 0) {
-            return 'No tickets yet. Add them when raising a release (New Release → Review → Work items).';
+            return 'No tickets yet. Add them when raising a release (New Release → Review → Work items) or on the release page (Add tickets).';
         }
         return 'No tickets match.';
     }
@@ -109,6 +127,7 @@ export default class RlyWorkItems extends NavigationMixin(LightningElement) {
 
     handleSearch(event) { this.term = searchTerm(event.detail && event.detail.value); }
     handleFilter(event) { this.filter = event.currentTarget.dataset.value; }
+    handleTrackerFilter(event) { this.trackerFilter = event.detail.value; }
 
     openRelease(event) {
         this[NavigationMixin.Navigate]({ type: 'standard__recordPage', attributes: { recordId: event.currentTarget.dataset.id, actionName: 'view' } });
