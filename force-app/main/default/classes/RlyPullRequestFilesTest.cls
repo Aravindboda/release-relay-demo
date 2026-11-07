@@ -144,14 +144,14 @@ private class RlyPullRequestFilesTest {
         System.runAs(RlyTestData.admin()) {
             RLY_Release__c rel = withPullRequest();
             RLY_Git_Connection__c conn = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
-            update new RLY_Git_Connection__c(Id = conn.Id, Provider__c = 'GitLab');
+            update new RLY_Git_Connection__c(Id = conn.Id, Provider__c = 'Bitbucket');
             RlyHttpMock mock = new RlyHttpMock();
             Test.setMock(HttpCalloutMock.class, mock);
             Test.startTest();
             RlyPullRequestFiles.Changes c = RlyPullRequestFiles.files(rel.Id);
             Test.stopTest();
             System.assertEquals(false, c.available, 'Not listed');
-            System.assertEquals('Changes are shown for GitHub only; open the pull request.', c.message, 'Message');
+            System.assertEquals('Changes are shown for GitHub and GitLab only; open the pull request.', c.message, 'Message');
             System.assert(mock.calls.isEmpty(), 'No callouts');
         }
     }
