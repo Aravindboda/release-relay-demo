@@ -5,6 +5,7 @@
  *   listFolderPage    a folder type, FOLDERS_PER_CALL folders per call (cursor: the next folder's position)
  *   listFieldPage     custom fields through the Tooling API, one page per call (when listMetadata of CustomField fails)
  *   deletionPlan      Find deleted components: the parts of the org's branch
+ *   branchPlan        Delete from the branch (build 37.1): the parts of the target's branch
  *   deletionPart      the components in one part of the branch
  *   presentNames      every component of one type in the org (listMetadata)
  *   presentFields     one page of the org's custom fields through the Tooling API
@@ -78,7 +79,25 @@ public with sharing class RlyChangePartsController {
     }
 
     /**
-     * @description Find deleted components: the components in one part of the branch.
+     * @description Delete from the branch: the parts of the target's branch (the first stage's, or another route
+     * branch asked for), with the developer org's folder rules.
+     * @param orgId the developer org
+     * @param targetBranch the target's branch (blank: the first stage's)
+     * @return the plan
+     */
+    @AuraEnabled
+    public static RlyDeletionPlan.Plan branchPlan(Id orgId, String targetBranch) {
+        try {
+            RLY_Org__c source = RlyChangesController.source(orgId);
+            RLY_Org__c target = RlyCompareTarget.of(source, targetBranch);
+            return RlyDeletionPlan.buildFor(source, target.Branch__c.trim());
+        } catch (Exception e) {
+            throw RlyChangesController.handled(e);
+        }
+    }
+
+    /**
+     * @description Find deleted components and Delete from the branch: the components in one part of the branch.
      * @param orgId the developer org
      * @param partJson the part, as the plan gave it
      * @return the components on the branch

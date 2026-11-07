@@ -15,8 +15,16 @@ const CATEGORIES = [
     { value: 'Permissions', label: 'Profile or permission access' },
     { value: 'Data', label: 'Data' },
     { value: 'Setup', label: 'Setup configuration' },
+    { value: 'Managed_Package', label: 'Managed package' },
     { value: 'Other', label: 'Other' }
 ];
+/** Grey hints per category (never filled in for the person). */
+const TITLE_HINTS = {
+    Managed_Package: 'For example: Install Health Cloud 252.4 (upgrade)'
+};
+const INSTRUCTION_HINTS = {
+    Managed_Package: 'Package, version and install link; install for Admins only / all users / specific profiles; licences to assign. Usually before deploy, as the release\'s metadata may need it.'
+};
 const TIMINGS = [
     { value: 'Before_Deploy', label: 'Before deploy' },
     { value: 'After_Deploy', label: 'After deploy' }
@@ -623,6 +631,10 @@ export default class RlyManualSteps extends LightningElement {
     get addDisabled() { return this.busy || this.disabled; }
 
     get categoryOptions() { return CATEGORIES; }
+    get titleHint() { return TITLE_HINTS[this.form && this.form.category] || 'For example: Give a profile access to a new field'; }
+    get instructionsHint() {
+        return INSTRUCTION_HINTS[this.form && this.form.category] || 'What exactly to do, for example: Profile Sales User: Account.Region__c read/edit';
+    }
     get timingOptions() { return TIMINGS; }
     get scopeOptions() { return SCOPES; }
     get isPick() { return this.form.scopeMode === 'pick'; }

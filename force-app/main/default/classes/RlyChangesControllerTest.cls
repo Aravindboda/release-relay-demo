@@ -64,7 +64,7 @@ private class RlyChangesControllerTest {
             System.assert(types.types.contains('ApexClass'), 'Top-level type: ' + types.types);
             System.assert(types.types.contains('CustomField'), 'Child types are listed too');
             System.assert(!types.types.contains('ConnectedApp'), 'Skipped type');
-            System.assert(!types.types.contains('AccountSettings'), 'Settings are left out');
+            System.assert(types.types.contains('AccountSettings'), 'Org settings are listed (they can be changed by a release)');
             System.assert(!types.types.contains('ReportFolder'), 'Folder types are listed through their folders');
             System.assertEquals(new List<String>{ 'Report' }, types.folderTypes, 'Folder-based types apart');
         }

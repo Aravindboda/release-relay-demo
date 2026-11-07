@@ -20,7 +20,7 @@ public with sharing class RlyManualSteps {
     /** @description Category__c: profile or permission access (the default). */
     public static final String CATEGORY_DEFAULT = 'Permissions';
     /** @description The Category__c values. */
-    public static final Set<String> CATEGORIES = new Set<String>{ 'Permissions', 'Data', 'Setup', 'Other' };
+    public static final Set<String> CATEGORIES = new Set<String>{ 'Permissions', 'Data', 'Setup', 'Managed_Package', 'Other' };
     /** @description The most manual steps one release can have. */
     public static final Integer MAX_STEPS = 50;
     /** @description The longest title. */
@@ -36,7 +36,7 @@ public with sharing class RlyManualSteps {
         public String title;
         /** @description What exactly to do. */
         public String instructions;
-        /** @description Permissions (default), Data, Setup or Other. */
+        /** @description Permissions (default), Data, Setup, Managed_Package or Other. */
         public String category;
         /** @description Before_Deploy or After_Deploy (default). */
         public String timing;
@@ -70,7 +70,7 @@ public with sharing class RlyManualSteps {
         @AuraEnabled public String title;
         /** @description What exactly to do. */
         @AuraEnabled public String instructions;
-        /** @description Permissions, Data, Setup or Other. */
+        /** @description Permissions, Data, Setup, Managed_Package or Other. */
         @AuraEnabled public String category;
         /** @description Before_Deploy or After_Deploy. */
         @AuraEnabled public String timing;
@@ -116,7 +116,7 @@ public with sharing class RlyManualSteps {
         @AuraEnabled public String title;
         /** @description Before_Deploy or After_Deploy. */
         @AuraEnabled public String timing;
-        /** @description Permissions, Data, Setup or Other. */
+        /** @description Permissions, Data, Setup, Managed_Package or Other. */
         @AuraEnabled public String category;
         /** @description To_Do, Done or Not_Needed. */
         @AuraEnabled public String status;

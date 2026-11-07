@@ -18,7 +18,7 @@ import presentNames from '@salesforce/apex/RlyChangePartsController.presentNames
 import presentFields from '@salesforce/apex/RlyChangePartsController.presentFields';
 import {
     PARALLEL, DELETION_PARALLEL, MAX_ITEMS, TEST_NAMES_PER_CALL, FLOW_NAMES_PER_CALL, KIND_FOLDER, KIND_FIELDS,
-    listingParts, afterFailure, mergeChanges, presenceKey, deletionCandidates, runPool
+    listingParts, afterFailure, mergeChanges, presenceKey, deletionCandidates, runPool, folderTypesOf
 } from './changeParts';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import getAppend from '@salesforce/apex/RlyAppendController.getAppend';
@@ -822,6 +822,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
                 by: c.modifiedBy || '',
                 changedText: changed,
                 deleteText: c.deleted ? this.deleteFromText : '',
+                stillText: c.deleted && c.stillIn ? 'Still in ' + this.sourceName : '',
                 selLabel: inRelease ? c.name + ' is in ' + this.appendName : (c.deleted ? 'Delete ' : 'Select ') + c.name
             };
         });
@@ -902,7 +903,8 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         this.delTotal = 1;
         try {
             const plan = await deletionPlan({ orgId: this.orgId });
-            this.delState = { plan, branchKeys: new Map(), presence: new Map(), failedParts: [], failedTypes: [], truncated: plan.truncated };
+            this.delState = { plan, branchKeys: new Map(), presence: new Map(), failedParts: [], failedTypes: [], truncated: plan.truncated,
+                blocked: new Set(), folderTypes: folderTypesOf(plan.rules) };
             this.delTotal = plan.parts.length;
             await runPool(plan.parts.map((part) => () => this.readBranchPart(part, 0)), DELETION_PARALLEL);
             await this.readOrgTypes(this.branchTypes().filter((t) => !this.delState.presence.has(t)));
@@ -917,9 +919,11 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
 
     /** One part of the branch; a failure is tried once more, then listed. */
     readBranchPart(part, attempt) {
-        return deletionPart({ orgId: this.orgId, partJson: JSON.stringify(part) })
+        const plan = this.delState.plan;
+        return deletionPart({ orgId: this.orgId, partJson: JSON.stringify({ ...part, rules: plan.rules, namespace: plan.namespace }) })
             .then((r) => {
                 this.delState.branchKeys.set(part.id, r.keys || []);
+                (r.blocked || []).forEach((b) => this.delState.blocked.add(b.key));
                 this.delState.truncated = this.delState.truncated || r.truncated;
                 this.delDone += 1;
             })
@@ -933,11 +937,18 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
             });
     }
 
-    /** The types found on the branch so far. */
+    /**
+     * The types found on the branch so far with a component a deploy can delete (not those in folders: listMetadata
+     * needs each folder for them).
+     */
     branchTypes() {
         const types = new Set();
-        this.delState.branchKeys.forEach((keys) => keys.forEach((k) => types.add(k.substring(0, k.indexOf(':')))));
-        return [...types];
+        this.delState.branchKeys.forEach((keys) => keys.forEach((k) => {
+            if (!this.delState.blocked.has(k)) {
+                types.add(k.substring(0, k.indexOf(':')));
+            }
+        }));
+        return [...types].filter((t) => !this.delState.folderTypes.has(t));
     }
 
     /** Every component of these types in the org, DELETION_PARALLEL at a time. */
@@ -985,7 +996,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         const st = this.delState;
         const keys = [];
         st.branchKeys.forEach((list) => keys.push(...list));
-        const all = deletionCandidates([...new Set(keys)], st.presence);
+        const all = deletionCandidates([...new Set(keys)], st.presence, st.blocked);
         const found = all.slice(0, MAX_ITEMS).map(asDeletion);
         this.changes = mergeChanges(this.changes, found);
         if (this.cache[this.cacheKey]) {
@@ -1307,7 +1318,8 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     }
     get reviewDeletions() {
         return this.deletionItems
-            .map((c) => ({ key: c.key, name: c.name, subText: words(c.type) + ' · ' + this.deleteFromText, removeLabel: 'Don\'t delete ' + c.name, compareLabel: 'Compare ' + c.name }))
+            .map((c) => ({ key: c.key, name: c.name, subText: words(c.type) + ' · ' + this.deleteFromText + (c.stillIn ? ' · still in ' + this.sourceName + ': delete it there too' : ''),
+                removeLabel: 'Don\'t delete ' + c.name, compareLabel: 'Compare ' + c.name }))
             .sort((a, b) => (a.subText + a.name).localeCompare(b.subText + b.name));
     }
 
@@ -1492,6 +1504,44 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     }
     closeCompare() {
         this.compareOpen = false;
+    }
+
+    // ---------- Delete from the branch (build 37.1, board "Delete from the branch") ----------
+
+    branchDeleteOpen = false;
+
+    /** Any developer org: pick components on the target's branch to delete, whether the org still has them or not. */
+    get canDeleteFromBranch() { return !!this.sourceOrg && !!this.compareTargetBranch; }
+    get branchDeleteLabel() { return 'Delete from ' + this.compareTargetBranch + ' branch\u2026'; }
+    /** Type:Name of what the release has already or has selected (added or deleted): the window says In release. */
+    get takenKeys() {
+        const keys = new Set();
+        [...this.lockedKeys, ...this.selected].forEach((k) => keys.add(k.startsWith('del|') ? k.substring(4) : k));
+        return [...keys];
+    }
+    openBranchDelete() {
+        this.branchDeleteOpen = true;
+    }
+    closeBranchDelete() {
+        this.branchDeleteOpen = false;
+    }
+    /** The chosen components join the list as deletions, selected, exactly like Find deleted components' picks. */
+    addFromBranch(event) {
+        const items = (event.detail && event.detail.items) || [];
+        const found = items.map((i) => asDeletion({ key: i.type + ':' + i.name, type: i.type, name: i.name, standard: false, deleted: true, stillIn: !!i.stillIn }));
+        this.changes = mergeChanges(this.changes, found);
+        if (this.cache[this.cacheKey]) {
+            this.cache[this.cacheKey] = { ...this.cache[this.cacheKey], changes: this.changes };
+        }
+        this.selected = new Set([...this.selected, ...found.map((c) => c.key)]);
+        this.branchDeleteOpen = false;
+        if (found.length) {
+            const still = found.filter((c) => c.stillIn).length;
+            this.deletionResult = found.length + (found.length === 1 ? ' deletion' : ' deletions') + ' added from the ' + this.compareTargetBranch + ' branch.'
+                + (still ? ' ' + still + ' still in ' + this.sourceName + ': delete ' + (still === 1 ? 'it' : 'them') + ' there too, or a later release can bring ' + (still === 1 ? 'it' : 'them') + ' back.' : '');
+            this.deletionResultBad = false;
+            this.typeFilter = 'deleted';
+        }
     }
 
     // ---------- flows: versions and the After deploy choice (board HubApprovalFlowsEvidence 2) ----------

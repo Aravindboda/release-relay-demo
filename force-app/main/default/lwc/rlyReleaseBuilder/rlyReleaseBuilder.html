@@ -158,6 +158,9 @@
                             <template lwc:if={canFindDeletions}>
                                 <lightning-button label={findLabel} icon-name="utility:delete" onclick={findDeleted} disabled={cantFindDeletions}></lightning-button>
                             </template>
+                            <template lwc:if={canDeleteFromBranch}>
+                                <lightning-button label={branchDeleteLabel} icon-name="utility:delete" onclick={openBranchDelete} disabled={scanning}></lightning-button>
+                            </template>
                             <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Read the org again" title="Read the org again" onclick={refresh} disabled={scanning}></lightning-button-icon>
                         </div>
 
@@ -237,6 +240,7 @@
                                                     <td class="rr-name" title={r.name}>
                                                         <span class="rr-mono"><template for:each={r.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></span>
                                                         <template lwc:if={r.deleted}><span class="rr-pill rr-pill-bad rr-ml">Delete</span></template>
+                                                        <template lwc:if={r.stillText}><span class="rr-pill rr-pill-wait rr-ml">{r.stillText}</span></template>
                                                         <template lwc:if={r.inRelease}><span class="rr-pill rr-pill-none rr-ml">{inReleaseText}</span></template>
                                                     </td>
                                                     <td title={r.typeLabel}>{r.typeLabel}</td>
@@ -460,6 +464,12 @@
                 <template lwc:if={compareOpen}>
                     <c-rly-compare source-org-id={orgId} source-name={sourceName} target-name={compareTargetName} target-branch={compareTargetBranch}
                         items={compareItems} start-key={compareKey} flow-info={flowInfo} onclose={closeCompare}></c-rly-compare>
+                </template>
+
+                <!-- Delete from the branch (build 37.1) -->
+                <template lwc:if={branchDeleteOpen}>
+                    <c-rly-branch-delete source-org-id={orgId} source-name={sourceName} target-name={compareTargetName} target-branch={compareTargetBranch}
+                        taken-keys={takenKeys} onadd={addFromBranch} onclose={closeBranchDelete}></c-rly-branch-delete>
                 </template>
 
                 <!-- step 4: raised -->
