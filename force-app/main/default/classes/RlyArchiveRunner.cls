@@ -97,7 +97,7 @@ public with sharing class RlyArchiveRunner {
             RlyArchivePass.Outcome o = RlyArchivePass.remove(RlyArchiveBatch.nextPass(run.Cutoff__c));
             RlyArchiveRuns.addPass(work, o);
             Integer remaining = RlyArchiveEligible.countReleases(run.Cutoff__c);
-            settle(work, remaining, o.releases);
+            settle(work, remaining, o.releases + o.records);
             RlyArchiveRuns.save(work);
             p = result(work, o);
             p.remaining = remaining;

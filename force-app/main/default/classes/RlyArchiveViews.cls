@@ -26,6 +26,8 @@ public with sharing class RlyArchiveViews {
         @AuraEnabled public Integer eligibleReleases;
         /** @description About how many records go with them, or null when no days are set. */
         @AuraEnabled public Integer eligibleRecords;
+        /** @description eligibleRecords is worked out from a sample of the releases (the page says "about"). */
+        @AuraEnabled public Boolean recordsEstimated = false;
         /** @description When the setting was last changed, or null. */
         @AuraEnabled public Datetime changedOn;
         /** @description Who last changed it, or null. */
@@ -48,6 +50,8 @@ public with sharing class RlyArchiveViews {
         @AuraEnabled public Integer eligibleReleases;
         /** @description About how many records go with them, or null. */
         @AuraEnabled public Integer eligibleRecords;
+        /** @description eligibleRecords is worked out from a sample of the releases (the page says "about"). */
+        @AuraEnabled public Boolean recordsEstimated = false;
     }
 
     /** @description The Archive tab's setting, live counts and totals (Archive adds the rest). */
@@ -62,6 +66,8 @@ public with sharing class RlyArchiveViews {
         @AuraEnabled public Integer eligibleReleases;
         /** @description About how many records go with them, or null when no days are set. */
         @AuraEnabled public Integer eligibleRecords;
+        /** @description eligibleRecords is worked out from a sample of the releases (the page says "about"). */
+        @AuraEnabled public Boolean recordsEstimated = false;
         /** @description Releases that become eligible in the next 30 days, or null when no days are set. */
         @AuraEnabled public Integer eligibleNext30;
         /** @description Releases removed by every run so far. */

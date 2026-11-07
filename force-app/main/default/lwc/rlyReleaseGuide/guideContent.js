@@ -1764,7 +1764,9 @@ const USE_SECTIONS = [
                                 where: 'New Release → Select',
                                 text: [
                                     'Press **Find deleted components**. The hub compares the files in your org\'s own branch with what is in the org and lists what is in the branch but not in the org.',
-                                    'They may have been deleted in your org, or came from another org through the branch and were never deployed to yours. Nothing is ticked for you: **tick only what you deleted**.'
+                                    'They may have been deleted in your org, or came from another org through the branch and were never deployed to yours. Nothing is ticked for you: **tick only what you deleted**.',
+                                    'It reads the branch a folder at a time and checks your org a type at a time, so a big branch doesn\'t time out; a part that can\'t be read is listed with **Try again**. Queues, groups, global value sets, Lightning pages, quick actions and custom permissions are found too.',
+                                    'Picklist values aren\'t components: remove a value in the field (Salesforce makes it inactive in the target, it can\'t delete it through a deploy) or add a manual step to delete it in Setup.'
                                 ]
                             },
                             {
@@ -1774,7 +1776,8 @@ const USE_SECTIONS = [
                                     'Deletions are listed in red under **Deleted from** the target. A component can\'t be both added and deleted in one release.',
                                     'Deleting Apex needs no test class unless Apex is also added. Delete its test class too (Review warns when `<Name>Test` still refers to it). Into production the org\'s local tests run (RunLocalTests), as Salesforce requires, unless you pick test classes; sandboxes skip tests.'
                                 ],
-                                problems: [['"<Type> <Name> isn\'t in <branch>, so there\'s nothing to delete."', 'The component isn\'t in the target\'s branch: untick it.']]
+                                problems: [['"<Type> <Name> isn\'t in <branch>, so there\'s nothing to delete."', 'The component isn\'t in the target\'s branch: untick it.'],
+                                    ['"A release takes at most 2,000 components (…): split the release." (or 500 deletions)', 'Raise it as two or more releases. An add to an open release takes up to 100 components.']]
                             }
                         ]
                     },

@@ -191,4 +191,61 @@ private class RlyEvidenceTest {
             System.assertEquals('short words stay', RlyEvidenceWords.breakable('short words stay'), 'Short words unchanged');
         }
     }
+
+    @IsTest
+    static void csvComesInParts() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = fullRelease();
+            Test.startTest();
+            RlyEvidenceCsv.CsvPart first = RlyEvidenceController.exportCsvPart('{"state":"deployed","searchText":""}', 0);
+            RlyEvidenceCsv.CsvPart past = RlyEvidenceController.exportCsvPart('{"state":"deployed","searchText":""}', 20);
+            Test.stopTest();
+            System.assertEquals(1, first.total, 'One deployed release');
+            System.assertEquals(null, first.nextOffset, 'One part is enough');
+            System.assert(first.text.startsWith('"REL","Title"') && first.text.contains(rel.Name), 'Header and the release: ' + first.text);
+            System.assertEquals('', past.text, 'Nothing past the end');
+        }
+    }
+
+    @IsTest
+    static void deployIdsAreFoundWithoutParsing() {
+        System.runAs(RlyTestData.admin()) {
+            Test.startTest();
+            String spaced = RlyEvidenceCsv.deployIdIn('{"status":"Passed", "deployId" : "deploy-9", "tests":[]}');
+            String none = RlyEvidenceCsv.deployIdIn('{"deployId":null,"message":"x"}');
+            String blank = RlyEvidenceCsv.deployIdIn('{"deployId":""}');
+            String broken = RlyEvidenceCsv.deployIdIn('{"deployId":"0Af');
+            Test.stopTest();
+            System.assertEquals('deploy-9', spaced, 'Spaces around the colon are fine');
+            System.assertEquals(null, none, 'A null id');
+            System.assertEquals(null, blank, 'A blank id');
+            System.assertEquals(null, broken, 'A cut-off result');
+            System.assertEquals(null, RlyEvidenceCsv.deployIdIn(null), 'No result');
+        }
+    }
+
+    @IsTest
+    static void longTablesAreCappedInThePdf() {
+        System.runAs(RlyTestData.admin()) {
+            List<List<String>> rows = new List<List<String>>();
+            for (Integer i = 0; i < RlyEvidenceCap.MAX_ROWS + 5; i++) {
+                rows.add(new List<String>{ 'Deploy', 'ApexClass', 'C' + i });
+            }
+            List<RLY_Release_Event__c> events = new List<RLY_Release_Event__c>();
+            for (Integer i = 0; i < RlyEvidenceCap.MAX_ROWS + 2; i++) {
+                events.add(new RLY_Release_Event__c(Event_Type__c = 'Deployed', Detail__c = 'event ' + i));
+            }
+            Test.startTest();
+            List<List<String>> shown = RlyEvidenceCap.capped(rows, 3, 'more components');
+            List<List<String>> few = RlyEvidenceCap.capped(new List<List<String>>{ rows[0] }, 3, 'more components');
+            String history = RlyEvidenceTables.history(events);
+            Test.stopTest();
+            System.assertEquals(RlyEvidenceCap.MAX_ROWS + 1, shown.size(), 'The first rows and one more row');
+            System.assertEquals('… and 5 more components', shown[RlyEvidenceCap.MAX_ROWS][0], 'Says how many more');
+            System.assertEquals(3, shown[RlyEvidenceCap.MAX_ROWS].size(), 'A full row');
+            System.assertEquals(1, few.size(), 'A short table is whole');
+            System.assert(history.contains('2 earlier entries aren&#39;t shown') || history.contains('2 earlier entries aren\'t shown'), 'The oldest are left out');
+            System.assert(history.contains('event ' + (RlyEvidenceCap.MAX_ROWS + 1)) && !history.contains('>event 1<'), 'The newest are kept');
+        }
+    }
 }
