@@ -98,7 +98,7 @@ public with sharing class RlySyncStore {
          */
         public List<RLY_Org__c> orgs() {
             return [SELECT Id, Name, Role__c, Branch__c, Git_Environment__c, Stage_Order__c, Status__c, Environment__c,
-                           Back_Promote_Approval__c
+                           Back_Promote_Approval__c, Back_Promote_When__c, Synced_On__c, Sync_Status__c, CreatedDate
                     FROM RLY_Org__c WHERE Role__c IN ('Developer', 'Stage', 'Hub') AND Branch__c != null
                     WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }

@@ -97,9 +97,11 @@ private class RlySyncTest {
             RlyOrgSession.testToken = RlyTestData.TOKEN;
             RlyHttpMock m = dispatchMock();
             Test.setMock(HttpCalloutMock.class, m);
-            Test.startTest();
+            // Saving the check is DML; in a test the later callout must come after Test.startTest (the page makes
+            // these two calls in separate requests).
             RlySyncRuns.Started s = RlySyncController.startOrgCheck(orgId('DEV1'));
             Boolean noDispatchYet = m.bodyFor('/dispatches') == null;
+            Test.startTest();
             String title = RlySyncController.runDeveloperCheck(s.syncId, 2, new List<String>{ 'ApexClass', 'CustomObject' });
             Test.stopTest();
             System.assertEquals('parts', s.mode, 'The page sends a developer org');
@@ -188,9 +190,10 @@ private class RlySyncTest {
                 .match('GET', 'results/' + SYNC_ID + '/f/1.json').reply(200, '{"path":"force-app/main/default/classes/InvoiceDueDate.cls","left":"a","right":"b"}')
                 .match('GET', 'results/' + SYNC_ID + '/f/2.json').reply(200, '{"path":"x","patch":"@@ -1 +1 @@"}'));
             Test.startTest();
-            RlySyncResult.View v = RlySyncController.readCheck(SYNC_ID);
+            // The files first: reading the result saves the check (DML), and no callout may follow it in one request.
             RlyCompareFiles.FileDiff text = RlySyncController.syncFile(SYNC_ID, 1);
             RlyCompareFiles.FileDiff patch = RlySyncController.syncFile(SYNC_ID, 2);
+            RlySyncResult.View v = RlySyncController.readCheck(SYNC_ID);
             Test.stopTest();
             System.assertEquals(1, v.pairs.size(), 'The pair');
             System.assertEquals(true, v.pairs[0].components[0].lowerChangedToo, 'Changed below too');
