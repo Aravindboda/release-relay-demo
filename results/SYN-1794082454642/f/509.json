@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/triggers/RlyContentDocumentLink.trigger","left":null,"right":"trigger RlyContentDocumentLink on ContentDocumentLink (before insert, after insert, before delete) {\n    RlyStepFileGuard.onLinks(Trigger.operationType, Trigger.new, Trigger.old);\n}"}

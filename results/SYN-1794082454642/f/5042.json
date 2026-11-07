@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/milestoneTypes/Escalate Case.milestoneType-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<MilestoneType xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <description>Sets a recurring milestone for escalating a Case.</description>\n    <recurrenceType>recursIndependently</recurrenceType>\n</MilestoneType>\n"}

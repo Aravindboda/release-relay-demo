@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/objects/FulfillmentOrderLineItem/fields/GrossUnitPrice.field-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>GrossUnitPrice</fullName>\n</CustomField>\n"}

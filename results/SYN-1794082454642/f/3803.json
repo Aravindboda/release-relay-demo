@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/objects/VoiceCall/fields/CallType.field-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>CallType</fullName>\n    <trackHistory>false</trackHistory>\n</CustomField>\n"}
