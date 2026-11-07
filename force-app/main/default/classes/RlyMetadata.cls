@@ -1,7 +1,8 @@
 /**
  * @description The Metadata API types and listings of a registered org (through RlySoapClient):
  *   describe   every metadata type the org has, with child types (CustomField…) and folder types
- *   listFiles  listMetadata, up to three queries per call
+ *   listFiles  listMetadata, up to three queries per call, read by scanning the text (RlyMetadataList), not as a
+ *              document, so a large answer takes about its own size in heap
  * Retrieving components is in RlyRetrieve.
  */
 public with sharing class RlyMetadata {
@@ -120,13 +121,7 @@ public with sharing class RlyMetadata {
     public static List<FileProp> listFiles(RLY_Org__c org, List<Query> queries) {
         List<FileProp> out = new List<FileProp>();
         for (Integer i = 0; i < queries.size(); i += QUERIES_PER_CALL) {
-            Dom.XmlNode response = RlySoapClient.call(org, 'listMetadata', queryXml(queries, i));
-            for (Dom.XmlNode r : response.getParent().getChildElements()) {
-                FileProp f = r.getName() == 'result' ? toFileProp(r) : null;
-                if (f != null && String.isNotBlank(f.fullName)) {
-                    out.add(f);
-                }
-            }
+            out.addAll(RlyMetadataList.call(org, queryXml(queries, i)));
         }
         return out;
     }
@@ -142,15 +137,4 @@ public with sharing class RlyMetadata {
         return body + '<met:asOfVersion>' + RlyOrgSession.API_VERSION + '</met:asOfVersion>';
     }
 
-    private static FileProp toFileProp(Dom.XmlNode r) {
-        FileProp f = new FileProp();
-        f.fullName = RlySoapClient.text(r, 'fullName');
-        f.type = RlySoapClient.text(r, 'type');
-        f.lastModifiedByName = RlySoapClient.text(r, 'lastModifiedByName');
-        f.manageableState = RlySoapClient.text(r, 'manageableState');
-        f.namespacePrefix = RlySoapClient.text(r, 'namespacePrefix');
-        String stamp = RlySoapClient.text(r, 'lastModifiedDate');
-        f.lastModifiedDate = String.isBlank(stamp) ? null : (Datetime) JSON.deserialize('"' + stamp + '"', Datetime.class);
-        return f;
-    }
 }

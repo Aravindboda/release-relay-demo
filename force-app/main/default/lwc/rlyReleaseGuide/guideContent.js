@@ -1664,7 +1664,8 @@ const USE_SECTIONS = [
                                     'The hub gets your org\'s copy and reads the target branch (usually under a minute), then marks each component **Changed**, **New in this release**, **Same**, **Deleted** or **Not available** (**Checking…** while it reads).',
                                     'Left is the target branch (Target, what is there now), right is your org (Source, what the release brings). Switch **Split** / **Unified**; click **⋯ unchanged lines** to open them. A component with several files has a file picker.',
                                     'Compared: Apex classes and triggers, Visualforce pages and components, flows, layouts, permission sets, Lightning web components and Aura components. Objects, fields, record types, profiles and other types show **Not available** ("Compare isn\'t available for … yet"): see them under **Changes** after raising. Static resources and other binary files aren\'t compared either.',
-                                    'Up to 25 components at a time: with more, the window says so and shows the first 25. A very large file says **Too large to compare here**.',
+                                    'The hub reads the components a few at a time (5 per part, 3 parts at once), so each row shows **Waiting**, **Comparing**, then its result, and the first one ready opens by itself. A part that can\'t be read shows **Couldn\'t read** on its rows with **Try again**; the other components carry on.',
+                                    'Up to 50 components in the hub. With more, or when a file is **Too large** for the hub, press **Compare all in the pipeline**: the hub sends your org\'s copy to Git in parts and the pipeline compares every component there (usually 1–2 minutes; the run shows on the Pipeline Monitor as **Compare**). The pipeline also compares types the hub can\'t, such as objects and fields, and shows a very large file as its changed lines only. It needs the GitHub pipeline files version 22.',
                                     'A flow shows its versions on both sides, for example Version 8 · Draft against Version 7 · Active (an example). When your org has an active version and a newer draft, the copy compared is the active one, and the window says the newer version isn\'t compared.'
                                 ],
                                 check: 'Close and press Compare again to read a fresh copy.'
@@ -2666,7 +2667,7 @@ const USE_SECTIONS = [
                         cols: ['Status', 'Meaning', 'What to do'],
                         rows: [
                             ['Submitted', 'A promotion or back promote sync is queued: "Starting the pipeline run." (manual steps only: "Going to approval.").', 'Wait.'],
-                            ['Retrieving', 'The hub is reading the components from the source org.', 'Wait. Usually under a minute.'],
+                            ['Retrieving', 'The hub is reading the components from the source org. A big release (more than 25 components, or static resources and profiles) is read and sent to Git one part at a time while the release page is open.', 'Wait. Usually under a minute; a big release a little longer.'],
                             ['Workflow running', 'The pipeline is converting the files and opening the pull request.', 'Wait.'],
                             ['Validating', 'Code scan and check-only deploy are running.', 'Wait, or Check now.'],
                             ['Resolving conflicts', 'Your conflict choices were committed; the pipeline merges the target and checks again.', 'Wait.'],

@@ -153,7 +153,8 @@ public with sharing class RlyGitHub extends RlyGit {
     }
 
     /**
-     * @description The paths of every file on a branch under a path (GET /git/trees/{branch}?recursive=1).
+     * @description The paths of every file on a branch under a path (GET /git/trees/{branch}?recursive=1), read by
+     * scanning the answer (RlyGitTree), not as a document.
      * @param branch the branch
      * @param path the folder, for example force-app/main/default (blank: the whole branch)
      * @return the file paths
@@ -161,7 +162,7 @@ public with sharing class RlyGitHub extends RlyGit {
     public override List<String> listFiles(String branch, String path) {
         HttpResponse res = send('GET', repo() + '/git/trees/' + encPath(branch) + '?recursive=1', null);
         assertOk(res, 'Listing the files on ' + branch);
-        return RlyDeletionPaths.blobs(parse(res), path);
+        return RlyGitTree.filesUnder(RlyGitTree.read(res.getBody()), path);
     }
 
     /**

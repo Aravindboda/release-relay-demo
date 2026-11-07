@@ -66,7 +66,9 @@ public with sharing class RlyStatusReader {
         RlyFlowActivation.afterRead(rel, oldStatus); // flows chosen Activate, in the org just deployed to (callouts)
         rel.Last_Synced__c = System.now();
         RlySlackCardSync.notifyChange(prior, rel); // the Slack callouts (the card is kept current) come before any DML
-        return RlySharedRead.save(rel, oldStatus); // a row lock held by another viewer returns the release as saved
+        RLY_Release__c saved = RlySharedRead.save(rel, oldStatus); // a row lock held by another viewer returns the release as saved
+        RlyRunMonitorChecks.afterRead(saved, oldStatus); // a check run GitHub ended green turns Failed on the Pipeline Monitor
+        return saved;
     }
 
     /**
@@ -105,6 +107,14 @@ public with sharing class RlyStatusReader {
     private static void afterRetrieve(RLY_Release__c rel, RlyGit git) {
         RLY_Org__c source = RlyReleaseStore.org(rel.Source_Org__c);
         String branch = RlyPipelineRun.branchName(rel);
+        if (RlyRaiseParts.handles(rel)) {
+            // A big release, one part per check (RlyRaiseParts): the run starts once every part is on the branch.
+            ensureBranch(git, branch, baseBranch(source, rel));
+            if (RlyRaiseParts.advance(rel, git, branch)) {
+                startRun(rel, git, branch);
+            }
+            return;
+        }
         RlyGitFile file = String.isBlank(rel.Retrieve_Id__c) ? withoutRetrieve(rel, branch) : retrievedZip(rel, source, branch);
         if (file == null) {
             if (String.isBlank(rel.Retrieve_Id__c)) {
@@ -112,10 +122,19 @@ public with sharing class RlyStatusReader {
             }
             return;
         }
-        if (!git.branchExists(branch)) {
-            git.createBranch(branch, baseBranch(source, rel));
-        }
+        ensureBranch(git, branch, baseBranch(source, rel));
         git.putFile(file);
+        startRun(rel, git, branch);
+    }
+
+    private static void ensureBranch(RlyGit git, String branch, String base) {
+        if (!git.branchExists(branch)) {
+            git.createBranch(branch, base);
+        }
+    }
+
+    // Everything is on the release branch: the pipeline's hub run starts.
+    private static void startRun(RLY_Release__c rel, RlyGit git, String branch) {
         RlyAppendRun.startHubRun(rel, git, branch);
         rel.Source_Branch__c = branch;
         rel.Status__c = 'Workflow running';
@@ -136,7 +155,7 @@ public with sharing class RlyStatusReader {
         if (!st.done) {
             return null;
         }
-        String problem = retrieveProblem(st, source);
+        String problem = RlyRetrieve.problemOf(st, source.Name);
         if (problem != null) {
             RlyAppendRun.failRetrieve(rel, problem);
             return null;
@@ -150,17 +169,6 @@ public with sharing class RlyStatusReader {
     // carries only the hotfix.
     private static String baseBranch(RLY_Org__c source, RLY_Release__c rel) {
         return RlyHotfix.isHotfix(rel) || String.isBlank(source.Branch__c) ? rel.Target_Branch__c : source.Branch__c.trim();
-    }
-
-    private static String retrieveProblem(RlyRetrieve.RetrieveStatus st, RLY_Org__c source) {
-        if (!st.success || String.isBlank(st.zipBase64)) {
-            return 'Retrieving from ' + source.Name + ' failed: ' + (st.message == null ? '' : st.message)
-                + (st.problems.isEmpty() ? '' : ' ' + String.join(st.problems, '; '));
-        }
-        if (!st.problems.isEmpty()) {
-            return 'Some components couldn\'t be retrieved from ' + source.Name + ': ' + String.join(st.problems, '; ');
-        }
-        return null;
     }
 
     /**
