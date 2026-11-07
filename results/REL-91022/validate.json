@@ -1,16 +1,16 @@
 {
  "request": "REL-91022",
  "step": "validate",
- "status": "Failed",
- "changed": 62,
+ "status": "Passed",
+ "changed": 64,
  "deleted": [],
  "mergedWith": "c0f86475ef30c5d229e5f4dc615808a87731f98b",
- "validatedTree": "62b7f33c3cbd062e31c8159ccbfd7488053d257a",
+ "validatedTree": "bb903cc523bc891cd9086e512ba91cecb167e627",
  "environment": "sit",
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d3vg2SAA",
- "testsRun": 0,
+ "deployId": "0AfgL00000d49vtSAA",
+ "testsRun": 372,
  "tests": [
   "RlyAppendTest",
   "RlyApprovalRulesTest",
@@ -68,190 +68,16 @@
   "RlyTwoApproversTest"
  ],
  "coverageWarnings": [],
- "componentErrors": [
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorBoard",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorInput : Missing ';' at 'list'",
-   "line": 145
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorBranchRow",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorInput : Missing ';' at 'list'",
-   "line": 145
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorBranches",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorBranchRow : Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorInput : Missing ';' at 'list'",
-   "line": 145
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorController",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorBoard : Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorInput : Missing ';' at 'list'",
-   "line": 145
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorControllerTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorController : Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorBoard : Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorInput : Missing ';' at 'list'",
-   "line": 145
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorInbound",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorInput : Missing ';' at 'list'",
-   "line": 145
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorInput",
-   "problem": "Missing ';' at 'list'",
-   "line": 145
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorInput",
-   "problem": "Unexpected token 'list'.",
-   "line": 145
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorInput",
-   "problem": "Unexpected token 'list'.",
-   "line": 145
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorInput",
-   "problem": "Unexpected token 'list'.",
-   "line": 146
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorInput",
-   "problem": "Unexpected token ')'.",
-   "line": 146
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorInput",
-   "problem": "Unexpected token 'List'.",
-   "line": 150
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorInput",
-   "problem": "Unexpected token ')'.",
-   "line": 150
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorInput",
-   "problem": "Unexpected token 'list'.",
-   "line": 150
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorInput",
-   "problem": "Unexpected token 'list'.",
-   "line": 150
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorInput",
-   "problem": "Variable does not exist: Object",
-   "line": 145
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorInput",
-   "problem": "Expression cannot be assigned"
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorInput",
-   "problem": "Variable does not exist: item",
-   "line": 151
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorInput",
-   "problem": "Unreachable statement",
-   "line": 149
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorLanes",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorViews : Identifier type is reserved: Page",
-   "line": 158
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorRest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorInbound : Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorInput : Missing ';' at 'list'",
-   "line": 145
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorRestTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorRest : Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorInbound : Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorInput : Missing ';' at 'list'",
-   "line": 145
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorRows",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRunMonitorViews : Identifier type is reserved: Page",
-   "line": 158
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRunMonitorViews",
-   "problem": "Identifier type is reserved: Page",
-   "line": 158
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipelineMonitor",
-   "problem": "Unable to find Apex action class referenced as 'RlyRunMonitorController'.\nUnable to find Apex action class referenced as 'RlyRunMonitorController'."
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipelineMonitor",
-   "problem": "Unable to find Apex action class referenced as 'RlyRunMonitorController'.\nUnable to find Apex action class referenced as 'RlyRunMonitorController'."
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Admin",
-   "problem": "In field: apexClass - no ApexClass named RlyRunMonitorController found"
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Approver",
-   "problem": "In field: apexClass - no ApexClass named RlyRunMonitorController found"
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Deploy_Team",
-   "problem": "In field: apexClass - no ApexClass named RlyRunMonitorController found"
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Developer",
-   "problem": "In field: apexClass - no ApexClass named RlyRunMonitorController found"
-  }
- ],
+ "componentErrors": [],
  "testFailures": [],
- "message": "30 component error(s)",
+ "message": "",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42336169071",
- "finishedAt": "2026-11-07T03:56:51.483Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42336364536",
+ "finishedAt": "2026-11-07T04:04:05.152Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
