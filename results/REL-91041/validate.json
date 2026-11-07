@@ -1,16 +1,16 @@
 {
  "request": "REL-91041",
  "step": "validate",
- "status": "Failed",
+ "status": "Passed",
  "changed": 39,
  "deleted": [],
  "mergedWith": "9127b295ec0aec78b9cb3a87c0b065acdb0b1f50",
- "validatedTree": "efae59d94113eb34944608103afe5ca2c1951dea",
+ "validatedTree": "27bf1dfe975fe83cddfa4d6b261d92e83769556f",
  "environment": "sit",
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d75xOSAQ",
- "testsRun": 0,
+ "deployId": "0AfgL00000d7EZGSA2",
+ "testsRun": 440,
  "tests": [
   "RlyAppendTest",
   "RlyApprovalRulesTest",
@@ -77,104 +77,16 @@
   "RlySlackDueTest"
  ],
  "coverageWarnings": [],
- "componentErrors": [
-  {
-   "type": "ApexClass",
-   "name": "RlySlackAlert",
-   "problem": "Method does not exist or incorrect signature: void mentions(List<String>) from the type RlySlackNudge",
-   "line": 32
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackAlert",
-   "problem": "Method does not exist or incorrect signature: void mentions(List<String>) from the type RlySlackNudge",
-   "line": 60
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackCardSync",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackAlert : Method does not exist or incorrect signature: void mentions(List<String>) from the type RlySlackNudge",
-   "line": 32
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackDelivery",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackReply : Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackAlert : Method does not exist or incorrect signature: void mentions(List<String>) from the type RlySlackNudge",
-   "line": 32
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackDue",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackAlert : Method does not exist or incorrect signature: void mentions(List<String>) from the type RlySlackNudge",
-   "line": 32
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackDueRest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackDue : Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackAlert : Method does not exist or incorrect signature: void mentions(List<String>) from the type RlySlackNudge",
-   "line": 32
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackDueTest",
-   "problem": "Method does not exist or incorrect signature: void mentions(List<String>) from the type RlySlackNudge",
-   "line": 240
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackNudge",
-   "problem": "Invalid type: Collection",
-   "line": 37
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackNudge",
-   "problem": "Loop must iterate over collection: Collection<String>",
-   "line": 39
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackReminderController",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackAlert : Method does not exist or incorrect signature: void mentions(List<String>) from the type RlySlackNudge",
-   "line": 32
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackReminders",
-   "problem": "Method does not exist or incorrect signature: void mentions(List<String>) from the type RlySlackNudge",
-   "line": 102
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlySlackReminders",
-   "problem": "Method does not exist or incorrect signature: void mentions(List<String>) from the type RlySlackNudge",
-   "line": 105
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlySlackOrgReminders",
-   "problem": "Unable to find Apex action class referenced as 'RlySlackReminderController'.\nUnable to find Apex action class referenced as 'RlySlackReminderController'."
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlySlackOrgReminders",
-   "problem": "Unable to find Apex action class referenced as 'RlySlackReminderController'.\nUnable to find Apex action class referenced as 'RlySlackReminderController'."
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Admin",
-   "problem": "In field: apexClass - no ApexClass named RlySlackReminderController found"
-  }
- ],
+ "componentErrors": [],
  "testFailures": [],
- "message": "15 component error(s)",
+ "message": "",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42393019542",
- "finishedAt": "2026-11-07T16:52:58.174Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42393613134",
+ "finishedAt": "2026-11-07T17:07:20.385Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
