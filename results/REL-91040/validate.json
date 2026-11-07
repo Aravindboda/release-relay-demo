@@ -1,15 +1,15 @@
 {
  "request": "REL-91040",
  "step": "validate",
- "status": "Failed",
+ "status": "Passed",
  "changed": 71,
  "deleted": [],
  "mergedWith": "9127b295ec0aec78b9cb3a87c0b065acdb0b1f50",
- "validatedTree": "dd3e4dfedb2cc2cd189d0b1d4df2e204ff798dca",
+ "validatedTree": "99a1162ec4b6fcbb3badf687161809a11d050121",
  "environment": "sit",
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d7O7DSAU",
+ "deployId": "0AfgL00000d7dvpSAA",
  "testsRun": 445,
  "tests": [
   "RlyAppendTest",
@@ -78,21 +78,15 @@
  ],
  "coverageWarnings": [],
  "componentErrors": [],
- "testFailures": [
-  {
-   "name": "RlyManualOnlyTest",
-   "method": "raisedWithoutMetadataGoesToApprovalThenDeploysWhenTheStepsAreDone",
-   "message": "System.LimitException: Too many SOQL queries: 101"
-  }
- ],
- "message": "1 test failure(s)",
+ "testFailures": [],
+ "message": "",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42396803887",
- "finishedAt": "2026-11-07T17:38:53.320Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42397506170",
+ "finishedAt": "2026-11-07T17:55:32.975Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
