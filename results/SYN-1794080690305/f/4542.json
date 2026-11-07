@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/settings/CustomerDataPlatform.settings-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomerDataPlatformSettings xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <enableCustomerDataPlatform>false</enableCustomerDataPlatform>\n</CustomerDataPlatformSettings>\n"}

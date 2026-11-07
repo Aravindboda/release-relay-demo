@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/objects/User/listViews/AllUsers.listView-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListView xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>AllUsers</fullName>\n    <filterScope>Everything</filterScope>\n    <label>All Users</label>\n</ListView>\n"}

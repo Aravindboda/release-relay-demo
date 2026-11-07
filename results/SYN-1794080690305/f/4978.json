@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/objects/Activity/listViews/MyActivities.listView-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListView xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>MyActivities</fullName>\n    <filterScope>Mine</filterScope>\n    <label>My Activities</label>\n</ListView>\n"}

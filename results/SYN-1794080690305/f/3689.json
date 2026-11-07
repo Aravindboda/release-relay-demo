@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/objects/TenantConsumptionAlert/fields/TriggerType.field-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>TriggerType</fullName>\n</CustomField>\n"}

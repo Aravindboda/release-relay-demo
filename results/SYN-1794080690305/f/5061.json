@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/settings/Pardot.settings-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<PardotSettings xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <enablePardotAppV1Enabled>false</enablePardotAppV1Enabled>\n</PardotSettings>\n"}

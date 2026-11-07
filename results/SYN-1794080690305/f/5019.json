@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/objects/Product2/listViews/AllProducts.listView-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListView xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>AllProducts</fullName>\n    <filterScope>Everything</filterScope>\n    <label>All Products</label>\n</ListView>\n"}

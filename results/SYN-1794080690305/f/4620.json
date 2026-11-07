@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/email/unfiled$public/SupportSelfServiceResetPassword.email","left":null,"right":"Dear {!Contact.FirstName}, \n\nThank you for using GenWatt's customer self-service portal.  Your new password is below. \n\nThank you.\n\nGenWatt Customer Support"}
