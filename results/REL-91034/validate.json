@@ -1,0 +1,126 @@
+{
+ "request": "REL-91034",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 56,
+ "deleted": [],
+ "mergedWith": "600f686359cae5e3bb836aa2ad49da2cb645ff26",
+ "validatedTree": "f80938bc8b3b76bae19d749e40879ea4a88b0061",
+ "environment": "sit",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000d6w7iSAA",
+ "testsRun": 430,
+ "tests": [
+  "RlyAppendTest",
+  "RlyApprovalRulesTest",
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyArchiveRestTest",
+  "RlyArchiveRunsTest",
+  "RlyArchiveTest",
+  "RlyBackPromoteTest",
+  "RlyBranchDeleteTest",
+  "RlyBuildInfoTest",
+  "RlyBuildLockTest",
+  "RlyChangePartsTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyComparePipelineTest",
+  "RlyCompareTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyDeletionFinderTest",
+  "RlyDeployReaderTest",
+  "RlyEvidenceTest",
+  "RlyFlowActivationTest",
+  "RlyFlowBatchTest",
+  "RlyGitAdviceTest",
+  "RlyGitProvidersTest",
+  "RlyHomeControllerTest",
+  "RlyHotfixTest",
+  "RlyHubGuardTest",
+  "RlyManualOnlyTest",
+  "RlyManualStepGateTest",
+  "RlyManualStepsTest",
+  "RlyOrgControllerTest",
+  "RlyOrgLinksTest",
+  "RlyOrgSessionTest",
+  "RlyPipelineFilesTest",
+  "RlyPromoteOverlapTest",
+  "RlyPromoteTest",
+  "RlyPullRequestCloseTest",
+  "RlyPullRequestFilesTest",
+  "RlyRaisePartsTest",
+  "RlyRaiseServiceTest",
+  "RlyRaiseTest",
+  "RlyReleaseSizeTest",
+  "RlyReleasesFilterTest",
+  "RlyRepoSettingsTest",
+  "RlyRollbackTest",
+  "RlyRouteControllerTest",
+  "RlyRunMonitorControllerTest",
+  "RlyRunMonitorRestTest",
+  "RlyScanRuleTest",
+  "RlySetupStatusTest",
+  "RlySharedReadTest",
+  "RlySlackActionsTest",
+  "RlySlackApproversTest",
+  "RlySlackCardTest",
+  "RlySlackLinkTest",
+  "RlySlackSiteCheckTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest",
+  "RlyStepFilesTest",
+  "RlySyncTest",
+  "RlyTwoApproversTest"
+ ],
+ "coverageWarnings": [
+  {
+   "name": "RlyRunMonitorRetention",
+   "message": "Test coverage of selected Apex Class is 69.231%, at least 75% test coverage is required"
+  },
+  {
+   "name": "RlySyncPaths",
+   "message": "Test coverage of selected Apex Class is 28.571%, at least 75% test coverage is required"
+  }
+ ],
+ "componentErrors": [],
+ "testFailures": [
+  {
+   "name": "RlySyncTest",
+   "method": "aDeveloperOrgIsSentInPartsThenCompared",
+   "message": "System.AuraHandledException: Couldn't reach GitHub: You have uncommitted work pending. Please commit or rollback before calling out"
+  },
+  {
+   "name": "RlySyncTest",
+   "method": "backPromoteKeepsToTheRouteAndOneAtATime",
+   "message": "System.AuraHandledException: SObject row was retrieved via SOQL without querying the requested field: RLY_Org__c.Synced_On__c"
+  },
+  {
+   "name": "RlySyncTest",
+   "method": "pickedComponentsAreBackPromotedOrPushed",
+   "message": "System.AuraHandledException: SObject row was retrieved via SOQL without querying the requested field: RLY_Org__c.Synced_On__c"
+  },
+  {
+   "name": "RlySyncTest",
+   "method": "routeResultsAndFilesAreRead",
+   "message": "System.AuraHandledException: Couldn't reach GitHub: You have uncommitted work pending. Please commit or rollback before calling out"
+  }
+ ],
+ "message": "4 test failure(s)",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42389034019",
+ "finishedAt": "2026-11-07T16:08:28.263Z",
+ "excluded": [],
+ "selfUpdate": true,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
+}
