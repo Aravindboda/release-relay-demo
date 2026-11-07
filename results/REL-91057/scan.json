@@ -39,6 +39,7 @@
   "force-app/main/default/classes/RlySecurityFixesTest.cls",
   "force-app/main/default/classes/RlySlack.cls",
   "force-app/main/default/classes/RlySlackAction.cls",
+  "force-app/main/default/classes/RlySlackActionsTest.cls",
   "force-app/main/default/classes/RlySlackController.cls",
   "force-app/main/default/classes/RlySlackLink.cls",
   "force-app/main/default/classes/RlySlackLinkTest.cls",
@@ -94,6 +95,6 @@
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42420421296",
- "finishedAt": "2026-11-07T22:24:45.436Z"
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42421408516",
+ "finishedAt": "2026-11-07T22:37:12.763Z"
 }
