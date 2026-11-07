@@ -18,6 +18,7 @@
   "force-app/main/default/classes/RlyComparePipelineInput.cls",
   "force-app/main/default/classes/RlyPipelineOptions.cls",
   "force-app/main/default/classes/RlyReleaseStore.cls",
+  "force-app/main/default/classes/RlyRunMonitorControllerTest.cls",
   "force-app/main/default/classes/RlyRunMonitorRetention.cls",
   "force-app/main/default/classes/RlySyncBoard.cls",
   "force-app/main/default/classes/RlySyncController.cls",
@@ -86,6 +87,6 @@
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42389871257",
- "finishedAt": "2026-11-07T16:10:28.738Z"
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42390434371",
+ "finishedAt": "2026-11-07T16:16:52.450Z"
 }
