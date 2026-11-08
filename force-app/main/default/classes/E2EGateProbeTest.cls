@@ -1,0 +1,1 @@
+@IsTest private class E2EGateProbeTest { @IsTest static void doublesTheNumber() { System.runAs(new User(Id = UserInfo.getUserId())) { System.assertEquals(4, E2EGateProbe.twice(2), 'twice(2) should be 4'); } } }

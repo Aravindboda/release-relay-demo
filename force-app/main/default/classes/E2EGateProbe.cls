@@ -1,0 +1,1 @@
+public with sharing class E2EGateProbe { public static Integer twice(Integer n) { return n * 2; } }
