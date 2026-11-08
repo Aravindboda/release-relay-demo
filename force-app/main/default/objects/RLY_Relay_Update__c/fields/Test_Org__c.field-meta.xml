@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Test_Org__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>The stage the update is checked and installed in before production.</description>
+    <externalId>false</externalId>
+    <label>Test Org</label>
+    <referenceTo>RLY_Org__c</referenceTo>
+    <relationshipLabel>Release Relay Updates</relationshipLabel>
+    <relationshipName>Relay_Updates</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

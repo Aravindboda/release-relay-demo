@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Tests__c</fullName>
+    <description>The test classes every step runs (comma separated): each *Test class in the zip, else the org&apos;s Release Relay test classes.</description>
+    <externalId>false</externalId>
+    <label>Tests</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>5</visibleLines>
+</CustomField>

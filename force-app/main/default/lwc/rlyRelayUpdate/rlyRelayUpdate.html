@@ -1,0 +1,100 @@
+<template>
+    <!-- design board: scratchpad b51u/board.html (Install Release Relay update, admins only) -->
+    <template lwc:if={visible}>
+        <section class="rr-ru" aria-label="Install Release Relay update">
+            <template lwc:if={showTick}>
+                <span class="rr-ticks" aria-hidden="true"><span key={tickKey} class="rr-tick rr-tick-30" onanimationend={handleTick}></span></span>
+            </template>
+            <div class="rr-ru-head">
+                <div class="rr-grow">
+                    <h2 class="rr-h2">Install Release Relay update</h2>
+                    <p class="rr-small rr-weak">{subtitle}</p>
+                </div>
+                <span class={pillCls}>{pill}</span>
+            </div>
+
+            <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+            <template lwc:if={notSupported}><div class="rr-msg rr-msg-warn" role="note">{notSupportedText}</div></template>
+            <template lwc:if={notSigned}><p class="rr-small rr-weak">The hub has no run-signing key yet, so these runs start unsigned (Security and credentials, Run signing).</p></template>
+
+            <template lwc:if={showForm}>
+                <div class="rr-ru-form">
+                    <div class="rr-ru-field">
+                        <lightning-input label="Update branch" value={form.branch} placeholder="feature/relay-build-52" onchange={handleBranch} disabled={busy}></lightning-input>
+                        <p class="rr-hint">{branchHint}</p>
+                    </div>
+                    <div class="rr-ru-field">
+                        <lightning-input label="Title" value={form.title} placeholder="Release Relay build 52" max-length="150" onchange={handleTitle} disabled={busy}></lightning-input>
+                        <p class="rr-hint">Shown on the pull requests and runs</p>
+                    </div>
+                </div>
+                <template lwc:if={hasStages}>
+                    <c-rly-choice-chips label="Test it in" mode="single" options={stageOptions} value={form.testOrgId} onchange={handleOrg} disabled={busy}></c-rly-choice-chips>
+                    <p class="rr-hint">A stage on the route. Its install branch is rly-(its Git environment)-install.</p>
+                </template>
+                <template lwc:else><p class="rr-msg rr-msg-warn" role="note">Add a stage to the route first: the update is tested there before production.</p></template>
+            </template>
+            <template lwc:else>
+                <dl class="rr-facts">
+                    <div><dt>Update branch</dt><dd class="rr-mono">{current.branch}</dd></div>
+                    <div><dt>Zip</dt><dd class="rr-mono">{current.zipPath}</dd></div>
+                    <div><dt>Tests</dt><dd>{testsText}</dd></div>
+                </dl>
+            </template>
+
+            <div>
+                <p class="rr-label">Step</p>
+                <div class="rr-steps" role="group" aria-label="Steps, in order">
+                    <template for:each={stepChips} for:item="c">
+                        <span key={c.key} class="rr-step-wrap">
+                            <template lwc:if={c.notFirst}><span class="rr-arrow" aria-hidden="true">→</span></template>
+                            <button type="button" class={c.cls} aria-pressed={c.pressed} data-key={c.key} onclick={pickStep} disabled={c.off} title={c.title}>
+                                <span class="rr-n" aria-hidden="true">{c.mark}</span>
+                                <span>{c.label}</span>
+                                <template lwc:if={c.statusText}><span class="rr-st">{c.statusText}</span></template>
+                            </button>
+                        </span>
+                    </template>
+                </div>
+            </div>
+            <template lwc:if={whatText}><div class="rr-what">{whatText}</div></template>
+
+            <template lwc:if={hasRows}>
+                <div class="rr-tbl" role="table" aria-label="Steps run">
+                    <div class="rr-tr rr-th" role="row">
+                        <span role="columnheader">Step</span><span role="columnheader">Status</span><span role="columnheader">Request</span>
+                        <span role="columnheader">Run</span><span role="columnheader">Tests run</span><span role="columnheader">Failures</span>
+                    </div>
+                    <template for:each={rows} for:item="r">
+                        <div key={r.key} class="rr-tr" role="row">
+                            <span role="cell">{r.label}</span>
+                            <span role="cell"><span class={r.pillCls}>{r.status}</span></span>
+                            <span role="cell" class="rr-mono rr-break">{r.requestId}</span>
+                            <span role="cell"><template lwc:if={r.runUrl}><a class="rr-a" href={r.runUrl} target="_blank" rel="noopener noreferrer">Open run ↗</a></template><template lwc:else><span class="rr-weak">—</span></template></span>
+                            <span role="cell">{r.testsText}</span>
+                            <span role="cell">{r.failText}</span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <template lwc:if={problem}>
+                <template lwc:if={problem.message}><div class="rr-msg rr-msg-bad" role="alert">{problem.message}</div></template>
+                <template lwc:if={problem.hasFailures}>
+                    <ul class="rr-fails" aria-label="Failures">
+                        <template for:each={problem.failures} for:item="f"><li key={f.key} class="rr-break">{f.text}</li></template>
+                    </ul>
+                </template>
+            </template>
+            <template lwc:if={doneText}><div class="rr-msg rr-msg-ok" role="status">{doneText}</div></template>
+
+            <div class="rr-acts">
+                <template lwc:if={showAnother}><lightning-button label="Start another update" onclick={startAnother} disabled={busy}></lightning-button></template>
+                <template lwc:if={showCancelAnother}><lightning-button label="Cancel" onclick={cancelAnother} disabled={busy}></lightning-button></template>
+                <span class="rr-small rr-weak rr-grow">{footText}</span>
+                <template lwc:if={running}><lightning-button label="Refresh" onclick={refreshNow} disabled={busy}></lightning-button></template>
+                <lightning-button variant="brand" label={startLabel} onclick={startStep} disabled={cantStart}></lightning-button>
+            </div>
+        </section>
+    </template>
+</template>
