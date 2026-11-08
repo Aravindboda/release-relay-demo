@@ -137,13 +137,14 @@ public with sharing class RlyChangesController {
     }
 
     /**
-     * @description The org to read: a registered developer org (hotfixes come from developer orgs too).
+     * @description The org to read: a registered developer org (hotfixes come from developer orgs too), or (build 55) a
+     * stage that can raise releases.
      * @param orgId the org
      * @return the org, with its sign-in fields
      */
     public static RLY_Org__c source(Id orgId) {
         RLY_Org__c org = RlyReleaseStore.org(orgId);
-        if (org == null || org.Role__c != 'Developer') {
+        if (!RlyRaiseRoute.canRaiseFrom(org)) {
             // Callers wrap it with RlyReleaseException.toAura(), which sets the message the page shows.
             throw new RlyReleaseException(org?.Role__c == 'Stage'
                 ? RlyRaiseRoute.STAGE_RETIRED : 'Pick a registered developer org.');

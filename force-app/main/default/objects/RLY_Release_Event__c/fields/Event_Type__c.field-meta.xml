@@ -134,6 +134,16 @@
                 <default>false</default>
                 <label>Cancelled</label>
             </value>
+            <value>
+                <fullName>Package_References</fullName>
+                <default>false</default>
+                <label>Package references</label>
+            </value>
+            <value>
+                <fullName>File_Edited</fullName>
+                <default>false</default>
+                <label>File edited</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

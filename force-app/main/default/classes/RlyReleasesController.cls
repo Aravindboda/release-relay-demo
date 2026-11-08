@@ -110,6 +110,8 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public Boolean canRerun;
         /** @description Build 54: the current user may cancel it now (open; the raiser or an admin). */
         @AuraEnabled public Boolean canCancel;
+        /** @description Build 55: the current user may edit its files now (RlyFileEdit: open, no run going; the raiser or an admin). */
+        @AuraEnabled public Boolean canEditFiles;
     }
 
     /** @description What a release page shows about the release's links to others (Detail extends it; RlyReleaseLinks fills it). */
@@ -395,6 +397,7 @@ public with sharing class RlyReleasesController {
         d.prodAddonNote = RlyProdApproval.noteFor(d.release);
         d.canRerun = RlyReleaseAccess.mayRerunChecks(d.release);
         d.canCancel = RlyReleaseCancel.mayCancel(d.release);
+        d.canEditFiles = RlyFileEdit.mayEdit(d.release);
         RlyRollbackView.fill(d);
         RlyReleaseLinks.fill(d);
         RlyReleaseHistory.fill(d);

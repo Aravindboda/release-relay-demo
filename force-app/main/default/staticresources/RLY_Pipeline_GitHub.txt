@@ -1,4 +1,9 @@
-# Release Relay pipeline files: version 28
+# Release Relay pipeline files: version 29
+# Version 29 (hub build 55): no workflow change; the script (scripts/release-relay.js) moves with it, since the lowest
+# version among a hub's files counts. In the script, package-aware releases (options.packages from the hub): a raise or
+# add from an org without a managed package puts the branch's references to it back into the files it writes; a check,
+# deploy or back promote to an org without it strips them in the temporary deploy copy and leaves the package's own
+# components out. Results: packages.kept / leftOut / componentsLeftOut. Git keeps the full files.
 # Version 28 (hub build 52): no workflow change; the script (scripts/release-relay.js) moves with it, since the lowest
 # version among a hub's files counts. In the script: a new hub raise starts from where the target and the developer
 # org's branch meet, so unselected files on that branch stay out of the pull request (the raise job replaces the

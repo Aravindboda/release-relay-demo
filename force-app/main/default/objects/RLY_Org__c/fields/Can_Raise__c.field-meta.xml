@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Can_Raise__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Build 55: releases can be raised from this stage (for changes that need a package the orgs below it lack); they go to the next stop on the route.</description>
+    <label>Can Raise Releases</label>
+    <type>Checkbox</type>
+</CustomField>

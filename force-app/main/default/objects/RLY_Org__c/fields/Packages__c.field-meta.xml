@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Packages__c</fullName>
+    <description>Build 55: the managed packages installed in this org as last read (JSON [{ns, name, version}]), from Check now on the Pipeline tab&apos;s package matrix, Sync status and the nightly pass. Empty until the first read.</description>
+    <label>Installed Packages</label>
+    <length>32768</length>
+    <trackHistory>false</trackHistory>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>
