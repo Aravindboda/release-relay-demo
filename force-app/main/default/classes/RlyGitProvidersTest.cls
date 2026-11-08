@@ -92,6 +92,32 @@ private class RlyGitProvidersTest {
     }
 
     @IsTest
+    static void aBranchMovedMeanwhileIsTriedAgainWithoutPermissionAdvice() {
+        System.runAs(RlyTestData.admin()) {
+            RlyHttpMock mock = new RlyHttpMock()
+                .match('PUT', '/contents/compare-inbox/').reply(409, '{"message":"is at abc but expected def"}');
+            Test.setMock(HttpCalloutMock.class, mock);
+            RlyGit gh = RlyGit.forConnection(new RLY_Git_Connection__c(Provider__c = 'GitHub', Repository__c = 'acme/release',
+                Named_Credential__c = 'RLY_GitHub', Pipeline__c = 'release-relay.yml'));
+            String error = null;
+            Test.startTest();
+            try {
+                gh.putFile(new RlyGitFile('compare-inbox/SYN-1/1.zip', 'release-relay-results').withContent('UEs=', 'part 1'));
+            } catch (RlyGit.GitException e) {
+                error = e.getMessage();
+            }
+            Test.stopTest();
+            Integer puts = 0;
+            for (String c : mock.calls) {
+                puts += c.startsWith('PUT') ? 1 : 0;
+            }
+            System.assertEquals(3, puts, 'A 409 is tried three times: ' + mock.calls);
+            System.assert(error != null && error.contains('HTTP 409'), 'It still fails after three tries: ' + error);
+            System.assert(!error.contains('token permission'), 'A 409 isn\'t a permission problem: ' + error);
+        }
+    }
+
+    @IsTest
     static void labelsAndLinksPerProvider() {
         System.runAs(RlyTestData.admin()) {
             RlyGit gh = RlyGit.forConnection(new RLY_Git_Connection__c(Provider__c = 'GitHub', Repository__c = 'acme/release',

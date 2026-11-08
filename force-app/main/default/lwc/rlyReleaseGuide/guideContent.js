@@ -9,7 +9,8 @@
  *   table     { cols: [], rows: [[]] }
  *   note      { text }
  *   progress  { labels: [] }                         numbered strip; a click opens that step
- *   steps     { steps: [{ title, who, where, goal, items | text, check, problems, links, providers, shot }] }
+ *   steps     { steps: [{ title, who, where, goal, items | text, check, problems, links, providers, shot }], start }
+ *             start: the first step's number (default 1), to carry the numbering on after a table between two steps blocks.
  *             goal: why the step is needed (one line); check: what you should see when it worked;
  *             problems: [['You see', 'Do this']]; links: [{ label, to: section key }] (buttons that open that section).
  *             In a step with an illustration, the numbered items match the numbered callouts in the picture.
@@ -54,7 +55,7 @@ const SHOT_NOTE = 'Screenshots are examples from a demo hub on GitHub, some from
 
 const TOKENS = {
     GitHub: [
-        'A fine-grained personal access token on the repository: **Contents**, **Pull requests**, **Actions** and **Workflows**, all Read and write (**Metadata** Read-only comes with it). See Set up → B. Hub org.',
+        'A fine-grained personal access token on the repository, with the permissions in Set up → M. Secure your repository, step 1.',
         'Named Credential `RLY_Git_GitHub` (Pipeline → Connection & route → Git connection: provider GitHub, repository `owner/repository`).'
     ],
     GitLab: [
@@ -236,7 +237,7 @@ const SETUP_SECTIONS = [
                             { to: 'setup-settings', label: 'F. Settings worth knowing', who: 'Salesforce admin', time: '10 min' },
                             { to: 'setup-archive', label: 'G. Nightly archive (optional): the scheduled job that keeps storage free', who: 'Git admin + Release Relay admin', time: '10 min' },
                             { to: 'setup-checklist', label: 'H. Check everything', who: 'Salesforce admin', time: '10 min' },
-                            { to: 'security', label: 'K. Security: run-signing key and repository protections (once the first release works)', who: 'Release Relay admin + Git admin', time: '20 min' }
+                            { to: 'secure', label: 'M. Secure your repository: token, environments, branches, run signing (once the first release works)', who: 'Release Relay admin + Git admin', time: '30 min' }
                         ]
                     },
                     {
@@ -372,22 +373,22 @@ const SETUP_SECTIONS = [
                                 items: [
                                     'Create it on a dedicated bot account (or use a GitHub App), not a person\'s own account, so it keeps working when people leave (see Roles and access).',
                                     'Token name: for example `Release Relay hub` (example).',
-                                    'Expiration: as your company allows (put a reminder to renew it).',
+                                    'Expiration: as your company allows. To renew it later, see M. Secure your repository, step 2.',
                                     'Resource owner: the account or organization that owns the repository.',
                                     'Repository access: **Only select repositories** → your repository.',
-                                    'Repository permissions: **Actions**, **Contents**, **Pull requests** and **Workflows**: Read and write. **Metadata**: Read-only (it comes with the others).',
-                                    'For the Repository security check (K. Security), also **Administration**, **Environments** and **Secrets**: Read-only. Without them those rows say they couldn\'t be read.',
+                                    'Repository permissions: each one in the table in **M. Secure your repository**, step 1 (the button under this step opens it), with what each is for.',
                                     'Press **Generate token** and copy it (`github_pat_…`). It is shown once.'
                                 ],
-                                text: ['Why each permission: Contents (branches, commits, the release files), Pull requests (open, comment, close), Actions (start the workflow and read its runs), Workflows (update the pipeline file in `.github/workflows` from the Pipeline tab). If an organization owns the repository, an owner may have to approve the token.'],
+                                text: ['If an organization owns the repository, an owner may have to approve the token.'],
                                 check: 'The token shows under Fine-grained tokens with access to one repository.',
                                 problems: [
-                                    ['"… failed with HTTP 401. The token in Named Credential RLY_Git_GitHub was refused"', 'The token expired, was revoked or was pasted wrongly. Make a new one and update the External Credential (step 9).'],
-                                    ['"… failed with HTTP 403. The token lacks permission for this"', 'Add the missing permission to the token (list above). Organization-owned repositories may also need the token approved.'],
+                                    ['"… failed with HTTP 401. The token in Named Credential RLY_Git_GitHub was refused"', 'The token expired, was revoked or was pasted wrongly. Regenerate it and paste it again (M. Secure your repository, step 2).'],
+                                    ['"… failed with HTTP 403. The token lacks permission for this"', 'Add the missing permission to the token (M. Secure your repository, step 1). Organization-owned repositories may also need the token approved.'],
                                     ['"… failed with HTTP 404. Not found: check the repository name and that the token can see it"', 'Repository on the Git connection must be `owner/repository`, and the token must include that repository.'],
                                     ['"The token needs Workflows: Read and write to change files in .github/workflows."', 'Edit the token: Workflows → Read and write.']
                                 ],
-                                shot: { ill: 'gh-token', cap: 'New fine-grained token: name, expiry, owner, one repository, five permissions, Generate.', alt: 'Drawing of the new fine-grained token form with callouts 1 Token name, 2 Expiration, 3 Resource owner, 4 Only select repositories, 5 the permission table Actions, Contents, Pull requests, Workflows read and write and Metadata read-only, 6 Generate token.' }
+                                shot: { ill: 'gh-token', cap: 'New fine-grained token: name, expiry, owner, one repository, its permissions, Generate. The full list of permissions is in M. Secure your repository, step 1.', alt: 'Drawing of the new fine-grained token form with callouts 1 Token name, 2 Expiration, 3 Resource owner, 4 Only select repositories, 5 the permission table Actions, Contents, Pull requests, Workflows read and write and Metadata read-only, 6 Generate token.' },
+                                links: [{ label: 'M. Secure your repository: token permissions', to: 'secure', kind: 'neutral' }]
                             },
                             {
                                 title: 'Not on GitHub? Your provider\'s token',
@@ -923,7 +924,7 @@ const SETUP_SECTIONS = [
                                 title: 'Approve in Slack: give the guest user RLY_Slack_Site',
                                 who: 'Salesforce admin',
                                 where: 'Setup → Sites → your Site → Public Access Settings → Assigned Users',
-                                goal: 'The Slack callback runs as the Site\'s guest user. This permission set lets it run Release Relay\'s Slack class and answer through the Slack credential, nothing else.',
+                                goal: 'The Slack callback runs as the Site\'s guest user. This permission set lets it run Release Relay\'s Slack class, answer through the Slack credential and start the deploy through the Git credential (build 53), nothing else.',
                                 items: [
                                     'On the Site\'s page press **Public Access Settings** → **Assigned Users** → open the site guest user (for example "Release Relay Slack Site Guest User").',
                                     '**Permission Set Assignments** → **Edit Assignments** → add **Release Relay Slack Site** (`RLY_Slack_Site`) → **Save**.'
@@ -937,13 +938,13 @@ const SETUP_SECTIONS = [
                                 where: 'Setup → Sites → your Site → Public Access Settings (the Site\'s guest profile)',
                                 goal: 'Approve starts the deploy through your Git credential as the guest user, so it needs that credential too. Without it pressing Approve does nothing at all. Apex checks Slack\'s signature and the linked approver before either credential is used.',
                                 items: [
-                                    'On the Site press **Public Access Settings**: this opens the Site\'s **guest profile**. Do both changes below there.',
-                                    '**Edit** → Standard Object Permissions → **User External Credentials** → tick **Read** → **Save**.',
-                                    'On the same profile page scroll to **Enabled External Credential Principal Access** → **Edit** → add your Git credential\'s principal (`RLY_Git_GitHub - RLY_Git_GitHub`, or your provider\'s) so it is Enabled next to `RLY_Slack - Bot` → **Save**. If `RLY_Slack - Bot` isn\'t in that list, add it too.',
-                                    'Not on the `RLY_Slack_Site` permission set: deploying or upgrading Release Relay replaces that permission set\'s principal list, so a Git principal added there disappears with the next deploy. The guest profile keeps it.'
+                                    'On the Site press **Public Access Settings**: this opens the Site\'s **guest profile**. **Edit** → Standard Object Permissions → **User External Credentials** → tick **Read** → **Save**.',
+                                    'The credential principals (`RLY_Slack - Bot` and your Git credential\'s) go on the **Release Relay Slack Site** permission set: follow **M. Secure your repository**, step 7 (the button under this step).',
+                                    'A Git principal you added on the guest profile before build 53 can stay there.'
                                 ],
-                                check: 'The guest profile\'s Enabled External Credential Principal Access lists your Git principal and RLY_Slack - Bot, and the profile has Read on User External Credentials.',
-                                problems: [['Approve in Slack worked, then stopped after Release Relay was deployed again', 'The Git principal was on the `RLY_Slack_Site` permission set and the deploy replaced its list. Add it on the guest profile instead (this step).']]
+                                check: 'The guest profile has Read on User External Credentials, and M. Secure your repository, step 7 is done.',
+                                problems: [['Approve in Slack stopped working after you renamed or added a Git credential', 'Add the new credential\'s principal as in M. Secure your repository, step 7.']],
+                                links: [{ label: 'M. Secure your repository: Approve in Slack', to: 'secure', kind: 'neutral' }]
                             },
                             {
                                 title: 'Approve in Slack: copy the Interactivity URL',
@@ -1021,7 +1022,7 @@ const SETUP_SECTIONS = [
                                 problems: [
                                     ['Slack shows "This app responded with status code 404" or similar', 'The Request URL is wrong or the Site isn\'t Active: copy it again from Pipeline → Approvals & Slack → Slack connection (step 12).'],
                                     ['Slack shows an error after a few seconds and the card doesn\'t change', 'The signing secret is missing or wrong (step 8), Slack is off on the Slack connection, or the press came from another Slack workspace than the one recorded. The hub refuses unsigned presses.'],
-                                    ['Pressing Approve does nothing and the release stays Ready for approval', 'The guest user can\'t use the Git credential or read User External Credentials (step 11: both on the Site\'s guest profile). To see it for yourself, add a debug log for the Site guest user (Setup → Debug Logs) and press Approve again.'],
+                                    ['Pressing Approve does nothing and the release stays Ready for approval', 'The guest user can\'t read User External Credentials (step 11, on the Site\'s guest profile) or can\'t use the Git credential (M. Secure your repository, step 7). To see it for yourself, add a debug log for the Site guest user (Setup → Debug Logs) and press Approve again.'],
                                     ['The card shows Open in Release Relay instead of Approve', 'The org has Approve in Slack off (step 15), or the release isn\'t waiting for an approver.'],
                                     ['Slack replies "Approving production needs the Production Approver add-on."', 'Production approval is on and that approver lacks the add-on: assign it (Roles and access), or ask someone who holds it.']
                                 ]
@@ -1212,7 +1213,7 @@ const SETUP_SECTIONS = [
                             ['Certificate `release_relay`', 'Hub: Setup → Certificate and Key Management', 'Listed, exportable key'],
                             ['`release_relay.crt` and the `.jks` + password', 'Your computer / password manager', 'Both files kept safe'],
                             ['Remote Site per org (the hub too)', 'Hub: Setup → Remote Site Settings', 'One active row per org'],
-                            ['Git token', 'Git provider → Fine-grained tokens', 'Actions, Contents, Pull requests, Workflows: read and write (Administration, Environments, Secrets: read for the security check)'],
+                            ['Git token', 'Git provider → Fine-grained tokens', 'The permissions in M. Secure your repository, step 1'],
                             ['External Credential + Named Credential `RLY_Git_GitHub`', 'Hub: Setup → Named Credentials', 'Principal RLY_Git_GitHub with Token; header Authorization'],
                             ['Principal access `RLY_Git_GitHub - RLY_Git_GitHub`', 'Hub: comes with `RLY_Access`, in every Release Relay group', 'No "can\'t use it" errors'],
                             ['Git connection (one active)', 'Pipeline → Connection & route → 1 · Where the code lives', 'Connected'],
@@ -1223,12 +1224,12 @@ const SETUP_SECTIONS = [
                             ['Each org registered (the hub as Hub), 10 at most', 'Pipeline → Orgs', 'Every card Connected'],
                             ['Route branches', 'Pipeline → Connection & route → 2 · Route → Create missing branches', 'Every route branch already exists'],
                             ['Slack (optional): token, channels, test', 'Pipeline → Approvals & Slack → Slack connection · each org → Edit → Slack', 'Connected; test message arrives'],
-                            ['Approve in Slack (optional)', 'Slack scopes users:read and users:read.email · Signing secret · Site with RLY_Slack_Site on its guest user · guest profile: Read on User External Credentials and the Git principal · Request URL in the App Manifest, Socket Mode off · approvers linked (Match approvers by SSO) · Approve in Slack per org', 'Slack connection says Approve in Slack: Set up; Approve works from the card'],
+                            ['Approve in Slack (optional)', 'Slack scopes users:read and users:read.email · Signing secret · Site with RLY_Slack_Site on its guest user · guest profile: Read on User External Credentials · the Git principal on Release Relay Slack Site (M. Secure your repository, step 7) · Request URL in the App Manifest, Socket Mode off · approvers linked (Match approvers by SSO) · Approve in Slack per org', 'Slack connection says Approve in Slack: Set up; Approve works from the card'],
                             ['Approval rules, deployment team', 'Pipeline → Orgs · the Release Relay Deployment Team group', 'Set as your process needs'],
                             ['Production approval', 'Pipeline → Approvals & Slack → Approvals', 'On, once the Production Approver add-on is assigned'],
                             ['Caching on, production reviewers on', 'Session Settings · Environments → production\'s environment', 'Before real users start'],
                             ['Retention and the nightly archive (optional)', 'Pipeline → Retention & archive · pipeline files version 15 or later (scheduled job)', 'Archive tab shows a nightly call'],
-                            ['Run-signing key and repository protections', 'Pipeline → Security & credentials · `RELAY_RUN_KEY` in the repository (K. Security)', 'Run signing On; Repository security has nothing to fix'],
+                            ['Secure your repository: token permissions, protected environments and branches, run signing, hub access to itself, Slack principals', 'M. Secure your repository · Pipeline → Security & credentials', 'Repository security all green; Credentials no Failed or Unknown rows; Run signing Required'],
                             ['Credentials', 'Pipeline → Security & credentials → Credentials → Check now', 'All OK (the hub\'s own certificates need `RLY_Org_Self`, optional)'],
                             ['First release', 'New Release', 'Deployed to the first stage']
                         ]
@@ -1994,7 +1995,7 @@ const USE_SECTIONS = [
                                 who: 'Approver',
                                 where: 'The release page → Reject',
                                 items: ['Write the **Approval comment** (required to reject) and press **Reject**. It works on Ready for approval and Checks failed. The pull request is closed with your comment, so the developer sees why.'],
-                                problems: [['"couldn\'t close the pull request"', 'The Git token needs Pull requests: Read and write (Set up → B. Hub org).']]
+                                problems: [['"couldn\'t close the pull request"', 'The Git token needs the permissions in Set up → M. Secure your repository, step 1 (Pull requests and Issues: Read and write).']]
                             },
                             {
                                 title: 'Hotfixes that need 2 approvers',
@@ -2374,7 +2375,7 @@ const USE_SECTIONS = [
                 title: 'Per-org values',
                 aside: 'Developers and Git admins',
                 blocks: [
-                    { type: 'text', paras: ['Some values differ per org: an endpoint, an email address, a record id. Keep one placeholder in Git and let the pipeline put each org\'s value in when it deploys.'] },
+                    { type: 'text', paras: ['Some values differ per org: an endpoint URL, an email address, a username in a named credential or a custom metadata record, a record id. Keep one placeholder in Git and let the pipeline put each org\'s value in when it deploys: in a release the value is a placeholder, and each deploy fills in that org\'s value.'] },
                     {
                         type: 'steps',
                         steps: [
@@ -2862,6 +2863,8 @@ const USE_SECTIONS = [
                                 who: 'Admin',
                                 where: 'Pipeline → Advanced → Per-org values · Quality gates',
                                 items: [
+                                    '**Per-org values** (`.relay/values.json`): values that differ per org, such as endpoint URLs, email addresses, or usernames in named credentials or custom metadata. In a release they are placeholders (`{{relay:NAME}}`), and each deploy fills in that org\'s value, so one branch serves every org.',
+                                    '**Quality gates** (`.relay/gates.json`): extra rules a release must pass before it can be approved, for example a minimum code coverage, no code scan findings at or above a priority, or Apex that must come with its test classes.',
                                     'Both are read from the pipeline branch (the line beside the title says from which branch and when) and only shown here. You change them in Git.',
                                     'The link beside each title, **Edit .relay/values.json ↗** or **Edit .relay/gates.json ↗**, opens the file in your Git provider\'s editor. When the file isn\'t there yet it reads **Create … ↗** and opens a new file with a starter.'
                                 ],
@@ -2906,7 +2909,7 @@ const USE_SECTIONS = [
                                     '**Credentials**: every certificate, Git token, Slack app, integration user and org sign-in, with its expiry; checked nightly, or **Check now**.',
                                     'The **Security** and **Credentials** tiles, and the box under Connection & route, show what to fix from the last checks.'
                                 ],
-                                links: [{ label: 'K. Security', to: 'security' }, { label: 'Credentials', to: 'access', kind: 'neutral' }]
+                                links: [{ label: 'M. Secure your repository', to: 'secure' }, { label: 'K. Security', to: 'security', kind: 'neutral' }, { label: 'Credentials', to: 'access', kind: 'neutral' }]
                             },
                             {
                                 title: 'Retention & archive',
@@ -2937,7 +2940,7 @@ const USE_SECTIONS = [
                                 goal: 'Install a new Release Relay build: checked and installed in a test org first, then in production. Only admins see this card.',
                                 items: [
                                     'Commit the build\'s zip into `.relay-inbox/` on a branch of the Git connection (one zip only). Fill in **Update branch**, a **Title** and **Test it in** (a stage on the route; its install branch is rly-(its Git environment)-install).',
-                                    'Run the four steps in order with the step chips: the test org\'s **check**, its **install**, then production\'s **check** and **install**. Each step opens once the one before it has passed. A check runs every test class in the zip (or, when the zip is too large to read in Salesforce, this org\'s Release Relay test classes); an install merges the check\'s pull request and quick deploys that check.',
+                                    'Run the four steps in order with the step chips: the chosen stage\'s **check** and **install**, then production\'s **check** and **install**. Each chip carries its org\'s name (for example **QA check**, then **Production install**); it says Test org only until a stage is chosen. Each step opens once the one before it has passed. A check runs every test class in the zip (or, when the zip is too large to read in Salesforce, this org\'s Release Relay test classes); an install merges the check\'s pull request and quick deploys that check.',
                                     'The hub starts every run itself, signed like every other run, so it keeps working once the pipeline requires the run-signing key. Each check gets its own request id; production\'s check copies the very same zip the test org checked.',
                                     'While a step runs the card checks every 30 seconds (or press **Refresh**). It shows each step\'s status, request id, run link, tests run and failures, read from the signed result files. A failed step can run again: fix the zip on the update branch first for the first step.',
                                     'Each start is listed in **Recent changes to settings** (Advanced · Install update). Works with GitHub and GitLab.'
@@ -3089,7 +3092,7 @@ const REF_SECTIONS = [
                             ['`RLY_Approver`', 'Home, Approvals, Releases, Promote, Pipeline Monitor, Metrics, Work items, Sync status, Archive, Guide and What\'s built tabs: approve (production too, unless production approval needs the add-on), reject, bypass a code scan, resolve conflicts, promote what is deployed to a stage, load data sent up. Linked to a Slack member ID, approve from the Slack card.'],
                             ['`RLY_Deploy_Team`', 'Home, Approvals, Releases, Promote (read-only: what waits in each stage), Pipeline Monitor, Metrics, Work items, Sync status, Guide and What\'s built tabs; tick manual steps done or not needed in each org, **Open org ▾** / **Log in to <org>**, roll a deployed release back, load data and copy it down.'],
                             ['`RLY_Admin`', 'Every tab, with Pipeline and Migration: Git connection, orgs, route, approval rules, Slack, linked approvers, back promote, retention, the moves to another provider. The pipeline\'s hub user needs it to post runs to the Pipeline Monitor. Includes the deployment team (so admins can roll back too), not Hotfix or Deploy now anyway: those are add-ons. Shows the Set up sections of this Guide.'],
-                            ['`RLY_Slack_Site`', 'For the Site guest user only, so Approve in Slack can reach the hub. Your Git credential\'s principal and Read on User External Credentials go on the Site\'s guest profile, not on this permission set (deploying Release Relay replaces its principal list): Set up → E. Needed only when an org is approved in Slack.'],
+                            ['`RLY_Slack_Site`', 'For the Site guest user only, so Approve in Slack can reach the hub. Holds the principals of `RLY_Slack` and of both packaged Git credentials (build 53); Read on User External Credentials goes on the Site\'s guest profile. Set up → E and M. Secure your repository, step 7. Needed only when an org is approved in Slack.'],
                             ['`RLY_Access`', 'Credential access only: the principals of `RLY_Git_GitHub`, `RLY_Git_GitLab` and `RLY_Slack`. In every group. The role sets hold them too, so nobody loses access.'],
                             ['`RLY_Auditor`', 'Build 49: read only. Home, Releases, Pipeline Monitor, Metrics, Work items, Archive and Guide; evidence PDFs. No custom permission.'],
                             ['`RLY_Hotfix_Addon`, `RLY_Prod_Approver_Addon`, `RLY_Window_Bypass_Addon`', 'Build 49 add-ons: raise a hotfix; approve releases into production; Deploy now anyway. See Roles and access.'],
@@ -3138,7 +3141,7 @@ const REF_SECTIONS = [
                         '**What changed for people assigned before build 49:** the role permission sets still hold the Git and Slack principals, so nobody loses access. Admins no longer raise hotfixes or Deploy now anyway: give them the Hotfix and Release Window Bypass add-ons, or Full Access. The deployment team now loads data and copies data down too.',
                         'The role permission sets are now labelled **Release Relay Admin Permissions**, **… Approver Permissions** and so on: the groups carry the role names. Their API names (`RLY_Admin`, `RLY_Approver`…) don\'t change.',
                         '**Production approval** is off after the upgrade, so existing approvers aren\'t locked out. Admins see "Turn on once you\'ve assigned the Production Approver add-on" on the Pipeline tab (Approvals & Slack) until they turn it on. A new hub starts with it on.',
-                        '**`RLY_Org_Self`** (the hub reading itself) isn\'t packaged, so `RLY_Access` can\'t hold it. Create your own permission set **`RLY_Org_Self_Access`** with its principal and add it to the groups by hand (at least Release Relay Admin: the nightly check runs as the pipeline\'s hub user, and **Check now** as the admin who presses it). Don\'t add it to `RLY_Access`: deploying Release Relay replaces that set\'s principal list.'
+                        '**`RLY_Org_Self`** (the hub reading itself) isn\'t packaged, so `RLY_Access` can\'t hold it. Create your own permission set **`RLY_Org_Self_Access`** with its principal and add it to the groups by hand (at least Release Relay Admin: the nightly check runs as the pipeline\'s hub user, and **Check now** as the admin who presses it). Don\'t add it to `RLY_Access`: deploying Release Relay replaces that set\'s principal list. The steps: Set up → M. Secure your repository, step 6.'
                     ] }
                 ]
             },
@@ -3177,29 +3180,12 @@ const REF_SECTIONS = [
                             ['Slack', '`auth.test`; bot tokens don\'t expire', 'Reinstall the app or paste its bot token into `RLY_Slack`.']
                         ]
                     },
-                    {
-                        type: 'steps',
-                        steps: [
-                            {
-                                title: 'Renew the Git token before it expires',
-                                who: 'Release Relay admin (owner of the token)',
-                                where: 'GitHub → your profile picture → Settings → Developer settings → Personal access tokens → Fine-grained tokens → the hub\'s token',
-                                goal: 'A fine-grained token\'s expiry can\'t be edited. Regenerating keeps its name, repository and permissions and gives it a new expiry and a new value.',
-                                items: [
-                                    'Open the token and press **Regenerate token**.',
-                                    'Pick the new **Expiration** (for example 90 days, or a custom date), then **Regenerate token**.',
-                                    'Copy the new value now: GitHub shows it only once. The old value stops working at once.',
-                                    'In Salesforce: Setup → Named Credentials → **External Credentials** → `RLY_Git_GitHub` → Principals → the `RLY_Git_GitHub` row → **Edit**.',
-                                    'Paste the value into **Value** (Name: `Token`) and press **Save**. Paste it only there, never into a chat, a ticket or an email.',
-                                    'Pipeline → Security & credentials → Credentials → **Check now**: the Git token row shows the new expiry.',
-                                    'Only the permissions changed? Press **Edit** on the token instead, change them and press **Update**: the value stays the same and nothing is pasted in Salesforce.',
-                                    'GitLab: Settings → Access tokens → the project token → **Rotate** (or create a new one), then paste it into `RLY_Git_GitLab` the same way.'
-                                ],
-                                check: 'The Credentials card shows the Git token as OK with the new expiry date, and Repository security reads every row.',
-                                links: [{ label: 'Set up → B. Hub org (token permissions)', to: 'setup-hub', kind: 'neutral' }]
-                            }
-                        ]
-                    },
+                    { type: 'list', items: [
+                        '**Renew the Git token** (GitHub): M. Secure your repository, step 2. Only the permissions changed? Press **Edit** on the token instead, change them and press **Update**: the value stays the same and nothing is pasted in Salesforce.',
+                        '**GitLab**: Settings → Access tokens → the project token → **Rotate** (or create a new one), then paste it into the principal of `RLY_Git_GitLab` the same way.',
+                        '**Hub certificates** read through `RLY_Org_Self`: M. Secure your repository, step 6.'
+                    ] },
+                    { type: 'links', links: [{ label: 'M. Secure your repository', to: 'secure' }] },
                     { type: 'list', items: [
                         '**Expiring**: 30 days or less. **Critical**: 7 days or less. **Expired**. **Failed**: the check failed. **Unknown**: it can\'t be read (no sign-in, or no `RLY_Org_Self`).',
                         'A pass makes at most about 40 calls; a hub with more orgs carries on the next night, oldest checked first. Nothing runs in the background.',
@@ -3207,7 +3193,7 @@ const REF_SECTIONS = [
                     ] },
                     { type: 'list', items: [
                         '**Unknown, not a failure** (build 52): **Hub certificates** when you can\'t use `RLY_Org_Self` (add the `RLY_Org_Self_Access` permission set, with the `RLY_Org_Self` principal, to your group), and any row of an org that **has used its daily API calls (REQUEST_LIMIT_EXCEEDED)**: it is checked again on the next pass. Unknown rows show no "How to renew".',
-                        '**Git token**: when GitHub refuses to close or comment on a rejected release\'s pull request (HTTP 403), the row turns Failed: **give it Pull requests: Read and write** (GitLab: the `api` scope). It stays until a later reject closes a pull request again; the nightly pass makes no extra call for it.'
+                        '**Git token**: when GitHub refuses to close or comment on a rejected release\'s pull request (HTTP 403), the row turns Failed: **give it the permissions in M. Secure your repository, step 1** (Pull requests and Issues: Read and write; GitLab: the `api` scope). It stays until a later reject closes a pull request again; the nightly pass makes no extra call for it.'
                     ] }
                 ]
             }
@@ -3283,7 +3269,7 @@ const REF_SECTIONS = [
                         rows: [
                             ['"No COMPONENT named …" after an update', 'Reload the page without cache (Ctrl+Shift+R), or log out and in. While building, turn browser caching off (Set up → F).'],
                             ['A sign-in error on an org', 'The message names the fix (Remote Site, certificate, consumer key, pre-authorized user, login type, username). See Set up → D. Each org; an admin uses Check connection on the Pipeline tab.'],
-                            ['Git connection: check failed', 'The token is missing a permission or expired, the repository name is wrong, or the pipeline files aren\'t on the pipeline branch (Set up → B and C).'],
+                            ['Git connection: check failed', 'The token is missing a permission or expired (Set up → M. Secure your repository, steps 1 and 2), the repository name is wrong, or the pipeline files aren\'t on the pipeline branch (Set up → B and C).'],
                             ['"Named Credential … wasn\'t found or you can\'t use it"', 'Give the user a Release Relay group (its `RLY_Access` holds the principal), or add the credential\'s principal to their own permission set under External Credential Principal Access (Set up → B).'],
                             ['"couldn\'t close the pull request"', 'The Git token needs pull request (merge request) write access.'],
                             ['The pipeline can\'t save a result to release-relay-results', 'Settings → Actions → General: Read and write permissions, and no branch protection on release-relay-results (Set up → C).'],
@@ -3495,7 +3481,8 @@ const MIGRATION_SECTIONS = [
                         ]
                     },
                     { type: 'note', text: 'Protect the key: require a reviewed pull request on the pipeline branch and limit each environment\'s deployment branches to it, so a change to the pipeline file can\'t read the secret from another branch. The Repository security card checks this.' },
-                    { type: 'note', text: 'Releases whose checks passed before the key was set: Approve says "Run the checks again". Press Run checks again once; the new check pins the commit it validated, and its validation can then be quick-deployed.' }
+                    { type: 'note', text: 'Releases whose checks passed before the key was set: Approve says "Run the checks again". Press Run checks again once; the new check pins the commit it validated, and its validation can then be quick-deployed.' },
+                    { type: 'links', links: [{ label: 'M. Secure your repository: run signing and the rest, in order', to: 'secure' }] }
                 ]
             },
             {
@@ -3513,7 +3500,9 @@ const MIGRATION_SECTIONS = [
                             ['Run-signing key', 'Environment secret RELAY_RUN_KEY in every org environment; a repository-level copy is flagged "Move it to the environments" (token: Environments: read, Secrets: read)', 'CI/CD variable RELAY_RUN_KEY, masked, protected, environments *'],
                             ['Each org\'s environment', 'Deployment branches: the pipeline branch only, or protected branches only (token: Environments: read)', 'A protected environment (GitLab Premium)']
                         ]
-                    }
+                    },
+                    { type: 'text', paras: ['The token permissions these rows need, and how to fix each row on GitHub, are in **M. Secure your repository** (steps 1, 3 and 4).'] },
+                    { type: 'links', links: [{ label: 'M. Secure your repository', to: 'secure' }] }
                 ]
             },
             {
@@ -3613,7 +3602,163 @@ const MIGRATION_SECTIONS = [
                             ['A raise or an add that fails takes its `.relay-inbox/` files off the release branch; the next add also removes any an older pipeline left', 'Upload files never reach the target'],
                             ['Validate fails and merge refuses while the release branch adds `.relay-inbox/` files', 'Merging would copy them into the target']
                         ]
-                    }
+                    },
+                    { type: 'links', links: [{ label: 'M. Secure your repository: every step in order', to: 'secure' }] }
+                ]
+            }
+        ]
+    },
+    // ---------- M. Secure your repository (build 53): the one ordered list; K, L, B, E and Credentials link here ----------
+    {
+        key: 'secure',
+        group: 'setup',
+        label: 'M. Secure your repository',
+        adminOnly: true,
+        cards: [
+            {
+                key: 'secure-main',
+                title: 'Secure your repository',
+                aside: 'Once per hub, in order · a Release Relay admin who is also an admin of the Git repository',
+                blocks: [
+                    { type: 'text', paras: [
+                        'Follow these steps once per hub, in order. When you\'re done, the Pipeline tab\'s **Security & credentials** section shows every row green, and nobody can deploy to an org except through an approved release in Release Relay.',
+                        'Who does it: a Release Relay admin who is also an admin of the Git repository.'
+                    ] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Git token permissions',
+                                who: 'Git admin',
+                                where: 'GitHub → your profile picture → Settings → Developer settings → Personal access tokens → Fine-grained tokens → the hub\'s token → Edit',
+                                goal: 'The hub raises, approves, rejects and checks the repository with this one token. Use a bot account or a GitHub App for it, not a person\'s account, so it keeps working when people leave.',
+                                items: [
+                                    'Give the token each permission in the table under this step.',
+                                    'Press **Update**. Nothing needs pasting in Salesforce when you only change permissions.'
+                                ],
+                                check: 'Pipeline → Security & credentials → Repository security → **Check again**. No row says "Couldn\'t read".'
+                            }
+                        ]
+                    },
+                    {
+                        type: 'table',
+                        stack: true,
+                        cols: ['Permission', 'Access', 'Why'],
+                        rows: [
+                            ['Actions', 'Read and write', 'Start and read pipeline runs'],
+                            ['Contents', 'Read and write', 'Commit release files and read results'],
+                            ['Pull requests', 'Read and write', 'Open, comment on and close pull requests'],
+                            ['Issues', 'Read and write', 'Post the reject reason as a comment'],
+                            ['Workflows', 'Read and write', 'Update pipeline files'],
+                            ['Administration', 'Read-only', 'Repository security check reads branch protection'],
+                            ['Environments', 'Read-only', 'Repository security check reads environment rules'],
+                            ['Secrets', 'Read-only', 'Repository security check sees RELAY_RUN_KEY by name'],
+                            ['Metadata', 'Read-only', 'Comes with the others']
+                        ]
+                    },
+                    {
+                        type: 'steps',
+                        start: 2,
+                        steps: [
+                            {
+                                title: 'Renew the token before it expires',
+                                who: 'Git admin + Salesforce admin',
+                                where: 'GitHub: the hub\'s token · Salesforce: Setup → Named Credentials → External Credentials → RLY_Git_GitHub',
+                                goal: 'A fine-grained token\'s expiry can\'t be edited. You regenerate it.',
+                                items: [
+                                    'Open the token in GitHub and press **Regenerate token**. Pick the new expiration (for example 90 days).',
+                                    'Copy the new value. GitHub shows it only once, and the old value stops working at once.',
+                                    'In Salesforce: Setup → Named Credentials → External Credentials → **RLY_Git_GitHub** → Principals → the RLY_Git_GitHub row → **Edit**.',
+                                    'Paste the value into **Value** (Name: `Token`) and press **Save**. Paste it only there, never into a chat, a ticket or an email.'
+                                ],
+                                text: ['The Credentials card warns 30 days before expiry, and Slack gets an alert when it turns Critical.'],
+                                check: 'Pipeline → Security & credentials → Credentials → **Check now**. The Git token row shows the new expiry.'
+                            },
+                            {
+                                title: 'Environments deploy only from main',
+                                who: 'Git admin',
+                                where: 'GitHub → the repository → Settings → Environments → each org\'s environment',
+                                goal: 'Each org\'s environment (for example `qa`, `staging`, `prod`) holds that org\'s sign-in secrets. Only the pipeline branch may use them.',
+                                items: [
+                                    'Under **Deployment branches and tags**, choose **Selected branches and tags**.',
+                                    '**Add deployment branch or tag rule** → Name pattern: `main` → **Add rule**.',
+                                    'Repeat for every org\'s environment.'
+                                ],
+                                check: 'Repository security shows each environment as "Deploys only from main".'
+                            },
+                            {
+                                title: 'Protect the pipeline and org branches',
+                                who: 'Git admin',
+                                where: 'GitHub → the repository → Settings → Branches (or Rules → Rulesets)',
+                                goal: 'Only reviewed changes reach the pipeline, and only Release Relay merges into an org\'s branch.',
+                                items: [
+                                    '**main** (the pipeline branch): require a pull request before merging, with at least 1 approval.',
+                                    '**Each org\'s branch** (for example `qa`, `staging`, `prod`): allow only Release Relay to merge. Turn on "Require a pull request before merging" so nobody pushes or merges by hand. A pull request merged outside Release Relay changes the branch without deploying the org.'
+                                ],
+                                text: ['A solo owner can\'t approve their own pull request. Either add a second reviewer, or allow administrators to bypass. With a bypass, the Repository security row stays flagged as a reminder.'],
+                                check: 'Repository security shows "main is protected and needs a reviewed pull request".'
+                            },
+                            {
+                                title: 'Run signing',
+                                who: 'Release Relay admin + Git admin',
+                                where: 'Release Relay → Pipeline → Security & credentials → Run signing · GitHub → Settings → Environments',
+                                goal: 'The hub signs every run it starts, and the pipeline signs every result it writes. A run started by hand from GitHub, or a hand-edited result file, is refused. The only way into an org is an approved release.',
+                                items: [
+                                    'Release Relay → Pipeline → Security & credentials → Run signing → **Generate key**. Copy it; it\'s shown once.',
+                                    'GitHub → Settings → Environments → each org\'s environment → **Add environment secret** → Name `RELAY_RUN_KEY`, Value: the key.',
+                                    'Back in Release Relay, **Save** the key on the Run signing card.',
+                                    'Run one release through to check it works. The run\'s log shows the signature was checked.',
+                                    'Then set the repository variable `RELAY_SIGNING` to `required` (GitHub → Settings → Secrets and variables → Actions → Variables). From now on unsigned runs and results are refused, not just warned about.'
+                                ],
+                                text: [
+                                    'When you need it: always when other people can push to the repository (a shared team repo, or one a vendor can push to). For a repository only you can reach, it\'s optional, but it still protects you if a token or account ever leaks.',
+                                    'After this, start Release Relay\'s own updates from Pipeline → Advanced → **Install Release Relay update**, not from GitHub.'
+                                ],
+                                check: 'Repository security shows RELAY_RUN_KEY in every org environment, and Run signing shows "Required".',
+                                links: [{ label: 'K. Security: what run signing refuses', to: 'security', kind: 'neutral' }]
+                            },
+                            {
+                                title: 'Hub access to itself',
+                                who: 'Salesforce admin',
+                                where: 'Hub: Setup → Permission Sets',
+                                goal: 'The Credentials card reads the hub\'s own certificates through the RLY_Org_Self credential.',
+                                items: [
+                                    'Setup → Permission Sets → **New** → Label `RLY_Org_Self_Access`.',
+                                    'External Credential Principal Access → Edit → enable the **RLY_Org_Self** principal → Save.',
+                                    'Add the permission set to the Release Relay Full Access and Admin groups.'
+                                ],
+                                text: ['Don\'t add it to RLY_Access: deploying Release Relay replaces that set\'s principal list.'],
+                                check: 'Credentials → **Check now**. Hub certificates shows OK with an expiry date.'
+                            },
+                            {
+                                title: 'Approve in Slack',
+                                who: 'Salesforce admin',
+                                where: 'Hub: Setup → Permission Sets → Release Relay Slack Site → External Credential Principal Access',
+                                goal: 'Slack\'s Approve and Reject buttons run as the Salesforce Site\'s guest user.',
+                                items: [
+                                    'Setup → Permission Sets → **Release Relay Slack Site** → External Credential Principal Access → Edit.',
+                                    'Enable **RLY_Slack - Bot** and the Git credential\'s principal (**RLY_Git_GitHub**, and **RLY_Git_GitLab** if you use GitLab) → Save.'
+                                ],
+                                text: ['Whenever you rename or add a Git credential, add its principal here too. (Build 53 ships both Git principals in this permission set.)'],
+                                check: 'Press Approve on a release in Slack. The card turns to "Deploying".',
+                                links: [{ label: 'E. Slack: the rest of Approve in Slack', to: 'setup-slack', kind: 'neutral' }]
+                            }
+                        ]
+                    },
+                    { type: 'note', text: 'Written for GitHub. On GitLab the same protections are a protected `main`, protected environments and the masked, protected variable `RELAY_RUN_KEY`: see K. Security (Repository security check) and L. Pipeline security.' }
+                ]
+            },
+            {
+                key: 'secure-final',
+                title: 'Final check',
+                aside: 'Pipeline → Security & credentials',
+                blocks: [
+                    { type: 'list', items: [
+                        '**Repository security**: all rows green.',
+                        '**Credentials**: no Failed or Unknown rows.',
+                        '**Run signing**: Required.'
+                    ] },
+                    { type: 'links', links: [{ label: 'Open the Pipeline tab', tab: 'RLY_Pipeline' }, { label: 'H. Checklist', to: 'setup-checklist', kind: 'neutral' }] }
                 ]
             }
         ]
