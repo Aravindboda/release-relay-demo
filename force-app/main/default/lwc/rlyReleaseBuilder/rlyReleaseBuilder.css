@@ -266,3 +266,11 @@
 .rr-fails { list-style: none; margin: 0; padding: 0; }
 .rr-fail { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .rr-fail-text { flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+
+/* Package references on Review (build 55) */
+.rr-pkbox { border: 1px solid #e5e5e5; border-radius: 4px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.rr-pk-scroll { overflow-x: auto; max-width: 100%; }
+.rr-pk-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.rr-pk-table th, .rr-pk-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+.rr-pk-table thead th { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #5c5c5c; background: #fafafa; }
+.rr-pk-line { font-size: 11px; color: #5c5c5c; white-space: pre-wrap; word-break: break-all; }

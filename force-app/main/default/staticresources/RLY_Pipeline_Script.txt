@@ -1,5 +1,23 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 28
+// Release Relay pipeline files: version 29
+// Version 29 (hub build 55): package-aware releases. A managed package's references belong to the orgs that have it.
+//   OPTIONS.packages = { known: [ns...], sourceMissing: [ns...], targetMissing: [ns...] } (namespaces; only those in
+//   known count; absent or empty = no change). A reference is a leaf's text that names ns__X (not ns__c and the other
+//   custom suffixes), Obj.ns__X or ns.Class; descriptions, labels and help texts aren't references. An item is the
+//   smallest repeated element holding one (a layoutItems, a fieldPermissions, a listView column), or the root's child.
+//   A file whose component name starts with ns__ (objects/ns__Obj__c/..., layouts/ns__Obj__c-..., fields/ns__F__c...) is
+//   the package's own component. Flows are never edited element by element.
+//   Raise / add (mode hub) with sourceMissing: before the commit, each written XML file gets the items of those
+//     namespaces back from the file as the branch had it (else as TARGET has it), each after the same preceding sibling
+//     (else at the same index), with the file's indentation; items the org's file holds itself are taken out first (a
+//     package installed but treated as not installed). The packages' own component files keep the branch's version
+//     and their deletions are dropped. raise.json: packages.kept {ns: items put back}.
+//   Validate / deploy / sync with targetMissing: in the temporary deploy copy (as for per-org values) the items of
+//     those namespaces are stripped; the packages' own components, and components whose own settings name the package
+//     (a lookup to a package object, a formula; not an object's), are left out of the copy and of package.xml and
+//     destructiveChangesPost.xml. Release tests named ns__... or ns.X don't run there. Nothing left: no deploy, passed
+//     with a note. validate.json, deploy.json, sync.json: packages.leftOut {ns: items stripped}, componentsLeftOut
+//     ["Type:Name"]. A quick deploy needs the validation to have left out the same. Git and the branches never change.
 // Version 28 (hub build 52): the hub's upload files (.relay-inbox/) never reach a target.
 //   A failed hub raise or add (mode hub, with or without OPTIONS.append) takes this request's upload files
 //     (.relay-inbox/<REQUEST_ID>.zip, -part-<k>.zip, -add-<k>.zip, .deletions) off BRANCH in one commit, pushed, before it
@@ -1019,6 +1037,9 @@ function writeResult(name, data) {
     if (['validate', 'scan'].includes(name) && !result.gates) {
         result.gates = gatesResult(relayGates, []);
     }
+    if (packagesResult && ['raise', 'validate', 'deploy', 'sync'].includes(name) && !result.packages) {
+        result.packages = packagesResult; // version 29
+    }
     if (name === 'validate' && validatedHead && !result.headSha) {
         result.headSha = validatedHead; // version 27: the release branch head this validation checked
     }
@@ -1682,14 +1703,23 @@ function prepareDeployValues(plan, envName) {
     if (missing.length) {
         return missingValuesMessage(missing, envName);
     }
-    if (!edits.length) {
+    // Version 29: references to packages the target org lacks are stripped in the same copy (after the values are filled).
+    const strip = packagesOption && packagesOption.targetMissing.length
+        ? packageStripPlan(plan, deploymentFiles(plan.sources || []), new Map(edits.map((e) => [e.file, e.text]))) : null;
+    if (!edits.length && !strip) {
         return '';
     }
     const copy = makeDeployCopy();
     for (const e of edits) {
         fs.writeFileSync(path.join(copy, e.file), e.text);
     }
+    if (strip) {
+        applyPackageStrip(strip, copy, plan);
+    }
     plan.cwd = copy;
+    if (!edits.length) {
+        return '';
+    }
     deployValues = { replaced: edits.reduce((n, e) => n + e.count, 0), files: edits.slice(0, 50).map((e) => relToSource(e.file)),
         hash: valuesHash(used) };
     summary(`**Per-org values:** ${deployValues.replaced} placeholder(s) in ${edits.length} file(s) filled with ${envName}'s values `
@@ -1729,6 +1759,642 @@ function tokenizeFiles(files, envName) {
             + `{{relay:NAME}} placeholders (${VALUES_FILE}).` + (warnings.length ? '\n' + warnings.map((w) => `- ${w}`).join('\n') : ''));
     }
     return { count, error: '' };
+}
+
+// ---------- version 29: package-aware releases (OPTIONS.packages) ----------
+
+/*
+ * A managed package's references (ns__Field__c, Account.ns__Field__c, ns__Obj__c-Layout, ns.Class) belong to the orgs
+ * that have the package. OPTIONS.packages: { known: [ns...], sourceMissing: [ns...], targetMissing: [ns...] } (only
+ * namespaces in known count). A raise or add from an org without a package puts the branch's references back into the
+ * files it writes (packages.kept); a check or deploy to an org without a package strips them from the temporary deploy
+ * copy and leaves the package's own components out (packages.leftOut, packages.componentsLeftOut). Git keeps the full
+ * files. Without OPTIONS.packages nothing here runs.
+ */
+const NAMESPACE_RE = /^[A-Za-z][A-Za-z0-9]{0,14}$/;
+const PACKAGE_SUFFIXES = 'c|r|mdt|e|b|x|kav|pc|history|share|feed|s'; // Arch__c is a custom object, not namespace arch
+/** Leaves written for people: a description that mentions a package field doesn't reference it. */
+const PACKAGE_PROSE_TAGS = new Set(['description', 'inlineHelpText', 'helpText', 'label', 'pluralLabel', 'masterLabel', 'errorMessage']);
+/** Leaves that name the element they're in (the first one found), to find the same element in another version of the file. */
+const PACKAGE_KEY_TAGS = ['fullName', 'field', 'name', 'apexClass', 'apexPage', 'object', 'tab', 'application', 'layout',
+    'recordType', 'relatedList', 'picklist', 'quickActionName', 'actionName', 'customPermission', 'flow', 'developerName', 'label'];
+/** Leaves that tell two elements with the same name apart (a View override per form factor, a layout per record type). */
+const PACKAGE_KEY_QUALIFIERS = ['formFactor', 'recordType', 'profile', 'pageOrSobjectType'];
+/** Files whose own settings may be dropped one by one; in any other file a root setting that names a missing package
+ *  (a lookup's referenceTo, a formula, a permission set's license) leaves the whole component out. */
+const PACKAGE_SETTING_ROOTS = new Set(['CustomObject']);
+/** Files whose elements point at each other (a flow's connectors): never edited element by element. */
+const PACKAGE_NO_EDIT_RE = /\.flow-meta\.xml$/i;
+
+const packagesOption = (() => {
+    const p = options.packages;
+    if (!p || typeof p !== 'object' || Array.isArray(p)) {
+        return null;
+    }
+    const list = (value) => [...new Set((Array.isArray(value) ? value : [])
+        .filter((n) => typeof n === 'string' && NAMESPACE_RE.test(n)).map((n) => n.toLowerCase()))].sort();
+    const known = list(p.known);
+    if (!known.length) {
+        return null;
+    }
+    return { known, sourceMissing: list(p.sourceMissing).filter((n) => known.includes(n)),
+        targetMissing: list(p.targetMissing).filter((n) => known.includes(n)) };
+})();
+/** The step result's "packages" (raise, validate, deploy, sync), or null without OPTIONS.packages. */
+let packagesResult = packagesOption ? { kept: {}, leftOut: {}, componentsLeftOut: [] } : null;
+
+/** A reference to one of these namespaces in a leaf's text (global: every namespace it names). */
+function packageRefRe(namespaces) {
+    const ns = namespaces.map(escapeRegex).join('|');
+    return new RegExp(`\\b(${ns})__(?!(?:${PACKAGE_SUFFIXES})\\b)\\w|^(${ns})\\.\\w`, 'gi');
+}
+
+/** A component name (or a path segment) that is one of these namespaces' own: ns__Obj__c, Account.ns__F__c, Account-ns__Layout. */
+function packageNameRe(namespaces) {
+    const ns = namespaces.map(escapeRegex).join('|');
+    return new RegExp(`(?:^|[.-])(${ns})__(?!(?:${PACKAGE_SUFFIXES})\\b)\\w`, 'i');
+}
+
+/** The namespaces a leaf's text references. */
+function packageRefsIn(text, re) {
+    const found = new Set();
+    for (const m of String(text).matchAll(re)) {
+        found.add((m[1] || m[2]).toLowerCase());
+    }
+    return found;
+}
+
+/** The namespace whose own component this source path is (objects/ns__Obj__c/..., layouts/ns__Obj__c-..., objects/Account/fields/ns__F__c...), or ''. */
+function packagePathNs(rel, nameRe) {
+    for (const seg of String(rel).split('/').slice(1)) {
+        const m = nameRe.exec(seg);
+        if (m) {
+            return m[1].toLowerCase();
+        }
+    }
+    return '';
+}
+
+/**
+ * Metadata XML as a tree with source offsets: { root, text }, each element { tag, start, openEnd, closeStart, end,
+ * children, parent, text (leaves) }. Null when the text isn't one well-formed document.
+ */
+function parseMetadataXml(text) {
+    const top = { tag: '', children: [], parent: null };
+    let cur = top;
+    const re = /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<\?[\s\S]*?\?>|<![^>]*>|<(\/?)([A-Za-z_][\w.:-]*)((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        if (m[2] === undefined) {
+            continue; // a comment, CDATA (kept in the leaf's text below), declaration
+        }
+        if (m[1] === '/') {
+            if (cur === top || cur.tag !== m[2]) {
+                return null;
+            }
+            cur.closeStart = m.index;
+            cur.end = m.index + m[0].length;
+            cur = cur.parent;
+            continue;
+        }
+        const node = { tag: m[2], start: m.index, openEnd: m.index + m[0].length, children: [], parent: cur };
+        cur.children.push(node);
+        if (m[4] === '/') {
+            node.closeStart = node.openEnd;
+            node.end = node.openEnd;
+            node.selfClosing = true;
+        } else {
+            cur = node;
+        }
+    }
+    if (cur !== top || top.children.length !== 1) {
+        return null;
+    }
+    const root = top.children[0];
+    root.parent = null;
+    const leaves = (n) => {
+        if (!n.children.length) {
+            n.text = xmlUnescape(text.slice(n.openEnd, n.closeStart).replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')).trim();
+        }
+        n.children.forEach(leaves);
+    };
+    leaves(root);
+    return { root, text };
+}
+
+/** An element's whole lines (indent to line end) when it stands on its own lines, else just the element. */
+function xmlLineSpan(text, node) {
+    let s = node.start;
+    while (s > 0 && (text[s - 1] === ' ' || text[s - 1] === '\t')) {
+        s--;
+    }
+    let e = node.end;
+    while (e < text.length && (text[e] === ' ' || text[e] === '\t')) {
+        e++;
+    }
+    const eol = text.startsWith('\r\n', e) ? 2 : text[e] === '\n' ? 1 : 0;
+    if ((s === 0 || text[s - 1] === '\n') && eol) {
+        return { start: s, end: e + eol, indent: text.slice(s, node.start), own: true };
+    }
+    return { start: node.start, end: node.end, indent: '', own: false };
+}
+
+/** A repeated item: its tag repeats among its siblings, or is a plural list name (fieldPermissions, layoutItems, columns). */
+function isListElement(node) {
+    if (node.parent && node.parent.children.filter((c) => c.tag === node.tag).length > 1) {
+        return true;
+    }
+    return /s$/.test(node.tag) && !/(ss|us|is)$/.test(node.tag);
+}
+
+/**
+ * The smallest repeated items that reference these namespaces: [{ node, ns: Set, top, list }]. From each leaf that
+ * names a namespace, up to the first repeated element (a layoutItems, not its section), or to the root's child. An item
+ * inside another item counts as the outer one.
+ */
+function packageItems(root, re) {
+    const found = new Map();
+    const visit = (node) => {
+        if (node.children.length) {
+            node.children.forEach(visit);
+            return;
+        }
+        if (PACKAGE_PROSE_TAGS.has(node.tag)) {
+            return;
+        }
+        const hits = packageRefsIn(node.text, re);
+        if (!hits.size) {
+            return;
+        }
+        let e = node;
+        while (e.parent !== root && !isListElement(e)) {
+            e = e.parent;
+        }
+        found.set(e, new Set([...(found.get(e) || []), ...hits]));
+    };
+    root.children.forEach(visit);
+    const items = new Map();
+    for (const [node, ns] of found) {
+        let outer = node;
+        for (let p = node.parent; p && p !== root; p = p.parent) {
+            if (found.has(p)) {
+                outer = p;
+            }
+        }
+        items.set(outer, new Set([...(items.get(outer) || []), ...ns]));
+    }
+    return [...items.entries()].sort((a, b) => a[0].start - b[0].start)
+        .map(([node, ns]) => ({ node, ns, top: node.parent === root, list: isListElement(node) }));
+}
+
+/** An element's content in one line (whitespace between tags ignored), without the skipped child items. */
+function xmlCanon(node, skip) {
+    if (!node.children.length) {
+        return `<${node.tag}>${node.text}</${node.tag}>`;
+    }
+    return `<${node.tag}>` + node.children.filter((c) => !skip || !skip.has(c)).map((c) => xmlCanon(c, skip)).join('') + `</${node.tag}>`;
+}
+
+/** What names an element (its fullName, field, name, ... leaf; a leaf's own text), or null. */
+function xmlKey(node) {
+    if (!node.children.length) {
+        return `=${node.text}`;
+    }
+    const leafText = (tag) => {
+        const leaf = node.children.find((c) => c.tag === tag && !c.children.length);
+        return leaf ? leaf.text : null;
+    };
+    const primary = PACKAGE_KEY_TAGS.find((tag) => leafText(tag) !== null);
+    if (!primary) {
+        return null;
+    }
+    return [primary].concat(PACKAGE_KEY_QUALIFIERS.filter((q) => q !== primary && leafText(q) !== null))
+        .map((tag) => `${tag}=${leafText(tag)}`).join('|');
+}
+
+/** The element among kids that is refNode in the other version: same content, else same key, else (containers) same place. */
+function xmlTwin(refNode, kids, skip, byPlace) {
+    const same = kids.filter((c) => c.tag === refNode.tag);
+    if (!same.length) {
+        return null;
+    }
+    const canon = xmlCanon(refNode, skip);
+    const exact = same.find((c) => xmlCanon(c, null) === canon);
+    if (exact) {
+        return exact;
+    }
+    const key = xmlKey(refNode);
+    const keyed = key === null ? null : same.find((c) => xmlKey(c) === key);
+    if (keyed || !byPlace) {
+        return keyed || null;
+    }
+    const refSame = refNode.parent.children.filter((c) => c.tag === refNode.tag && !skip.has(c));
+    const n = refSame.indexOf(refNode);
+    return n >= 0 && n < same.length ? same[n] : null;
+}
+
+/** The element in the org's version that holds what refParent holds in the branch's version, or null. */
+function xmlMatchContainer(refParent, refRoot, curRoot, skip) {
+    const chain = [];
+    for (let p = refParent; p && p !== refRoot; p = p.parent) {
+        chain.unshift(p);
+    }
+    let cur = curRoot;
+    for (const a of chain) {
+        cur = xmlTwin(a, cur.children, skip, true);
+        if (!cur) {
+            return null;
+        }
+    }
+    return cur;
+}
+
+/** Removes these elements (whole lines where they stand on their own) from text. */
+function xmlRemove(text, nodes) {
+    let out = text;
+    nodes.map((n) => xmlLineSpan(text, n)).sort((a, b) => b.start - a.start).forEach((s) => {
+        out = out.slice(0, s.start) + out.slice(s.end);
+    });
+    return out;
+}
+
+/**
+ * Strips the items that reference these namespaces. Returns { text, items, whole } (whole: the component itself
+ * depends on the package, so it can't go without it), or null when the text isn't metadata XML.
+ */
+function stripPackageText(text, re, allowWhole) {
+    const doc = parseMetadataXml(text);
+    if (!doc) {
+        return null;
+    }
+    const items = packageItems(doc.root, re);
+    if (allowWhole && items.some((i) => i.top && !i.list) && !PACKAGE_SETTING_ROOTS.has(doc.root.tag)) {
+        return { text, items, whole: true };
+    }
+    return { text: items.length ? xmlRemove(text, items.map((i) => i.node)) : text, items, whole: false };
+}
+
+/**
+ * Puts the branch's references to these namespaces back into the org's version of a file (newText), each at its
+ * place: after the same preceding sibling, else at the same index among its siblings. References the org's version
+ * holds itself (a package installed there but treated as not installed) are taken out first: an org without the
+ * package never adds, changes or removes them. Returns { text, kept: {ns: n}, notAdded, unplaced }, or null when either
+ * version isn't metadata XML.
+ */
+function putBackText(refText, newText, re) {
+    const ref = parseMetadataXml(refText);
+    let cur = parseMetadataXml(newText);
+    if (!ref || !cur || ref.root.tag !== cur.root.tag) {
+        return null;
+    }
+    const refItems = packageItems(ref.root, re);
+    const curItems = packageItems(cur.root, re);
+    const hadCanon = new Set(curItems.map((i) => xmlCanon(i.node, null)));
+    let text = newText;
+    if (curItems.length) {
+        text = xmlRemove(newText, curItems.map((i) => i.node));
+        cur = parseMetadataXml(text);
+        if (!cur) {
+            return null;
+        }
+    }
+    const refCanon = new Set(refItems.map((i) => xmlCanon(i.node, null)));
+    const notAdded = curItems.filter((i) => !refCanon.has(xmlCanon(i.node, null))).length;
+    const eol = text.includes('\r\n') ? '\r\n' : '\n';
+    const skip = new Set(refItems.map((i) => i.node));
+    const kept = {};
+    const unplaced = [];
+    const edits = [];
+    refItems.forEach((it, seq) => {
+        const container = xmlMatchContainer(it.node.parent, ref.root, cur.root, skip);
+        if (!container) {
+            unplaced.push(it);
+            return;
+        }
+        const refSpan = xmlLineSpan(refText, it.node);
+        const body = refText.slice(it.node.start, it.node.end);
+        // The item's lines at the org file's indentation: base for its first line, its inner levels at the org file's step.
+        let depth = 0;
+        for (let p = it.node.parent; p; p = p.parent) {
+            depth++;
+        }
+        const indentFor = (base) => {
+            const step = (s) => (/^ +$/.test(s) && s.length % depth === 0 ? s.length / depth : 0);
+            const from = step(refSpan.indent);
+            const to = step(base);
+            return body.split(/\r?\n/).map((line, i) => {
+                if (i === 0) {
+                    return base + line;
+                }
+                if (!line.startsWith(refSpan.indent)) {
+                    return line;
+                }
+                const rest = line.slice(refSpan.indent.length);
+                const extra = /^ */.exec(rest)[0].length;
+                return base + (from && to && extra % from === 0 ? ' '.repeat(extra / from * to) + rest.slice(extra) : rest);
+            }).join(eol);
+        };
+        let pos = -1;
+        let replaceEnd = -1;
+        let indent = null;
+        let placed = false;
+        const key = it.node.children.length ? xmlKey(it.node) : null;
+        const same = it.top && !it.list ? container.children.find((c) => c.tag === it.node.tag)
+            : key === null ? null : container.children.find((c) => c.tag === it.node.tag && xmlKey(c) === key);
+        if (same) { // a setting of the file, or the org's own element of the same name: the branch's stays
+            const span = xmlLineSpan(text, same);
+            pos = span.start;
+            replaceEnd = span.end;
+            indent = span.own ? span.indent : '';
+        }
+        if (pos < 0) {
+            const sibs = it.node.parent.children;
+            const idx = sibs.indexOf(it.node);
+            for (let j = idx - 1; j >= 0 && pos < 0; j--) {
+                const twin = skip.has(sibs[j]) ? null : xmlTwin(sibs[j], container.children, skip, false);
+                if (twin) {
+                    const span = xmlLineSpan(text, twin);
+                    pos = span.end;
+                    indent = span.indent;
+                }
+            }
+            if (pos < 0) {
+                const k = sibs.slice(0, idx).filter((s) => !skip.has(s)).length;
+                const kid = container.children[k];
+                if (kid) {
+                    const span = xmlLineSpan(text, kid);
+                    pos = span.start;
+                    indent = span.indent;
+                } else if (container.children.length) {
+                    const span = xmlLineSpan(text, container.children[container.children.length - 1]);
+                    pos = span.end;
+                    indent = span.indent;
+                }
+            }
+        }
+        if (pos < 0) { // an empty container: before its closing tag, one level deeper than the container
+            const cSpan = xmlLineSpan(text, container);
+            const refParentSpan = it.node.parent === ref.root ? { indent: '' } : xmlLineSpan(refText, it.node.parent);
+            const orgStep = depth > 1 && /^ +$/.test(cSpan.indent) && cSpan.indent.length % (depth - 1) === 0
+                ? ' '.repeat(cSpan.indent.length / (depth - 1)) : '';
+            indent = cSpan.indent + (orgStep || refSpan.indent.slice(refParentSpan.indent.length) || '    ');
+            if (container.selfClosing) {
+                const open = text.slice(container.start, container.end).replace(/\s*\/>$/, '>');
+                edits.push({ start: container.start, end: container.end, seq,
+                    text: open + eol + indentFor(indent) + eol + cSpan.indent + `</${container.tag}>` });
+                placed = true;
+            } else {
+                let lineStart = container.closeStart;
+                while (lineStart > 0 && (text[lineStart - 1] === ' ' || text[lineStart - 1] === '\t')) {
+                    lineStart--;
+                }
+                pos = lineStart > 0 && text[lineStart - 1] === '\n' ? lineStart : container.closeStart;
+            }
+        }
+        if (!placed) {
+            const atLineStart = pos === 0 || text[pos - 1] === '\n';
+            const block = indentFor(indent || '');
+            edits.push({ start: pos, end: replaceEnd < 0 ? pos : replaceEnd, seq,
+                text: atLineStart ? block + eol : eol + block + (pos === container.closeStart ? eol + xmlLineSpan(text, container).indent : '') });
+        }
+        if (!hadCanon.has(xmlCanon(it.node, null))) {
+            it.ns.forEach((ns) => { kept[ns] = (kept[ns] || 0) + 1; });
+        }
+    });
+    let out = text;
+    // From the end, so earlier offsets stay right; at one place a replacement first, then insertions in reverse order.
+    edits.sort((a, b) => b.start - a.start || (b.end - b.start) - (a.end - a.start) || b.seq - a.seq).forEach((e) => {
+        out = out.slice(0, e.start) + e.text + out.slice(e.end);
+    });
+    return { text: out, kept, notAdded, unplaced };
+}
+
+/** A file's exact text at ref (git show keeps the last newline), or null. */
+function blobText(ref, file) {
+    try {
+        return execFileSync('git', ['show', `${ref}:${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: CLI_BUFFER });
+    } catch (e) {
+        return null;
+    }
+}
+
+function addCounts(into, counts) {
+    Object.keys(counts).forEach((ns) => { into[ns] = (into[ns] || 0) + counts[ns]; });
+}
+
+function countsText(counts) {
+    return Object.keys(counts).sort().map((ns) => `${counts[ns]} (${ns})`).join(', ');
+}
+
+/**
+ * Raise or add from an org without some packages (OPTIONS.packages.sourceMissing): before the commit, every written
+ * XML file gets the branch's references to those packages back (the file as the branch had it, else as TARGET has
+ * it), so the pull request and the merge can't remove them; files of those packages' own components keep the
+ * branch's version. Adds to packagesResult.kept.
+ */
+function putBackPackageReferences(copiedRel) {
+    const missing = packagesOption ? packagesOption.sourceMissing : [];
+    if (!missing.length) {
+        return;
+    }
+    const re = packageRefRe(missing);
+    const nameRe = packageNameRe(missing);
+    const quick = new RegExp(`\\b(${missing.map(escapeRegex).join('|')})(__|\\.)`, 'i');
+    const kept = {};
+    const restored = [];
+    const unplaced = [];
+    let notAdded = 0;
+    for (const rel of copiedRel) {
+        const relPosix = rel.split(path.sep).join('/');
+        const file = path.join(sourcePath(), rel);
+        const repoPath = file.split(path.sep).join('/');
+        const head = blobText('HEAD', repoPath);
+        const before = head !== null ? head : blobText(`refs/remotes/origin/${target}`, repoPath);
+        if (packagePathNs(relPosix, nameRe)) {
+            const now = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+            if (now !== before) {
+                if (before === null) {
+                    fs.rmSync(file, { force: true });
+                } else {
+                    fs.writeFileSync(file, before);
+                }
+                restored.push(relPosix);
+            }
+            continue;
+        }
+        if (before === null || !/\.xml$/i.test(relPosix) || PACKAGE_NO_EDIT_RE.test(relPosix)) {
+            continue;
+        }
+        const now = readText(file);
+        if (now === null || (!quick.test(before) && !quick.test(now))) {
+            continue;
+        }
+        const r = putBackText(before, now, re);
+        if (!r) {
+            console.log(`::warning::${relPosix} couldn't be read as metadata XML, so its package references weren't checked.`);
+            continue;
+        }
+        if (r.text !== now) {
+            fs.writeFileSync(file, r.text);
+        }
+        addCounts(kept, r.kept);
+        notAdded += r.notAdded;
+        r.unplaced.forEach((it) => unplaced.push(`${relPosix} (${it.node.tag})`));
+    }
+    addCounts(packagesResult.kept, kept);
+    const lines = [];
+    if (Object.keys(kept).length) {
+        lines.push(`kept ${countsText(kept)} reference(s) from the branch, at their places`);
+    }
+    if (restored.length) {
+        lines.push(`${restored.length} file(s) of the packages' own components kept as the branch has them (${restored.slice(0, 5).join(', ')}${restored.length > 5 ? ', ...' : ''})`);
+    }
+    if (notAdded) {
+        lines.push(`${notAdded} reference(s) the org's files added or changed weren't taken`);
+    }
+    if (unplaced.length) {
+        lines.push(`${unplaced.length} reference(s) had no place left in the org's version and weren't put back: ${unplaced.slice(0, 5).join(', ')}`);
+        console.log(`::warning::Package references with no place left in ${orgLabel()}'s version: ${unplaced.slice(0, 10).join(', ')}.`);
+    }
+    if (lines.length) {
+        summary(`**Package references:** ${orgLabel()} doesn't have ${missing.join(', ')}: ${lines.join('; ')}.`);
+    }
+}
+
+/** Deletions of the packages' own components from an org without them are dropped: it never removes them. */
+function keepPackageDeletions(deletions) {
+    const missing = packagesOption ? packagesOption.sourceMissing : [];
+    if (!missing.length) {
+        return deletions;
+    }
+    const nameRe = packageNameRe(missing);
+    const keep = deletions.filter((d) => nameRe.test(d.name));
+    if (keep.length) {
+        console.log(`::warning::Not deleted (their package isn't in ${orgLabel()}): ${keep.map((d) => d.entry).join(', ')}.`);
+        summary(`**Package references:** ${keep.length} deletion(s) of components of ${missing.join(', ')} were dropped: ${orgLabel()} doesn't have the package.`);
+    }
+    return deletions.filter((d) => !nameRe.test(d.name));
+}
+
+/** Release tests of a package the target org lacks (ns__..., ns.Class) don't run there. */
+function packageTestLeftOut(name) {
+    const missing = packagesOption ? packagesOption.targetMissing : [];
+    return missing.length > 0 && new RegExp(`^(${missing.map(escapeRegex).join('|')})(__|\\.)`, 'i').test(String(name));
+}
+
+/**
+ * Check or deploy to an org without some packages (OPTIONS.packages.targetMissing): works out the temporary copy's
+ * changes. texts: Map(file -> text) of files already changed in the copy (per-org values). Returns null when
+ * nothing changes, else { texts, drop: [files], pkgItems, destructiveItems, leftOut, components }.
+ */
+function packageStripPlan(plan, files, texts) {
+    const missing = packagesOption ? packagesOption.targetMissing : [];
+    if (!missing.length) {
+        return null;
+    }
+    const re = packageRefRe(missing);
+    const nameRe = packageNameRe(missing);
+    const quick = new RegExp(`\\b(${missing.map(escapeRegex).join('|')})(__|\\.)`, 'i');
+    const out = new Map();
+    const drop = [];
+    const leftOut = {};
+    const components = new Set();
+    const wholeNames = new Set();
+    for (const f of files) {
+        const rel = relToSource(f);
+        const c = componentFor(f);
+        if (packagePathNs(rel, nameRe)) {
+            drop.push(f);
+            if (c) {
+                components.add(`${c.type}:${c.name}`);
+            }
+            continue;
+        }
+        if (!/\.xml$/i.test(f) || PACKAGE_NO_EDIT_RE.test(f)) {
+            continue;
+        }
+        const text = texts.has(f) ? texts.get(f) : readText(f);
+        if (text === null || !quick.test(text)) {
+            continue;
+        }
+        const r = stripPackageText(text, re, !!c);
+        if (r && r.whole) {
+            drop.push(f);
+            components.add(`${c.type}:${c.name}`);
+            wholeNames.add(`${c.type}:${c.name}`);
+            continue;
+        }
+        if (!r) {
+            console.log(`::warning::${rel} couldn't be read as metadata XML, so its package references weren't checked.`);
+            continue;
+        }
+        if (r.items.length) {
+            out.set(f, r.text);
+            r.items.forEach((it) => it.ns.forEach((ns) => { leftOut[ns] = (leftOut[ns] || 0) + 1; }));
+        }
+    }
+    // A component that depends on a package as a whole goes with all its files (a class and its -meta.xml).
+    for (const f of files) {
+        const c = componentFor(f);
+        if (c && wholeNames.has(`${c.type}:${c.name}`) && !drop.includes(f)) {
+            drop.push(f);
+            out.delete(f);
+        }
+    }
+    const goes = (i) => !nameRe.test(i.name) && !wholeNames.has(`${i.type}:${i.name}`);
+    const pkgItems = parsePackageXml(fs.readFileSync(plan.pkg, 'utf8'));
+    const destructiveItems = plan.destructive ? parsePackageXml(fs.readFileSync(plan.destructive, 'utf8')) : [];
+    pkgItems.concat(destructiveItems).filter((i) => !goes(i)).forEach((i) => components.add(`${i.type}:${i.name}`));
+    const manifestChanged = !pkgItems.every(goes) || !destructiveItems.every(goes);
+    if (!out.size && !drop.length && !manifestChanged) {
+        return null;
+    }
+    // An object left out takes its fields, list views, ... with it: name the object only.
+    const objects = new Set([...components].filter((k) => k.startsWith('CustomObject:')).map((k) => k.slice('CustomObject:'.length)));
+    const named = [...components].filter((k) => !objects.has(k.slice(k.indexOf(':') + 1).split('.')[0]) || k.startsWith('CustomObject:'));
+    return { texts: out, drop, manifestChanged, pkgItems: pkgItems.filter(goes), destructiveItems: destructiveItems.filter(goes),
+        leftOut, components: named.sort() };
+}
+
+/** Writes a strip plan into the temporary copy: stripped files, dropped files, and the manifests without the dropped components. */
+function applyPackageStrip(strip, copy, plan) {
+    for (const [f, text] of strip.texts) {
+        fs.writeFileSync(path.join(copy, f), text);
+    }
+    for (const f of strip.drop) {
+        fs.rmSync(path.join(copy, f), { force: true });
+    }
+    if (strip.manifestChanged) { // the manifests without the left-out components, in the copy (the checkout's stay as they are)
+        const dir = path.join(copy, '.relay-packages');
+        fs.mkdirSync(dir, { recursive: true });
+        plan.pkg = path.join(dir, 'package.xml');
+        fs.writeFileSync(plan.pkg, manifest(apiVersion(), strip.pkgItems));
+        plan.destructive = strip.destructiveItems.length ? path.join(dir, 'destructiveChangesPost.xml') : null;
+        if (plan.destructive) {
+            fs.writeFileSync(plan.destructive, manifest(apiVersion(), strip.destructiveItems));
+        }
+    }
+    const dropped = new Set(strip.drop);
+    plan.sources = (plan.sources || []).filter((s) => !dropped.has(s));
+    plan.packagesOnly = !strip.pkgItems.length && !strip.destructiveItems.length; // nothing left to send to this org
+    addCounts(packagesResult.leftOut, strip.leftOut);
+    packagesResult.componentsLeftOut = [...new Set(packagesResult.componentsLeftOut.concat(strip.components))].sort().slice(0, 1000);
+    const missing = packagesOption.targetMissing.join(', ');
+    const lines = [];
+    if (Object.keys(strip.leftOut).length) {
+        lines.push(`left out ${countsText(strip.leftOut)} reference(s) in ${strip.texts.size} file(s)`);
+    }
+    if (strip.components.length) {
+        lines.push(`${strip.components.length} component(s) not deployed: ${strip.components.slice(0, 10).join(', ')}${strip.components.length > 10 ? ', ...' : ''}`);
+    }
+    summary(`**Package references:** ${targetEnv || target} doesn't have ${missing}: ${lines.join('; ') || 'nothing to leave out'}, `
+        + 'in a temporary copy that isn\'t committed (Git keeps the full files).');
+}
+
+/** What a check or deploy left out for packages, to compare a validation with its deploy. */
+function packagesLeftOutKey(p) {
+    const leftOut = (p && p.leftOut) || {};
+    return JSON.stringify([Object.keys(leftOut).sort().map((k) => [k, leftOut[k]]), [...((p && p.componentsLeftOut) || [])].sort()]);
 }
 
 // ---------- quality gates (.relay/gates.json) ----------
@@ -2006,11 +2672,13 @@ function releaseTests() {
     if (!Array.isArray(options.tests)) {
         return null;
     }
-    const bad = options.tests.filter((t) => !APEX_NAME_RE.test(String(t)));
+    // Version 29: a package's tests don't run in an org without the package.
+    const named = options.tests.filter((t) => !packageTestLeftOut(t));
+    const bad = named.filter((t) => !APEX_NAME_RE.test(String(t)));
     if (bad.length) {
         fail(`These test class names aren't valid: ${bad.slice(0, 5).join(', ')}.`);
     }
-    return [...new Set(options.tests.map(String))];
+    return [...new Set(named.map(String))];
 }
 
 /**
@@ -2019,6 +2687,10 @@ function releaseTests() {
  * else RunLocalTests. plan.ownTests false ignores the release's tests (a back promote has none).
  */
 function deployTo(alias, plan, checkOnly) {
+    if (plan.packagesOnly) { // version 29: every component belongs to a package this org lacks
+        return { ok: true, testLevel: 'NoTestRun', deployId: null, testsRun: 0, tests: [], coverageWarnings: [], componentErrors: [],
+            testFailures: [], message: `Nothing was sent to ${targetEnv || alias}: everything in this deployment belongs to packages it doesn't have (left out).` };
+    }
     const { tests, testLevel } = testLevelFor(plan);
     // plan.cwd: the temporary copy with per-org values filled in (manifests then go by absolute path).
     const abs = (p) => (plan.cwd ? path.resolve(p) : p);
@@ -2905,7 +3577,7 @@ async function raiseFromHub() {
     fetchBranch(branch);
     git(['checkout', '-q', '-B', branch, `refs/remotes/origin/${branch}`]);
     const rebuilt = startFromMergeBase(); // version 28: nothing unselected from the developer org's branch rides along
-    const deletions = hubDeletions(markerFile);
+    const deletions = keepPackageDeletions(hubDeletions(markerFile)); // version 29
     const deleted = deletions.map((d) => d.entry);
     // A big release comes in parts (version 22): .relay-inbox/<REQUEST_ID>-part-<k>.zip, unpacked in order.
     const zips = (fs.existsSync(zipFile) ? [zipFile] : []).concat(hubPartZips());
@@ -2928,6 +3600,7 @@ async function raiseFromHub() {
     if (tokens.error) {
         raiseFailed(tokens.error, { deleted });
     }
+    putBackPackageReferences(copied); // version 29: the branch's references to packages this org lacks stay
     const valuesTokenized = tokens.count;
     removeMarker(markerFile);
     removeStaleInbox(); // version 28
@@ -3015,7 +3688,7 @@ async function appendToRelease() {
     fetchBranch(branch);
     git(['checkout', '-q', '-B', branch, `refs/remotes/origin/${branch}`]);
     const markerFile = zipFile.replace(/\.zip$/, '.deletions');
-    const deletions = hubDeletions(markerFile);
+    const deletions = keepPackageDeletions(hubDeletions(markerFile)); // version 29
     const deleted = deletions.map((d) => d.entry);
     const hasZip = fs.existsSync(zipFile) && gitQuiet(['ls-files', '--error-unmatch', '--', zipFile]) !== null;
     if (!hasZip && (components.length || !deletions.length)) {
@@ -3033,6 +3706,7 @@ async function appendToRelease() {
     if (tokens.error) {
         raiseFailed(tokens.error, { appended: true, deleted });
     }
+    putBackPackageReferences(copied); // version 29
     removeMarker(markerFile);
     removeStaleInbox(); // version 28: an earlier failed add's zip
     git(['add', '-A', '--', sourcePath()]);
@@ -3899,6 +4573,10 @@ function quickDeployCheck(sha, plan) {
     const validatedValues = val.values && typeof val.values.hash === 'string' ? val.values.hash : '';
     if (validatedValues !== ((deployValues && deployValues.hash) || '')) {
         return { note: `The per-org values (${VALUES_FILE}) aren't the ones the validation used, so it was deployed in full.` };
+    }
+    // Version 29: the validation must have left out the same package references and components.
+    if (packagesLeftOutKey(val.packages) !== packagesLeftOutKey(packagesResult)) {
+        return { note: 'The package references left out for this org aren\'t the ones the validation left out, so it was deployed in full.' };
     }
     if (val.environment && val.environment !== targetEnv) {
         return { note: `The validation ran against ${val.environment}, not ${targetEnv}, so it was deployed in full.` };

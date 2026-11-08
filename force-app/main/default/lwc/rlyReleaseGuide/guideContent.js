@@ -3019,7 +3019,9 @@ const USE_SECTIONS = [
                             ['Rollback failed in <org>', 'Salesforce refused the snapshot; the org is unchanged. The errors are under Deployment errors.', 'Read the errors; Roll back again or fix with a new release.']
                         ]
                     },
-                    { type: 'note', text: '**Manual steps only** releases skip Retrieving, Workflow running and Validating: Submitted → Ready for approval → Deploying while the deployment team does the manual steps in that org → Deployed when all of them are Done or Not needed.' }
+                    { type: 'note', text: '**Manual steps only** releases skip Retrieving, Workflow running and Validating: Submitted → Ready for approval → Deploying while the deployment team does the manual steps in that org → Deployed when all of them are Done or Not needed.' },
+                    { type: 'note', text: '**Package notes** (build 55) don\'t change a status: "package references kept", "left out in <org>" and **Whole component left out** say what happened to a managed package\'s references; History adds **Package references** per run and **File edited** for each edit. See Package-aware releases.' },
+                    { type: 'links', links: [{ label: 'Package-aware releases', to: 'packages' }, { label: 'Edit a file in a release', to: 'editfile' }] }
                 ]
             }
         ]
@@ -3066,6 +3068,128 @@ const WINDOW_SECTIONS = [
                         ]
                     },
                     { type: 'note', text: 'The Releases tab\'s **Waiting for the window** filter lists the releases that are waiting. A release deploys inside the window only when a page reads it, so open it (or the Releases list) once the window opens.' }
+                ]
+            }
+        ]
+    }
+];
+
+// Build 55: package-aware releases.
+const PACKAGE_SECTIONS = [
+    {
+        key: 'packages',
+        group: 'daily',
+        label: 'Package-aware releases',
+        cards: [
+            {
+                key: 'pk-main',
+                title: 'Package-aware releases',
+                blocks: [
+                    { type: 'text', paras: ['**Package references belong to the orgs that have the package.** An org without a managed package never adds, changes or removes that package\'s references, and never receives them. It works in any direction on the route: a lower or a higher org may lack a package. Every installed managed package counts, found by its namespace (`ns__Field__c`, `ns__Object__c`, `ns.Class`, its tabs, apps, record types and layouts); there is no list to keep. Git always keeps the full files.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'See which org has which package',
+                                who: 'Anyone; admins change it',
+                                where: 'Pipeline → Orgs → Installed packages',
+                                items: [
+                                    'Packages down, orgs across (developer orgs, then the route). Each cell shows the version installed, **Not installed**, or **Not read yet**. Different versions are shown in amber, never blocked.',
+                                    'An amber note says where a package is missing, for example "<package> isn\'t in Dev: its references are kept on the branch when you raise from it, and left out when deploying to it." (example)',
+                                    'Admins press **Check now** to read every org again (one query each). The nightly pass reads them too, and so does Sync status → Packages.'
+                                ],
+                                check: 'The footer says when the packages were read and how many there are.'
+                            },
+                            {
+                                title: 'Treat a package as not installed',
+                                who: 'Admin',
+                                where: 'Pipeline → Orgs → Installed packages',
+                                goal: 'A package is installed in an org but not licensed or used there, so its references must not be deployed to it.',
+                                items: [
+                                    'Press the version in that org\'s cell. It turns grey and reads **treated as not installed**: releases now leave that package\'s references out of the org, and keep them when raised from it.',
+                                    'Press it again to count it as installed.'
+                                ]
+                            },
+                            {
+                                title: 'Raise from a higher org',
+                                who: 'Admin switches it on; then anyone who raises releases',
+                                where: 'Pipeline → Orgs → Installed packages → Can raise releases; then New release',
+                                goal: 'A change needs a package the developer orgs don\'t have (for example a layout with the package\'s fields).',
+                                items: [
+                                    'An admin presses **Can raise releases** under a stage. Developer orgs always can; the hub can\'t (it is the last stop).',
+                                    'New release then offers that stage in its environment. Its release goes to the next stop on the route, as any release goes to the next stage, and the lower orgs get the rest of it through back promote.'
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        type: 'table',
+                        cols: ['Step', 'Org without the package', 'Org with the package'],
+                        rows: [
+                            ['Raise or Add changes from the org', 'The org\'s file has no lines of the package. Release Relay **keeps** them: the branch\'s package lines are put back in the same place, so the merge can\'t remove them. Review and History say how many were kept.', 'As always: the org\'s file is the source, package lines included (adding or removing them is allowed).'],
+                            ['Merge', 'Unchanged: only the selected files, both sides\' edits kept; a real clash on the same lines is a conflict.', 'The same.'],
+                            ['Check-only deploy and deploy to the org', 'A temporary copy **leaves out** the package\'s references (as per-org values are filled in). Whole components of the package\'s own objects are not deployed to that org. Git keeps the full files.', 'Deployed as in Git.'],
+                            ['The package is installed later', 'The next check notes it; the next deploy to that org includes the references (or an admin pushes the branch from Sync status).', '–']
+                        ]
+                    },
+                    {
+                        type: 'table',
+                        cols: ['Where', 'What it says', 'What to do'],
+                        rows: [
+                            ['Review → Package references', 'Each file that references a package, and per org: **Sent**, **Left out**, **Kept · left out** (the source lacks it: kept on the branch, left out of its deploys) or **Not read**. Names of a package\'s own components count at once; references inside files count once Compare has read them.', 'Open Compare to read the files. "Kept 3 references to package ns1 … To remove one, raise from an org that has the package" (example): raise from an org that has it.'],
+                            ['Release page → Validation and Deploy lines', '"3 package references kept (ns1)", "left out in Dev: 2 references to package ns2 (not installed) · Git keeps the full files" (examples).', 'Nothing: this is what should happen.'],
+                            ['Release page → Whole component left out', 'A component that belongs to a package the target org lacks was not deployed there, for example a layout of the package\'s own object.', 'Nothing, unless the org should have the package: install it, then check again.'],
+                            ['History → Package references', 'One entry per run: "Kept 3 (ns1) from qa · Left out in Dev: 2 (ns2), 1 component" (example).', 'Nothing.']
+                        ]
+                    },
+                    { type: 'links', links: [{ label: 'Edit a file', to: 'editfile' }, { label: 'Compare before raising', to: 'compare' }, { label: 'Pipeline tab', to: 'pipelinetab' }] }
+                ]
+            }
+        ]
+    },
+    {
+        key: 'editfile',
+        group: 'daily',
+        label: 'Edit a file in a release',
+        cards: [
+            {
+                key: 'ef-main',
+                title: 'Edit a file in a release',
+                blocks: [
+                    { type: 'text', paras: ['Any file of an open release can be opened and edited, conflict or not: to take out a line, fix a value, or change what a package line says, without raising again.'] },
+                    {
+                        type: 'steps',
+                        steps: [
+                            {
+                                title: 'Open the file',
+                                who: 'Who raised it, or an admin',
+                                where: 'The release page → Edit a file…',
+                                goal: 'The release is open with its pull request and nothing is running: Checks failed or Ready for approval.',
+                                items: [
+                                    'Pick a component on the left; a component with several files (a Lightning component) shows them as tabs.',
+                                    '**Side by side** shows three copies: the source org\'s (read the way Compare reads it), the target branch\'s, and **Will be deployed** (the release branch\'s). Lines that reference a package are marked, with whether the target org gets them. **Only differences** compares the target branch with what will be deployed.'
+                                ],
+                                problems: [
+                                    ['No Edit a file… button', 'You didn\'t raise it and aren\'t an admin, a run is going, or the release is approved, deployed or closed.'],
+                                    ['"Not read here: the release comes from a branch, not an org."', 'A promotion or back promote: its files come from a branch. The other two copies are there.']
+                                ]
+                            },
+                            {
+                                title: 'Edit and save',
+                                where: 'Will be deployed',
+                                items: [
+                                    'Press **Edit text**, change the file, then **Save edit**. **Discard** puts the release branch\'s copy back.',
+                                    'Saving commits the file to the release branch (GitHub or GitLab), adds **File edited**: "Edited by <you>: <file>" to History, and runs the code scan and check-only deploy again, as Check again does.'
+                                ],
+                                problems: [
+                                    ['"… changed on … since you opened it."', 'The branch moved (the pipeline or someone else committed). Open the file again and redo the edit.'],
+                                    ['"Nothing changed in …"', 'The text is the same as on the branch.']
+                                ],
+                                check: 'The release is Validating, and History shows File edited with a link to the commit.'
+                            }
+                        ]
+                    },
+                    { type: 'note', text: 'Objects and fields, profiles, layouts, permission sets, flows, code and Lightning components can be edited here; static resources can\'t (open them in Git). Editing on Review, before raising, isn\'t available yet: raise, then edit on the release page.' }
                 ]
             }
         ]
@@ -3646,6 +3770,16 @@ const MIGRATION_SECTIONS = [
                             ['Validate fails and merge refuses while the release branch adds `.relay-inbox/` files', 'Merging would copy them into the target']
                         ]
                     },
+                    {
+                        type: 'table',
+                        stack: true,
+                        cols: ['What changed in version 29', 'Why'],
+                        rows: [
+                            ['A raise or an add from an org without a managed package puts the branch\'s references to that package (a layout item, a field permission, a list view column) back into the files, each in its place; the package\'s own components keep the branch\'s version and their deletions are dropped', 'An org without the package never adds, changes or removes its references, and the pull request shows only that org\'s own changes'],
+                            ['Checking, deploying or back promoting to an org without a package strips its references in the temporary deploy copy and leaves the package\'s own components out (and any component that needs the package as a whole, such as a lookup to its object); the package\'s tests don\'t run there. The results list what was kept and left out', 'The org gets everything else; Git always keeps the full files'],
+                            ['A quick deploy needs the check to have left out the same package references', 'An org whose packages changed since the check is deployed in full']
+                        ]
+                    },
                     { type: 'links', links: [{ label: 'M. Secure your repository: every step in order', to: 'secure' }] }
                 ]
             }
@@ -3837,6 +3971,6 @@ const MIGRATION_SECTIONS = [
     }
 ];
 
-const SECTIONS = [...START_SECTIONS, ...SETUP_SECTIONS, ...MIGRATION_SECTIONS, ...USE_SECTIONS, ...WINDOW_SECTIONS, ...REF_SECTIONS];
+const SECTIONS = [...START_SECTIONS, ...SETUP_SECTIONS, ...MIGRATION_SECTIONS, ...USE_SECTIONS, ...WINDOW_SECTIONS, ...PACKAGE_SECTIONS, ...REF_SECTIONS];
 
 export default SECTIONS;

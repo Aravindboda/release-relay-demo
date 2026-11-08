@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>65.0</apiVersion>
+    <isExposed>false</isExposed>
+    <description>Pipeline tab, Orgs (build 55): the package matrix, which managed package each org has; admins mark a package "treat as not installed" per org, switch Can raise releases on a stage, and press Check now.</description>
+</LightningComponentBundle>

@@ -193,7 +193,8 @@ public with sharing class RlyReleaseStore {
          */
         public Map<Id, RLY_Org__c> readOrgs(Set<Id> orgIds) {
             return new Map<Id, RLY_Org__c>([SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Username__c, Consumer_Key__c, Client_Id__c,
-                                                   Certificate__c, Branch__c, Git_Environment__c, Stage_Order__c, Code_Scan__c, Source_Tracking__c
+                                                   Certificate__c, Branch__c, Git_Environment__c, Stage_Order__c, Code_Scan__c, Source_Tracking__c,
+                                                   Can_Raise__c
                                             FROM RLY_Org__c WHERE Id IN :orgIds WITH SYSTEM_MODE]);
         }
 

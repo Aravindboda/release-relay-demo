@@ -2,6 +2,8 @@
  * @description What New Release step 1 shows: the registered developer orgs (without sign-in fields), where
  * releases go (the first stage of the route), the repository, anything that blocks raising a release, and whether
  * the user may flag a hotfix (RLY_Hotfix). Hotfixes come from developer orgs, so stageSources is always empty.
+ * Build 55: stages an admin switched to Can raise releases are offered with the developer orgs (raiseTargets says where
+ * each goes: the next stop on the route), and packages says which org has which package (Review's Package references).
  */
 public with sharing class RlyReleaseStart {
 
@@ -27,6 +29,32 @@ public with sharing class RlyReleaseStart {
         @AuraEnabled public List<RlyHotfix.StageSource> stageSources = new List<RlyHotfix.StageSource>();
         /** @description Stage and hub orgs, shown in their environment for context (no sign-in fields). */
         @AuraEnabled public List<RLY_Org__c> routeStops = new List<RLY_Org__c>();
+        /** @description Build 55: where a stage that can raise releases sends them (org Id => target), for those stages. */
+        @AuraEnabled public Map<String, RaiseTarget> raiseTargets = new Map<String, RaiseTarget>();
+        /** @description Build 55: each org's packages, for Review's Package references (empty when no org has a package). */
+        @AuraEnabled public List<OrgPackages> packages = new List<OrgPackages>();
+    }
+
+    /** @description Build 55: where a release raised from a stage goes. */
+    public class RaiseTarget {
+        /** @description The next stop's name. */
+        @AuraEnabled public String name;
+        /** @description Its branch. */
+        @AuraEnabled public String branch;
+    }
+
+    /** @description Build 55: the namespaces an org has (installed, not marked "treat as not installed"). */
+    public class OrgPackages {
+        /** @description The org. */
+        @AuraEnabled public Id id;
+        /** @description Its name. */
+        @AuraEnabled public String name;
+        /** @description Its branch. */
+        @AuraEnabled public String branch;
+        /** @description Its packages were read. */
+        @AuraEnabled public Boolean checked = false;
+        /** @description The namespaces it has (lower case). */
+        @AuraEnabled public List<String> has = new List<String>();
     }
 
     /**
@@ -39,9 +67,11 @@ public with sharing class RlyReleaseStart {
         s.hubUserName = UserInfo.getName();
         List<RLY_Org__c> stages = new List<RLY_Org__c>();
         for (RLY_Org__c o : data.orgs()) {
-            if (o.Role__c == 'Developer') {
+            if (RlyRaiseRoute.canRaiseFrom(o)) {
                 s.developers.add(o);
-            } else if (o.Role__c != RlyBackPromote.ROLE) {
+                addRaiseTarget(s, o);
+            }
+            if (o.Role__c != 'Developer' && o.Role__c != RlyBackPromote.ROLE) {
                 s.routeStops.add(o);
                 if (o.Role__c == 'Stage') {
                     stages.add(o);
@@ -58,7 +88,48 @@ public with sharing class RlyReleaseStart {
         s.provider = RlyGitName.labelFor(git);
         s.canHotfix = RlyHotfix.allowed();
         addProblems(s, git, target);
+        addPackages(s);
         return s;
+    }
+
+    // A stage that can raise releases: the next stop on the route is where they go.
+    private static void addRaiseTarget(Start s, RLY_Org__c o) {
+        RLY_Org__c next = o.Role__c == 'Stage' ? RlyRaiseRoute.nextStop(o.Id) : null;
+        if (next != null) {
+            RaiseTarget t = new RaiseTarget();
+            t.name = next.Name;
+            t.branch = next.Branch__c;
+            s.raiseTargets.put(String.valueOf(o.Id), t);
+        }
+    }
+
+    // Every org's namespaces, when any org has a package (RlyOrgPackages).
+    private static void addPackages(Start s) {
+        s.packages = orgPackages();
+    }
+
+    /**
+     * @description Build 55: every registered org's namespaces (installed, not marked), for the pages that mark package
+     * references (Review, Edit a file).
+     * @return one entry per org, by name; empty when no org has a package
+     */
+    public static List<OrgPackages> orgPackages() {
+        List<OrgPackages> out = new List<OrgPackages>();
+        List<RLY_Org__c> orgs = RlyOrgPackageStore.orgs();
+        if (RlyOrgPackages.knownOf(orgs).isEmpty()) {
+            return out;
+        }
+        for (RLY_Org__c o : orgs) {
+            OrgPackages p = new OrgPackages();
+            p.id = o.Id;
+            p.name = o.Name;
+            p.branch = o.Branch__c;
+            p.checked = RlyOrgPackages.isChecked(o);
+            p.has = new List<String>(RlyOrgPackages.hasOf(o));
+            p.has.sort();
+            out.add(p);
+        }
+        return out;
     }
 
     // The stage with the lowest order (stages without one come after).
@@ -97,7 +168,7 @@ public with sharing class RlyReleaseStart {
          */
         public List<RLY_Org__c> orgs() {
             return [SELECT Id, Name, Role__c, Branch__c, Stage_Order__c, Git_Environment__c, Status__c, Source_Tracking__c,
-                           Org_Type__c, Is_Sandbox__c, Environment__c, Approval_Rule__c, Approval_Types__c
+                           Org_Type__c, Is_Sandbox__c, Environment__c, Approval_Rule__c, Approval_Types__c, Can_Raise__c
                     FROM RLY_Org__c WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }
     }

@@ -40,8 +40,12 @@ public with sharing class RlyCredentialNightly {
         }
     }
 
-    // The night's first call sends no runId.
-    private static Boolean isFirstCall(String body) {
+    /**
+     * @description Whether this is the night's first call: it sends no runId (build 55: the package read uses it too).
+     * @param body the call's body
+     * @return true for the first call
+     */
+    public static Boolean isFirstCall(String body) {
         if (String.isBlank(body)) {
             return true;
         }

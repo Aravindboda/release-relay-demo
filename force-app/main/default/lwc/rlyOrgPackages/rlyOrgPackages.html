@@ -1,0 +1,65 @@
+<template>
+    <!-- design board "Package-aware releases" a: which org has which package -->
+    <section class="rr-pk" aria-label="Installed packages">
+        <div class="rr-pk-head">
+            <div class="rr-grow">
+                <h3 class="rr-h3">Installed packages</h3>
+                <p class="rr-small rr-weak">Read from each org · Check now and the nightly pass</p>
+            </div>
+            <template lwc:if={isAdmin}><lightning-button label={checkLabel} onclick={handleCheck} disabled={busy}></lightning-button></template>
+        </div>
+        <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+        <template lwc:if={message}><div class="rr-msg rr-msg-ok" role="status">{message}</div></template>
+        <template for:each={errorRows} for:item="e"><div key={e.key} class="rr-msg rr-msg-wait" role="status">{e.text}</div></template>
+        <template lwc:if={busy}><p class="rr-small rr-weak" role="status">Reading each org's installed packages…</p></template>
+        <template lwc:if={hasPackages}>
+            <div class="rr-pk-scroll">
+                <table class="rr-pk-table">
+                    <caption class="slds-assistive-text">Managed packages per org</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Package</th>
+                            <th scope="col">Namespace</th>
+                            <template for:each={headers} for:item="h"><th key={h.key} scope="col">{h.name}</th></template>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={rows} for:item="r">
+                            <tr key={r.key}>
+                                <th scope="row" class="rr-pk-name">{r.name}</th>
+                                <td class="rr-mono">{r.ns}</td>
+                                <template for:each={r.cells} for:item="c">
+                                    <td key={c.key}>
+                                        <template lwc:if={c.toggle}>
+                                            <button type="button" class={c.cls} aria-pressed={c.pressed} title={c.title} data-org={c.orgId} data-ns={c.ns}
+                                                data-off={c.off} onclick={handleMark} disabled={busy}>{c.text}</button>
+                                        </template>
+                                        <template lwc:else><span class={c.cls} title={c.title}>{c.text}</span></template>
+                                    </td>
+                                </template>
+                            </tr>
+                        </template>
+                        <tr class="rr-pk-raise">
+                            <th scope="row" colspan="2">Can raise releases</th>
+                            <template for:each={raiseCells} for:item="c">
+                                <td key={c.key}>
+                                    <template lwc:if={c.toggle}>
+                                        <button type="button" class={c.cls} aria-pressed={c.pressed} title={c.title} data-id={c.id} data-on={c.on}
+                                            onclick={handleRaise} disabled={busy}>{c.text}</button>
+                                    </template>
+                                    <template lwc:else><span class={c.cls}>{c.text}</span></template>
+                                </td>
+                            </template>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <template for:each={notes} for:item="n"><div key={n.key} class="rr-msg rr-msg-warn">{n.text}</div></template>
+            <p class="rr-small rr-weak">Can raise releases: offer a stage in New release for changes that need a package the orgs below it lack. Its releases go to the next stop on the route.</p>
+        </template>
+        <template lwc:if={noPackages}><p class="rr-small rr-weak">{noPackagesText}</p></template>
+        <template lwc:if={loaded}>
+            <p class="rr-small rr-weak rr-pb">{footText}<a class="rr-a" href="#" onclick={openGuide}>What does this mean? (Guide)</a></p>
+        </template>
+    </section>
+</template>
