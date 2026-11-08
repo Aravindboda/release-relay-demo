@@ -1,4 +1,9 @@
-# Release Relay pipeline files: version 27
+# Release Relay pipeline files: version 28
+# Version 28 (hub build 52), as in the GitHub workflow: no job change, the script moves with it. A new hub raise starts
+# from where the target and the developer org's branch meet (the job replaces the hub's release branch with
+# --force-with-lease: RELAY_TOKEN's role must be allowed to force-push release branches, which unprotected branches
+# allow); a failed raise or add takes the hub's upload files off the release branch; validate fails and merge refuses
+# while the release branch adds any .relay-inbox/ file.
 # Version 27 (hub build 48, security), as in the GitHub workflow:
 # - Signed runs: every job that signs in or pushes checks the hub's signature (OPTIONS iat and sig) against the CI/CD
 #   variable RELAY_RUN_KEY (masked, protected, all environments) before anything else; the age is counted from
