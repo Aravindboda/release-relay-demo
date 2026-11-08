@@ -99,7 +99,8 @@ private class RlyEvidenceTest {
                 'Quoted, formulas defused');
             Boolean refused = false;
             try {
-                RlyEvidenceController.exportCsvPart('{"state":"sometimes"}', 0).text;
+                String unused = RlyEvidenceController.exportCsvPart('{"state":"sometimes"}', 0).text;
+                System.assert(unused == null, 'Not reached: ' + unused);
             } catch (AuraHandledException e) {
                 refused = true;
             }
