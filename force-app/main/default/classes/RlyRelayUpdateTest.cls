@@ -340,6 +340,29 @@ private class RlyRelayUpdateTest {
     }
 
     @IsTest
+    static void labelsNameTheChosenStage() {
+        System.runAs(RlyTestData.admin()) {
+            RlyReleaseTestData.route();
+            RLY_Relay_Update__c u = updateWith(new Map<String, RlyRelayUpdateState.Step>{
+                RlyRelayUpdateState.TEST_CHECK => step(REQ, RlyRelayUpdateState.PASSED, 't') });
+            insert u;
+            Test.startTest();
+            RlyRelayUpdateView.Card withOrg = RlyRelayUpdateView.build();
+            // The org's record is gone (removed or registered again): the stage its check ran in still names the steps.
+            u.Test_Org__c = null;
+            update u;
+            RlyRelayUpdateView.Card byEnvironment = RlyRelayUpdateView.build();
+            String unknown = RlyRelayUpdateView.testOrgName(new RLY_Relay_Update__c(Steps__c = '{}'));
+            Test.stopTest();
+            System.assertEquals('SIT', withOrg.current.testOrgName, 'The chosen stage names the update');
+            System.assertEquals('SIT check', withOrg.current.steps[0].label, 'The check carries the stage\'s name');
+            System.assertEquals('SIT install', withOrg.current.steps[1].label, 'So does the install');
+            System.assertEquals('SIT check', byEnvironment.current.steps[0].label, 'Found by the Git environment the check ran in');
+            System.assertEquals(RlyRelayUpdateView.TEST_ORG, unknown, 'Test org only when no stage is known');
+        }
+    }
+
+    @IsTest
     static void readsTheZip() {
         System.runAs(RlyTestData.admin()) {
             Test.startTest();

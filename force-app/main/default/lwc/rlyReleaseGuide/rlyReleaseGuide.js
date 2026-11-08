@@ -412,7 +412,8 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
         }));
         out.tableCls = 'slds-table slds-table_cell-buffer slds-table_bordered rr-table' + (b.stack ? ' rr-table-stack' : '');
         out.progress = (b.labels || []).map((label, i) => this.progressItem(label, i + 1, key));
-        out.steps = (b.steps || []).map((s, i) => this.step(s, i + 1, key + 's' + i));
+        // start: the first step's number, when one card's numbered steps are split by a table (for example M, step 1)
+        out.steps = (b.steps || []).map((s, i) => this.step(s, (b.start || 1) + i, key + 's' + i));
         out.stops = (b.stops || []).map((s, i) => ({
             key: key + 'st' + i, title: plain(s.title, g), text: plain(s.text, g), arrow: i > 0
         }));

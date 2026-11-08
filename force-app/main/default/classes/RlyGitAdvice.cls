@@ -39,7 +39,7 @@ public with sharing class RlyGitAdvice {
         }
         String advice = BY_STATUS.containsKey(code)
             ? BY_STATUS.get(code).replace('{credential}', String.valueOf(conn.Named_Credential__c)) : '';
-        advice += byAnswer(res.getBody()) + acceptedPermissions(res);
+        advice += byAnswer(res.getBody()) + (code == 401 || code == 403 || code == 404 ? acceptedPermissions(res) : '');
         throw new RlyGit.GitException((action + ' failed with HTTP ' + code + '. ' + advice + ' '
             + String.valueOf(res.getBody()).left(300)).trim());
     }
