@@ -1,0 +1,14 @@
+{
+ "request": "REL-00052",
+ "environment": "prod",
+ "takenAt": "2026-11-08T20:34:58.051Z",
+ "sha": "b576ca1c2a48eb295bbc97a9d5b2c57075080c01",
+ "existing": [],
+ "added": [
+  "ApexClass:TaxCalculator",
+  "ApexClass:TaxCalculatorTest",
+  "RemoteSiteSetting:E2E_Endpoint"
+ ],
+ "deleted": [],
+ "unresolved": []
+}
