@@ -9,6 +9,9 @@ public with sharing class RlyGitAdvice {
     /** @description What a refused change to the workflow folder means. */
     public static final String WORKFLOWS_ADVICE = 'The token needs Workflows: Read and write to change files in .github/workflows.';
 
+    /** @description GitHub's header naming the permissions a refused call needed. */
+    public static final String ACCEPTED_PERMISSIONS = 'X-Accepted-GitHub-Permissions';
+
     private static final Map<Integer, String> BY_STATUS = new Map<Integer, String>{
         401 => 'The token in Named Credential {credential} was refused: check or renew it.',
         403 => 'The token lacks permission for this (or the provider rate-limited the request).',
@@ -36,9 +39,21 @@ public with sharing class RlyGitAdvice {
         }
         String advice = BY_STATUS.containsKey(code)
             ? BY_STATUS.get(code).replace('{credential}', String.valueOf(conn.Named_Credential__c)) : '';
-        advice += byAnswer(res.getBody());
+        advice += byAnswer(res.getBody()) + acceptedPermissions(res);
         throw new RlyGit.GitException((action + ' failed with HTTP ' + code + '. ' + advice + ' '
             + String.valueOf(res.getBody()).left(300)).trim());
+    }
+
+    // GitHub names the fine-grained permissions a refused call needed (X-Accepted-GitHub-Permissions), when it can
+    // (build 52); with a leading space, or blank.
+    private static String acceptedPermissions(HttpResponse res) {
+        String needed = null;
+        for (String key : res.getHeaderKeys() == null ? new List<String>() : res.getHeaderKeys()) {
+            if (key != null && key.equalsIgnoreCase(ACCEPTED_PERMISSIONS)) {
+                needed = res.getHeader(key);
+            }
+        }
+        return String.isBlank(needed) ? '' : ' The call needs the token permission(s): ' + needed.left(200) + '.';
     }
 
     // The advice for a phrase in the answer, with a leading space, or blank.

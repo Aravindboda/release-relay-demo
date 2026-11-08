@@ -88,17 +88,19 @@ public with sharing class RlyMigrationMethods {
         return blocked(m, noJob == null ? notEmpty : noJob);
     }
 
+    // Before the new connection is saved, the texts name no provider (build 52).
     private static Method importer(RLY_Git_Connection__c current, RLY_Git_Connection__c target, String noJob) {
-        String toProvider = target == null ? '' : target.Provider__c;
-        String fromLabel = current == null ? '' : labelOf(current.Provider__c);
+        String toProvider = target == null || String.isBlank(target.Provider__c) ? '' : target.Provider__c;
+        String toLabel = String.isBlank(toProvider) ? 'the new provider' : labelOf(toProvider);
+        String fromLabel = current == null ? 'the current provider' : labelOf(current.Provider__c);
         String source = current == null ? '' : current.Repository__c;
-        Method m = method(IMPORTER, labelOf(toProvider) + '\'s own importer', new List<String>{
-            'You import the repository in ' + labelOf(toProvider) + ' with the clicks below; then the hub verifies that every '
+        Method m = method(IMPORTER, toLabel.capitalize() + '\'s own importer', new List<String>{
+            'You import the repository in ' + toLabel + ' with the clicks below; then the hub verifies that every '
             + 'branch and tag matches (nothing is pushed).',
             'The provider does the copy; it also fits a repository that already holds the content.',
-            'Done by hand in ' + labelOf(toProvider) + '; anything changed in ' + fromLabel + ' since the import shows as a difference.' });
-        m.clicks = clicks(current, toProvider, source);
-        if (m.clicks.isEmpty()) {
+            'Done by hand in ' + toLabel + '; anything changed in ' + fromLabel + ' since the import shows as a difference.' });
+        m.clicks = String.isBlank(toProvider) ? new List<String>() : clicks(current, toProvider, source);
+        if (m.clicks.isEmpty() && String.isNotBlank(toProvider)) {
             m.label = 'Verify a copy you made';
             m.summary = labelOf(toProvider) + ' has no importer the hub can guide for ' + fromLabel + '. If you copied the '
                 + 'repository another way (for example git clone --mirror, then git push --mirror), the hub verifies it.';

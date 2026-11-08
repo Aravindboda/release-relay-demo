@@ -123,6 +123,7 @@ private class RlyMigrationTest {
             System.assert(sameProvider != null && sameProvider.contains('other than the current'), 'Another provider: ' + sameProvider);
             System.assertEquals(gitLabId(), chosen.target.id, 'The existing GitLab connection is reused');
             System.assertEquals(RlyMigrationMethods.LIFT, chosen.choose.method, 'Lift and shift picked');
+            System.assertEquals(2, chosen.step, 'Picking stays on How: Next goes to the dry run');
             System.assertEquals(3, chosen.choose.methods.size(), 'Three methods');
             System.assert(bogus != null, 'An unknown method is refused');
             System.assertEquals(5, moved.step, 'Moved to step 5');

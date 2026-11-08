@@ -93,6 +93,7 @@ public with sharing class RlyAppendService {
         RlyAppendRun.State st = RlyAppendRun.stateOf(rel);
         st.adds += 1;
         st.pending = true;
+        st.confirming = false; // an earlier add the reader never settled counts as made
         st.fromOrg = source.Name;
         st.components = keysOf(added);
         st.deletions = deletions;
@@ -103,7 +104,7 @@ public with sharing class RlyAppendService {
         RlySlackCardSync.notifyChange(prior, rel); // the Slack callouts come before the saves
         RlyReleaseStore.save(rel);
         RlySlack.saveResults();
-        RlyReleaseLog.add(rel, 'Raised', 'Added ' + words(st) + ' from ' + source.Name + ': ' + names(st))
+        RlyReleaseLog.add(rel, RlyAppendRun.ADDED_EVENT, 'Added ' + words(st) + ' from ' + source.Name + ': ' + names(st))
             .inOrg(source.Id).byActor(UserInfo.getUserId(), RlyReleaseLog.VIA_SALESFORCE);
         RlyReleaseLog.flush();
         return rel.Id;

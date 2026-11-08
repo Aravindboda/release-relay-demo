@@ -85,16 +85,26 @@ public with sharing class RlyCredentialOrgChecks {
             certificates(p, o, res);
             p.add(RlyCredentialUsers.userRow(u, o));
         } catch (Exception e) {
+            if (RlyCredentialRows.isApiLimit(e.getMessage())) {
+                p.add(RlyCredentialRows.apiLimitReached(s, o.Name));
+                p.add(RlyCredentialRows.apiLimitReached(u, o.Name));
+                return;
+            }
             p.add(RlyCredentialRows.mark(s, RlyCredentialRows.FAILED, e.getMessage()));
             p.add(RlyCredentialRows.mark(u, RlyCredentialRows.UNKNOWN, 'Couldn\'t sign in to ' + o.Name + ' to read the user.'));
         }
     }
 
-    // The org's own certificates from the Tooling answer; a refused query leaves one Unknown row.
+    // The org's own certificates from the Tooling answer; a refused query leaves one Unknown row (an org out of daily API
+    // calls says so, not that the user lacks a permission).
     private static void certificates(RlyCredentialCheck.Pass p, RLY_Org__c o, HttpResponse res) {
         String prefix = 'cert:' + o.Id + ':';
         RLY_Credential_Status__c holder = RlyCredentialRows.orgRow('cert:' + o.Id, RlyCredentialRows.KIND_CERT, o);
         holder.Name = (o.Name + ' certificates').left(80);
+        if (res.getStatusCode() != 200 && RlyCredentialRows.isApiLimit(res.getBody())) {
+            p.add(RlyCredentialRows.apiLimitReached(holder, o.Name));
+            return;
+        }
         if (res.getStatusCode() != 200) {
             p.add(RlyCredentialRows.mark(holder, RlyCredentialRows.UNKNOWN, o.Name + ' answered HTTP ' + res.getStatusCode()
                 + ' to the certificate query (the integration user needs View Setup and Configuration).'));

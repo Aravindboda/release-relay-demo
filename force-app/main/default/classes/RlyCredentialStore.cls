@@ -67,6 +67,16 @@ public with sharing class RlyCredentialStore {
         }
     }
 
+    /**
+     * @description The row with this key (build 52: the Git token row after a pull request close).
+     * @param key the key
+     * @return the row, or null
+     */
+    public static RLY_Credential_Status__c rowByKey(String key) {
+        List<RLY_Credential_Status__c> found = new Data().readRow(key);
+        return found.isEmpty() ? null : found[0];
+    }
+
     /** @description Credential rows, orgs and users, in system mode. */
     private without sharing class Data {
 
@@ -78,6 +88,16 @@ public with sharing class RlyCredentialStore {
             return [SELECT Id, Name, Key__c, Kind__c, Org__c, Org__r.Name, Expires_On__c, Days_Left__c, Status__c, Message__c,
                            Last_Checked__c, Last_OK__c
                     FROM RLY_Credential_Status__c WITH SYSTEM_MODE ORDER BY Kind__c, Name LIMIT 1000];
+        }
+
+        /**
+         * @description The row with this key.
+         * @param key the key
+         * @return the row, or none
+         */
+        public List<RLY_Credential_Status__c> readRow(String key) {
+            return [SELECT Id, Name, Key__c, Kind__c, Status__c, Message__c, Expires_On__c, Last_Checked__c, Last_OK__c
+                    FROM RLY_Credential_Status__c WHERE Key__c = :key WITH SYSTEM_MODE LIMIT 1];
         }
 
         /**

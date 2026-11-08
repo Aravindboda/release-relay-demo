@@ -54,6 +54,9 @@ public with sharing class RlyCredentialUsers {
         try {
             return userStatus(u, userActive(o), o);
         } catch (Exception e) {
+            if (RlyCredentialRows.isApiLimit(e.getMessage())) {
+                return RlyCredentialRows.apiLimitReached(u, o.Name);
+            }
             return RlyCredentialRows.mark(u, RlyCredentialRows.UNKNOWN, 'Couldn\'t read the user: ' + e.getMessage());
         }
     }

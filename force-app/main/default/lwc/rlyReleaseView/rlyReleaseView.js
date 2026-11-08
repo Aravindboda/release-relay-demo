@@ -110,7 +110,8 @@ const EVENT_LOOK = {
     Proof_Added: { title: 'Proof added', icon: 'utility:upload' },
     File_Downloaded: { title: 'Downloaded', icon: 'utility:download' },
     Window_Held: { title: 'Waiting for the window', icon: 'utility:clock' },
-    Window_Override: { title: 'Deployed outside the window', icon: 'utility:warning' }
+    Window_Override: { title: 'Deployed outside the window', icon: 'utility:warning' },
+    Changes_Added: { title: 'Changes added', icon: 'utility:add' }
 };
 /** File events on manual steps (build 34): the History card's Files chip shows only these. */
 const FILE_EVENTS = ['File_Attached', 'File_Removed', 'Proof_Added', 'File_Downloaded'];
@@ -531,8 +532,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     /** One key per countdown, so a fresh bar (and a fresh animation) is drawn each time. */
     get cycles() { return [{ key: 'c' + this.cycle }]; }
 
-    get scan() { return parse(this.rel.Scan_Result__c) || {}; }
-    get validation() { return parse(this.rel.Validation_Result__c) || {}; }
+    // While a new check runs (Check again, Add changes), the previous findings and errors are hidden; History keeps them (build 52).
+    get scan() { return this.rel.Scan_Status__c === 'Pending' ? {} : parse(this.rel.Scan_Result__c) || {}; }
+    get validation() { return this.rel.Validation_Status__c === 'Pending' ? {} : parse(this.rel.Validation_Result__c) || {}; }
     get deploy() { return parse(this.rel.Deploy_Result__c) || {}; }
     get targetName() { return this.detail ? this.detail.targetName : ''; }
 
@@ -1057,6 +1059,17 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
 
     // ---------- add changes to an open release ----------
 
+    /** An add the pipeline hasn't confirmed yet (Append_State__c pending or confirming, build 52): its components are listed but not on the branch yet. */
+    get addingNote() {
+        const st = parse(this.rel && this.rel.Append_State__c);
+        if (!st || !(st.pending || st.confirming)) {
+            return '';
+        }
+        const n = (st.components || []).length + (st.deletions || []).length;
+        return n ? 'Adding ' + n + (n === 1 ? ' change' : ' changes') + ' from ' + (st.fromOrg || 'the developer org')
+            + ': they count once the pipeline confirms the add.' : '';
+    }
+
     /** Detail.canAppend: a normal release, Checks failed or Ready for approval, not approved, nothing running, raiser or admin. */
     get canAppend() { return !!(this.detail && this.detail.canAppend) && !this.running; }
     get appendLabel() { return 'Add changes from ' + ((this.detail && this.detail.sourceName) || 'the developer org'); }
@@ -1306,12 +1319,14 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         list.sort((a, b) => new Date(b.occurredOn || 0) - new Date(a.occurredOn || 0));
         let lastDay = '';
         return list.map((e, i) => {
-            const look = EVENT_LOOK[e.eventType] || EVENT_LOOK.Comment;
+            // Adds saved before build 52 were Raised events: they read "Changes added" too.
+            const look = (e.eventType === 'Raised' && /^Added /.test(e.detail || '') ? EVENT_LOOK.Changes_Added : EVENT_LOOK[e.eventType]) || EVENT_LOOK.Comment;
             const day = dayOf(e.occurredOn);
             const whenText = day === lastDay ? timeOnly(e.occurredOn) : when(e.occurredOn);
             lastDay = day;
             const orgWord = EVENT_ORG_WORD[e.eventType];
-            const failed = CHECK_EVENTS.includes(e.eventType) && /fail|error|block/i.test(e.detail || '');
+            const failed = (CHECK_EVENTS.includes(e.eventType) && /fail|error|block/i.test(e.detail || ''))
+                || (e.eventType === 'Changes_Added' && /^Not added/.test(e.detail || ''));
             const ref = e.reference || '';
             return {
                 key: e.id || 'e' + i,

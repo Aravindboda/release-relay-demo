@@ -82,7 +82,8 @@ private class RlyOrgSessionTest {
                 'invalid_grant: audience is invalid' => 'Login type',
                 'invalid_grant: user is inactive' => 'Integration username',
                 'invalid_grant: something else' => 'JWT bearer flow',
-                'Read timed out' => 'couldn\'t sign in'
+                'Read timed out' => 'couldn\'t sign in',
+                '[{"errorCode":"REQUEST_LIMIT_EXCEEDED"}]' => 'daily API calls'
             };
             for (String raw : cases.keySet()) {
                 String fix = RlySignInAdvice.explain(raw, o);

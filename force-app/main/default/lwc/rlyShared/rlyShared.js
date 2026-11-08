@@ -304,12 +304,16 @@ export function partsToSend(sending, atOnce) {
 
 /**
  * The sending state with one part's values changed.
- * @param {object} sending the state
+ * @param {object} sending the state, or undefined (returned as it is)
  * @param {string} id the part
  * @param {object} values its new values
  * @returns {object} the new state
  */
 export function withPart(sending, id, values) {
+    // A send that failed or finished is undefined: a late part changes nothing (build 52).
+    if (!sending || !sending.parts) {
+        return sending;
+    }
     return { ...sending, parts: sending.parts.map((p) => (p.id === id ? { ...p, ...values } : p)) };
 }
 
@@ -320,5 +324,5 @@ export function withPart(sending, id, values) {
  * @returns {object} the part, or undefined
  */
 export function partIn(sending, id) {
-    return sending ? sending.parts.find((p) => p.id === id) : undefined;
+    return sending && sending.parts ? sending.parts.find((p) => p.id === id) : undefined;
 }

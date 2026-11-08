@@ -226,4 +226,34 @@ private class RlyRunMonitorControllerTest {
             System.assertEquals(0, [SELECT COUNT() FROM RLY_Pipeline_Run__c WHERE Id != null], 'Removed');
         }
     }
+
+    @IsTest
+    static void aDeveloperLaneShowsOnlyTheRaise() {
+        System.runAs(RlyTestData.admin()) {
+            RlyRunMonitorViews.Run v = new RlyRunMonitorViews.Run();
+            v.step = 'Raise';
+            v.status = RlyRunMonitorInput.FAILED;
+            v.failure = 'Check-only deploy › Deploy: 1 component error';
+            v.steps = new List<RlyRunMonitorViews.Step>{ step('Raise pull request', 'success'), step('Code scan', 'success'),
+                step('Check-only deploy', 'failure') };
+            Test.startTest();
+            RlyRunMonitorViews.Run part = RlyRunMonitorLanes.raisePart(v);
+            v.steps[0].outcome = 'failure';
+            RlyRunMonitorViews.Run raiseFailed = RlyRunMonitorLanes.raisePart(v);
+            Test.stopTest();
+            System.assertEquals(RlyRunMonitorInput.SUCCEEDED, part.status, 'The pull request opened: the developer org\'s part succeeded');
+            System.assertEquals(null, part.failure, 'The validation failure belongs to the stage\'s lane');
+            System.assertEquals(1, part.steps.size(), 'Only the raise job');
+            System.assertEquals(RlyRunMonitorInput.FAILED, v.status, 'The run itself is unchanged');
+            System.assertEquals(RlyRunMonitorInput.FAILED, raiseFailed.status, 'A failed raise stays on the developer org\'s lane');
+            System.assertEquals(null, RlyRunMonitorLanes.raisePart(null), 'No run');
+        }
+    }
+
+    private static RlyRunMonitorViews.Step step(String name, String outcome) {
+        RlyRunMonitorViews.Step st = new RlyRunMonitorViews.Step();
+        st.name = name;
+        st.outcome = outcome;
+        return st;
+    }
 }

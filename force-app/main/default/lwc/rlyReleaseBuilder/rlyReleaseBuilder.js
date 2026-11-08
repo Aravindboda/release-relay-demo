@@ -143,6 +143,8 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
 
     /** Append mode came from the page state (so opening New Release again without it starts a normal release). */
     appendFromState = false;
+    /** The release changes were just added to: its page state doesn't open append mode again (build 52). */
+    appendDoneFor;
 
     /** Picks handed over by the Sync status tab (sessionStorage rlySyncPick, page state c__syncPick). */
     pendingPick;
@@ -156,7 +158,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
             }
         }
         const id = ref && ref.state ? ref.state.c__appendTo : undefined;
-        if (id && id !== this._appendTo) {
+        if (id && id !== this._appendTo && id !== this.appendDoneFor) {
             this.appendFromState = true;
             this.appendTo = id;
         } else if (!id && ref && this.appendFromState) {
@@ -1293,9 +1295,13 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         return 'Goes to ' + target + ' like any release (scan, check-only deploy, tests, approval). After approval it can be promoted to '
             + (next || 'the next stop') + ' on its own.';
     }
-    handleHotfix(event) {
-        this.hotfix = event.target.checked;
+    // A toggle chip like the other options (build 52; was a checkbox).
+    handleHotfix() {
+        this.hotfix = !this.hotfix;
     }
+    get hotfixChipCls() { return 'rr-tchip' + (this.isHotfix ? ' rr-tchip-on' : ''); }
+    get hotfixPressed() { return this.isHotfix ? 'true' : 'false'; }
+    get hotfixChipText() { return this.isHotfix ? 'This is a hotfix ✓' : 'This is a hotfix'; }
     handleHotfixReason(event) {
         this.hotfixReason = event.target.value;
     }
@@ -1603,8 +1609,16 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
                 deletions: this.deletionItems.map((c) => ({ type: c.type, name: c.name })),
                 testClasses: this.testItems.map((t) => t.name)
             };
-            this.raisedId = await appendChanges({ requestJson: JSON.stringify(request) });
-            this.step = 'raise';
+            await appendChanges({ requestJson: JSON.stringify(request) });
+            // Back to the release's own page (header "Release · REL-x", no stepper): its status shows the add (build 52).
+            const releaseId = this._appendTo;
+            this.appendDoneFor = releaseId;
+            this.leaveAppend();
+            this[NavigationMixin.Navigate]({
+                type: 'standard__navItemPage',
+                attributes: { apiName: RELEASES_TAB },
+                state: { c__release: releaseId }
+            }, true);
         } catch (e) {
             this.raiseError = errorText(e);
         } finally {
