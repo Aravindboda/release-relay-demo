@@ -14,7 +14,7 @@
 public with sharing class RlyArchiveEligible {
 
     /** @description Release statuses that count as finished. */
-    public static final List<String> FINISHED = new List<String>{ 'Deployed', 'Rejected', 'Closed', 'Failed', 'Deploy failed' };
+    public static final List<String> FINISHED = new List<String>{ 'Deployed', 'Rejected', 'Closed', 'Failed', 'Deploy failed', 'Cancelled' };
     /** @description The rollback status that counts as finished. */
     public static final String ROLLED_BACK = 'Rolled_Back';
     /** @description The rollback status that holds a release back. */

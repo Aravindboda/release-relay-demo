@@ -15,7 +15,7 @@ public with sharing class RlyWorkItems {
     /** @description Refused when tickets are required and none came. */
     public static final String REQUIRED = 'Add the release\'s ticket (for example PROJ-123): your admin made tickets required.';
     /** @description Statuses after which tickets stay as they are. */
-    public static final Set<String> CLOSED = new Set<String>{ 'Deployed', 'Rejected', 'Closed', 'Merged' };
+    public static final Set<String> CLOSED = new Set<String>{ 'Deployed', 'Rejected', 'Closed', 'Merged', 'Cancelled' };
 
     /**
      * @description The tickets as sent: trimmed, upper-cased, without repeats, checked against the format.

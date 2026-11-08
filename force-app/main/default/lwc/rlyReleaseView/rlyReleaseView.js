@@ -9,6 +9,7 @@ import bypassScan from '@salesforce/apex/RlyReleasesController.bypassScan';
 import checkAgain from '@salesforce/apex/RlyReleasesController.checkAgain';
 import approve from '@salesforce/apex/RlyReleasesController.approve';
 import reject from '@salesforce/apex/RlyReleasesController.reject';
+import cancelRelease from '@salesforce/apex/RlyReleaseCancel.cancelFromPage';
 import resolveConflicts from '@salesforce/apex/RlyReleasesController.resolveConflicts';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
@@ -111,7 +112,8 @@ const EVENT_LOOK = {
     File_Downloaded: { title: 'Downloaded', icon: 'utility:download' },
     Window_Held: { title: 'Waiting for the window', icon: 'utility:clock' },
     Window_Override: { title: 'Deployed outside the window', icon: 'utility:warning' },
-    Changes_Added: { title: 'Changes added', icon: 'utility:add' }
+    Changes_Added: { title: 'Changes added', icon: 'utility:add' },
+    Cancelled: { title: 'Cancelled', icon: 'utility:ban' }
 };
 /** File events on manual steps (build 34): the History card's Files chip shows only these. */
 const FILE_EVENTS = ['File_Attached', 'File_Removed', 'Proof_Added', 'File_Downloaded'];
@@ -263,6 +265,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     checking = false;
     comment = '';
     reason = '';
+    /** Build 54: the Cancel release dialog is open, and the reason typed in it. */
+    cancelOpen = false;
+    cancelReason = '';
 
     /**
      * RlyHubGuard.getHubStatus: the org's mode. The tab around this view shows the gate or the banner; here the actions
@@ -1610,7 +1615,39 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         }
         return '';
     }
-    get showFooter() { return this.showCheckAgain || this.showReject || this.showApprove || !!this.footNote; }
+    get showFooter() { return this.showCheckAgain || this.showReject || this.showApprove || this.showCancel || !!this.footNote; }
+
+    // ---------- Cancel release (build 54): the raiser or an admin withdraws an open release; Reject is an approver's ----------
+
+    get showCancel() { return !!(this.detail && this.detail.canCancel) && !this.cancelOpen; }
+    get cancelHelp() { return 'Withdraw this release (you raised it, or you are an admin). Reject is for an approver turning it down.'; }
+    get cancelTitle() { return 'Cancel ' + (this.rel.Name || 'this release') + '?'; }
+    get cancelButtonLabel() { return 'Cancel ' + (this.rel.Name || 'the release'); }
+    get cancelRunWarning() {
+        const s = this.rel.Status__c;
+        if (s === 'Deploying') {
+            return 'A pipeline run is going: it may still deploy. Cancelling doesn\'t stop it; check the run.';
+        }
+        return this.running ? 'A pipeline run is going: cancelling doesn\'t stop it.' : '';
+    }
+    get cancelWhat() {
+        const pr = this.rel.PR_Number__c && !this.rel.Merge_Commit__c
+            ? ' Its pull request #' + this.rel.PR_Number__c + ' gets your reason as a comment and is closed.' : '';
+        return 'It becomes Cancelled with your reason, in History and on its Slack card.' + pr + ' This can\'t be undone: raise it again if needed.';
+    }
+    get cancelDisabled() { return this.actBusy || !(this.cancelReason || '').trim(); }
+    openCancel() {
+        this.cancelReason = '';
+        this.cancelOpen = true;
+    }
+    closeCancel() { this.cancelOpen = false; }
+    handleCancelReason(event) { this.cancelReason = event.target.value; }
+    async doCancel() {
+        await this.act(cancelRelease, { reason: this.cancelReason });
+        if (!this.error) {
+            this.cancelOpen = false;
+        }
+    }
 
     handleComment(event) { this.comment = event.target.value; }
     handleReason(event) { this.reason = event.target.value; }

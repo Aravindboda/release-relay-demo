@@ -18,6 +18,7 @@ import runOrgDeveloper from '@salesforce/apex/RlyMigrationOrgController.runOrgDe
 import readOrgCheck from '@salesforce/apex/RlyMigrationOrgController.readOrgCheck';
 import acceptDifferences from '@salesforce/apex/RlyMigrationOrgController.acceptDifferences';
 import switchNow from '@salesforce/apex/RlyMigrationOrgController.switchNow';
+import switchNowCancelling from '@salesforce/apex/RlyMigrationOrgController.switchNowCancelling';
 import finishMigration from '@salesforce/apex/RlyMigrationOrgController.finishMigration';
 import cancelMigration from '@salesforce/apex/RlyMigrationOrgController.cancelMigration';
 import describeTypes from '@salesforce/apex/RlyChangesController.describeTypes';
@@ -28,14 +29,20 @@ import { errorText, partsToSend, withPart, partIn } from 'c/rlyShared';
 
 /** Parts of a developer org sent at once. */
 const AT_ONCE = 2;
+/** A release opens on the Releases tab (build 54: the open releases and the ones the switch cancelled link to it). */
+const RELEASE_LINK = '/lightning/n/RLY_My_Releases?c__release=';
+/** Release statuses whose pipeline run is going (RlyStatusReader.OPEN_STATUSES), and the ones that failed. */
+const RUNNING_STATUSES = ['Submitted', 'Retrieving', 'Workflow running', 'Validating', 'Deploying', 'Waiting for window'];
+const FAILED_STATUSES = ['Checks failed', 'Deploy failed', 'Failed'];
 
 /**
  * The Migration tab (build 46, design board "Move to another provider"): moves the hub to another Git provider, all at
  * once. 1 Current → New (the active connection and what it holds; the new connection, with Check), 2 How (lift and shift,
  * the provider's own importer then verify, fresh start: only what works for the pair), 3 Dry run (required), 4 Run with
  * What moved and What didn't move, 5 New setup checklist, 6 each org against its new branch (developer orgs sent in parts,
- * as Sync status does), 7 Switch now, 8 Old setup checklist, then Finish → the Migration report (PDF). Done marks are
- * toggle chips. Running runs and checks are read again on a CSS-animation countdown (no timers).
+ * as Sync status does), 7 Switch now (build 54: releases still open are cancelled there when the admin turns on "Cancel the
+ * N open releases and switch"), 8 Old setup checklist, then Finish → the Migration report (PDF). Done marks are toggle
+ * chips. Running runs and checks are read again on a CSS-animation countdown (no timers).
  */
 export default class RlyRepoMigration extends LightningElement {
     view;
@@ -46,6 +53,8 @@ export default class RlyRepoMigration extends LightningElement {
     waits = {};
     sending;
     checkingAll = false;
+    /** Build 54: the admin chose to cancel the open releases at Switch now (a toggle chip, never on by default). */
+    cancelChosen = false;
 
     connectedCallback() {
         this.load();
@@ -102,6 +111,21 @@ export default class RlyRepoMigration extends LightningElement {
     get branchesText() { return (this.holds.branches || []).join(', ') + (this.holds.more ? ', …' : ''); }
     get hasOpen() { return (this.holds.open || []).length > 0; }
     get openCount() { return (this.holds.open || []).length; }
+    get openMessage() {
+        const n = this.openCount;
+        return 'You still have ' + n + ' open release' + (n === 1 ? '' : 's') + '. Close ' + (n === 1 ? 'it' : 'them')
+            + ', or Release Relay cancels ' + (n === 1 ? 'it' : 'them') + ' when you switch.';
+    }
+    get openRows() {
+        return (this.holds.open || []).map((r) => ({ ...r, link: RELEASE_LINK + r.id, prText: this.prText(r.url),
+            pill: 'rr-pill ' + (FAILED_STATUSES.includes(r.status) ? 'rr-pill-bad' : (RUNNING_STATUSES.includes(r.status) ? 'rr-pill-run' : 'rr-pill-warn')),
+            runText: 'a pipeline run is going (it isn\'t stopped: check it in ' + this.sourceLabel + ')' }));
+    }
+    /** "PR #41" from a pull or merge request link, else "Pull request". */
+    prText(url) {
+        const m = /(\d+)\/?$/.exec(url || '');
+        return m ? 'PR #' + m[1] : 'Pull request';
+    }
     get step() { return (this.view && this.view.step) || 1; }
     get statusText() { return this.view && this.view.status ? this.view.status : ''; }
     get isOpen() { return this.view && this.view.status === 'Open'; }
@@ -501,17 +525,62 @@ export default class RlyRepoMigration extends LightningElement {
     // ---------- 7 · Switch now ----------
 
     get conditions() {
-        return ((this.view && this.view.gate && this.view.gate.conditions) || []).map((c, i) => ({ ...c, key: 'c' + i,
-            pill: c.ok ? 'rr-pill rr-pill-ok' : 'rr-pill rr-pill-bad', mark: c.ok ? '✓' : '✗' }));
+        return ((this.view && this.view.gate && this.view.gate.conditions) || []).map((c, i) => {
+            let pill = c.ok ? 'rr-pill rr-pill-ok' : 'rr-pill rr-pill-bad';
+            let mark = c.ok ? '✓' : '✗';
+            if (!c.ok && c.warn) {
+                pill = 'rr-pill rr-pill-warn';
+                mark = '!';
+            }
+            return { ...c, key: 'c' + i, pill, mark };
+        });
     }
-    get cantSwitch() { return this.busy || !(this.view && this.view.gate && this.view.gate.ready); }
+    get gate() { return (this.view && this.view.gate) || {}; }
+    get cantSwitch() { return this.busy || !(this.gate.ready || (this.gate.readyIfCancelled && this.cancelChosen && this.hasOpen)); }
+
+    // Build 54: open releases are cancelled at the switch when the admin turns the chip on.
+    get showCancelChoice() { return this.isOpen && this.hasOpen; }
+    get cancelHeading() {
+        const n = this.openCount;
+        return (n === 1 ? 'This release is' : 'These ' + n + ' releases are') + ' cancelled when you switch:';
+    }
+    get cancelExplain() {
+        return 'Each one: status Cancelled, a History entry, its pull request in ' + this.sourceLabel + ' closed with a comment, '
+            + 'its Slack card edited. A pull request that can\'t be closed is listed after the switch; it never stops the switch.';
+    }
+    get cancelChipText() {
+        const n = this.openCount;
+        return 'Cancel the ' + (n === 1 ? 'open release' : n + ' open releases') + ' and switch' + (this.cancelChosen ? ' ✓' : '');
+    }
+    get cancelChipCls() { return this.cancelChosen ? 'rr-chip rr-chip-on' : 'rr-chip'; }
+    get cancelPressed() { return this.cancelChosen ? 'true' : 'false'; }
+    handleCancelChip() { this.cancelChosen = !this.cancelChosen; }
+
+    get cancelledRows() {
+        return ((this.view && this.view.cancelled) || []).map((r) => ({ ...r, link: RELEASE_LINK + r.id,
+            prState: this.prText(r.url) + (r.closed ? ' closed' : ' not closed'),
+            noteText: [r.running ? 'a pipeline run was going' : '', r.note || ''].filter((x) => x).join(' · ') }));
+    }
+    get hasCancelled() { return this.cancelledRows.length > 0; }
+    get cancelledCount() { return this.cancelledRows.length + ' cancelled · reason on each: "Cancelled by the move to ' + this.targetLabel + '"'; }
     get switchLabel() { return 'Switch to ' + this.targetLabel + ' now'; }
     get switchedOn() { return this.view && this.view.gate ? this.view.gate.switchedOn : null; }
 
     async handleSwitch() {
+        const cancelling = this.hasOpen && this.cancelChosen;
+        const open = this.holds.open || [];
+        const names = open.map((r) => r.name).join(', ');
         const ok = await LightningConfirm.open({ label: this.switchLabel + '?', theme: 'warning',
-            message: this.targetLabel + ' becomes the active connection for everything: new releases start there. Old releases keep their own repository.' });
-        if (ok) {
+            message: this.targetLabel + ' becomes the active connection for everything: new releases start there. Old releases keep their own repository.'
+                + (cancelling ? ' Cancelled now: ' + names + '.' : '') });
+        if (!ok) {
+            return;
+        }
+        if (cancelling) {
+            const cancelIds = open.map((r) => r.id);
+            await this.act(() => switchNowCancelling({ migrationId: this.view.id, cancelIds }));
+            this.cancelChosen = false;
+        } else {
             this.act(() => switchNow({ migrationId: this.view.id }));
         }
     }

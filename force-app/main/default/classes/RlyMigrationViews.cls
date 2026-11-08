@@ -58,6 +58,7 @@ public with sharing class RlyMigrationViews {
         }
         v.gate = RlyMigrationGate.of(c, v);
         v.log.events = events(state);
+        v.cancelled = state.cancelled == null ? new List<RlyMigrationView.CancelledRelease>() : state.cancelled;
         v.log.finishedOn = m.Finished_On__c;
         v.log.reportUrl = String.isBlank(m.Report_File__c) ? null : '/sfc/servlet.shepherd/document/download/' + m.Report_File__c;
         return v;
@@ -131,6 +132,7 @@ public with sharing class RlyMigrationViews {
             o.title = r.Title__c;
             o.status = r.Status__c;
             o.url = r.PR_URL__c;
+            o.running = RlyStatusReader.OPEN_STATUSES.contains(r.Status__c);
             h.open.add(o);
         }
         return h;
