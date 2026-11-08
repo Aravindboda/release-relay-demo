@@ -1,5 +1,32 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 26
+// Release Relay pipeline files: version 27
+// Version 27 (hub build 48, security fixes):
+//   Signed runs (contract A): with RELAY_RUN_KEY (32 random bytes, base64) set, every step that signs in or pushes
+//     (raise, validate, merge, deploy, sync, rollback, auto, compare, drift, routediff, data-export, data-load, migrate,
+//     notify, scan where it pushes, scan-save, and STEP=verify for the archive / Slack runs started by hand) first checks
+//     OPTIONS: the hub appends ,"iat":<epoch s>,"sig":"<base64>"} and sig = HMAC-SHA256(key, "rr1\n" + request_id, mode,
+//     environment, target_environment, branch, target, title, sha256hex(components), sha256hex(deletions),
+//     sha256hex(OPTIONS without iat and sig), iat joined by "\n"); |run created - iat| <= 900 s (GitLab
+//     CI_PIPELINE_CREATED_AT, GitHub the run's created_at read with RELAY_RUN_READ_TOKEN, else now). A missing, wrong or
+//     stale signature stops the step before any sign-in, push or result. Without the key: a warning (RELAY_SIGNING=required
+//     makes it a failure).
+//   Signed results (contract C): with the key, results/<id>/<stem>.json (and compare / drift / route pages f/<n>.json,
+//     and data.json) are {"payload":"<JSON.stringify(result)>","sig":base64 HMAC(key, "rr1-result\n<id>\n<stem>\n" +
+//     sha256hex(payload))}. validate.json read back for a deploy must carry a good signature.
+//   Approved head (contract B): validate.json records headSha; STEP=merge refuses unless the pull / merge request head is
+//     options.expectHead (GitHub --match-head-commit, GitLab sha, Azure lastMergeSourceCommit, Bitbucket checked just
+//     before); STEP=deploy fails ("changed after validation") when the merged head or files aren't the validated ones,
+//     unless options.fullDeploy (then a full deploy with tests). Quick deploy also needs validate.json's attempt to be
+//     options.validationAttempt (else options.attempt) and the org's record of the validation (sf project deploy
+//     report) to be a succeeded check-only deployment with this release's components; otherwise a full deploy.
+//   Untrusted branch (D): every sf command gets an allowlisted environment (no SF_JWT_KEY, SF_JKS*, SF_CLIENT_ID,
+//     SF_USERNAME, RELAY_TOKEN, GITHUB_TOKEN, GH_TOKEN, RELAY_RUN_KEY, RELAY_MIGRATE_TOKEN or other secret) and the
+//     branch's sfdx-project.json without "replacements" (stripped for the call, then put back). The scan passes
+//     --config-file (.relay/code-analyzer.yml on the pipeline commit, else a built-in config with ESLint auto-discovery
+//     off) and removes the branch's code-analyzer.yml and ESLint config files from the working tree first. With
+//     RELAY_RESULT_FILE (GitHub's read-only scan job) the scan leaves its result there and STEP=scan-save signs and saves
+//     it; RELAY_NO_FETCH=true uses the branches the checkout already fetched. selfUpdate with a target other than
+//     release-relay-hub (or a branch in the variable RELAY_SELF_UPDATE_BRANCHES) fails.
 // Version 26 (hub build 46, the Move repository wizard): MODE=migrate (STEP=migrate, request ids MIG-<13 digits>) runs
 //   in the SOURCE connection's pipeline and copies this repository into a new, empty one at another provider: a
 //   git clone --mirror of this repository, then every branch (the default branch first) and every tag pushed to
@@ -173,13 +200,96 @@
  */
 'use strict';
 
-const { execFileSync } = require('child_process');
+const childProcess = require('child_process');
 const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
 const env = process.env;
+
+// ---------- version 27: the Salesforce CLI never sees a secret, and never the branch's replacements ----------
+
+/**
+ * The only environment variables the Salesforce CLI gets (version 27). The release branch is untrusted: its
+ * sfdx-project.json could name any environment variable in "replaceWithEnv" and deploy its value into an org, so no
+ * login, token or signing key (SF_JWT_KEY, SF_JKS*, SF_CLIENT_ID, SF_USERNAME, RELAY_TOKEN, GITHUB_TOKEN, GH_TOKEN,
+ * RELAY_RUN_KEY, RELAY_MIGRATE_TOKEN, ...) is ever passed to it.
+ */
+const SF_ENV_ALLOW = new Set(['PATH', 'HOME', 'USER', 'LOGNAME', 'SHELL', 'TMPDIR', 'TMP', 'TEMP', 'LANG', 'LC_ALL', 'LC_CTYPE',
+    'TZ', 'CI', 'JAVA_HOME', 'NODE_OPTIONS', 'NODE_EXTRA_CA_CERTS', 'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'http_proxy',
+    'https_proxy', 'no_proxy', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_STATE_HOME', 'SF_DATA_DIR',
+    'SF_CONFIG_DIR', 'SF_CACHE_DIR', 'SF_STATE_DIR', 'SF_USE_GENERIC_UNIX_KEYCHAIN', 'SF_LOG_LEVEL', 'SF_DISABLE_LOG_FILE',
+    'SF_SKIP_NEW_VERSION_CHECK', 'SF_DISABLE_TELEMETRY', 'SF_DISABLE_AUTOUPDATE', 'SF_AUTOUPDATE_DISABLE', 'NO_COLOR',
+    'FORCE_COLOR']);
+
+/** The allowlisted environment for one sf call (extra: the caller's env option, filtered the same way). */
+function sfEnv(extra) {
+    const out = {};
+    for (const [k, value] of Object.entries({ ...process.env, ...(extra || {}) })) {
+        if (SF_ENV_ALLOW.has(k) && value !== undefined) {
+            out[k] = String(value);
+        }
+    }
+    return { ...out, SF_SKIP_NEW_VERSION_CHECK: 'true', SF_DISABLE_TELEMETRY: 'true', SF_DISABLE_AUTOUPDATE: 'true' };
+}
+
+let replacementsNoted = false;
+
+/**
+ * Runs fn with the release branch's sfdx-project.json stripped of "replacements" (version 27: string replacements
+ * could read any file or variable into deployed metadata), then puts the file back, so the checkout stays clean.
+ */
+function withSafeProject(cwd, fn) {
+    const file = path.join(cwd || process.cwd(), 'sfdx-project.json');
+    let original = null;
+    try {
+        original = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+    } catch (e) {
+        original = null;
+    }
+    let stripped = null;
+    if (original && original.includes('replacements')) {
+        try {
+            const project = JSON.parse(original);
+            let found = false;
+            const strip = (o) => {
+                if (o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, 'replacements')) {
+                    delete o.replacements;
+                    found = true;
+                }
+            };
+            strip(project);
+            (Array.isArray(project.packageDirectories) ? project.packageDirectories : []).forEach(strip);
+            if (found) {
+                stripped = JSON.stringify(project, null, 2) + '\n';
+            }
+        } catch (e) {
+            stripped = null; // not JSON: the CLI refuses the project anyway
+        }
+    }
+    if (stripped === null) {
+        return fn();
+    }
+    if (!replacementsNoted) {
+        replacementsNoted = true;
+        console.log('::warning::sfdx-project.json on this branch has "replacements"; Release Relay ignores them (use .relay/values.json for per-org values).');
+    }
+    fs.writeFileSync(file, stripped);
+    try {
+        return fn();
+    } finally {
+        fs.writeFileSync(file, original);
+    }
+}
+
+/** execFileSync, except that sf runs with the allowlisted environment and a safe project file (version 27). */
+function execFileSync(cmd, args, opts = {}) {
+    if (cmd !== 'sf') {
+        return childProcess.execFileSync(cmd, args, opts);
+    }
+    return withSafeProject(opts.cwd, () => childProcess.execFileSync(cmd, args, { ...opts, env: sfEnv(opts.env) }));
+}
 const BRANCH_RE = /^(feature|bugfix|hotfix|promote)\/[a-z0-9._-]{1,100}$/;
 const REF_RE = /^[A-Za-z0-9._/-]{1,100}$/;
 const ITEM_RE = /^([A-Za-z]{2,80}):([^,:\r\n]{1,255})$/;
@@ -569,6 +679,160 @@ const APEX_NAME_RE = /^[A-Za-z][A-Za-z0-9_]{0,39}$/;
 const runToken = typeof options.attempt === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(options.attempt) ? options.attempt : null;
 const targetEnv = input('TARGET_ENVIRONMENT');
 
+// ---------- version 27: signed run requests and signed results ----------
+
+/** The run-signing key (secret RELAY_RUN_KEY: 32 random bytes, base64), or null when it isn't set here. */
+function runKey() {
+    const raw = (env.RELAY_RUN_KEY || '').trim();
+    if (!raw) {
+        return null;
+    }
+    const key = Buffer.from(raw, 'base64');
+    return key.length >= 16 ? key : null;
+}
+
+function sha256hex(text) {
+    return crypto.createHash('sha256').update(Buffer.from(String(text), 'utf8')).digest('hex');
+}
+
+function hmacBase64(key, text) {
+    return crypto.createHmac('sha256', key).update(Buffer.from(String(text), 'utf8')).digest('base64');
+}
+
+/** Constant-time comparison of two base64 signatures. */
+function sameSignature(a, b) {
+    const x = Buffer.from(String(a || ''), 'utf8');
+    const y = Buffer.from(String(b || ''), 'utf8');
+    if (x.length !== y.length || !x.length) {
+        crypto.timingSafeEqual(x, x); // same work either way
+        return false;
+    }
+    return crypto.timingSafeEqual(x, y);
+}
+
+const RUN_SIG_SUFFIX_RE = /,?"iat":(\d+),"sig":"([A-Za-z0-9+/=]+)"\}$/;
+const RUN_SIG_WINDOW = 900;
+const NOT_FROM_HUB = 'This run wasn\'t started by the Release Relay hub (missing or wrong signature).';
+
+/** An input exactly as sent: '' for unset and for Azure's empty markers, otherwise untrimmed. */
+function rawInput(name) {
+    const value = env[name] === undefined ? '' : String(env[name]);
+    return value.trim() === '-' || /^\s*\$\([A-Za-z0-9_.]+\)\s*$/.test(value) ? '' : value;
+}
+
+/** The canonical text the hub signs for this run (contract rr1), from the inputs read by get. */
+function runCanonical(get, optionsWithoutSig, iat) {
+    return ['rr1', get('REQUEST_ID'), get('MODE'), get('ENVIRONMENT'), get('TARGET_ENVIRONMENT'), get('BRANCH'), get('TARGET'),
+        get('TITLE'), sha256hex(get('COMPONENTS')), sha256hex(get('DELETIONS')), sha256hex(optionsWithoutSig), String(iat)].join('\n');
+}
+
+/** When this run was requested (seconds): the pipeline's creation time where the provider gives it, else now. */
+async function runRequestedAt() {
+    const now = Math.floor(Date.now() / 1000);
+    if (env.CI_PIPELINE_CREATED_AT) {
+        const t = Date.parse(env.CI_PIPELINE_CREATED_AT);
+        return Number.isFinite(t) ? Math.floor(t / 1000) : now;
+    }
+    const readToken = env.RELAY_RUN_READ_TOKEN || env.GITHUB_TOKEN || env.GH_TOKEN;
+    if (env.GITHUB_RUN_ID && env.GITHUB_REPOSITORY && readToken) {
+        // A job can start long after the dispatch (a queued run, an environment's reviewers): the run's own creation
+        // time is the moment the hub asked.
+        try {
+            const api = env.GITHUB_API_URL || 'https://api.github.com';
+            const res = await fetch(`${api}/repos/${env.GITHUB_REPOSITORY}/actions/runs/${encodeURIComponent(env.GITHUB_RUN_ID)}`, {
+                headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + readToken }
+            });
+            const json = res.ok ? await res.json() : null;
+            const t = json && Date.parse(json.created_at || '');
+            if (t) {
+                return Math.floor(t / 1000);
+            }
+        } catch (e) {
+            // the job's own clock below
+        }
+        console.log('::warning::The run\'s start time couldn\'t be read (actions: read); the signature\'s age is checked against now.');
+    }
+    return now;
+}
+
+/**
+ * Contract A: the hub signs every run it starts (options.iat and options.sig). With RELAY_RUN_KEY set, a run without a
+ * valid, fresh signature stops here, before any sign-in, push or result. Without the key the run goes on with a
+ * warning (until the key is added), unless the variable RELAY_SIGNING is "required".
+ */
+async function verifyRunSignature() {
+    const key = runKey();
+    if (!key) {
+        if (/^required$/i.test((env.RELAY_SIGNING || '').trim())) {
+            fail('RELAY_RUN_KEY isn\'t available to this job, and RELAY_SIGNING is required. ' + NOT_FROM_HUB);
+        }
+        const note = 'RELAY_RUN_KEY isn\'t set, so this run\'s signature wasn\'t checked. Add the run-signing key from the hub\'s Pipeline tab.';
+        console.log('::warning::' + note);
+        summary('**Warning:** ' + note);
+        return false;
+    }
+    const raw = rawInput('OPTIONS');
+    const m = RUN_SIG_SUFFIX_RE.exec(raw);
+    if (!m) {
+        fail(NOT_FROM_HUB);
+    }
+    const iat = Number(m[1]);
+    const withoutSig = raw.slice(0, m.index) + '}';
+    const at = await runRequestedAt();
+    if (!Number.isSafeInteger(iat) || Math.abs(at - iat) > RUN_SIG_WINDOW) {
+        fail(NOT_FROM_HUB + ' The signature is older than 15 minutes, or the clocks differ.');
+    }
+    const trimmed = (name) => rawInput(name).trim();
+    const ok = [rawInput, trimmed].some((get) => sameSignature(hmacBase64(key, runCanonical(get, withoutSig, iat)), m[2]));
+    if (!ok) {
+        fail(NOT_FROM_HUB);
+    }
+    console.log('The run\'s signature is the hub\'s.');
+    return true;
+}
+
+/**
+ * Contract C: a result file's text. With RELAY_RUN_KEY: {"payload":"<the result's JSON>","sig":"<base64 HMAC>"}, where
+ * sig signs "rr1-result\n<request id>\n<step>\n<sha256 hex of payload>" (request id = the folder under results/,
+ * step = the file's stem). Without the key: the result's JSON as before.
+ */
+function resultFileText(requestFolder, stem, obj, indent) {
+    const key = runKey();
+    if (!key) {
+        return indent ? JSON.stringify(obj, null, indent) : JSON.stringify(obj);
+    }
+    const payload = JSON.stringify(obj);
+    const sig = hmacBase64(key, `rr1-result\n${requestFolder}\n${stem}\n${sha256hex(payload)}`);
+    return JSON.stringify({ payload, sig });
+}
+
+/**
+ * Reads a result file written by resultFileText: the parsed result, or null when it can't be trusted (with the key:
+ * not wrapped, or a wrong signature).
+ */
+function readResultText(requestFolder, stem, text) {
+    let parsed;
+    try {
+        parsed = JSON.parse(text);
+    } catch (e) {
+        return null;
+    }
+    const wrapped = parsed && typeof parsed === 'object' && typeof parsed.payload === 'string' && typeof parsed.sig === 'string'
+        && Object.keys(parsed).length === 2;
+    const key = runKey();
+    if (key) {
+        if (!wrapped || !sameSignature(hmacBase64(key, `rr1-result\n${requestFolder}\n${stem}\n${sha256hex(parsed.payload)}`), parsed.sig)) {
+            console.log(`::warning::results/${requestFolder}/${stem}.json isn't signed by this pipeline, so it's ignored.`);
+            return null;
+        }
+    }
+    try {
+        return wrapped ? JSON.parse(parsed.payload) : parsed;
+    } catch (e) {
+        return null;
+    }
+}
+
 let orgEnv = sourceEnv; // whose login and settings v() reads
 
 function prefixOf(name) {
@@ -686,6 +950,9 @@ function remoteBranchExists(name) {
 }
 
 function fetchBranch(name) {
+    if (env.RELAY_NO_FETCH === 'true' && gitQuiet(['rev-parse', '-q', '--verify', `refs/remotes/origin/${name}`])) {
+        return; // version 27: the read-only scan job has no credentials; its checkout fetched every branch
+    }
     git(['fetch', '--no-tags', 'origin', `+refs/heads/${name}:refs/remotes/origin/${name}`]);
 }
 
@@ -730,9 +997,17 @@ function writeResult(name, data) {
     if (['validate', 'scan'].includes(name) && !result.gates) {
         result.gates = gatesResult(relayGates, []);
     }
-    const json = JSON.stringify(result, null, 1);
+    if (name === 'validate' && validatedHead && !result.headSha) {
+        result.headSha = validatedHead; // version 27: the release branch head this validation checked
+    }
+    const json = resultFileText(requestId, name, result, 1);
     summarizeResult(result);
     if (env.RELAY_LOCAL_RESULTS === 'true') {
+        return;
+    }
+    if (env.RELAY_RESULT_FILE) {
+        // Version 27 (GitHub scan): a read-only job hands its result to the scan-save job instead of pushing it.
+        fs.writeFileSync(env.RELAY_RESULT_FILE, JSON.stringify(result) + '\n');
         return;
     }
     const file = path.join('results', requestId, name + '.json');
@@ -921,6 +1196,7 @@ function componentFor(file) {
 let excludeRules = [];
 let excludeSource = '';
 let deployExcluded = []; // the files the last buildDeployment left out, for the result
+let validatedHead = null; // version 27: the release branch head a validation checked (validate.json headSha)
 const selfUpdate = () => options.selfUpdate === true;
 
 function globRegex(glob) {
@@ -1807,9 +2083,38 @@ function runDeploy(args, testLevel, tests, cwd) {
 
 const SEVERITY = { 1: 'Critical', 2: 'High', 3: 'Moderate', 4: 'Low', 5: 'Info' };
 
+/** Code Analyzer and ESLint settings the release branch could carry; never used (version 27). */
+const SCAN_CONFIG_RE = /(^|\/)(code-analyzer\.ya?ml|\.eslintrc(\.(js|cjs|mjs|json|ya?ml))?|eslint\.config\.(js|cjs|mjs|ts|mts|cts)|\.eslintignore)$/;
+const SCAN_CONFIG_DEFAULT = [
+    '# Release Relay (version 27): Code Analyzer settings from the pipeline, never from the release branch.',
+    'engines:',
+    '  eslint:',
+    '    auto_discover_eslint_config: false',
+    ''
+].join('\n');
+
+/**
+ * Version 27: the Code Analyzer config file for the scan, from the pipeline's commit (.relay/code-analyzer.yml; else
+ * the built-in one above), written outside the checkout. The branch's own Code Analyzer and ESLint config files are
+ * removed from the working tree first (the scan job never pushes this checkout), so none of them is read.
+ */
+function scanConfigFile() {
+    const tracked = (gitQuiet(['ls-files', '-z']) || '').split('\0').filter((f) => f && SCAN_CONFIG_RE.test(f));
+    const untracked = ['code-analyzer.yml', 'code-analyzer.yaml'].filter((f) => fs.existsSync(f));
+    for (const f of new Set([...tracked, ...untracked])) {
+        fs.rmSync(f, { force: true });
+        console.log(`Ignoring the branch's ${f} (the scan uses the pipeline's settings).`);
+    }
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-scan-'));
+    const file = path.join(dir, 'code-analyzer.yml');
+    fs.writeFileSync(file, pipelineFile('.relay/code-analyzer.yml') || SCAN_CONFIG_DEFAULT);
+    return file;
+}
+
 async function stepScan() {
     orgEnv = '';
     const base = checkoutReleaseBranch();
+    const configFile = scanConfigFile(); // version 27: before the file list, so a removed config file isn't a target
     const files = changedFiles(base, 'HEAD')
         .filter((f) => f.status !== 'D' && SCAN_EXT.some((ext) => f.file.endsWith(ext)) && fs.existsSync(f.file))
         .map((f) => f.file);
@@ -1827,7 +2132,8 @@ async function stepScan() {
     const rules = /^[A-Za-z0-9:,() _-]{1,200}$/.test(v('SCAN_RULES') || '') ? v('SCAN_RULES') : 'Recommended';
     fs.mkdirSync(WORK_DIR, { recursive: true });
     const outFile = path.join(WORK_DIR, 'scan.json');
-    const args = ['code-analyzer', 'run', '--workspace', '.', '--rule-selector', rules, '--output-file', outFile];
+    const args = ['code-analyzer', 'run', '--workspace', '.', '--rule-selector', rules, '--output-file', outFile,
+        '--config-file', configFile];
     files.forEach((f) => args.push('--target', f));
     try {
         run('sf', args, { stdio: ['ignore', 'inherit', 'inherit'] });
@@ -1925,9 +2231,14 @@ const providers = {
             const n = run('gh', ['pr', 'list', '--head', head, '--base', base, '--state', state, '--json', 'number', '--jq', '.[0].number // ""']);
             return n ? { id: n } : null;
         },
-        async merge(pr, method) {
+        async head(pr) {
+            return run('gh', ['pr', 'view', String(pr.id), '--json', 'headRefOid', '--jq', '.headRefOid // ""']);
+        },
+        async merge(pr, method, expectHead) {
             try {
-                execFileSync('gh', ['pr', 'merge', String(pr.id), '--' + method], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+                // Version 27: --match-head-commit makes GitHub refuse the merge when the head isn't the approved one.
+                execFileSync('gh', ['pr', 'merge', String(pr.id), '--' + method, ...(expectHead ? ['--match-head-commit', expectHead] : [])],
+                    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
             } catch (e) {
                 throw new Error(String(e.stderr || e.message).trim().slice(0, 800));
             }
@@ -1969,8 +2280,13 @@ const providers = {
             const rows = await this.list(head, base, state === 'open' ? 'opened' : 'merged');
             return rows.length ? { id: rows[0].iid, raw: rows[0] } : null;
         },
-        async merge(pr, method) {
-            const res = await http('PUT', `${this.base()}/merge_requests/${pr.id}/merge`, this.headers(), { squash: method === 'squash' });
+        async head(pr) {
+            return (pr.raw && pr.raw.sha) || '';
+        },
+        async merge(pr, method, expectHead) {
+            // Version 27: sha makes GitLab refuse the merge when the merge request's head isn't the approved one.
+            const res = await http('PUT', `${this.base()}/merge_requests/${pr.id}/merge`, this.headers(),
+                { squash: method === 'squash', ...(expectHead ? { sha: expectHead } : {}) });
             if (!res.ok) {
                 throw apiError('Merge', res);
             }
@@ -2020,6 +2336,9 @@ const providers = {
         async find(head, base, state) {
             const rows = await this.list(head, base, state === 'open' ? 'OPEN' : 'MERGED');
             return rows.length ? { id: rows[0].id, raw: rows[0] } : null;
+        },
+        async head(pr) {
+            return (pr.raw && pr.raw.source && pr.raw.source.commit && pr.raw.source.commit.hash) || '';
         },
         async merge(pr, method) {
             const res = await http('POST', `${this.base()}/pullrequests/${pr.id}/merge`, this.headers(),
@@ -2075,10 +2394,14 @@ const providers = {
             const rows = await this.list(head, base, state === 'open' ? 'active' : 'completed');
             return rows.length ? { id: rows[0].pullRequestId, raw: rows[0] } : null;
         },
-        async merge(pr, method) {
+        async head(pr) {
+            return (pr.raw && pr.raw.lastMergeSourceCommit && pr.raw.lastMergeSourceCommit.commitId) || '';
+        },
+        async merge(pr, method, expectHead) {
+            // Azure completes the pull request only when lastMergeSourceCommit is still its source head.
             const res = await http('PATCH', `${this.base()}/pullrequests/${pr.id}?api-version=7.1`, this.headers(), {
                 status: 'completed',
-                lastMergeSourceCommit: pr.raw.lastMergeSourceCommit,
+                lastMergeSourceCommit: expectHead ? { commitId: expectHead } : pr.raw.lastMergeSourceCommit,
                 completionOptions: { mergeStrategy: method === 'squash' ? 'squash' : 'noFastForward', deleteSourceBranch: false }
             });
             if (!res.ok) {
@@ -2838,6 +3161,7 @@ async function stepValidate() {
         } else {
             base = checkoutReleaseBranch();
         }
+        validatedHead = gitQuiet(['rev-parse', `refs/remotes/origin/${branch}`]);
         plan = buildDeployment(base, 'HEAD');
         validatedTree = git(['rev-parse', 'HEAD^{tree}']); // a quick deploy needs exactly this tree
         if (!plan) {
@@ -3085,10 +3409,32 @@ function syncDeveloperBranches() {
 
 // ---------- step: merge ----------
 
+const CHANGED_AFTER_APPROVAL = 'The release branch changed after it was approved; run the checks again.';
+
+/** Version 27: options.expectHead, the release branch head the hub approved (lower case), or ''. */
+function expectedHead() {
+    const value = typeof options.expectHead === 'string' ? options.expectHead.trim().toLowerCase() : '';
+    return SHA_RE.test(value) ? value : '';
+}
+
+/** Whether a provider's head (full, or Bitbucket's 12-character hash) is the expected commit. */
+function sameHead(head, expected) {
+    const h = String(head || '').trim().toLowerCase();
+    return Boolean(h) && Boolean(expected) && (h === expected || (h.length >= 7 && h.length < 40 && expected.startsWith(h)));
+}
+
 async function stepMerge() {
     orgEnv = sourceEnv;
     checkAllowedTarget();
     const method = ['merge', 'squash'].includes(v('MERGE_METHOD')) ? v('MERGE_METHOD') : 'merge';
+    const expectHead = expectedHead();
+    if (!expectHead) {
+        if (runKey()) {
+            writeResult('merge', { status: 'Failed', message: CHANGED_AFTER_APPROVAL + ' (The hub sent no approved head.)' });
+            process.exit(1);
+        }
+        console.log('::warning::The hub sent no approved head (options.expectHead), so the head wasn\'t pinned. Hubs from build 48 send it.');
+    }
     let pr = await provider.find(branch, target, 'open');
     let alreadyMerged = false;
     if (!pr) {
@@ -3099,9 +3445,26 @@ async function stepMerge() {
         writeResult('merge', { status: 'Failed', message: `No open ${provider.label} from ${branch} into ${target}.` });
         process.exit(1);
     }
+    if (expectHead) {
+        // Contract B: merge exactly what was approved.
+        let head = '';
+        try {
+            head = String((await provider.head(pr)) || '');
+        } catch (e) {
+            head = '';
+        }
+        if (!head && !alreadyMerged) {
+            fetchBranch(branch);
+            head = gitQuiet(['rev-parse', `refs/remotes/origin/${branch}`]) || '';
+        }
+        if (!sameHead(head, expectHead)) {
+            writeResult('merge', { status: 'Failed', pr: Number(pr.id), head: head || null, expectHead, message: CHANGED_AFTER_APPROVAL });
+            process.exit(1);
+        }
+    }
     if (!alreadyMerged) {
         try {
-            await provider.merge(pr, method);
+            await provider.merge(pr, method, expectHead);
         } catch (e) {
             writeResult('merge', { status: 'Failed', pr: Number(pr.id),
                 message: `The merge was refused: ${e.message} (conflicts, or a branch rule that needs a bypass for this pipeline).` });
@@ -3129,7 +3492,7 @@ async function stepMerge() {
     } catch (e) {
         sync = [{ branch: '*', status: 'Conflict', message: 'Updating the branches after the merge failed: ' + e.message.slice(0, 300) }];
     }
-    writeResult('merge', { status: 'Merged', pr: Number(pr.id), sha, method, sync });
+    writeResult('merge', { status: 'Merged', pr: Number(pr.id), sha, method, sync, head: expectHead || null });
     shareMergeSha(sha);
 }
 
@@ -3150,9 +3513,19 @@ async function stepDeploy() {
         return;
     }
     let plan;
+    let guard = {};
     try {
         fetchBranch(target);
         git(['checkout', '-q', '--detach', sha]);
+        // Contract B (version 27): deploy only what the check passed.
+        guard = validationGuard(sha);
+        if (guard.fail) {
+            writeResult('deploy', { status: 'Failed', sha, changedAfterValidation: true, message: guard.fail });
+            process.exit(1);
+        }
+        if (guard.note) {
+            console.log('::warning::' + guard.note);
+        }
         plan = buildDeployment(`${sha}^1`, sha);
         if (!plan) {
             writeResult('deploy', deployExcluded.length
@@ -3172,7 +3545,7 @@ async function stepDeploy() {
     }
     // The org's current versions of what this deploy changes, for a rollback. Never blocks the deploy.
     const snapshot = takeSnapshot(plan, sha);
-    const check = quickDeployCheck(sha);
+    const check = guard.full ? { note: guard.note } : quickDeployCheck(sha, plan);
     let r = null;
     let quickNote = check.note;
     if (check.validation) {
@@ -3203,6 +3576,105 @@ async function stepDeploy() {
     }
 }
 
+const CHANGED_AFTER_VALIDATION = 'The release changed after validation (its branch head or files aren\'t the ones the check passed); run the checks again.';
+
+/**
+ * Version 27, contract B: is the merge exactly what the check passed? { fail } stops the deploy; { note } lets it go
+ * on (only without RELAY_RUN_KEY, for results of older pipelines); { full, note } is options.fullDeploy (the hub sent
+ * it after a fresh check): a full deploy with tests, no quick deploy. The release head merged must be validate.json's
+ * headSha (and options.expectHead), and the files must be the validated tree: the merge's tree when the check merged
+ * the target in (and the target hasn't moved since), else the release head's tree.
+ */
+function validationGuard(sha) {
+    if (options.fullDeploy === true) {
+        return { full: true, note: 'A full deploy was asked for after a fresh check, so it was deployed in full with tests.' };
+    }
+    const soft = (message) => (runKey() ? { fail: message } : { note: message });
+    const val = validationResult();
+    if (!val) {
+        return soft('No validation result signed by this pipeline for this release; run the checks again.');
+    }
+    if (!SHA_RE.test(String(val.headSha || ''))) {
+        return soft('The validation didn\'t record the branch head it checked (an older pipeline); run the checks again.');
+    }
+    const expect = expectedHead();
+    if (expect && expect !== val.headSha) {
+        return { fail: CHANGED_AFTER_VALIDATION + ' (The approved head isn\'t the validated one.)' };
+    }
+    let mergedHead = gitQuiet(['rev-parse', '-q', '--verify', `${sha}^2`]);
+    if (!mergedHead) {
+        // A squash or fast-forward merge has no second parent: the release branch's head now.
+        fetchBranch(branch);
+        mergedHead = gitQuiet(['rev-parse', `refs/remotes/origin/${branch}`]);
+    }
+    if (mergedHead !== val.headSha) {
+        return { fail: CHANGED_AFTER_VALIDATION };
+    }
+    if (val.validatedTree) {
+        if (SHA_RE.test(String(val.mergedWith || ''))) {
+            const parent = gitQuiet(['rev-parse', `${sha}^1`]);
+            if (parent === val.mergedWith && gitQuiet(['rev-parse', `${sha}^{tree}`]) !== val.validatedTree) {
+                return { fail: CHANGED_AFTER_VALIDATION };
+            }
+        } else if (gitQuiet(['rev-parse', `${mergedHead}^{tree}`]) !== val.validatedTree) {
+            return { fail: CHANGED_AFTER_VALIDATION };
+        }
+    }
+    return {};
+}
+
+/** Type:Name of every component in a manifest file (empty when it can't be read). */
+function manifestItems(file) {
+    try {
+        return file && fs.existsSync(file) ? parsePackageXml(fs.readFileSync(file, 'utf8')).map((i) => `${i.type}:${i.name}`) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+/**
+ * Version 27: asks the org about the validation before a quick deploy. It must be a check-only deployment in this org
+ * that succeeded, with this release's components (the manifest and the deletions): null when it is, else why not.
+ */
+function validationInOrgProblem(deployId, plan) {
+    let out = null;
+    try {
+        out = JSON.parse(run('sf', ['project', 'deploy', 'report', '--job-id', deployId, '--target-org', 'target-org', '--json'],
+            { stdio: ['ignore', 'pipe', 'pipe'] }));
+    } catch (e) {
+        try {
+            out = e.stdout ? JSON.parse(String(e.stdout)) : null;
+        } catch (ignore) {
+            out = null;
+        }
+    }
+    const r = (out && out.result) || {};
+    if (!out || out.status !== 0 || r.id === undefined) {
+        return 'this org has no such validation';
+    }
+    if (r.checkOnly !== true || r.status !== 'Succeeded' || r.success === false) {
+        return `it isn't a check-only deployment that succeeded (${r.status || 'no status'})`;
+    }
+    const expected = new Set([...manifestItems(plan.pkg), ...manifestItems(plan.destructive)]);
+    const details = r.details || {};
+    const done = asList(details.componentSuccesses).filter((c) => c && c.fullName && c.componentType && c.fullName !== 'package.xml')
+        .map((c) => `${c.componentType}:${c.fullName}`);
+    if (!done.length) {
+        const total = Number(r.numberComponentsTotal);
+        return Number.isFinite(total) && total >= expected.size ? null : 'its components couldn\'t be compared with this release';
+    }
+    const got = new Set(done);
+    const missing = [...expected].filter((k) => !got.has(k));
+    // Children the org lists for a deployed parent (an object's fields) are fine; anything else is another release's.
+    const parentOf = (k) => k.split(':')[1].split('.')[0];
+    const names = new Set([...expected].map((k) => k.split(':')[1]));
+    const extra = [...got].filter((k) => !expected.has(k) && !names.has(parentOf(k)));
+    if (missing.length || extra.length) {
+        return `its components aren't this release's (${missing.length} missing, ${extra.length} other)`;
+    }
+    return null;
+}
+
 const QUICK_DEPLOY_DAYS = 10;
 const TESTED_LEVELS = ['RunSpecifiedTests', 'RunLocalTests', 'RunAllTestsInOrg'];
 
@@ -3214,7 +3686,7 @@ function validationResult() {
         }
         fetchBranch(RESULTS_BRANCH);
         const raw = gitQuiet(['show', `refs/remotes/origin/${RESULTS_BRANCH}:results/${requestId}/validate.json`]);
-        return raw ? JSON.parse(raw) : null;
+        return raw ? readResultText(requestId, 'validate', raw) : null;
     } catch (e) {
         return null;
     }
@@ -3239,7 +3711,7 @@ function targetIsSandbox() {
  * exactly what was validated: the merge's target-side parent is the target commit the validation merged
  * with, and the merged tree is the validated tree. Returns { validation } or { note } (why not).
  */
-function quickDeployCheck(sha) {
+function quickDeployCheck(sha, plan) {
     if (options.quickDeploy === false) {
         return { note: 'Quick deploy is off for this release.' };
     }
@@ -3283,6 +3755,16 @@ function quickDeployCheck(sha) {
                 ? 'The validation ran no tests (NoTestRun), and production quick deploys only validations that ran tests, so it was deployed in full.'
                 : 'The validation ran no tests (NoTestRun) and the org couldn\'t be confirmed as a sandbox, so it was deployed in full.' };
         }
+    }
+    // Version 27: the validation must be the one this release was approved on (its run token), and the org's own
+    // record of it must match this release, so a validate.json naming someone else's validation is never quick deployed.
+    const approvedAttempt = typeof options.validationAttempt === 'string' && options.validationAttempt ? options.validationAttempt : runToken;
+    if (!val.attempt || val.attempt !== approvedAttempt) {
+        return { note: 'The validation result isn\'t from the check this release was approved on, so it was deployed in full.' };
+    }
+    const problem = plan ? validationInOrgProblem(val.deployId, plan) : 'no deployment plan';
+    if (problem) {
+        return { note: `The org's record of validation ${val.deployId} doesn't match (${problem}), so it was deployed in full.` };
     }
     return { validation: val };
 }
@@ -4203,7 +4685,7 @@ function writeCompareResults(data, files, fileName = 'compare.json', stepName = 
     if (runToken) {
         result.attempt = runToken;
     }
-    const json = JSON.stringify(result, null, 1);
+    const json = resultFileText(resultsId(), fileName.replace(/\.json$/, ''), result, 1);
     summarizeResult({ ...result, components: undefined, changed: undefined, deleted: undefined });
     if (env.RELAY_LOCAL_RESULTS === 'true') {
         return;
@@ -4228,7 +4710,7 @@ function writeCompareResults(data, files, fileName = 'compare.json', stepName = 
             fs.rmSync(path.join(dir, base), { recursive: true, force: true });
             fs.mkdirSync(path.join(dir, base, 'f'), { recursive: true });
             fs.writeFileSync(path.join(dir, base, fileName), json + '\n');
-            files.forEach((f, i) => fs.writeFileSync(path.join(dir, base, 'f', `${i + 1}.json`), JSON.stringify(f) + '\n'));
+            files.forEach((f, i) => fs.writeFileSync(path.join(dir, base, 'f', `${i + 1}.json`), resultFileText(resultsId(), String(i + 1), f) + '\n'));
             git(['add', '-A', '--', base], { cwd: dir });
             const remove = [`${COMPARE_INBOX}/${requestId}`, ...staleCompares(dir)];
             gitQuietIn(dir, ['rm', '-r', '-q', '--ignore-unmatch', '--', ...remove]);
@@ -4938,7 +5420,7 @@ function saveDataResult(data, removeInbox) {
         result.attempt = runToken;
     }
     summary('```json\n' + JSON.stringify(result, null, 1).slice(0, 3000) + '\n```');
-    saveDataFiles({ [`results/${requestId}/data.json`]: JSON.stringify(result, null, 1) + '\n' },
+    saveDataFiles({ [`results/${requestId}/data.json`]: resultFileText(requestId, 'data', result, 1) + '\n' },
         removeInbox ? [`${DATA_INBOX}/${requestId}`] : [], `${requestId} data: ${result.status}`);
 }
 
@@ -5934,9 +6416,41 @@ async function stepMigrate() {
 
 const STEPS = { raise: stepRaise, scan: stepScan, validate: stepValidate, merge: stepMerge, deploy: stepDeploy, sync: stepSync,
     rollback: stepRollback, auto: stepAuto, compare: stepCompare, drift: stepDrift, routediff: stepRouteDiff,
-    'data-export': stepDataExport, 'data-load': stepDataLoad, migrate: stepMigrate };
+    'data-export': stepDataExport, 'data-load': stepDataLoad, migrate: stepMigrate, 'scan-save': stepScanSave };
+
+/**
+ * STEP=scan-save (version 27, GitHub): the scan job is read-only and has no secrets, so it leaves its result in
+ * RELAY_SCAN_FILE (an artifact); this step (a job that may push) signs it and saves it as scan.json.
+ */
+async function stepScanSave() {
+    let data = null;
+    try {
+        data = JSON.parse(fs.readFileSync(input('RELAY_SCAN_FILE') || path.join(WORK_DIR, 'scan-result.json'), 'utf8'));
+    } catch (e) {
+        data = null;
+    }
+    if (!data || typeof data !== 'object' || data.step !== 'scan' || data.request !== requestId) {
+        writeResult('scan', { status: 'Error', total: 0, blocking: 0, files: [], violations: [],
+            message: 'The code scan job didn\'t leave a result. Open the workflow run for the log.' });
+        return;
+    }
+    const kept = { ...data };
+    ['request', 'step', 'runUrl', 'finishedAt', 'attempt'].forEach((k) => delete kept[k]);
+    writeResult('scan', kept);
+}
+
+/** Steps that sign in to an org or push, and so check the run's signature first (version 27, contract A). */
+const SIGNED_STEPS = new Set(['raise', 'validate', 'merge', 'deploy', 'sync', 'rollback', 'auto', 'compare', 'drift', 'routediff',
+    'data-export', 'data-load', 'migrate', 'notify', 'verify', 'scan-save']);
 
 async function main() {
+    if (SIGNED_STEPS.has(step) || (step === 'scan' && !env.RELAY_RESULT_FILE)) {
+        // Before any sign-in, push or result: a run the hub didn't sign stops here.
+        await verifyRunSignature();
+    }
+    if (step === 'verify') {
+        return; // version 27: the archive and Slack jobs started by hand check the signature only
+    }
     if (step === 'notify') {
         await stepNotify();
         return;
@@ -5962,11 +6476,14 @@ async function main() {
     relayValues = parseValues(pipelineFile(VALUES_FILE));
     relayValues.warnings.forEach((w) => console.log('::warning::' + w));
     relayGates = parseGates(pipelineFile(GATES_FILE));
-    if (selfUpdate() && target !== 'release-relay-hub' && mode !== 'rollback') {
-        summary(`**Note:** selfUpdate is set but the target is ${target}; the hub's own updates belong on release-relay-hub.`);
+    // Version 27: refused, not a note. selfUpdate ignores the exclude list, so only the hub's own branch may use it (plus
+    // the branches an admin lists in the variable RELAY_SELF_UPDATE_BRANCHES, for example a hub test org's branch).
+    const selfUpdateTargets = ['release-relay-hub', ...input('RELAY_SELF_UPDATE_BRANCHES').split(',').map((b) => b.trim()).filter(Boolean)];
+    if (selfUpdate() && !selfUpdateTargets.includes(target) && mode !== 'rollback') {
+        fail(`selfUpdate is set but the target is ${target}; the hub's own updates go to ${selfUpdateTargets.join(', ')} only.`);
     }
     if (!STEPS[step]) {
-        fail('STEP must be raise, scan, validate, merge, deploy, sync, rollback, auto, compare, drift, routediff, data-export, data-load or migrate.');
+        fail('STEP must be raise, scan, scan-save, validate, merge, deploy, sync, rollback, auto, compare, drift, routediff, data-export, data-load, migrate, notify or verify.');
     }
     preparePush();
     await STEPS[step]();
