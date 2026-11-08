@@ -1,16 +1,16 @@
 {
  "request": "REL-91064",
  "step": "validate",
- "status": "Failed",
+ "status": "Passed",
  "changed": 244,
  "deleted": [],
  "mergedWith": "f90380eb262be197322ccfbc2cc002e86ae8ee60",
- "validatedTree": "fcb22f6de375a913db4889b8a3acd5ad1d5affbc",
+ "validatedTree": "50d4e1ca541acf11adebca844dc02c1029684d26",
  "environment": "sit",
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d8VJYSA2",
- "testsRun": 0,
+ "deployId": "0AfgL00000d93ZiSAI",
+ "testsRun": 576,
  "tests": [
   "RlyAppendTest",
   "RlyApprovalRulesTest",
@@ -93,23 +93,16 @@
   "RlyWorkTrackersTest"
  ],
  "coverageWarnings": [],
- "componentErrors": [
-  {
-   "type": "ApexClass",
-   "name": "RlyEvidenceTest",
-   "problem": "Expression cannot be a statement.",
-   "line": 102
-  }
- ],
+ "componentErrors": [],
  "testFailures": [],
- "message": "1 component error(s)",
+ "message": "",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42429777961",
- "finishedAt": "2026-11-08T00:28:47.141Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42429982751",
+ "finishedAt": "2026-11-08T00:38:43.858Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
