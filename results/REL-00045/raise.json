@@ -5,16 +5,18 @@
  "mode": "hub",
  "branch": "feature/rel-00045",
  "target": "sit",
- "sha": "6087508536288fb397dcb3276723d90f0965e5f9",
+ "sha": "9c2276ed66fab848ebee04eb43bac28ad5e659bb",
  "pr": 230,
  "url": "https://github.com/Aravindboda/release-relay-demo/pull/230",
  "commits": [],
  "conflicts": [],
  "deleted": [],
  "valuesTokenized": 0,
- "appended": false,
+ "appended": true,
  "message": "",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42436005498",
- "finishedAt": "2026-11-08T01:51:10.163Z",
- "attempt": "b0ec1d3b777af7d7d292270d5a7449b6"
+ "files": 2,
+ "appendZip": ".relay-inbox/REL-00045-add-1.zip",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42436180014",
+ "finishedAt": "2026-11-08T01:53:42.839Z",
+ "attempt": "5998014ad0f319c3e5da3f9b8b139d15"
 }
