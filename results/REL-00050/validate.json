@@ -1,0 +1,37 @@
+{
+ "request": "REL-00050",
+ "step": "validate",
+ "status": "Passed",
+ "changed": 4,
+ "deleted": [],
+ "mergedWith": "0e0705506bfcfebf4238bc8888149a0adb1519f9",
+ "validatedTree": "9f074173633c5589448138da7577a16ca8c03a0a",
+ "environment": "sit",
+ "ok": true,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000dCYdmSAG",
+ "testsRun": 1,
+ "tests": [
+  "TaxCalculatorTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42514136834",
+ "finishedAt": "2026-11-08T19:16:35.037Z",
+ "attempt": "060a4953126d26a161c77c0ae15bb3ec",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "headSha": "60d937174564f4db3e0fefa0e18bcbff08d6e087"
+}
