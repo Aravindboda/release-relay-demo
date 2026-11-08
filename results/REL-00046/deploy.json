@@ -1,0 +1,38 @@
+{
+ "request": "REL-00046",
+ "step": "deploy",
+ "status": "Deployed",
+ "sha": "7854311b7cc84d20cfe08203c59dc2dba6007036",
+ "changed": 9,
+ "deleted": [],
+ "ok": true,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000dC0c5SAC",
+ "testsRun": 2,
+ "tests": [
+  "ShippingQuoteTest",
+  "RlyDemoTermsTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "quick": false,
+ "quickNote": "The validation didn't pass with a deployment id (Skipped), so it was deployed in full.",
+ "snapshot": {
+  "branch": "release-relay-snapshots",
+  "path": "REL-00046/sit/83084a8eaa994011a6f829c56b8645d8",
+  "existing": 0,
+  "added": 4
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42489905896",
+ "finishedAt": "2026-11-08T14:28:26.911Z",
+ "attempt": "83084a8eaa994011a6f829c56b8645d8",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
+}
