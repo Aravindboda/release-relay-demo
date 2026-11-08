@@ -1,16 +1,16 @@
 {
  "request": "REL-91074",
  "step": "validate",
- "status": "Failed",
+ "status": "Passed",
  "changed": 58,
  "deleted": [],
  "mergedWith": "365f524b89356f81fcc910584acd6b2163c3f14d",
- "validatedTree": "53a26acf1eeb8bfb358d54c024bac6aadccd476d",
+ "validatedTree": "5974c94c2d7f846333e202b78d65b5b4e4aca886",
  "environment": "sit",
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000dD0QNSA0",
- "testsRun": 0,
+ "deployId": "0AfgL00000dDg9RSAS",
+ "testsRun": 626,
  "tests": [
   "RlyAppendTest",
   "RlyApprovalRulesTest",
@@ -99,174 +99,16 @@
   "RlyWorkTrackersTest"
  ],
  "coverageWarnings": [],
- "componentErrors": [
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesController",
-   "problem": "Unexpected token 'ON'.",
-   "line": 10
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesController",
-   "problem": "Unexpected token 'ON'.",
-   "line": 10
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesController",
-   "problem": "Unexpected token 'ON'.",
-   "line": 67
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesController",
-   "problem": "Unexpected token 'ON'.",
-   "line": 77
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesController",
-   "problem": "Unexpected token 'ON'.",
-   "line": 116
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesController",
-   "problem": "Unexpected token 'ON'.",
-   "line": 119
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesController",
-   "problem": "Unexpected token 'ON'.",
-   "line": 121
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesTest",
-   "problem": "Unexpected token 'Map'.",
-   "line": 69
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesTest",
-   "problem": "Unexpected token 'Map'.",
-   "line": 69
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesTest",
-   "problem": "Expecting ';' but was: ','",
-   "line": 69
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesTest",
-   "problem": "Unexpected token 'merge'.",
-   "line": 69
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesTest",
-   "problem": "Expecting ')' but was: 'merge'",
-   "line": 74
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesTest",
-   "problem": "Expecting ';' but was: ','",
-   "line": 74
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesTest",
-   "problem": "Extra ';', at ')'.",
-   "line": 74
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesTest",
-   "problem": "Variable does not exist: Object",
-   "line": 69
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyOrgPackagesTest",
-   "problem": "Expression cannot be a statement.",
-   "line": 74
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyPackageResultsTest",
-   "problem": "Method does not exist or incorrect signature: void deserializeUntyped(String) from the type String",
-   "line": 11
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyOrgPackages",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'."
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyOrgPackages",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'."
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyOrgPackages",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'."
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyOrgPackages",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'."
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyOrgPackages",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'."
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyOrgPackages",
-   "problem": "Unable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'.\nUnable to find Apex action class referenced as 'RlyOrgPackagesController'."
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Admin",
-   "problem": "In field: apexClass - no ApexClass named RlyOrgPackagesController found"
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Approver",
-   "problem": "In field: apexClass - no ApexClass named RlyOrgPackagesController found"
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Auditor",
-   "problem": "In field: apexClass - no ApexClass named RlyOrgPackagesController found"
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Deploy_Team",
-   "problem": "In field: apexClass - no ApexClass named RlyOrgPackagesController found"
-  },
-  {
-   "type": "PermissionSet",
-   "name": "RLY_Developer",
-   "problem": "In field: apexClass - no ApexClass named RlyOrgPackagesController found"
-  }
- ],
+ "componentErrors": [],
  "testFailures": [],
- "message": "28 component error(s)",
+ "message": "",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42527863492",
- "finishedAt": "2026-11-08T21:59:56.928Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42528053810",
+ "finishedAt": "2026-11-08T22:09:25.419Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
@@ -274,5 +116,5 @@
   "files": [],
   "hash": ""
  },
- "headSha": "61de81f925540f9da699dc34f0faa452a88f0615"
+ "headSha": "6845abc3c40fee81b10f2b23607cb2054beb6265"
 }
