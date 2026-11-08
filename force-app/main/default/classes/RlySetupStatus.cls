@@ -37,7 +37,7 @@ public with sharing class RlySetupStatus {
         Data data = new Data();
         SetupStatus s = new SetupStatus();
         s.hubRegistered = data.hubCount() > 0;
-        RLY_Git_Connection__c git = data.git();
+        RLY_Git_Connection__c git = RlyReleaseStore.git();
         s.gitSaved = git != null;
         s.gitConnected = git != null && git.Status__c == GIT_CONNECTED;
         s.pipelineFilesFound = s.gitConnected && git.Status_Message__c != null && git.Status_Message__c.contains(FILES_FOUND);
@@ -66,16 +66,6 @@ public with sharing class RlySetupStatus {
          */
         public Integer otherOrgCount() {
             return [SELECT COUNT() FROM RLY_Org__c WHERE Role__c != :ROLE_OF_HUB WITH SYSTEM_MODE];
-        }
-
-        /**
-         * @description The Git connection with its last check.
-         * @return the connection, or null when none is saved
-         */
-        public RLY_Git_Connection__c git() {
-            List<RLY_Git_Connection__c> rows = [SELECT Id, Status__c, Status_Message__c FROM RLY_Git_Connection__c
-                                                WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC LIMIT 1];
-            return rows.isEmpty() ? null : rows[0];
         }
     }
 }

@@ -13,13 +13,13 @@ public with sharing class RlyPullRequestFileRow {
      */
     public static RlyPullRequestFiles.FileChange listed(RlyPullRequestFiles.Changes c, Map<String, Object> raw, Integer pageNo) {
         RlyPullRequestFiles.FileChange f = new RlyPullRequestFiles.FileChange();
-        f.filename = text(raw.get('filename'));
-        f.status = text(raw.get('status'));
+        f.filename = RlySyncParse.text(raw.get('filename'));
+        f.status = RlySyncParse.text(raw.get('status'));
         f.additions = count(raw.get('additions'));
         f.deletions = count(raw.get('deletions'));
-        f.hasPatch = String.isNotBlank(text(raw.get('patch')));
+        f.hasPatch = String.isNotBlank(RlySyncParse.text(raw.get('patch')));
         f.pageNo = pageNo;
-        f.previousFilename = text(raw.get('previous_filename'));
+        f.previousFilename = RlySyncParse.text(raw.get('previous_filename'));
         f.url = c.filesUrl == null || f.filename == null ? c.filesUrl : c.filesUrl + '#diff-' + anchor(f.filename);
         f.note = f.hasPatch ? null : 'No preview: open in ' + c.provider + '.';
         return f;
@@ -46,15 +46,6 @@ public with sharing class RlyPullRequestFileRow {
     // The files view's anchor of a file: the SHA-256 of its path, in hex.
     private static String anchor(String filename) {
         return EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', Blob.valueOf(filename)));
-    }
-
-    /**
-     * @description A value as text.
-     * @param value the value
-     * @return the text, or null
-     */
-    public static String text(Object value) {
-        return value == null ? null : String.valueOf(value);
     }
 
     /**

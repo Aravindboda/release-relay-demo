@@ -193,6 +193,31 @@ private class RlyOrgControllerTest {
     }
 
     @IsTest
+    static void tenOrgsPerHubAtMost() {
+        System.runAs(RlyTestData.admin()) {
+            List<RLY_Org__c> orgs = new List<RLY_Org__c>();
+            for (Integer i = 1; i <= RlyOrgController.MAX_ORGS; i++) {
+                orgs.add(RlyTestData.org('DEV' + i, 'Developer', 'dev' + i));
+            }
+            insert orgs;
+            String refused;
+            Test.startTest();
+            try {
+                register('DEV11', 'Production');
+            } catch (AuraHandledException e) {
+                refused = e.getMessage();
+            }
+            Map<String, Object> changed = input('DEV1', 'Production');
+            changed.put('Id', orgs[0].Id);
+            Id kept = RlyOrgController.saveOrg(JSON.serialize(changed));
+            Test.stopTest();
+            System.assertEquals('Release Relay supports up to 10 orgs per hub.', refused, 'The eleventh org is refused');
+            System.assertEquals(orgs[0].Id, kept, 'A registered org still saves');
+            System.assertEquals(RlyOrgController.MAX_ORGS, [SELECT COUNT() FROM RLY_Org__c], 'Still ten');
+        }
+    }
+
+    @IsTest
     static void slackAvailableOnlyWhenConnected() {
         System.runAs(RlyTestData.admin()) {
             System.assertEquals(false, RlyOrgController.getOrgs().slackAvailable, 'Slack off');

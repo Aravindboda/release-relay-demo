@@ -1,3 +1,5 @@
+@import 'c/rlySharedStyles';
+
 :host {
     display: block;
     padding-bottom: 1.5rem;
@@ -27,11 +29,7 @@
 .rr-seg:last-child { border-right: 0; }
 .rr-seg-on { background: var(--rr-blue); color: #fff; }
 .rr-seg:focus-visible { outline: 2px solid var(--rr-blue); outline-offset: -2px; }
-.rr-small { font-size: 12px; }
-.rr-weak { color: var(--rr-muted); }
 .rr-mono { font-family: var(--rr-mono); }
-.rr-msg { padding: 8px 10px; border-radius: 4px; font-size: 12px; }
-.rr-msg-bad { background: #fef1ee; color: #8e030f; }
 .rr-msg-warn { background: #fef1cd; color: #5c3a00; }
 .rr-tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
 .rr-tile { padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }

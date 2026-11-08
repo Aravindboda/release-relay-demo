@@ -100,7 +100,7 @@ public with sharing class RlyPullRequestFiles {
             }
             return c;
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -121,13 +121,13 @@ public with sharing class RlyPullRequestFiles {
             }
             for (Object o : filesOf(c, pageNo)) {
                 Map<String, Object> raw = (Map<String, Object>) o;
-                if (filename != null && filename.equals(RlyPullRequestFileRow.text(raw.get('filename')))) {
-                    return RlyPullRequestFileRow.withPatch(listed(c, raw, pageNo), RlyPullRequestFileRow.text(raw.get('patch')), c.provider);
+                if (filename != null && filename.equals(RlySyncParse.text(raw.get('filename')))) {
+                    return RlyPullRequestFileRow.withPatch(listed(c, raw, pageNo), RlySyncParse.text(raw.get('patch')), c.provider);
                 }
             }
             throw new RlyReleaseException('That file isn\'t in the pull request any more: refresh the Changes tab.');
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -194,14 +194,5 @@ public with sharing class RlyPullRequestFiles {
         if (pageNo == null || pageNo < 1 || pageNo > MAX_PAGE) {
             throw new RlyReleaseException('Pages go from 1 to ' + MAX_PAGE + '.');
         }
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        if (e instanceof AuraHandledException) {
-            return (AuraHandledException) e;
-        }
-        AuraHandledException ex = new AuraHandledException(e.getMessage());
-        ex.setMessage(e.getMessage());
-        return ex;
     }
 }

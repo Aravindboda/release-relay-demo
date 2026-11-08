@@ -243,6 +243,7 @@ private class RlyManualStepsTest {
             insert o;
             RLY_Git_Connection__c conn = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
             update new RLY_Git_Connection__c(Id = conn.Id, Back_Promote__c = true);
+            RlyReleaseStore.forgetGit();
             RLY_Release__c original = RlyReleaseTestData.deployedIn('SIT', RlyReleaseTestData.sha('a'));
             RLY_Release__c promotion = RlyReleaseTestData.deployedIn('PROD', RlyReleaseTestData.sha('b'));
             update new RLY_Release__c(Id = promotion.Id, Release_Type__c = 'Promotion', Carried_Releases__c = original.Id,

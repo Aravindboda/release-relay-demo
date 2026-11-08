@@ -152,7 +152,7 @@ public with sharing class RlySlackDirectory {
     public static void saveOne(User row) {
         Map<Id, String> failed = save(new List<User>{ row });
         if (failed.containsKey(row.Id)) {
-            throw RlySlackController.auraError(failed.get(row.Id));
+            throw RlyReleaseException.toAura(failed.get(row.Id));
         }
     }
 

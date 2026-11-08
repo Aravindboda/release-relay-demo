@@ -217,8 +217,8 @@ public with sharing class RlyGitLab extends RlyGit {
         Map<String, Object> m = (Map<String, Object>) found[0];
         PullRequest pr = new PullRequest();
         pr.prNumber = Integer.valueOf(m.get('iid'));
-        pr.url = RlyGitLabRuns.text(m.get('web_url'));
-        pr.state = RlyGitLabRuns.mergeRequestState(RlyGitLabRuns.text(m.get('state')));
+        pr.url = RlySyncParse.text(m.get('web_url'));
+        pr.state = RlyGitLabRuns.mergeRequestState(RlySyncParse.text(m.get('state')));
         return pr;
     }
 
@@ -254,7 +254,7 @@ public with sharing class RlyGitLab extends RlyGit {
             'source_branch' => head, 'target_branch' => baseBranch, 'title' => text.substringBefore('\n').trim(),
             'description' => text.substringAfter('\n').trim() }));
         assertOk(res, 'Opening a merge request into ' + baseBranch);
-        return RlyGitLabRuns.text(((Map<String, Object>) parse(res)).get('web_url'));
+        return RlySyncParse.text(((Map<String, Object>) parse(res)).get('web_url'));
     }
 
     /**

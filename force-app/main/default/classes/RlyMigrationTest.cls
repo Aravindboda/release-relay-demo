@@ -20,6 +20,7 @@ private class RlyMigrationTest {
             insert new RLY_Git_Connection__c(Name = 'GitLab group/project', Provider__c = 'GitLab', Repository__c = 'group/project',
                 Named_Credential__c = 'RLY_GitLab', Pipeline__c = '.gitlab-ci.yml', Pipeline_Branch__c = 'main',
                 Source_Path__c = 'force-app/main/default', Status__c = 'Connected');
+            RlyReleaseStore.forgetGit();
         }
     }
 

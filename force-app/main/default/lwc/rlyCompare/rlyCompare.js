@@ -7,6 +7,7 @@ import runPipelineCompare from '@salesforce/apex/RlyCompareController.runPipelin
 import checkPipelineCompare from '@salesforce/apex/RlyCompareController.checkPipelineCompare';
 import pipelineCompareFile from '@salesforce/apex/RlyCompareController.pipelineCompareFile';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
+import { errorText, plural, clearSearchBox } from 'c/rlyShared';
 
 /** Most components the hub compares; more go to the pipeline. */
 const HUB_CAP = 50;
@@ -26,6 +27,10 @@ const ADDED = 'new';
 const REMOVED = 'deleted';
 const UNSUPPORTED = 'unsupported';
 const PENDING = 'pending';
+/** Build 50: types compare leaves out (large files); the page links to the file on the branch instead. */
+const LEFT_OUT_TYPES = new Set(['StaticResource', 'Profile']);
+const LEFT_OUT = 'Not compared: open it in Git.';
+const isLeftOut = (key) => LEFT_OUT_TYPES.has(key.substring(0, key.indexOf(':')));
 /** A part's (and its components') phase. */
 const WAITING = 'waiting';
 const RUNNING = 'running';
@@ -51,10 +56,6 @@ const FLOW_CLS = { Active: 'rr-pill rr-pill-info', Draft: 'rr-pill rr-pill-wait'
 /** A part that fails with one of these is split into single components and tried again. */
 const SPLIT_ON = /too large|heap|limit|timed? ?out|time limit/i;
 
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
-
 /** A file's status from its two sides, as RlyCompareParts.statusOf (exact, line endings ignored). */
 function statusOf(left, right) {
     if (left === null || left === undefined) {
@@ -64,10 +65,6 @@ function statusOf(left, right) {
         return REMOVED;
     }
     return left.replace(/\r\n/g, '\n') === right.replace(/\r\n/g, '\n') ? SAME : CHANGED;
-}
-
-function plural(n, one, many) {
-    return n + ' ' + (n === 1 ? one : many);
 }
 
 function chunks(list, size) {
@@ -253,7 +250,7 @@ export default class RlyCompare extends LightningElement {
         const byKey = new Map((r.components || []).map((x) => [x.key, x]));
         this.components = this.components.map((c) => {
             const found = c.part === id && byKey.get(c.key);
-            return found ? { ...c, status: found.status, reason: found.reason, files: found.files || [] } : c;
+            return found ? { ...c, status: found.status, reason: found.reason, files: found.files || [], gitUrl: found.gitUrl } : c;
         });
         if (this.selected && this.selected.part === id && !this.selectedPath) {
             this.pickFirstFile();
@@ -375,13 +372,16 @@ export default class RlyCompare extends LightningElement {
     startPipeline() {
         const items = this.items || [];
         this.parts = [];
-        this.components = items.map((i) => ({ ...this.row(i), phase: WAITING }));
+        this.components = items.map((i) => {
+            const c = this.row(i);
+            return isLeftOut(c.key) ? { ...c, status: UNSUPPORTED, reason: LEFT_OUT, phase: READY } : { ...c, phase: WAITING };
+        });
         if (!this.components.some((c) => c.key === this.selectedKey)) {
             this.selectedKey = this.components[0] && this.components[0].key;
         }
         this.selectedPath = undefined;
         this.userPicked = false;
-        const brought = this.components.filter((c) => !c.item.deleted).map((c) => c.key);
+        const brought = this.components.filter((c) => !c.item.deleted && !isLeftOut(c.key)).map((c) => c.key);
         const pipe = {
             phase: 'sending', compareId: 'CMP-' + Date.now(), token: null, runUrl: null, message: null,
             parts: chunks(brought, PIPELINE_PART_SIZE).map((keys, i) => ({ id: 's' + (i + 1), keys, phase: WAITING, retrieveId: null, cycle: 0, waiting: false })),
@@ -469,14 +469,21 @@ export default class RlyCompare extends LightningElement {
     }
 
     async runPipe() {
-        const keys = this.components.filter((c) => !c.item.deleted).map((c) => c.key);
-        const deleted = this.components.filter((c) => c.item.deleted).map((c) => c.key);
+        const compared = this.components.filter((c) => !isLeftOut(c.key));
+        const keys = compared.filter((c) => !c.item.deleted).map((c) => c.key);
+        const deleted = compared.filter((c) => c.item.deleted).map((c) => c.key);
+        const notCompared = this.components.filter((c) => isLeftOut(c.key)).map((c) => c.key);
+        if (!keys.length && !deleted.length) {
+            this.pipe = { ...this.pipe, phase: 'done' };
+            return;
+        }
         try {
             const s = await runPipelineCompare({ jobJson: JSON.stringify({
                 compareId: this.pipe.compareId, sourceOrgId: this.sourceOrgId, targetBranch: this.targetBranch,
-                keys, deleted, parts: this.pipe.parts.length }) });
+                keys, deleted, parts: this.pipe.parts.length, notCompared }) });
+            const urls = s.gitUrls || {};
             this.pipe = { ...this.pipe, phase: 'running', token: s.token };
-            this.components = this.components.map((c) => ({ ...c, phase: RUNNING }));
+            this.components = this.components.map((c) => (isLeftOut(c.key) ? { ...c, gitUrl: urls[c.key] } : { ...c, phase: RUNNING }));
             this.pipeCheck();
         } catch (e) {
             this.pipe = { ...this.pipe, phase: 'failed', message: errorText(e) };
@@ -503,6 +510,9 @@ export default class RlyCompare extends LightningElement {
             }
             const byKey = new Map((r.components || []).map((x) => [x.key, x]));
             this.components = this.components.map((c) => {
+                if (isLeftOut(c.key)) {
+                    return c;
+                }
                 const found = byKey.get(c.key);
                 return found ? { ...c, status: found.status, reason: found.reason, files: found.files || [], phase: READY }
                     : { ...c, status: UNSUPPORTED, reason: 'The pipeline didn’t return it.', files: [], phase: READY };
@@ -661,10 +671,7 @@ export default class RlyCompare extends LightningElement {
     }
 
     clearSearch() {
-        const box = this.template.querySelector('c-rly-search-box');
-        if (box) {
-            box.clear();
-        }
+        clearSearchBox(this.template);
         this.term = '';
     }
 
@@ -724,6 +731,8 @@ export default class RlyCompare extends LightningElement {
         const c = this.selected;
         return (c && (c.reason || (c.files[0] && c.files[0].reason))) || '';
     }
+    /** A left-out component (static resource, profile): its file on the branch. */
+    get unavailableUrl() { return (this.selected && this.selected.gitUrl) || ''; }
     get showFile() { return this.selectedReady && !this.showUnavailable && !!this.file; }
     get pipeFileWaiting() { return !!this.pipe && !!this.file && !!this.file.n && !this.pipe.files[this.file.n]; }
     get filePending() { return !!this.file && (this.file.status === PENDING || this.pipeFileWaiting); }

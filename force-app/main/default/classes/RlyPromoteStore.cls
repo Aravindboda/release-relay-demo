@@ -59,7 +59,7 @@ public with sharing class RlyPromoteStore {
      * @return the orgs, without sign-in fields
      */
     public static List<RLY_Org__c> backPromoteOrgs() {
-        return new SystemAccess().queryBackPromoteOrgs();
+        return RlyReleaseStore.pipelineOrgs(new Set<String>{ 'Back_Promote' });
     }
 
     /**
@@ -88,8 +88,9 @@ public with sharing class RlyPromoteStore {
     }
 
     /**
-     * @description Back promote releases waiting to be started (Submitted) or running (Deploying).
-     * @return up to 5 release Ids, oldest first
+     * @description The next back promote release to start (Submitted) or read (Deploying, Waiting for window): one per
+     * request, the one read longest ago (RlyBackPromoteRun.catchUp's queue).
+     * @return at most one release Id
      */
     public static List<Id> openSyncIds() {
         List<Id> out = new List<Id>();
@@ -199,16 +200,6 @@ public with sharing class RlyPromoteStore {
         }
 
         /**
-         * @description See RlyPromoteStore.backPromoteOrgs.
-         * @return the orgs
-         */
-        public List<RLY_Org__c> queryBackPromoteOrgs() {
-            return [SELECT Id, Name, Role__c, Branch__c, Git_Environment__c, Environment__c, Status__c, Back_Promote_When__c,
-                           Back_Promote_Approval__c, Synced_On__c, Sync_Status__c, CreatedDate
-                    FROM RLY_Org__c WHERE Role__c = 'Back_Promote' WITH SYSTEM_MODE ORDER BY Name LIMIT 50];
-        }
-
-        /**
          * @description See RlyPromoteStore.hub.
          * @return the hub, or null
          */
@@ -245,7 +236,7 @@ public with sharing class RlyPromoteStore {
          */
         public List<RLY_Release__c> openSyncs() {
             return [SELECT Id FROM RLY_Release__c WHERE Release_Type__c = 'Back_Promote' AND Status__c IN ('Submitted', 'Deploying', 'Waiting for window')
-                    WITH SYSTEM_MODE ORDER BY CreatedDate ASC LIMIT 5];
+                    WITH SYSTEM_MODE ORDER BY Last_Synced__c ASC NULLS FIRST, CreatedDate ASC LIMIT 1];
         }
 
         /**
@@ -270,6 +261,7 @@ public with sharing class RlyPromoteStore {
          */
         public void updateGit(RLY_Git_Connection__c conn) {
             update as system conn;
+            RlyReleaseStore.forgetGit();
         }
     }
 }

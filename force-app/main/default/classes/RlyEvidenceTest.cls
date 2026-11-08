@@ -2,7 +2,7 @@
  * @description Tests for the release history and evidence: events at transitions (RlyReleaseLog, RlyReleaseTransitions,
  * RlyReleaseOutcomes, RlyEvidenceText), the release page's history (RlyReleaseHistory), the evidence PDF saved to the
  * release's Files (RlyEvidenceController.saveEvidence, RlyEvidenceHtml, RlyEvidenceTables) and the Releases CSV
- * (exportCsv). Every test runs as an active System Administrator via System.runAs.
+ * (exportCsvPart). Every test runs as an active System Administrator via System.runAs.
  */
 @IsTest
 private class RlyEvidenceTest {
@@ -89,7 +89,7 @@ private class RlyEvidenceTest {
         System.runAs(RlyTestData.admin()) {
             RLY_Release__c rel = fullRelease();
             Test.startTest();
-            String csv = RlyEvidenceController.exportCsv('{"state":"deployed","searchText":""}');
+            String csv = RlyEvidenceController.exportCsvPart('{"state":"deployed","searchText":""}', 0).text;
             Test.stopTest();
             List<String> lines = csv.split('\r\n');
             System.assertEquals(2, lines.size(), 'Header and the deployed release: ' + csv);
@@ -99,7 +99,8 @@ private class RlyEvidenceTest {
                 'Quoted, formulas defused');
             Boolean refused = false;
             try {
-                RlyEvidenceController.exportCsv('{"state":"sometimes"}');
+                String unused = RlyEvidenceController.exportCsvPart('{"state":"sometimes"}', 0).text;
+                System.assert(unused == null, 'Not reached: ' + unused);
             } catch (AuraHandledException e) {
                 refused = true;
             }

@@ -76,18 +76,14 @@ public with sharing class RlySlackMessage {
      */
     public static String checksReason(RLY_Release__c rel) {
         List<String> parts = new List<String>();
-        if (blocks(rel.Validation_Status__c)) {
+        if (RlyCheckReader.blocks(rel.Validation_Status__c)) {
             parts.add('Validation: ' + messageOf(rel.Validation_Result__c, 'failed'));
         }
-        if (blocks(rel.Scan_Status__c)) {
+        if (RlyCheckReader.blocks(rel.Scan_Status__c)) {
             parts.add('Code scan: ' + messageOf(rel.Scan_Result__c,
                 rel.Scan_Blocking__c == null ? 'failed' : rel.Scan_Blocking__c.intValue() + ' blocking finding(s)'));
         }
         return String.join(parts, '\n');
-    }
-
-    private static Boolean blocks(String checkStatus) {
-        return checkStatus == 'Failed' || checkStatus == 'Error';
     }
 
     private static String messageOf(String resultJson, String fallback) {

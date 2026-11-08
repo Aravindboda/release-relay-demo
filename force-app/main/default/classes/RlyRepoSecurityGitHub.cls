@@ -8,7 +8,6 @@ public with sharing class RlyRepoSecurityGitHub {
 
     private final RlyGit git;
     private final String branch;
-    private final String repo;
 
     /**
      * @description A reader for a repository.
@@ -18,7 +17,6 @@ public with sharing class RlyRepoSecurityGitHub {
     public RlyRepoSecurityGitHub(RlyGit git, String branch) {
         this.git = git;
         this.branch = branch;
-        this.repo = '/repos/' + git.connection().Repository__c.trim();
     }
 
     /**
@@ -29,17 +27,13 @@ public with sharing class RlyRepoSecurityGitHub {
         return new List<RlyRepoSecurity.Item>{ branchItem() };
     }
 
-    private HttpResponse get(String path) {
-        return git.request(new RlyGitRequest('GET', repo + path, null));
-    }
-
     // The pipeline branch: protected (classic protection or a ruleset) with at least one required approval.
     private RlyRepoSecurity.Item branchItem() {
         RlyRepoSecurity.Item i = RlyRepoSecurity.row('branch', branch + ' is protected and needs a reviewed pull request');
         String fix = 'Settings → Branches (or Rules → Rulesets) → protect ' + branch + ': Require a pull request before merging, '
             + 'Required approvals 1 or more, and don\'t allow bypassing.';
         try {
-            HttpResponse res = get('/branches/' + RlyGitRequest.encodePath(branch) + '/protection');
+            HttpResponse res = RlyRepoSecurity.gitHubGet(git, '/branches/' + RlyGitRequest.encodePath(branch) + '/protection');
             if (res.getStatusCode() == 200) {
                 return fromProtection(i, RlyRepoSecurity.asMap(res)).orFix(fix);
             }
@@ -63,7 +57,7 @@ public with sharing class RlyRepoSecurityGitHub {
     }
 
     private RlyRepoSecurity.Item fromRulesets(RlyRepoSecurity.Item i) {
-        HttpResponse res = get('/rules/branches/' + RlyGitRequest.encodePath(branch));
+        HttpResponse res = RlyRepoSecurity.gitHubGet(git, '/rules/branches/' + RlyGitRequest.encodePath(branch));
         Integer approvals = 0;
         for (Object o : res.getStatusCode() == 200 ? RlyRepoSecurity.asList(res) : new List<Object>()) {
             Map<String, Object> rule = o instanceof Map<String, Object> ? (Map<String, Object>) o : new Map<String, Object>();

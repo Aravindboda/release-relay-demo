@@ -43,6 +43,7 @@ private class RlyArchiveRunsTest {
             RlyArchiveTestData.run(RlyArchiveRuns.RUN_NOW, RlyArchiveRuns.SUCCEEDED, Datetime.newInstance(2025, 10, 1, 9, 0, 0));
             update new RLY_Git_Connection__c(Id = RlyArchiveTestData.settings().Id, Last_Nightly_Call__c = fixedNow().addHours(-10),
                 Last_Nightly_Result__c = 'Succeeded');
+            RlyReleaseStore.forgetGit();
             Test.startTest();
             RlyArchiveViews.Archive a = RlyArchiveController.readArchive();
             Test.stopTest();
@@ -115,9 +116,11 @@ private class RlyArchiveRunsTest {
             RlyArchiveTestData.hub();
             RlyArchiveTestData.nightly(30);
             update new RLY_Git_Connection__c(Id = RlyArchiveTestData.settings().Id, Last_Nightly_Call__c = System.now().addHours(-30));
+            RlyReleaseStore.forgetGit();
             Test.startTest();
             RlyHomeHealth.Item lastNight = archiveItem();
             update new RLY_Git_Connection__c(Id = RlyArchiveTestData.settings().Id, Last_Nightly_Call__c = System.now().addDays(-3));
+            RlyReleaseStore.forgetGit();
             RlyHomeHealth.Item three = archiveItem();
             Test.stopTest();
             System.assertEquals('Nightly archive', lastNight.label, 'Label');

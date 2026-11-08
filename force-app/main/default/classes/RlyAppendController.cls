@@ -14,7 +14,7 @@ public with sharing class RlyAppendController {
         try {
             return RlyAppendService.start(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -29,16 +29,7 @@ public with sharing class RlyAppendController {
             RlyAppendService.AppendRequest req = (RlyAppendService.AppendRequest) JSON.deserialize(requestJson, RlyAppendService.AppendRequest.class);
             return RlyAppendService.append(req);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        if (e instanceof AuraHandledException) {
-            return (AuraHandledException) e;
-        }
-        AuraHandledException ex = new AuraHandledException(e.getMessage());
-        ex.setMessage(e.getMessage());
-        return ex;
     }
 }

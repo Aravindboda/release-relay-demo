@@ -199,7 +199,7 @@ public with sharing class RlyReleasesController {
         try {
             return RlyReleaseRows.build(RlyReleaseQuery.releasesFor(RlyReleaseQuery.parse(filterJson)));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -213,7 +213,7 @@ public with sharing class RlyReleasesController {
         try {
             return RlyReleaseQuery.countsFor(raisedById);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -223,7 +223,7 @@ public with sharing class RlyReleasesController {
      */
     @AuraEnabled
     public static Boolean isApprover() {
-        return RlyApprovalService.canApprove();
+        return RlyReleaseAccess.isApprover();
     }
 
     /**
@@ -236,7 +236,7 @@ public with sharing class RlyReleasesController {
         try {
             return detail(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -270,7 +270,7 @@ public with sharing class RlyReleasesController {
             RlySharedRead.refresh(releaseId, freshFor);
             return detail(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -285,7 +285,7 @@ public with sharing class RlyReleasesController {
             RlyRaiseService.RaiseRequest req = (RlyRaiseService.RaiseRequest) JSON.deserialize(requestJson, RlyRaiseService.RaiseRequest.class);
             return RlyRaiseService.raise(req);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -301,7 +301,7 @@ public with sharing class RlyReleasesController {
             RlyApprovalService.acceptScanFindings(releaseId, reason);
             return detail(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -316,7 +316,7 @@ public with sharing class RlyReleasesController {
             RlyApprovalService.rerunChecks(releaseId);
             return detail(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -332,7 +332,7 @@ public with sharing class RlyReleasesController {
             RlyApprovalService.approveRelease(releaseId, comment);
             return detail(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -348,7 +348,7 @@ public with sharing class RlyReleasesController {
             RlyApprovalService.rejectRelease(releaseId, comment);
             return detail(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -364,7 +364,7 @@ public with sharing class RlyReleasesController {
             RlyConflictService.commitResolutions(releaseId, resolutionsJson);
             return detail(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -375,7 +375,7 @@ public with sharing class RlyReleasesController {
             throw new RlyReleaseException('Release not found.');
         }
         d.items = RlyReleaseStore.items(releaseId);
-        d.isApprover = RlyApprovalService.canApprove();
+        d.isApprover = RlyReleaseAccess.isApprover();
         d.running = RlyStatusReader.OPEN_STATUSES.contains(d.release.Status__c) || RlyFlowBatch.hasPending(d.release);
         d.sourceName = d.release.Source_Org__r.Name;
         d.targetName = d.release.Target_Org__r.Name;
@@ -396,14 +396,5 @@ public with sharing class RlyReleasesController {
         RlyReleaseLinks.fill(d);
         RlyReleaseHistory.fill(d);
         return d;
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        if (e instanceof AuraHandledException) {
-            return (AuraHandledException) e;
-        }
-        AuraHandledException ex = new AuraHandledException(e.getMessage());
-        ex.setMessage(e.getMessage());
-        return ex;
     }
 }

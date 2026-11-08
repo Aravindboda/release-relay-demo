@@ -84,7 +84,7 @@ public with sharing class RlyFlowVersions {
         String soql = 'SELECT Name, Status FROM ApexTrigger WHERE NamespacePrefix = null AND Name IN (' + String.join(quoted, ',') + ')';
         Map<String, Object> body = (Map<String, Object>) RlyOrgSession.getJson(org, RlyOrgSession.toolingQueryPath(soql));
         for (Object o : body.get('records') instanceof List<Object> ? (List<Object>) body.get('records') : new List<Object>()) {
-            Map<String, Object> rec = asMap(o);
+            Map<String, Object> rec = RlySyncParse.asMap(o);
             if (String.valueOf(rec.get('Status')) == 'Inactive') {
                 out.add(String.valueOf(rec.get('Name')));
             }
@@ -119,8 +119,8 @@ public with sharing class RlyFlowVersions {
             FlowInfo f = new FlowInfo();
             f.name = String.valueOf(rec.get('DeveloperName'));
             f.definitionId = RlyEvidenceText.str(rec.get('Id'));
-            Map<String, Object> activeVersion = asMap(rec.get('ActiveVersion'));
-            Map<String, Object> latestVersion = asMap(rec.get('LatestVersion'));
+            Map<String, Object> activeVersion = RlySyncParse.asMap(rec.get('ActiveVersion'));
+            Map<String, Object> latestVersion = RlySyncParse.asMap(rec.get('LatestVersion'));
             f.active = versionOf(activeVersion);
             f.latest = versionOf(latestVersion);
             f.latestStatus = RlyEvidenceText.str(latestVersion.get('Status'));
@@ -150,17 +150,13 @@ public with sharing class RlyFlowVersions {
         try {
             List<String> parts = new List<String>();
             for (Object o : (List<Object>) JSON.deserializeUntyped(body)) {
-                Map<String, Object> m = asMap(o);
+                Map<String, Object> m = RlySyncParse.asMap(o);
                 parts.add(RlyEvidenceText.text(RlyEvidenceText.str(m.get('errorCode'))) + ': ' + RlyEvidenceText.text(RlyEvidenceText.str(m.get('message'))));
             }
             return ('HTTP ' + res.getStatusCode() + ' ' + String.join(parts, '; ')).left(500);
         } catch (Exception e) {
             return ('HTTP ' + res.getStatusCode() + ' ' + body).left(500);
         }
-    }
-
-    private static Map<String, Object> asMap(Object o) {
-        return o instanceof Map<String, Object> ? (Map<String, Object>) o : new Map<String, Object>();
     }
 
     private static Integer versionOf(Map<String, Object> flowVersion) {

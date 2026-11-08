@@ -82,6 +82,7 @@ private class RlySlackTest {
             RLY_Release__c rel = RlyReleaseTestData.release('Ready for approval', 'hub');
             RLY_Notification__c s = RlyReleaseTestData.slackOn('Ready for approval');
             update new RLY_Notification__c(Id = s.Id, Webhook_URL__c = WEBHOOK);
+            RlySlack.forgetSettings();
             RlyReleaseTestData.targetSlack(rel, 'Salesforce');
             RLY_Release__c read = RlyReleaseStore.release(rel.Id);
             RlyHttpMock mock = new RlyHttpMock().match('POST', 'callout:RLY_Slack/').reply(200, '{"ok":false,"error":"not_authed"}')
@@ -122,6 +123,7 @@ private class RlySlackTest {
             update new RLY_Release__c(Id = rel.Id, Scan_Status__c = 'Failed', Scan_Blocking__c = 1, Validation_Status__c = 'Passed');
             RLY_Notification__c s = RlyReleaseTestData.slackOn('Checks failed');
             update new RLY_Notification__c(Id = s.Id, Webhook_URL__c = WEBHOOK);
+            RlySlack.forgetSettings();
             RLY_Release__c read = RlyReleaseStore.release(rel.Id);
             RlyHttpMock mock = new RlyHttpMock().match('POST', 'hooks.slack.com').reply(500, 'internal_error');
             Test.setMock(HttpCalloutMock.class, mock);
@@ -167,6 +169,7 @@ private class RlySlackTest {
             RLY_Release__c rel = RlyReleaseTestData.release('Ready for approval', 'hub');
             RLY_Notification__c s = RlyReleaseTestData.slackOn('Deployed');
             update new RLY_Notification__c(Id = s.Id, Enabled__c = false);
+            RlySlack.forgetSettings();
             RlyReleaseTestData.targetSlack(rel, 'Salesforce');
             RLY_Release__c read = RlyReleaseStore.release(rel.Id);
             RlyHttpMock mock = RlyReleaseTestData.withSlack(new RlyHttpMock());
@@ -174,6 +177,7 @@ private class RlySlackTest {
             Test.startTest();
             RlySlack.notify(read, 'Ready for approval');
             update new RLY_Notification__c(Id = s.Id, Enabled__c = true);
+            RlySlack.forgetSettings();
             RlySlack.notify(read, 'Ready for approval');
             RlySlack.notifyTransition(read, 'Ready for approval');
             Test.stopTest();

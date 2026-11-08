@@ -93,8 +93,14 @@ private class RlyComparePipelineTest {
             RlyHttpMock m = retrieveMock(true);
             Test.setMock(HttpCalloutMock.class, m);
             Test.startTest();
-            RlyComparePipeline.Started s = RlyCompareController.runPipelineCompare(JSON.serialize(runJob(dev.Id)));
+            Map<String, Object> job = runJob(dev.Id);
+            ((List<String>) job.get('keys')).add('StaticResource:logo');
+            job.put('notCompared', new List<String>{ 'StaticResource:logo', 'Profile:Admin' });
+            RlyComparePipeline.Started s = RlyCompareController.runPipelineCompare(JSON.serialize(job));
             Test.stopTest();
+            System.assert(s.gitUrls.get('Profile:Admin').endsWith('/sit/force-app/main/default/profiles/Admin.profile-meta.xml'),
+                'Profiles link to their file on the branch: ' + s.gitUrls);
+            System.assert(s.gitUrls.get('StaticResource:logo').endsWith('/staticresources/logo.resource-meta.xml'), 'Static resources too');
             Map<String, Object> body = (Map<String, Object>) JSON.deserializeUntyped(m.bodyFor('/dispatches'));
             Map<String, Object> inputs = (Map<String, Object>) body.get('inputs');
             System.assertEquals('compare', inputs.get('mode'), 'Mode compare');
@@ -145,6 +151,7 @@ private class RlyComparePipelineTest {
             RLY_Git_Connection__c conn = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
             conn.Provider__c = 'Bitbucket';
             update conn;
+            RlyReleaseStore.forgetGit();
             String error;
             Test.startTest();
             try {

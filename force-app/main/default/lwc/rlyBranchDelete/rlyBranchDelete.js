@@ -4,20 +4,13 @@ import deletionPart from '@salesforce/apex/RlyChangePartsController.deletionPart
 import presentNames from '@salesforce/apex/RlyChangePartsController.presentNames';
 import presentFields from '@salesforce/apex/RlyChangePartsController.presentFields';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
-import { PARALLEL, PAGE, MAX_CHOSEN, presenceKey, words, runPool, folderTypesOf, componentsOf, typeCounts } from './branchHelpers';
+import { PARALLEL, PAGE, MAX_CHOSEN, words, componentsOf, typeCounts } from './branchHelpers';
+import { errorText, plural, presenceKey, runPool, folderTypesOf } from 'c/rlyShared';
 
 const STILL = 'in';
 const GONE = 'out';
 const UNKNOWN = 'unknown';
 const CHECKING = 'checking';
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
-
-function plural(n, one, many) {
-    return n + ' ' + (n === 1 ? one : many);
-}
 
 /**
  * Delete from the branch (build 37.1, board "Delete from the branch"): everything on the target's branch, read a part at

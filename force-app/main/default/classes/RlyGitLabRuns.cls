@@ -39,11 +39,11 @@ public with sharing class RlyGitLabRuns {
         Integer opened = 0;
         for (Object o : rows) {
             Map<String, Object> row = (Map<String, Object>) o;
-            String name = text(row.get('name'));
+            String name = RlySyncParse.text(row.get('name'));
             if (name == null && opened < RUNS_OPENED) {
                 opened++;
                 row = (Map<String, Object>) read(git, '/pipelines/' + row.get('id'), 'Reading pipeline ' + row.get('id'));
-                name = text(row.get('name'));
+                name = RlySyncParse.text(row.get('name'));
                 name = name == null ? nameFromVariables((List<Object>) read(git, '/pipelines/' + row.get('id') + '/variables',
                     'Reading pipeline ' + row.get('id'))) : name;
             }
@@ -78,9 +78,9 @@ public with sharing class RlyGitLabRuns {
      */
     public static RlyGit.Run toRun(Map<String, Object> pipeline) {
         RlyGit.Run run = new RlyGit.Run();
-        run.id = text(pipeline.get('id'));
-        run.url = text(pipeline.get('web_url'));
-        String state = text(pipeline.get('status'));
+        run.id = RlySyncParse.text(pipeline.get('id'));
+        run.url = RlySyncParse.text(pipeline.get('web_url'));
+        String state = RlySyncParse.text(pipeline.get('status'));
         run.status = STATUS_OF.containsKey(state) ? STATUS_OF.get(state) : 'queued';
         run.conclusion = run.status == 'completed' ? CONCLUSION_OF.get(state) : null;
         return run;
@@ -96,7 +96,7 @@ public with sharing class RlyGitLabRuns {
         Map<String, String> byKey = new Map<String, String>();
         for (Object o : variables == null ? new List<Object>() : variables) {
             Map<String, Object> v = o instanceof Map<String, Object> ? (Map<String, Object>) o : new Map<String, Object>();
-            byKey.put(text(v.get('key')), text(v.get('value')));
+            byKey.put(RlySyncParse.text(v.get('key')), RlySyncParse.text(v.get('value')));
         }
         if (String.isBlank(byKey.get('REQUEST_ID')) || String.isBlank(byKey.get('MODE'))) {
             return null;
@@ -115,15 +115,6 @@ public with sharing class RlyGitLabRuns {
     }
 
     /**
-     * @description A value as text.
-     * @param value the value
-     * @return the text, or null
-     */
-    public static String text(Object value) {
-        return value == null ? null : String.valueOf(value);
-    }
-
-    /**
      * @description A text value of a JSON object, or null when the body isn't one or hasn't got it.
      * @param body the JSON
      * @param key the key
@@ -132,7 +123,7 @@ public with sharing class RlyGitLabRuns {
     public static String textOf(String body, String key) {
         try {
             Object parsed = JSON.deserializeUntyped(body);
-            return parsed instanceof Map<String, Object> ? text(((Map<String, Object>) parsed).get(key)) : null;
+            return parsed instanceof Map<String, Object> ? RlySyncParse.text(((Map<String, Object>) parsed).get(key)) : null;
         } catch (JSONException e) {
             return null;
         }

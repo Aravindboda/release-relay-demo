@@ -9,7 +9,7 @@
 public with sharing class RlyDataRules {
 
     /** @description The deployment team's custom permission. */
-    public static final String DEPLOY_TEAM = 'RLY_Deploy_Team';
+    public static final String DEPLOY_TEAM = RlyReleaseAccess.DEPLOY_TEAM;
     private static final Pattern RELEASE_PATTERN = Pattern.compile('^REL-\\d{5,10}$');
 
     /** @description A checked request: the set, its definition, the orgs. */
@@ -53,15 +53,6 @@ public with sharing class RlyDataRules {
     }
 
     /**
-     * @description Whether an org has a GitHub sign-in (a stage org or the hub with a Git environment).
-     * @param org the org
-     * @return true when the pipeline can sign in to it
-     */
-    public static Boolean hasSignIn(RLY_Org__c org) {
-        return org != null && (org.Role__c == 'Stage' || org.Role__c == 'Hub') && String.isNotBlank(org.Git_Environment__c);
-    }
-
-    /**
      * @description The run, refused unless it has this status.
      * @param runId the run id
      * @param status the status it must have
@@ -94,7 +85,7 @@ public with sharing class RlyDataRules {
      * @return true for them
      */
     public static Boolean mayMoveDown() {
-        return RlyOrgController.isAdmin() || FeatureManagement.checkPermission(DEPLOY_TEAM);
+        return RlyReleaseAccess.isDeployTeam();
     }
 
     /**
@@ -102,7 +93,7 @@ public with sharing class RlyDataRules {
      * @return true for them
      */
     public static Boolean mayLoadUp() {
-        return mayMoveDown() || FeatureManagement.checkPermission('RLY_Approver');
+        return RlyReleaseAccess.isDeployTeam() || RlyReleaseAccess.isApprover();
     }
 
     /**
@@ -139,7 +130,7 @@ public with sharing class RlyDataRules {
         if (c.source == null || c.target == null) {
             throw new RlyReleaseException('Pick registered orgs.');
         }
-        if (!hasSignIn(c.target)) {
+        if (!RlySyncRoute.hasSignIn(c.target)) {
             throw new RlyReleaseException(c.target.Name + ' has no sign-in in GitHub, so the pipeline can\'t load it. Data goes into a stage org or the hub.');
         }
         return c;

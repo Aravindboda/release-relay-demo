@@ -252,7 +252,7 @@ private class RlyStepFilesTest {
             List<List<String>> rows = RlyStepFileEvidence.evidenceRows(rel, RlyReleaseLog.eventsOf(new Set<Id>{ rel.Id }));
             String html = RlyStepFileEvidence.html(rows);
             Map<Id, String> csv = RlyStepFileEvidence.csvFiles(new List<RLY_Release__c>{ rel });
-            String csvExport = RlyEvidenceController.exportCsv('{"state":"all"}');
+            String csvExport = RlyEvidenceController.exportCsvPart('{"state":"all"}', 0).text;
             Test.stopTest();
             System.assert(pdf.contentDocumentId != null, 'Evidence saved');
             System.assertEquals(3, rows.size(), 'Step file, proof, removed: ' + rows);

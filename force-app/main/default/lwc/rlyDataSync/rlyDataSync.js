@@ -8,13 +8,10 @@ import runExported from '@salesforce/apex/RlyDataController.runExported';
 import readRun from '@salesforce/apex/RlyDataController.readRun';
 import loadRun from '@salesforce/apex/RlyDataController.loadRun';
 import { definitionOf, editorOf, statusPill, countsText, DIRECTIONS } from './dataHelpers';
+import { errorText } from 'c/rlyShared';
 
 /** Parts of a developer org's export sent at once (one object each). */
 const AT_ONCE = 2;
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
 
 /**
  * The Data view of the Sync status tab (board: Data sets · up and down, build 43). Left: the data sets (admins add and

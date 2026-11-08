@@ -84,7 +84,7 @@ public with sharing class RlyPipelineFiles {
      */
     public static Status currentStatus() {
         Data data = new Data();
-        RLY_Git_Connection__c conn = data.git();
+        RLY_Git_Connection__c conn = RlyReleaseStore.git();
         Status s = new Status();
         s.isAdmin = RlyOrgController.isAdmin();
         s.files = catalog(conn);
@@ -109,7 +109,7 @@ public with sharing class RlyPipelineFiles {
      */
     public static Integer packagedVersion() {
         Data data = new Data();
-        List<FileInfo> files = catalog(data.git());
+        List<FileInfo> files = catalog(RlyReleaseStore.git());
         return lowestPackaged(hubFiles(files), data.bodies(files));
     }
 
@@ -120,7 +120,7 @@ public with sharing class RlyPipelineFiles {
      * @return what happened
      */
     public static UpdateResult updateRepository(String how) {
-        return updateRepositoryFor(new Data().git(), how);
+        return updateRepositoryFor(RlyReleaseStore.git(), how);
     }
 
     /**
@@ -246,16 +246,6 @@ public with sharing class RlyPipelineFiles {
 
     /** @description The Git connection and the packaged files are hub configuration: read in system mode. */
     private without sharing class Data {
-
-        /**
-         * @description The hub's Git connection.
-         * @return the connection, or null
-         */
-        public RLY_Git_Connection__c git() {
-            List<RLY_Git_Connection__c> rows = [SELECT Id, Provider__c, Repository__c, Named_Credential__c, Pipeline__c, Pipeline_Branch__c
-                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC LIMIT 1];
-            return rows.isEmpty() ? null : rows[0];
-        }
 
         /**
          * @description The packaged content of the files.

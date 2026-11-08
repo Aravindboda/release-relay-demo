@@ -29,7 +29,7 @@ public with sharing class RlyMetricsController {
             o.periods = new List<Integer>{ 30, 90, 180, 365 };
             return o;
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -52,7 +52,7 @@ public with sharing class RlyMetricsController {
             new RlyMetricsFlow(f, buckets).addTo(m);
             return m;
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -66,13 +66,7 @@ public with sharing class RlyMetricsController {
         try {
             return RlyMetricsChecks.read(releaseIds);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        AuraHandledException a = new AuraHandledException(e.getMessage());
-        a.setMessage(e.getMessage());
-        return a;
     }
 }

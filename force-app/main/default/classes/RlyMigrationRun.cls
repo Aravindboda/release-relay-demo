@@ -104,23 +104,6 @@ public with sharing class RlyMigrationRun {
         return status == STARTED || status == GOING;
     }
 
-    /**
-     * @description A kept result.
-     * @param raw Dry_Run__c or Result__c
-     * @return the map, or null
-     */
-    public static Map<String, Object> parsed(String raw) {
-        if (String.isBlank(raw)) {
-            return null;
-        }
-        try {
-            Object o = JSON.deserializeUntyped(raw);
-            return o instanceof Map<String, Object> ? (Map<String, Object>) o : null;
-        } catch (JSONException e) {
-            return null;
-        }
-    }
-
     // The result: progress while it goes, else the outcome; Verify's (the importer's) dry run is also What moved.
     private static void settle(RLY_Migration__c m, Map<String, Object> result) {
         String status = String.valueOf(result.get('status'));

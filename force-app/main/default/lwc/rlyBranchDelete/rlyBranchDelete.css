@@ -1,3 +1,5 @@
+@import 'c/rlySharedStyles';
+
 :host {
     display: block;
     --rr-blue: #0176d3;
@@ -15,7 +17,6 @@
 .rr-modal-foot { display: flex; align-items: center; gap: 8px; background: #f3f3f3; }
 .rr-grow { flex: 1; min-width: 0; text-align: left; }
 .rr-small { font-size: 12px; margin: 0; }
-.rr-weak { color: var(--rr-muted); }
 .rr-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; }
 .rr-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -27,7 +28,6 @@
 
 /* messages */
 .rr-msg { padding: 6px 10px; border-radius: 4px; font-size: 12px; line-height: 1.45; }
-.rr-msg-info { background: #eef4ff; color: #014486; }
 .rr-msg-bad { background: #feded8; color: #8e030f; }
 .rr-msg-warn { background: #fef1cd; color: #5c3a00; }
 .rr-fails { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -64,9 +64,6 @@ mark { background: #fef1cd; padding: 0; }
 
 /* pills and the Delete toggle chip */
 .rr-pill { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
-.rr-pill-none { background: #f3f3f3; color: #444; }
-.rr-pill-bad { background: #feded8; color: #8e030f; }
-.rr-pill-wait { background: #fef1cd; color: #8c4b02; }
 .rr-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #c9c9c9; border-radius: 14px; padding: 3px 12px;
     font-size: 12px; font-weight: 600; color: var(--rr-blue); background: #fff; cursor: pointer; }
 .rr-chip-on { background: #ba0517; border-color: #ba0517; color: #fff; }

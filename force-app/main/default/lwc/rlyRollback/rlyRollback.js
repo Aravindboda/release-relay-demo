@@ -2,15 +2,12 @@ import { LightningElement, api } from 'lwc';
 import rollbackChoices from '@salesforce/apex/RlyRollbackController.rollbackChoices';
 import previewRollback from '@salesforce/apex/RlyRollbackController.previewRollback';
 import startRollback from '@salesforce/apex/RlyRollbackController.startRollback';
+import { errorText } from 'c/rlyShared';
 
 /** RlyRollback.TESTS_RELEASE and TESTS_ALL: the production tests choice. */
 const TESTS_RELEASE = 'release';
 const TESTS_ALL = 'all';
 const SHOWN_COMPONENTS = 12;
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
 
 function shortWhen(value) {
     return value ? new Date(value).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';

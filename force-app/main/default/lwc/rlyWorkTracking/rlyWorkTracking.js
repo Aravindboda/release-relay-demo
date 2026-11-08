@@ -6,6 +6,7 @@ import setTrackerActive from '@salesforce/apex/RlyWorkTrackersController.setTrac
 import moveTracker from '@salesforce/apex/RlyWorkTrackersController.moveTracker';
 import testTracker from '@salesforce/apex/RlyWorkTrackersController.testTracker';
 import { routeTicket } from 'c/rlyWorkRoute';
+import { errorText } from 'c/rlyShared';
 
 const KINDS = [
     { value: 'Jira', label: 'Jira', help: 'Comment and transition' },
@@ -27,10 +28,6 @@ const SWITCHES = [
     { value: 'required', label: 'Tickets required to raise' },
     { value: 'requireChange', label: 'Approved ServiceNow change before production' }
 ];
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
 
 /**
  * Pipeline tab: Work tracking (build 40; several trackers in build 47). Everyone reads the list; admins add a tracker

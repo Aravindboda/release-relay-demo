@@ -27,6 +27,14 @@ public with sharing class RlyCompareBranch {
     }
 
     /**
+     * @description Links each left-out component (static resource, profile) to its file on the branch.
+     * @param components the components
+     */
+    public void linkLeftOut(List<RlyCompareFiles.ComponentDiff> components) {
+        RlyCompareFiles.linkLeftOut(components, git.branchUrl(branch), prefix());
+    }
+
+    /**
      * @description What a deleted component's files say when the branch doesn't have them.
      * @return the reason
      */

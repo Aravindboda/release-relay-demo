@@ -1,0 +1,39 @@
+/*
+ * Release Relay shared styles (build 50): the rules every tab repeated, imported with @import 'c/rlySharedStyles'.
+ * Each component keeps its own variants after the import.
+ */
+.rr-weak { color: var(--rr-muted); }
+.rr-small { font-size: 12px; }
+.rr-sp { margin-left: 6px; }
+.rr-msg { padding: 8px 10px; border-radius: 4px; font-size: 12px; }
+.rr-msg-bad { background: #fef1ee; color: #8e030f; }
+.rr-msg-wait { background: #fef1cd; color: #8c4b02; }
+.rr-a { color: var(--rr-link); text-decoration: none; }
+.rr-head-text { flex: 1 1 300px; min-width: 0; }
+.rr-kicker { font-size: 12px; color: var(--rr-muted); }
+.rr-pill-ok { background: #ebf7e6; color: #2e844a; }
+.rr-pill-info { background: #eef4ff; color: #014486; }
+.rr-pill-wait { background: #fef1cd; color: #8c4b02; }
+.rr-pill-bad { background: #feded8; color: #8e030f; }
+.rr-pill-none { background: #f3f3f3; color: #444; }
+.rr-h2 { margin: 0; font-size: 15px; font-weight: 700; }
+.rr-toolbar c-rly-search-box { flex: 1 1 260px; min-width: 0; }
+.rr-ft { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
+.rr-msg-info { background: #eef4ff; color: #014486; }
+.rr-msg-warn { background: #fef1cd; color: #5e3600; }
+.rr-h3 { margin: 0; font-size: 14px; font-weight: 700; }
+.rr-strong { font-weight: 700; }
+.rr-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid #e5e5e5; }
+.rr-ft th { position: sticky; top: 0; z-index: 1; background: #f3f3f3; }
+.rr-ft-narrow { --rr-ft-min: 420px; }
+.rr-block { display: block; }
+.rr-msg-ok { background: #ebf7e6; color: #2e844a; }
+.rr-trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.rr-pill-warn { background: var(--rr-warn-2); color: var(--rr-warn); }
+.rr-pill-run { background: var(--rr-blue-2); color: var(--rr-blue); }
+.rr-ticks { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; overflow: hidden; }
+.rr-tick-2 { animation-duration: 2s; }
+.rr-tick-5 { animation-duration: 5s; }
+.rr-head-icon { width: 32px; height: 32px; border-radius: 4px; background: #2347d6; flex: none; display: inline-flex; align-items: center; justify-content: center; }
+.rr-nowrap { white-space: nowrap; }
+.rr-wait { position: relative; min-height: 120px; }

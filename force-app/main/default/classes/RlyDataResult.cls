@@ -132,7 +132,7 @@ public with sharing class RlyDataResult {
      * @param summary Summary__c
      */
     public static void fromSummary(View v, String summary) {
-        Map<String, Object> result = parsed(summary);
+        Map<String, Object> result = RlySyncParse.parsed(summary);
         if (result != null) {
             v.dryRun = result.get('dryRun') != false;
             readObjects(v, result);
@@ -176,17 +176,5 @@ public with sharing class RlyDataResult {
             }
         }
         return out;
-    }
-
-    private static Map<String, Object> parsed(String raw) {
-        if (String.isBlank(raw)) {
-            return null;
-        }
-        try {
-            Object o = JSON.deserializeUntyped(raw);
-            return o instanceof Map<String, Object> ? (Map<String, Object>) o : null;
-        } catch (JSONException e) {
-            return null;
-        }
     }
 }

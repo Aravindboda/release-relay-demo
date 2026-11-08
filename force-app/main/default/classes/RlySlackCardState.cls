@@ -10,6 +10,11 @@ public with sharing class RlySlackCardState {
     private static final String READY = 'Ready for approval';
     private static final String APPROVED_STATE = 'Approved';
     private static final String WAITING = ':hourglass_flowing_sand:';
+    // What a release's earlier state needs for the card and the two approvers: changed() and keepBoth() read only these.
+    private static final List<String> SNAPSHOT_FIELDS = new List<String>{ 'Id', 'Status__c', 'Pending_Run__c',
+        'Approval_Status__c', 'Approved_By__c', 'Approved_On__c', 'Approval_Comment__c', 'Approved_Via__c',
+        'Second_Approved_By__c', 'Deploy_Status__c', 'Scan_Status__c', 'Validation_Status__c', 'PR_Number__c',
+        'Back_Merge_Result__c', 'Rollback_Status__c', 'Rollback_Org__c' };
 
     /**
      * @description Whether a change moved anything the card shows: the status (or phase), the approval, the deploy, the
@@ -20,6 +25,26 @@ public with sharing class RlySlackCardState {
      */
     public static Boolean changed(RLY_Release__c prior, RLY_Release__c rel) {
         return prior != null && rel != null && fingerprint(prior) != fingerprint(rel);
+    }
+
+    /**
+     * @description A release's state before a change: only the fields the Slack card (changed) and the two approvers
+     * (RlyTwoApprovers.keepBoth) compare, copied when the release has them; much lighter than a full copy.
+     * @param rel the release, or null
+     * @return the snapshot, or null
+     */
+    public static RLY_Release__c snapshot(RLY_Release__c rel) {
+        if (rel == null) {
+            return null;
+        }
+        RLY_Release__c s = new RLY_Release__c();
+        Map<String, Object> have = rel.getPopulatedFieldsAsMap();
+        for (String f : SNAPSHOT_FIELDS) {
+            if (have.containsKey(f)) {
+                s.put(f, have.get(f));
+            }
+        }
+        return s;
     }
 
     private static String fingerprint(RLY_Release__c rel) {

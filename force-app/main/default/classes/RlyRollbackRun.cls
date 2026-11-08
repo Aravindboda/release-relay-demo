@@ -118,7 +118,7 @@ public with sharing class RlyRollbackRun {
     public static void record(RLY_Release__c row, RLY_Release__c earlier) {
         RLY_Release__c rel = RlyReleaseStore.release(row.Id);
         if (rel != null) {
-            RLY_Release__c prior = rel.clone(true, true, true, true);
+            RLY_Release__c prior = RlySlackCardState.snapshot(rel);
             prior.Rollback_Status__c = earlier == null ? null : earlier.Rollback_Status__c;
             prior.Rollback_Org__c = earlier == null ? null : earlier.Rollback_Org__c;
             rel.Rollback_Status__c = row.Rollback_Status__c;

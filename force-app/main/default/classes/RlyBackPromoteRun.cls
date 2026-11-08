@@ -93,8 +93,9 @@ public with sharing class RlyBackPromoteRun {
     }
 
     /**
-     * @description Starts the queued syncs and reads the running ones (up to five), then saves them: callouts first,
-     * the saves last. The hub release's page and the Pipeline tab call it.
+     * @description Starts or reads ONE open sync per request (build 50: a queue, so several large syncs never share a
+     * request): the one read longest ago, so each poll of the hub release's page or the Pipeline tab moves the next one
+     * along. Callouts first, the save last. No async Apex: the pages' polling drives the queue.
      */
     public static void catchUp() {
         if (!RlyHubGuard.isHub()) {
@@ -110,7 +111,7 @@ public with sharing class RlyBackPromoteRun {
         for (Id relId : ids) {
             RLY_Release__c rel = RlyReleaseStore.release(relId);
             String oldStatus = rel.Status__c;
-            RLY_Release__c prior = rel.clone(true, true, true, true);
+            RLY_Release__c prior = RlySlackCardState.snapshot(rel);
             try {
                 advanceSync(rel, git);
             } catch (Exception e) {

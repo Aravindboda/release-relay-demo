@@ -1,3 +1,5 @@
+@import 'c/rlySharedStyles';
+
 :host {
     padding-bottom: 1.5rem;
     display: block;
@@ -15,18 +17,12 @@
 .rr-page p { margin: 0; }
 .rr-card { background: #fff; border: 1px solid var(--rr-line); border-radius: 4px; box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05); min-width: 0; }
 .rr-grow { flex: 1 1 auto; min-width: 0; }
-.rr-weak { color: var(--rr-muted); }
-.rr-small { font-size: 12px; }
 .rr-pad { padding: 12px 16px; }
-.rr-sp { margin-left: 6px; }
 .rr-mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
 .rr-msg { padding: 8px 10px; border-radius: 4px; font-size: 12px; line-height: 1.45; }
-.rr-msg-bad { background: #fef1ee; color: #8e030f; }
-.rr-msg-wait { background: #fef1cd; color: #8c4b02; }
 .rr-link, .rr-linkbtn { border: 0; background: none; padding: 0; font: inherit; font-size: 12px; color: var(--rr-link); cursor: pointer; white-space: nowrap; }
 .rr-linkbtn { text-decoration: underline; }
 .rr-link:hover, .rr-a:hover { text-decoration: underline; }
-.rr-a { color: var(--rr-link); text-decoration: none; }
 .rr-link:focus-visible, .rr-linkbtn:focus-visible, .rr-chip:focus-visible, .rr-tile-btn:focus-visible, .rr-rowbtn:focus-visible, .rr-chip-btn:focus-visible, .rr-a:focus-visible {
     outline: 2px solid var(--rr-blue); outline-offset: 2px;
 }
@@ -35,19 +31,12 @@
 /* header (as Home: .rr-head) */
 .rr-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 16px; }
 .rr-head-icon { width: 32px; height: 32px; border-radius: 4px; background: #3a49da; flex: none; display: inline-flex; align-items: center; justify-content: center; }
-.rr-head-text { flex: 1 1 300px; min-width: 0; }
-.rr-kicker { font-size: 12px; color: var(--rr-muted); }
 .rr-title { margin: 0; font-size: 18px; font-weight: 700; }
 .rr-head-sub { margin-top: 2px; font-size: 12px; color: var(--rr-muted); }
 .rr-full { width: 100%; }
 .rr-run-wrap { display: inline-flex; }
 .rr-run-why { flex-basis: auto; }
 .rr-pill { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; vertical-align: middle; flex: none; }
-.rr-pill-ok { background: #ebf7e6; color: #2e844a; }
-.rr-pill-info { background: #eef4ff; color: #014486; }
-.rr-pill-wait { background: #fef1cd; color: #8c4b02; }
-.rr-pill-bad { background: #feded8; color: #8e030f; }
-.rr-pill-none { background: #f3f3f3; color: #444; }
 
 /* tiles (as Home's KPI tiles) */
 .rr-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
@@ -78,7 +67,6 @@
 
 /* card head */
 .rr-card-hd { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 32px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--rr-line); }
-.rr-h2 { margin: 0; font-size: 15px; font-weight: 700; }
 
 /* nightly job: one row of numbers */
 .rr-hl { display: grid; grid-template-columns: repeat(4, minmax(0, 0.8fr)) minmax(0, 1.3fr) minmax(0, 2fr); }
@@ -133,7 +121,6 @@
 
 /* ---- long lists (build 27, same in every bundle): search toolbar, fixed columns, pinned header, scroll inside ---- */
 .rr-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid var(--rr-line); }
-.rr-toolbar c-rly-search-box { flex: 1 1 260px; min-width: 0; }
 .rr-scroll { max-height: 26rem; overflow: auto; }
 .rr-scroll-runs { height: 340px; max-height: 340px; }
 .rr-ft { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 13px; }
