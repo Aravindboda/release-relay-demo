@@ -1,0 +1,19 @@
+{
+ "request": "REL-91074",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rly-b55-check",
+ "target": "rly-sit-install",
+ "sha": "61de81f925540f9da699dc34f0faa452a88f0615",
+ "pr": 248,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/248",
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "appended": false,
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42527863492",
+ "finishedAt": "2026-11-08T21:59:04.979Z"
+}
