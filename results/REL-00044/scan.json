@@ -1,0 +1,42 @@
+{
+ "request": "REL-00044",
+ "step": "scan",
+ "status": "Failed",
+ "total": 1,
+ "blocking": 1,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "High": 1
+ },
+ "files": [
+  "force-app/main/default/classes/E2EProbe.cls",
+  "force-app/main/default/classes/E2EProbeTest.cls",
+  "force-app/main/default/classes/ShippingQuote.cls",
+  "force-app/main/default/classes/ShippingQuoteTest.cls",
+  "force-app/main/default/flows/USA_Contact_Count.flow-meta.xml"
+ ],
+ "violations": [
+  {
+   "severity": 2,
+   "severityLabel": "High",
+   "rule": "TriggerEntryCriteria",
+   "engine": "flow",
+   "file": "force-app/main/default/flows/USA_Contact_Count.flow-meta.xml",
+   "line": 130,
+   "message": "The record trigger flow has no entry criteria. All record trigger flows should have entry criteria specified in the flow trigger definition rather than solely in the flow's own business logic.",
+   "url": null
+  }
+ ],
+ "message": "1 violation(s) at High or above.",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42435182664",
+ "finishedAt": "2026-11-08T01:40:24.288Z",
+ "attempt": "16f57c044381938847b73415db80ea36"
+}
