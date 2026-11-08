@@ -38,7 +38,7 @@ public with sharing class RlyCompareController {
             }
             return byType.isEmpty() ? null : RlyRetrieve.start(source, byType);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -54,7 +54,7 @@ public with sharing class RlyCompareController {
             RlyCompareRun.Job job = String.isBlank(jobJson) ? null : (RlyCompareRun.Job) JSON.deserialize(jobJson, RlyCompareRun.Job.class);
             return RlyCompareRun.check(job);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -71,7 +71,7 @@ public with sharing class RlyCompareController {
             RlyComparePipeline.gitHub();
             return RlyComparePipeline.startPart(sourceOrgId, keys);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -88,7 +88,7 @@ public with sharing class RlyCompareController {
                 : (RlyComparePipeline.Part) JSON.deserialize(partJson, RlyComparePipeline.Part.class);
             return RlyComparePipeline.stagePart(part);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -108,7 +108,7 @@ public with sharing class RlyCompareController {
             }
             return RlyComparePipeline.run(job);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -124,7 +124,7 @@ public with sharing class RlyCompareController {
             RlyHubGuard.requireHub();
             return RlyComparePipelineResult.check(compareId, token);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -140,16 +140,7 @@ public with sharing class RlyCompareController {
             RlyHubGuard.requireHub();
             return RlyComparePipelineResult.file(compareId, n);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        if (e instanceof AuraHandledException) {
-            return (AuraHandledException) e;
-        }
-        AuraHandledException ex = new AuraHandledException(e.getMessage());
-        ex.setMessage(e.getMessage());
-        return ex;
     }
 }

@@ -100,6 +100,7 @@
                                 <div class="rr-c-empty">
                                     <span class="rr-pill rr-pill-none">Not available</span>
                                     <p>{unavailableReason}</p>
+                                    <template lwc:if={unavailableUrl}><p><a href={unavailableUrl} target="_blank" rel="noopener">Open it on the {targetBranch} branch</a></p></template>
                                     <p class="rr-small rr-weak">After raising, open the release and look at Changes: it shows the file as it lands on the branch.</p>
                                 </div>
                             </div>

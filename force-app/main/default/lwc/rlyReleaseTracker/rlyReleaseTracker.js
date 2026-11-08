@@ -9,9 +9,8 @@ import refreshRelease from '@salesforce/apex/RlyReleasesController.refreshReleas
 import exportCsvPart from '@salesforce/apex/RlyEvidenceController.exportCsvPart';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
+import { errorText, sameDay, isGated, clearSearchBox } from 'c/rlyShared';
 
-/** Modes of RlyHubGuard.getHubStatus in which the tab shows only the org gate. */
-const GATED_MODES = ['sandbox', 'copy', 'setup'];
 
 const APPROVAL = ['Ready for approval'];
 const DONE = ['Deployed'];
@@ -81,10 +80,6 @@ function rollbackMeta(r) {
         return '';
     }
     return 'rolled back in ' + (r.rolledBackIn || 'an org') + (r.rolledBackBy ? ' by ' + r.rolledBackBy : '');
-}
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
 }
 
 /** The status pill's tone, as on the board: running blue, deployed green, waiting amber, failed red. */
@@ -173,10 +168,6 @@ function failReason(r) {
     }
 }
 
-function sameDay(a, b) {
-    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
 /** 4 min ago, 1 h ago, Today, 6:12 PM, Yesterday, Oct 28. */
 function relative(value) {
     if (!value) {
@@ -223,7 +214,7 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
     statusRead = false;
     get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
     get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
-    get gated() { return !!this.hubStatus && GATED_MODES.includes(this.hubStatus.mode); }
+    get gated() { return isGated(this.hubStatus); }
     get showPage() { return this.statusRead && !this.gated; }
 
     /** Reads the hub status once, then loads the page only on the hub. */
@@ -618,10 +609,7 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
 
     /** "Clear search" in the empty list. */
     clearSearch() {
-        const box = this.template.querySelector('c-rly-search-box');
-        if (box) {
-            box.clear();
-        }
+        clearSearchBox(this.template);
         this.search = '';
     }
 

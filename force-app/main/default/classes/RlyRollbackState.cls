@@ -139,7 +139,7 @@ public with sharing class RlyRollbackState {
      * @return the parsed object (empty when there's none)
      */
     public static Map<String, Object> result(RLY_Release__c row) {
-        return RlyEvidenceText.parse(row.Rollback_Result__c);
+        return RlySyncParse.parsedOrEmpty(row.Rollback_Result__c);
     }
 
     /**

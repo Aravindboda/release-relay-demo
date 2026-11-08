@@ -49,8 +49,8 @@ public with sharing class RlyComparePipelineResult {
             r.message = summary.get('message') == null ? 'The compare run failed. Open the run for the reason.' : String.valueOf(summary.get('message'));
             return r;
         }
-        for (Object o : asList(summary.get('components'))) {
-            r.components.add(component(asMap(o)));
+        for (Object o : RlySyncParse.asList(summary.get('components'))) {
+            r.components.add(component(RlySyncParse.asMap(o)));
         }
         return r;
     }
@@ -74,10 +74,10 @@ public with sharing class RlyComparePipelineResult {
         }
         RlyCompareFiles.FileDiff d = new RlyCompareFiles.FileDiff();
         d.n = n;
-        d.path = text(f.get('path'));
-        d.left = text(f.get('left'));
-        d.right = text(f.get('right'));
-        d.patch = text(f.get('patch'));
+        d.path = RlySyncParse.text(f.get('path'));
+        d.left = RlySyncParse.text(f.get('left'));
+        d.right = RlySyncParse.text(f.get('right'));
+        d.patch = RlySyncParse.text(f.get('patch'));
         d.status = d.patch != null ? RlyCompareFiles.CHANGED : RlyCompareParts.statusOf(d.left, d.right);
         return d;
     }
@@ -100,13 +100,13 @@ public with sharing class RlyComparePipelineResult {
     // A component from the summary: missing becomes Not available with the pipeline's reason.
     private static RlyCompareFiles.ComponentDiff component(Map<String, Object> m) {
         RlyCompareFiles.ComponentDiff c = new RlyCompareFiles.ComponentDiff();
-        c.key = text(m.get('key'));
-        String status = text(m.get('status'));
+        c.key = RlySyncParse.text(m.get('key'));
+        String status = RlySyncParse.text(m.get('status'));
         c.deleted = status == RlyCompareFiles.REMOVED;
         c.status = status == MISSING || status == null ? RlyCompareFiles.UNSUPPORTED : status;
-        c.reason = text(m.get('reason'));
-        for (Object o : asList(m.get('files'))) {
-            c.files.add(fileRow(asMap(o)));
+        c.reason = RlySyncParse.text(m.get('reason'));
+        for (Object o : RlySyncParse.asList(m.get('files'))) {
+            c.files.add(fileRow(RlySyncParse.asMap(o)));
         }
         return c;
     }
@@ -114,23 +114,11 @@ public with sharing class RlyComparePipelineResult {
     // A file row: its number when it has text to show, else why not.
     private static RlyCompareFiles.FileDiff fileRow(Map<String, Object> m) {
         RlyCompareFiles.FileDiff f = new RlyCompareFiles.FileDiff();
-        f.path = text(m.get('path'));
-        f.reason = text(m.get('reason'));
+        f.path = RlySyncParse.text(m.get('path'));
+        f.reason = RlySyncParse.text(m.get('reason'));
         Object n = m.get('n');
         f.n = n == null ? null : Integer.valueOf(String.valueOf(n));
-        f.status = f.n == null && f.reason != null ? RlyCompareFiles.UNSUPPORTED : text(m.get('status'));
+        f.status = f.n == null && f.reason != null ? RlyCompareFiles.UNSUPPORTED : RlySyncParse.text(m.get('status'));
         return f;
-    }
-
-    private static List<Object> asList(Object o) {
-        return o instanceof List<Object> ? (List<Object>) o : new List<Object>();
-    }
-
-    private static Map<String, Object> asMap(Object o) {
-        return o instanceof Map<String, Object> ? (Map<String, Object>) o : new Map<String, Object>();
-    }
-
-    private static String text(Object o) {
-        return o == null ? null : String.valueOf(o);
     }
 }

@@ -43,7 +43,7 @@ private class RlyChangePartsTest {
             .match('GET', '/git/trees/' + SHA_INVOICE + '?recursive=1').reply(200, tree(new List<List<String>>{
                 entry('Invoice__c.object-meta.xml', 'blob', '5'.repeat(40)), entry('fields', 'tree', '6'.repeat(40)),
                 entry('fields/Total__c.field-meta.xml', 'blob', '7'.repeat(40)) }, true))
-            .match('GET', '/git/trees/dev1').reply(200, tree(new List<List<String>>{ entry('force-app', 'tree', SHA_FORCE), entry('README.md', 'blob', '8'.repeat(40)) }, false))
+            .match('GET', '/git/trees/sit').reply(200, tree(new List<List<String>>{ entry('force-app', 'tree', SHA_FORCE), entry('README.md', 'blob', '8'.repeat(40)) }, false))
             .match('GET', '/git/trees/' + SHA_FORCE).reply(200, tree(new List<List<String>>{ entry('main', 'tree', SHA_MAIN) }, false))
             .match('GET', '/git/trees/' + SHA_MAIN).reply(200, tree(new List<List<String>>{ entry('default', 'tree', SHA_DEFAULT) }, false))
             .match('GET', '/git/trees/' + SHA_DEFAULT).reply(200, tree(new List<List<String>>{ entry('classes', 'tree', SHA_CLASSES),
@@ -107,9 +107,9 @@ private class RlyChangePartsTest {
             Id devId = RlyReleaseTestData.route().Id;
             Test.setMock(HttpCalloutMock.class, gitMock());
             Test.startTest();
-            RlyDeletionPlan.Plan plan = RlyChangePartsController.deletionPlan(devId);
+            RlyDeletionPlan.Plan plan = RlyChangePartsController.branchPlan(devId, null);
             Test.stopTest();
-            System.assertEquals('dev1', plan.branch, 'DEV1\'s own branch');
+            System.assertEquals('sit', plan.branch, 'The first stage\'s branch');
             System.assertEquals(3, plan.parts.size(), 'classes, then objects in two groups; labels left out');
             System.assertEquals('classes', plan.parts[0].label, 'Folder part');
             System.assertEquals('classes/', plan.parts[0].folders[0].prefix, 'Path below the source path');
@@ -154,15 +154,16 @@ private class RlyChangePartsTest {
         System.runAs(RlyTestData.admin()) {
             Id devId = RlyReleaseTestData.route().Id;
             Test.setMock(HttpCalloutMock.class, new RlyHttpMock()
-                .match('GET', '/git/trees/dev1').reply(200, tree(new List<List<String>>{ entry('src', 'tree', SHA_MAIN) }, true)));
+                .match('GET', '/git/trees/sit').reply(200, tree(new List<List<String>>{ entry('src', 'tree', SHA_MAIN) }, true)));
             Test.startTest();
-            RlyDeletionPlan.Plan empty = RlyChangePartsController.deletionPlan(devId);
+            RlyDeletionPlan.Plan empty = RlyChangePartsController.branchPlan(devId, null);
             RLY_Git_Connection__c conn = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
             conn.Provider__c = 'Bitbucket';
             update conn;
+            RlyReleaseStore.forgetGit();
             String gitLab;
             try {
-                RlyChangePartsController.deletionPlan(devId);
+                RlyChangePartsController.branchPlan(devId, null);
             } catch (AuraHandledException e) {
                 gitLab = e.getMessage();
             }

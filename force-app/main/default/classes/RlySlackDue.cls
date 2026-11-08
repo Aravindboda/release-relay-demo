@@ -27,7 +27,7 @@ public with sharing class RlySlackDue {
      * @return the answer
      */
     public static Map<String, Object> handle(String body) {
-        Object pass = parsed(body).get('pass');
+        Object pass = RlySyncParse.parsedOrEmpty(body).get('pass');
         String why = whySkipped();
         List<RLY_Org__c> orgs = why == null ? RlySlackDueStore.dueOrgs() : new List<RLY_Org__c>();
         if (why == null && orgs.isEmpty()) {
@@ -65,11 +65,18 @@ public with sharing class RlySlackDue {
         Set<Id> digested = new Set<Id>();
         Date today = localNow.dateGmt();
         Datetime yesterday = Datetime.newInstanceGmt(today.addDays(-1), Time.newInstance(0, 0, 0, 0)).addSeconds(-offsetSeconds);
+        Set<Id> due = new Set<Id>();
         for (RLY_Org__c o : orgs) {
-            if (!digestDue(o, localNow) || poster.stopped) {
+            if (digestDue(o, localNow)) {
+                due.add(o.Id);
+            }
+        }
+        Map<Id, Map<String, List<RLY_Release__c>>> lines = RlySlackDueReads.digests(due, yesterday);
+        for (RLY_Org__c o : orgs) {
+            if (!due.contains(o.Id) || poster.stopped) {
                 continue;
             }
-            String text = RlySlackNudge.digest(o, RlySlackDueReads.digest(o.Id, yesterday), today);
+            String text = RlySlackNudge.digest(o, lines.get(o.Id), today);
             if (text == null || poster.post(new Map<String, Object>{ 'channel' => o.Slack_Channel__c.trim(), 'text' => text })) {
                 digested.add(o.Id);
             }
@@ -79,17 +86,5 @@ public with sharing class RlySlackDue {
 
     private static Boolean digestDue(RLY_Org__c o, Datetime localNow) {
         return o.Slack_Digest__c == true && localNow.hourGmt() >= RlySlackNudge.digestHourOf(o) && o.Slack_Digest_Sent__c != localNow.dateGmt();
-    }
-
-    private static Map<String, Object> parsed(String body) {
-        if (String.isBlank(body)) {
-            return new Map<String, Object>();
-        }
-        try {
-            Object o = JSON.deserializeUntyped(body);
-            return o instanceof Map<String, Object> ? (Map<String, Object>) o : new Map<String, Object>();
-        } catch (JSONException e) {
-            return new Map<String, Object>();
-        }
     }
 }

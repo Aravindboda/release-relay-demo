@@ -145,6 +145,7 @@ private class RlyPullRequestFilesTest {
             RLY_Release__c rel = withPullRequest();
             RLY_Git_Connection__c conn = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
             update new RLY_Git_Connection__c(Id = conn.Id, Provider__c = 'Bitbucket');
+            RlyReleaseStore.forgetGit();
             RlyHttpMock mock = new RlyHttpMock();
             Test.setMock(HttpCalloutMock.class, mock);
             Test.startTest();

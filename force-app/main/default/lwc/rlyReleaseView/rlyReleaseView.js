@@ -12,11 +12,10 @@ import reject from '@salesforce/apex/RlyReleasesController.reject';
 import resolveConflicts from '@salesforce/apex/RlyReleasesController.resolveConflicts';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
+import { errorText, dateTime as when, isGated } from 'c/rlyShared';
 
 /** A list shows its search box from this many rows (or while a search is typed). */
 const SEARCH_FROM = 7;
-/** Modes of RlyHubGuard.getHubStatus in which only the org gate shows. */
-const GATED_MODES = ['sandbox', 'copy', 'setup'];
 
 /** Something is running (raise, checks, deploy, rollback, sync): the page checks again every 30 s. */
 const FAST_SECONDS = 30;
@@ -149,10 +148,6 @@ const PATH = [
     { key: 'deploy', label: 'Deploy' }
 ];
 
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
-
 function parse(json) {
     if (!json) {
         return null;
@@ -217,10 +212,6 @@ function timeOnly(value) {
     return value ? new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
 }
 
-function when(value) {
-    return value ? new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-}
-
 /** The history dot's tone: red failed, amber rolled back or waiting (a conflict, a second approver), green done, blue other. */
 function eventTone(e, failed) {
     const tone = failed ? 'bad' : EVENT_TONE[e.eventType] || 'info';
@@ -279,7 +270,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     hubStatus;
     /** The status has been read, or failed to read (then the view works as on the hub). */
     statusRead = false;
-    get gated() { return !!this.hubStatus && GATED_MODES.includes(this.hubStatus.mode); }
+    get gated() { return isGated(this.hubStatus); }
     get showPage() { return this.statusRead && !this.gated; }
 
     /** The app's name, from Custom Label RLY_App_Name. */

@@ -3,16 +3,13 @@ import options from '@salesforce/apex/RlyMetricsController.options';
 import metrics from '@salesforce/apex/RlyMetricsController.metrics';
 import checkReasons from '@salesforce/apex/RlyMetricsController.checkReasons';
 import { CHART, barsOf, csvOf, formatValue, hbarsOf, mergeBars, trendOf } from './metricsHelpers';
+import { errorText } from 'c/rlyShared';
 
 const PERIOD_LABELS = { 30: '30 days', 90: '90 days', 180: '6 months', 365: '12 months' };
 const ALL = '';
 /** Releases read per call for "why checks fail" (RlyMetricsChecks.MAX_PER_CALL). */
 const REASONS_PER_CALL = 10;
 const DORA_KEYS = ['deploys', 'leadTime', 'failureRate', 'restore'];
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
 
 /**
  * Metrics tab (build 42): the four DORA measures (deploys, lead time, change failure rate, time to restore) plus approval

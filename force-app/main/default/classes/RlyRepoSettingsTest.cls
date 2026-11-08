@@ -14,6 +14,7 @@ private class RlyRepoSettingsTest {
         insert new RLY_Git_Connection__c(Provider__c = provider, Repository__c = 'acme/release', Named_Credential__c = 'RLY_Git',
             Pipeline__c = 'release-relay.yml', Pipeline_Branch__c = 'main', Source_Path__c = 'force-app/main/default',
             Code_Scan__c = true, Status__c = 'Connected');
+        RlyReleaseStore.forgetGit();
     }
 
     private static RlyRepoSettings.Settings readWith(String valuesBody, String gatesBody) {

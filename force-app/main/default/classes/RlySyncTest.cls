@@ -238,6 +238,39 @@ private class RlySyncTest {
     }
 
     @IsTest
+    static void packagesOfTenOrgsInOneRequest() {
+        System.runAs(RlyTestData.admin()) {
+            RlyReleaseTestData.route();
+            List<RLY_Org__c> more = new List<RLY_Org__c>();
+            for (Integer i = 2; i <= 8; i++) {
+                more.add(RlyTestData.stage('STG' + i, 'stg' + i, i));
+            }
+            insert more;
+            RlyOrgSession.testToken = RlyTestData.TOKEN;
+            Test.setMock(HttpCalloutMock.class, new RlyHttpMock().match('GET', 'InstalledSubscriberPackage').reply(200,
+                '{"done":true,"records":[]}'));
+            List<RLY_Org__c> orgs = RlySyncRoute.topDown(RlySyncStore.orgs());
+            Test.startTest();
+            RlySyncPackages.Packages p = RlySyncPackages.read(orgs);
+            Integer queries = Limits.getQueries();
+            Integer callouts = Limits.getCallouts();
+            orgs.add(RlyTestData.stage('STG9', 'stg9', 9));
+            String refused;
+            try {
+                RlySyncPackages.read(orgs);
+            } catch (RlyReleaseException e) {
+                refused = e.getMessage();
+            }
+            Test.stopTest();
+            System.assertEquals(RlyOrgController.MAX_ORGS, p.orgs.size(), 'All ten orgs read: ' + p.errors);
+            System.assert(p.errors.isEmpty(), 'Every org answered: ' + p.errors);
+            System.assert(queries < RlyOrgController.MAX_ORGS, 'One query for the sign-ins, not one per org: ' + queries);
+            System.assert(callouts <= 2 * RlyOrgController.MAX_ORGS, 'At most two callouts per org: ' + callouts);
+            System.assertEquals(RlyOrgController.TOO_MANY_ORGS, refused, 'More than ten is refused');
+        }
+    }
+
+    @IsTest
     static void whatUsesAPackageIsListed() {
         System.runAs(RlyTestData.admin()) {
             RlyReleaseTestData.route();

@@ -99,7 +99,7 @@ public with sharing class RlyMigrationActions {
         if (m.Method__c == RlyMigrationMethods.IMPORTER) {
             throw new RlyReleaseException('The importer\'s copy is verified by the dry run.');
         }
-        Map<String, Object> dry = RlyMigrationRun.parsed(m.Dry_Run__c);
+        Map<String, Object> dry = RlySyncParse.parsed(m.Dry_Run__c);
         if (dry == null || dry.get('ready') != true) {
             throw new RlyReleaseException('Run the dry run first: the run starts once it says ready.');
         }

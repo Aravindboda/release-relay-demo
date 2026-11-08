@@ -40,23 +40,7 @@ public with sharing class RlyMigrationGuard {
      * @description Refuses anyone but a Release Relay admin.
      */
     public static void requireAdmin() {
-        if (!RlyOrgController.isAdmin()) {
-            throw new RlyReleaseException('Moving to another Git provider is for Release Relay admins.');
-        }
-    }
-
-    /**
-     * @description An error the page can show.
-     * @param e the error
-     * @return it, as an AuraHandledException
-     */
-    public static AuraHandledException handled(Exception e) {
-        if (e instanceof AuraHandledException) {
-            return (AuraHandledException) e;
-        }
-        AuraHandledException ex = new AuraHandledException(e.getMessage());
-        ex.setMessage(e.getMessage());
-        return ex;
+        RlyReleaseAccess.requireAdmin('Moving to another Git provider is for Release Relay admins.');
     }
 
     /**

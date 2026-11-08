@@ -2,12 +2,9 @@ import { LightningElement, api } from 'lwc';
 import syncRelease from '@salesforce/apex/RlyWorkItemsController.syncRelease';
 import setReleaseTickets from '@salesforce/apex/RlyWorkItemsController.setReleaseTickets';
 import addReleaseTickets from '@salesforce/apex/RlyWorkItemsController.addReleaseTickets';
+import { errorText } from 'c/rlyShared';
 
 const STATUS_PILL = { Posted: 'rr-pill rr-pill-ok', Failed: 'rr-pill rr-pill-bad', 'Tracked here': 'rr-pill rr-pill-none' };
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
 
 /**
  * A release's tickets (build 40; its own Work items card with Add tickets in build 47). Each time the release's status

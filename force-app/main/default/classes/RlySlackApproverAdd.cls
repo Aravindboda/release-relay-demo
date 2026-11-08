@@ -81,10 +81,10 @@ public with sharing class RlySlackApproverAdd {
      */
     public static AddResult add(List<Id> userIds) {
         if (userIds == null || userIds.isEmpty()) {
-            throw RlySlackController.auraError('Pick at least one person.');
+            throw RlyReleaseException.toAura('Pick at least one person.');
         }
         if (userIds.size() > MAX_ADD) {
-            throw RlySlackController.auraError('Add at most ' + MAX_ADD + ' people at a time.');
+            throw RlyReleaseException.toAura('Add at most ' + MAX_ADD + ' people at a time.');
         }
         AddResult out = new AddResult();
         out.manual = RlySlackMatch.matchBy() == RlySlackMatch.MANUAL;
@@ -153,7 +153,7 @@ public with sharing class RlySlackApproverAdd {
         public Id approverSetId() {
             List<PermissionSet> rows = [SELECT Id FROM PermissionSet WHERE Name = :RlySlackDirectory.APPROVER_SET WITH SYSTEM_MODE LIMIT 1];
             if (rows.isEmpty()) {
-                throw RlySlackController.auraError('The RLY_Approver permission set isn\'t in this org.');
+                throw RlyReleaseException.toAura('The RLY_Approver permission set isn\'t in this org.');
             }
             return rows[0].Id;
         }

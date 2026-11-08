@@ -21,7 +21,7 @@ public with sharing class RlyMetricsChecks {
         Map<String, Integer> reasons = new Map<String, Integer>();
         Map<String, Integer> files = new Map<String, Integer>();
         for (RLY_Release__c r : RlyMetricsStore.results(checked(releaseIds))) {
-            Map<String, Object> result = parsed(r.Validation_Result__c);
+            Map<String, Object> result = RlySyncParse.parsedOrEmpty(r.Validation_Result__c);
             bump(reasons, reasonOf(r, result));
             addFiles(files, result);
         }
@@ -47,7 +47,7 @@ public with sharing class RlyMetricsChecks {
 
     // The files in a result's conflicts (file name only).
     private static void addFiles(Map<String, Integer> files, Map<String, Object> result) {
-        for (Object c : listOf(result.get('conflicts'))) {
+        for (Object c : RlySyncParse.asList(result.get('conflicts'))) {
             Object file = c instanceof Map<String, Object> ? ((Map<String, Object>) c).get('file') : null;
             if (file != null) {
                 bump(files, String.valueOf(file).substringAfterLast('/'));
@@ -66,19 +66,19 @@ public with sharing class RlyMetricsChecks {
             return 'Fixed since';
         }
         Map<String, Object> gates = result.get('gates') instanceof Map<String, Object> ? (Map<String, Object>) result.get('gates') : null;
-        if (!listOf(result.get('conflicts')).isEmpty()) {
+        if (!RlySyncParse.asList(result.get('conflicts')).isEmpty()) {
             return 'Conflicts with the branch';
         }
         if (gates != null && gates.get('passed') == false) {
             return 'Quality gates';
         }
-        if (!listOf(result.get('testFailures')).isEmpty()) {
+        if (!RlySyncParse.asList(result.get('testFailures')).isEmpty()) {
             return 'Test failures';
         }
-        if (!listOf(result.get('componentErrors')).isEmpty()) {
+        if (!RlySyncParse.asList(result.get('componentErrors')).isEmpty()) {
             return 'Deploy errors';
         }
-        return listOf(result.get('coverageWarnings')).isEmpty() ? 'Other' : 'Code coverage';
+        return RlySyncParse.asList(result.get('coverageWarnings')).isEmpty() ? 'Other' : 'Code coverage';
     }
 
     private static List<RlyMetricsViews.Bar> bars(Map<String, Integer> counts) {
@@ -94,21 +94,5 @@ public with sharing class RlyMetricsChecks {
 
     private static void bump(Map<String, Integer> counts, String key) {
         counts.put(key, (counts.containsKey(key) ? counts.get(key) : 0) + 1);
-    }
-
-    private static List<Object> listOf(Object o) {
-        return o instanceof List<Object> ? (List<Object>) o : new List<Object>();
-    }
-
-    private static Map<String, Object> parsed(String json) {
-        if (String.isBlank(json)) {
-            return new Map<String, Object>();
-        }
-        try {
-            Object o = System.JSON.deserializeUntyped(json);
-            return o instanceof Map<String, Object> ? (Map<String, Object>) o : new Map<String, Object>();
-        } catch (JSONException e) {
-            return new Map<String, Object>();
-        }
     }
 }

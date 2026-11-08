@@ -19,7 +19,7 @@ public with sharing class RlyWindowStore {
      * @return the orgs, by name
      */
     public static List<RLY_Org__c> deployOrgs() {
-        return new SystemAccess().deployOrgs();
+        return RlyReleaseStore.pipelineOrgs(new Set<String>{ 'Stage', 'Hub', 'Back_Promote' });
     }
 
     /**
@@ -42,16 +42,6 @@ public with sharing class RlyWindowStore {
                                             Window_Time_Zone__c, Window_Freezes__c
                                      FROM RLY_Org__c WHERE Id = :orgId WITH SYSTEM_MODE LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
-        }
-
-        /**
-         * @description The orgs releases deploy into.
-         * @return the orgs
-         */
-        public List<RLY_Org__c> deployOrgs() {
-            return [SELECT Id, Name, Role__c, Branch__c, Window_Days__c, Window_From__c, Window_To__c, Window_Time_Zone__c,
-                           Window_Freezes__c
-                    FROM RLY_Org__c WHERE Role__c IN ('Stage', 'Hub', 'Back_Promote') WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }
 
         /**

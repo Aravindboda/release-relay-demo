@@ -11,6 +11,7 @@ import fixRow from '@salesforce/apex/RlySlackApprovers.fixRow';
 import unlinkApprover from '@salesforce/apex/RlySlackApprovers.unlink';
 import removeApprover from '@salesforce/apex/RlySlackApprovers.removeApprover';
 import { searchTerm, matchesSearch, highlightParts } from 'c/rlyListSearch';
+import { errorText, plural, clearSearchBox } from 'c/rlyShared';
 
 /** How approvers are matched, as the window says it. */
 const MATCH_LABELS = { SSO: 'SSO Federation ID', Email: 'Email', Manual: 'Manual only' };
@@ -36,17 +37,6 @@ const MEMBER_ID = /^[UW][A-Z0-9]{2,19}$/;
 const SEARCH_WAIT_MS = 300;
 /** New rows stay highlighted this long. */
 const FLASH_MS = 4000;
-
-function errorText(e) {
-    if (e && e.body && e.body.message) {
-        return e.body.message;
-    }
-    return (e && e.message) || 'Something went wrong.';
-}
-
-function plural(n, one, many) {
-    return n + ' ' + (n === 1 ? one : many);
-}
 
 /** "Today, 10:12 AM" for today, otherwise "Oct 28, 2026". */
 function whenText(value) {
@@ -286,10 +276,7 @@ export default class RlySlackApprovers extends LightningElement {
     }
 
     clearSearch() {
-        const box = this.template.querySelector('c-rly-search-box');
-        if (box) {
-            box.clear();
-        }
+        clearSearchBox(this.template);
         this.term = '';
         this.chip = 'all';
     }

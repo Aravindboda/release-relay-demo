@@ -5,6 +5,8 @@
  */
 public with sharing class RlyRunSigningController {
 
+    private static final String ADMINS_ONLY = 'Only Release Relay admins can do this.';
+
     /** @description What the Run signing card shows. Never the saved key. */
     public class Status {
         /** @description A key is saved: runs are signed and results must be signed. */
@@ -30,7 +32,7 @@ public with sharing class RlyRunSigningController {
         try {
             return statusNow();
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Run signing: ');
         }
     }
 
@@ -42,10 +44,10 @@ public with sharing class RlyRunSigningController {
     @AuraEnabled
     public static String generateKey() {
         try {
-            requireAdmin();
+            RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
             return RlyRunSigning.newKey();
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Run signing: ');
         }
     }
 
@@ -59,14 +61,16 @@ public with sharing class RlyRunSigningController {
     public static Status saveKey(String key) {
         try {
             RlyHubGuard.requireHub();
-            requireAdmin();
+            RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
             if (!RlyRunSigning.isKey(key)) {
                 throw new RlyReleaseException('That isn\'t a run-signing key: press Generate and copy the key it shows.');
             }
+            RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.SECURITY); // build 50: Recent changes to settings
             RlyRunKeyStore.save(key.trim());
+            RlySettingsLog.compare(was);
             return statusNow();
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Run signing: ');
         }
     }
 
@@ -78,10 +82,12 @@ public with sharing class RlyRunSigningController {
     @AuraEnabled
     public static RlyRepoSecurity.Report checkRepository() {
         try {
-            requireAdmin();
-            return RlyRepoSecurity.check();
+            RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
+            RlyRepoSecurity.Report report = RlyRepoSecurity.check();
+            RlyPipelineSummaryStore.keepSecurity(report); // build 50: the status strip reads it without a callout
+            return report;
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Run signing: ');
         }
     }
 
@@ -96,18 +102,5 @@ public with sharing class RlyRunSigningController {
         s.provider = conn == null ? null : conn.Provider__c;
         s.environments = RlyRepoSecurity.orgEnvironments();
         return s;
-    }
-
-    private static void requireAdmin() {
-        if (!RlyOrgController.isAdmin()) {
-            throw new RlyReleaseException('Only Release Relay admins can do this.');
-        }
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        String message = e instanceof RlyReleaseException ? e.getMessage() : 'Run signing: ' + e.getMessage();
-        AuraHandledException ex = new AuraHandledException(message);
-        ex.setMessage(message);
-        return ex;
     }
 }

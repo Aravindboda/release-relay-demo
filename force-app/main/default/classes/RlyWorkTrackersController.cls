@@ -24,10 +24,12 @@ public with sharing class RlyWorkTrackersController {
             }
             RlyWorkStore.adoptLegacy();
             RlyWorkTypes.TrackerView v = (RlyWorkTypes.TrackerView) JSON.deserialize(trackerJson, RlyWorkTypes.TrackerView.class);
+            RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.TRACKING); // build 50: Recent changes to settings
             RlyWorkStore.saveTrackers(new List<RLY_Work_Tracker__c>{ RlyWorkTrackerCheck.checked(v) });
+            RlySettingsLog.compare(was);
             return view();
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Work tracking: ');
         }
     }
 
@@ -43,10 +45,12 @@ public with sharing class RlyWorkTrackersController {
             requireAdmin();
             RlyWorkTypes.TrackerView v = RlyWorkSettings.trackerView(trackerFound(trackerId), 0);
             v.active = state == STATE_ON;
+            RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.TRACKING); // build 50: Recent changes to settings
             RlyWorkStore.saveTrackers(new List<RLY_Work_Tracker__c>{ RlyWorkTrackerCheck.checked(v) });
+            RlySettingsLog.compare(was);
             return view();
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Work tracking: ');
         }
     }
 
@@ -61,10 +65,12 @@ public with sharing class RlyWorkTrackersController {
         try {
             requireAdmin();
             trackerFound(trackerId);
+            RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.TRACKING); // build 50: Recent changes to settings
             RlyWorkStore.saveTrackers(reordered(trackerId, direction == DIRECTION_UP ? -1 : 1));
+            RlySettingsLog.compare(was);
             return view();
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Work tracking: ');
         }
     }
 
@@ -79,7 +85,7 @@ public with sharing class RlyWorkTrackersController {
             requireAdmin();
             return RlyWorkTracker.signIn(trackerFound(trackerId));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Work tracking: ');
         }
     }
 
@@ -88,9 +94,7 @@ public with sharing class RlyWorkTrackersController {
      */
     public static void requireAdmin() {
         RlyHubGuard.requireHub();
-        if (!RlyOrgController.isAdmin()) {
-            throw new RlyReleaseException('Only a Release Relay admin changes work tracking.');
-        }
+        RlyReleaseAccess.requireAdmin('Only a Release Relay admin changes work tracking.');
     }
 
     // Every tracker's new order, with one moved by step (-1 up, 1 down).
@@ -123,12 +127,5 @@ public with sharing class RlyWorkTrackersController {
 
     private static RlyWorkTypes.Settings view() {
         return RlyWorkSettings.viewOf(RlyWorkStore.trackingSettings());
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        String message = e instanceof RlyReleaseException ? e.getMessage() : 'Work tracking: ' + e.getMessage();
-        AuraHandledException ex = new AuraHandledException(message);
-        ex.setMessage(message);
-        return ex;
     }
 }

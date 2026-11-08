@@ -5,26 +5,13 @@ import promote from '@salesforce/apex/RlyPromoteController.promote';
 import getSteps from '@salesforce/apex/RlyManualStepController.getSteps';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
+import { errorText, plural, dateTime as when, isGated } from 'c/rlyShared';
 
-/** Modes of RlyHubGuard.getHubStatus in which the tab shows only the org gate. */
-const GATED_MODES = ['sandbox', 'copy', 'setup'];
 
 /** A list shows its search box from this many rows (or while a search is typed). */
 const SEARCH_FROM = 7;
 
 const TIMING_LABEL = { Before_Deploy: 'Before deploy', After_Deploy: 'After deploy' };
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
-
-function when(value) {
-    return value ? new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-}
-
-function plural(n, one, many) {
-    return n + ' ' + (n === 1 ? one : many);
-}
 
 function deployedAt(r) {
     return r.deployedOn ? new Date(r.deployedOn).getTime() : null;
@@ -116,7 +103,7 @@ export default class RlyPromote extends LightningElement {
     statusRead = false;
     get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
     get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
-    get gated() { return !!this.hubStatus && GATED_MODES.includes(this.hubStatus.mode); }
+    get gated() { return isGated(this.hubStatus); }
     get showPage() { return this.statusRead && !this.gated; }
 
     /** Reads the hub status once, then loads the page only on the hub. */

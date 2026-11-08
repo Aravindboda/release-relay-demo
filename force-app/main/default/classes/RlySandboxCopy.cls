@@ -72,7 +72,9 @@ global with sharing class RlySandboxCopy implements SandboxPostCopy {
                 g.Status_Message__c = NOTE;
             }
             update as system slack;
+            RlySlack.forgetSettings();
             update as system gits;
+            RlyReleaseStore.forgetGit();
         }
 
         /**
@@ -99,6 +101,7 @@ global with sharing class RlySandboxCopy implements SandboxPostCopy {
                 g.Status_Message__c = NOTE + REMOVE_BY_HAND;
             }
             update as system gits;
+            RlyReleaseStore.forgetGit();
         }
     }
 }

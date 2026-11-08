@@ -132,6 +132,7 @@ private class RlyRunMonitorControllerTest {
             insert new RLY_Git_Connection__c(Provider__c = 'GitHub', Repository__c = 'acme/other_repo', Named_Credential__c = 'RLY_GitHub',
                 Pipeline__c = 'release-relay.yml', Pipeline_Branch__c = 'main', Source_Path__c = 'force-app/main/default',
                 Status__c = 'Connected');
+            RlyReleaseStore.forgetGit();
             RLY_Pipeline_Run__c other = run('900-1|Failed|sit', System.now().addMinutes(-1));
             other.Run_Url__c = 'https://github.com/acme/other_repo/actions/runs/900';
             insert other;

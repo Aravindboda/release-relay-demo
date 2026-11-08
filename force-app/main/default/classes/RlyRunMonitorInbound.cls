@@ -35,7 +35,7 @@ public with sharing class RlyRunMonitorInbound {
         if (!RlyOrgController.isAdmin()) {
             return refuse(403, NOT_ADMIN);
         }
-        Reader rd = new Reader(RlyRunMonitorInput.parse(body));
+        Reader rd = new Reader(RlySyncParse.parsedOrEmpty(body));
         String problem = rd.problem();
         if (problem != null) {
             return refuse(400, problem);

@@ -31,6 +31,7 @@ public with sharing class RlyArchiveTestData {
      */
     public static void retention(Integer days) {
         update new RLY_Git_Connection__c(Id = settings().Id, Retention_Days__c = days, Archive_Nightly__c = false);
+        RlyReleaseStore.forgetGit();
     }
 
     /**
@@ -39,6 +40,7 @@ public with sharing class RlyArchiveTestData {
      */
     public static void nightly(Integer days) {
         update new RLY_Git_Connection__c(Id = settings().Id, Retention_Days__c = days, Archive_Nightly__c = true);
+        RlyReleaseStore.forgetGit();
     }
 
     /**

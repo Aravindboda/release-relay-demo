@@ -1,15 +1,12 @@
 import { LightningElement, api } from 'lwc';
 import saveWindow from '@salesforce/apex/RlyWindowController.saveWindow';
+import { errorText } from 'c/rlyShared';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const ZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'America/Phoenix',
     'America/Anchorage', 'Pacific/Honolulu', 'America/Toronto', 'America/Sao_Paulo', 'Europe/London', 'Europe/Dublin',
     'Europe/Paris', 'Europe/Berlin', 'Europe/Zurich', 'Europe/Madrid', 'Europe/Amsterdam', 'Asia/Kolkata', 'Asia/Dubai',
     'Asia/Singapore', 'Asia/Tokyo', 'Australia/Sydney', 'GMT'];
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
 
 let seq = 0;
 

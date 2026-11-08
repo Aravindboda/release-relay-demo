@@ -165,8 +165,8 @@ public with sharing class RlyMigrationViews {
         r.runId = m.Run_Id__c;
         r.runUrl = m.Run_Url__c;
         r.running = RlyMigrationRun.isRunning(m.Run_Status__c);
-        r.dry = RlyMigrationSummary.of(RlyMigrationRun.parsed(m.Dry_Run__c));
-        r.result = RlyMigrationSummary.of(RlyMigrationRun.parsed(m.Result__c));
+        r.dry = RlyMigrationSummary.of(RlySyncParse.parsed(m.Dry_Run__c));
+        r.result = RlyMigrationSummary.of(RlySyncParse.parsed(m.Result__c));
         return r;
     }
 

@@ -102,12 +102,27 @@ private class RlySlackCardTest {
             RlySlackCardSync.notifyChange(rel.clone(true, true, true, true), rel);
             RlySlackCardSync.notifyChange(null, rel);
             update new RLY_Notification__c(Id = s.Id, Enabled__c = false);
+            RlySlack.forgetSettings();
             RLY_Release__c prior = rel.clone(true, true, true, true);
             rel.Status__c = 'Deployed';
             RlySlackCardSync.notifyChange(prior, rel);
             Test.stopTest();
             System.assert(!mock.callLog().contains('chat.'), 'No Slack calls: ' + mock.callLog());
             System.assert(!RlySlackCardState.changed(rel, rel), 'Same release: no change');
+        }
+    }
+
+    @IsTest
+    static void snapshotKeepsWhatTheCardCompares() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = withCard('Ready for approval', 'Slack');
+            RLY_Release__c prior = RlySlackCardState.snapshot(rel);
+            System.assert(!RlySlackCardState.changed(prior, rel), 'Snapshot of the same state: no change');
+            System.assertEquals(rel.Id, prior.Id, 'Same release');
+            System.assert(prior.getPopulatedFieldsAsMap().size() <= 16, 'Only the compared fields: ' + prior.getPopulatedFieldsAsMap().keySet());
+            rel.Approval_Status__c = 'Approved';
+            System.assert(RlySlackCardState.changed(prior, rel), 'An approval changes the card');
+            System.assertEquals(null, RlySlackCardState.snapshot(null), 'No release, no snapshot');
         }
     }
 
@@ -184,6 +199,7 @@ private class RlySlackCardTest {
         System.runAs(RlyTestData.admin()) {
             RLY_Notification__c s = RlyReleaseTestData.slackOn('Deployed');
             update new RLY_Notification__c(Id = s.Id, Webhook_URL__c = 'https://hooks.slack.com/services/T000/B000/abcdWXYZ');
+            RlySlack.forgetSettings();
             RLY_Release__c rel = withCard('Deploying', 'Salesforce');
             RlyHttpMock mock = new RlyHttpMock().match('POST', 'callout:RLY_Slack/').reply(200, '{"ok":false,"error":"ratelimited"}')
                 .match('POST', 'hooks.slack.com').reply(200, 'ok');

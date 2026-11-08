@@ -153,8 +153,35 @@ public with sharing class RlyStepFileStore {
         new SystemAccess().deleteDocs(docs);
     }
 
+    /**
+     * @description Saves a PDF to a record's Files (release evidence, migration report), visible to all users.
+     * @param recordId the record
+     * @param title the file's title
+     * @param pdf the PDF
+     * @return the file's ContentDocument Id
+     */
+    public static Id savePdf(Id recordId, String title, Blob pdf) {
+        return new SystemAccess().savePdf(recordId, title, pdf);
+    }
+
     /** @description Files, steps and runs are shared hub records: read and written in system mode, after the checks. */
     private without sharing class SystemAccess {
+
+        /**
+         * @description See RlyStepFileStore.savePdf.
+         * @param recordId the record
+         * @param title the file's title
+         * @param pdf the PDF
+         * @return the file's ContentDocument Id
+         */
+        public Id savePdf(Id recordId, String title, Blob pdf) {
+            ContentVersion v = new ContentVersion(Title = title, PathOnClient = title + '.pdf', VersionData = pdf);
+            insert as system v;
+            Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :v.Id WITH SYSTEM_MODE].ContentDocumentId;
+            insert as system new ContentDocumentLink(ContentDocumentId = docId, LinkedEntityId = recordId, ShareType = 'V',
+                Visibility = 'AllUsers');
+            return docId;
+        }
 
         /**
          * @description The links of some steps and runs, with the file's fields.

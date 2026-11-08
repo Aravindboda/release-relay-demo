@@ -4,6 +4,11 @@
  */
 public with sharing class RlyGitLabChanges extends RlyGitChanges {
 
+    /** @description The reader with this provider's files view and anchors. */
+    public RlyGitLabChanges() {
+        super('/diffs', '#', 'SHA1');
+    }
+
     /**
      * @description One page of the merge request's files.
      * @param prNumber the merge request's iid
@@ -31,25 +36,5 @@ public with sharing class RlyGitLabChanges extends RlyGitChanges {
         Map<String, Object> mr = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
         return new Map<String, Object>{ 'changed_files' => RlyGitLabDiffs.changesCount(mr.get('changes_count')),
             'additions' => pageAdditions, 'deletions' => pageDeletions };
-    }
-
-    /**
-     * @description The merge request's Changes view.
-     * @param prUrl the merge request's link
-     * @return its link + /diffs, or null when the link is blank
-     */
-    public override String filesUrl(String prUrl) {
-        return String.isBlank(prUrl) ? null : prUrl.trim().removeEnd('/') + '/diffs';
-    }
-
-    /**
-     * @description A file in the Changes view: # and the SHA-1 of its path, in hex.
-     * @param filesUrl the Changes view's link, or null
-     * @param filename the file's path, or null
-     * @return the link
-     */
-    public override String fileUrl(String filesUrl, String filename) {
-        return filesUrl == null || filename == null ? filesUrl
-            : filesUrl + '#' + EncodingUtil.convertToHex(Crypto.generateDigest('SHA1', Blob.valueOf(filename)));
     }
 }

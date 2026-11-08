@@ -102,7 +102,7 @@ public with sharing class RlyEvidenceText {
      */
     public static Validation validationOf(String resultJson) {
         Validation v = new Validation();
-        Map<String, Object> m = parse(resultJson);
+        Map<String, Object> m = RlySyncParse.parsedOrEmpty(resultJson);
         v.deployId = str(m.get('deployId'));
         v.testsRun = num(m.get('testsRun'));
         v.message = str(m.get('message'));
@@ -121,7 +121,7 @@ public with sharing class RlyEvidenceText {
      */
     public static Deploy deployOf(String resultJson) {
         Deploy d = new Deploy();
-        Map<String, Object> m = parse(resultJson);
+        Map<String, Object> m = RlySyncParse.parsedOrEmpty(resultJson);
         d.deployId = str(m.get('deployId'));
         d.quick = m.get('quick') == true;
         d.testsRun = num(m.get('testsRun'));
@@ -150,23 +150,6 @@ public with sharing class RlyEvidenceText {
             parts.add(counts.get(k) + ' ' + k);
         }
         return parts.isEmpty() ? 'nothing to sync' : String.join(parts, ', ');
-    }
-
-    /**
-     * @description Parses a JSON object, or returns an empty map.
-     * @param body the JSON
-     * @return the object
-     */
-    public static Map<String, Object> parse(String body) {
-        if (String.isBlank(body)) {
-            return new Map<String, Object>();
-        }
-        try {
-            Object o = JSON.deserializeUntyped(body);
-            return o instanceof Map<String, Object> ? (Map<String, Object>) o : new Map<String, Object>();
-        } catch (Exception e) {
-            return new Map<String, Object>();
-        }
     }
 
     /**

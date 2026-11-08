@@ -3,6 +3,7 @@ import files from '@salesforce/apex/RlyPullRequestFiles.files';
 import filesPage from '@salesforce/apex/RlyPullRequestFiles.filesPage';
 import filePatch from '@salesforce/apex/RlyPullRequestFiles.filePatch';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
+import { errorText, clearSearchBox } from 'c/rlyShared';
 
 const BLOCKS = 5;
 /** The list shows its search box from this many files (or while a search is typed). */
@@ -14,10 +15,6 @@ const STATUS_CLS = {
     copied: 'rr-pill rr-pill-ok',
     removed: 'rr-pill rr-pill-bad'
 };
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
 
 function plural(n, word) {
     return n.toLocaleString() + ' ' + word + (n === 1 ? '' : 's');
@@ -240,10 +237,7 @@ export default class RlyReleaseChanges extends LightningElement {
     }
 
     clearSearch() {
-        const box = this.template.querySelector('c-rly-search-box');
-        if (box) {
-            box.clear();
-        }
+        clearSearchBox(this.template);
         this.term = '';
     }
 

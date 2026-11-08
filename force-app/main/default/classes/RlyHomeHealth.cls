@@ -57,7 +57,7 @@ public with sharing class RlyHomeHealth {
      */
     public static Health read() {
         Data store = new Data();
-        RLY_Git_Connection__c git = store.git();
+        RLY_Git_Connection__c git = RlyReleaseStore.git();
         RLY_Notification__c slack = store.slack();
         List<RLY_Org__c> orgs = store.routeOrgs();
         Health h = new Health();
@@ -152,16 +152,6 @@ public with sharing class RlyHomeHealth {
 
     /** @description Hub configuration, read in system mode. */
     private without sharing class Data {
-
-        /**
-         * @description The hub's Git connection.
-         * @return the connection, or null
-         */
-        public RLY_Git_Connection__c git() {
-            List<RLY_Git_Connection__c> rows = [SELECT Id, Status__c, Status_Message__c, Last_Checked__c, Code_Scan__c
-                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC LIMIT 1];
-            return rows.isEmpty() ? null : rows[0];
-        }
 
         /**
          * @description The Slack record (signing secret included: only checked for a value, never sent to the page).

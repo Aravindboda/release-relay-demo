@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Settings changes (build 50): one row per setting an admin changed on the Pipeline tab (Git connection, route, orgs, Slack, work tracking, retention, production approval, run signing, What&apos;s built lock): who, what, when, old and new value. Secrets are never written: a changed token, key or password shows as &quot;changed&quot;. Written by RlySettingsLog after each save; the Pipeline tab shows the last 10 under Recent changes to settings. Kept 90 days: the nightly archive call removes older rows.</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>false</enableHistory>
+    <enableReports>true</enableReports>
+    <enableSearch>false</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <label>RLY Settings Change</label>
+    <nameField>
+        <displayFormat>SC-{000000}</displayFormat>
+        <label>Change</label>
+        <trackHistory>false</trackHistory>
+        <type>AutoNumber</type>
+    </nameField>
+    <pluralLabel>RLY Settings Changes</pluralLabel>
+    <searchLayouts></searchLayouts>
+    <sharingModel>ReadWrite</sharingModel>
+</CustomObject>

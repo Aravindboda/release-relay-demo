@@ -30,7 +30,7 @@ public with sharing class RlyConflictResult {
      */
     public static Map<String, Map<String, Object>> filesOf(String resultJson) {
         Map<String, Map<String, Object>> out = new Map<String, Map<String, Object>>();
-        Map<String, Object> result = parse(resultJson);
+        Map<String, Object> result = RlySyncParse.parsed(resultJson);
         if (!isConflict(result)) {
             return out;
         }
@@ -89,18 +89,6 @@ public with sharing class RlyConflictResult {
     private static void addFile(Object o, List<Map<String, Object>> out) {
         if (o instanceof Map<String, Object>) {
             out.add((Map<String, Object>) o);
-        }
-    }
-
-    private static Map<String, Object> parse(String resultJson) {
-        if (String.isBlank(resultJson)) {
-            return null;
-        }
-        try {
-            Object parsed = JSON.deserializeUntyped(resultJson);
-            return parsed instanceof Map<String, Object> ? (Map<String, Object>) parsed : null;
-        } catch (Exception e) {
-            return null;
         }
     }
 }

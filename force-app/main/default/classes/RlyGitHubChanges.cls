@@ -4,6 +4,11 @@
  */
 public with sharing class RlyGitHubChanges extends RlyGitChanges {
 
+    /** @description The reader with this provider's files view and anchors. */
+    public RlyGitHubChanges() {
+        super('/files', '#diff-', 'SHA-256');
+    }
+
     /**
      * @description One page of the pull request's files, as GitHub lists them.
      * @param prNumber the pull request number
@@ -24,25 +29,5 @@ public with sharing class RlyGitHubChanges extends RlyGitChanges {
      */
     public override Map<String, Object> totals(Integer prNumber, Integer pageAdditions, Integer pageDeletions) {
         return (Map<String, Object>) ((RlyGitHub) git).readPullRequest(prNumber, '');
-    }
-
-    /**
-     * @description The pull request's Files changed view.
-     * @param prUrl the pull request's link
-     * @return its link + /files, or null when the link is blank
-     */
-    public override String filesUrl(String prUrl) {
-        return String.isBlank(prUrl) ? null : prUrl.trim().removeEnd('/') + '/files';
-    }
-
-    /**
-     * @description A file in the Files changed view: #diff- and the SHA-256 of its path, in hex.
-     * @param filesUrl the files view's link, or null
-     * @param filename the file's path, or null
-     * @return the link
-     */
-    public override String fileUrl(String filesUrl, String filename) {
-        return filesUrl == null || filename == null ? filesUrl
-            : filesUrl + '#diff-' + EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', Blob.valueOf(filename)));
     }
 }

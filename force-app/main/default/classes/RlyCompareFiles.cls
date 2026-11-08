@@ -1,9 +1,9 @@
 /**
  * @description Compare on Review: which components can be compared and where their files are. A Metadata API zip path
  * (classes/X.cls, lwc/x/x.js, flows/X.flow…) maps to its component (Type:Name) and to its path in source format below the
- * Git connection's source path (flows/X.flow becomes flows/X.flow-meta.xml). Static resources (binary) and types whose
- * files differ between the two formats (objects, fields, record types…) aren't compared. Also the file and component
- * statuses the page shows.
+ * Git connection's source path (flows/X.flow becomes flows/X.flow-meta.xml). Static resources and profiles (build 50: large
+ * files) are left out, here and in the pipeline, with a link to the file on the branch; types whose files differ between
+ * the two formats (objects, fields, record types…) aren't compared. Also the file and component statuses the page shows.
  */
 public with sharing class RlyCompareFiles {
 
@@ -25,6 +25,8 @@ public with sharing class RlyCompareFiles {
     public static final String PENDING = 'pending';
     /** @description Reason for a file over MAX_FILE_CHARS. */
     public static final String TOO_LARGE = 'Too large to compare here';
+    /** @description Reason for a type compare leaves out (static resources, profiles): the page links to the file. */
+    public static final String LEFT_OUT = 'Not compared: open it in Git.';
 
     private static final String META = '-meta.xml';
     // Folder in the zip and in source format => type.
@@ -45,6 +47,9 @@ public with sharing class RlyCompareFiles {
         'Flow' => '.flow', 'Layout' => '.layout', 'PermissionSet' => '.permissionset'
     };
     private static final Set<String> XML_TYPES = new Set<String>{ 'Flow', 'Layout', 'PermissionSet' };
+    // Types compare leaves out (large files) => their file in source format, {0} the name.
+    private static final Map<String, String> LEFT_OUT_FILES = new Map<String, String>{
+        'StaticResource' => 'staticresources/{0}.resource-meta.xml', 'Profile' => 'profiles/{0}.profile-meta.xml' };
     // A bundle's main file: type => extension of the file named like the bundle.
     private static final Map<String, String> BUNDLE_MAIN = new Map<String, String>{ 'LightningComponentBundle' => '.js', 'AuraDefinitionBundle' => '.cmp' };
 
@@ -78,6 +83,46 @@ public with sharing class RlyCompareFiles {
         @AuraEnabled public Boolean deleted = false;
         /** @description Its files, main file first. */
         @AuraEnabled public List<FileDiff> files = new List<FileDiff>();
+        /** @description A type compare leaves out: its file on the compared branch, or null. */
+        @AuraEnabled public String gitUrl;
+    }
+
+    /**
+     * @description Whether compare leaves this type out (static resources and profiles: their files are large).
+     * @param typeName the metadata type
+     * @return true when it's left out
+     */
+    public static Boolean isLeftOut(String typeName) {
+        return LEFT_OUT_FILES.containsKey(typeName);
+    }
+
+    /**
+     * @description Links each left-out component (static resource, profile) to its file on the branch.
+     * @param components the components
+     * @param branchWeb the branch's web address (RlyGit.branchUrl), or null when the provider has none
+     * @param prefix the source path with its trailing slash (blank: the repository root)
+     */
+    public static void linkLeftOut(List<ComponentDiff> components, String branchWeb, String prefix) {
+        for (ComponentDiff c : components) {
+            String path = leftOutPath(c.key);
+            if (path != null && branchWeb != null) {
+                List<String> segs = new List<String>();
+                for (String s : (prefix + path).split('/')) {
+                    segs.add(EncodingUtil.urlEncode(s, 'UTF-8').replace('+', '%20'));
+                }
+                c.gitUrl = branchWeb + (branchWeb.contains('?') ? '&path=/' : '/') + String.join(segs, '/');
+            }
+        }
+    }
+
+    /**
+     * @description A left-out component's file in source format, below the source path.
+     * @param key Type:Name
+     * @return the path, or null when the type isn't left out
+     */
+    public static String leftOutPath(String key) {
+        String pathPattern = LEFT_OUT_FILES.get(key.substringBefore(':'));
+        return pathPattern == null ? null : pathPattern.replace('{0}', key.substringAfter(':'));
     }
 
     /**
@@ -95,8 +140,8 @@ public with sharing class RlyCompareFiles {
      * @return the reason the page shows
      */
     public static String reasonFor(String typeName) {
-        if (typeName == 'StaticResource') {
-            return 'Static resources are binary: compare isn\'t available for them. See the pull request\'s Changes after raising.';
+        if (isLeftOut(typeName)) {
+            return LEFT_OUT;
         }
         return 'Compare isn\'t available for ' + typeName + ' yet — see the pull request\'s Changes after raising';
     }

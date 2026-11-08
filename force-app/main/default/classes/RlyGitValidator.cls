@@ -36,7 +36,7 @@ public with sharing class RlyGitValidator {
         if (String.isBlank(g.Repository__c) || g.Repository__c.trim().length() > 255) {
             problems.add('Repository is required');
         }
-        if (!matches(g.Named_Credential__c, NAME_PATTERN)) {
+        if (!RlyOrgValidator.matches(g.Named_Credential__c, NAME_PATTERN)) {
             problems.add('Named Credential must be the API name of a Named Credential, for example RLY_Git_GitHub');
         }
         return problems;
@@ -44,19 +44,15 @@ public with sharing class RlyGitValidator {
 
     private static List<String> pipelineProblems(RLY_Git_Connection__c g) {
         List<String> problems = new List<String>();
-        if (g.Provider__c != RlyGit.BITBUCKET && !matches(g.Pipeline__c, PIPELINE_PATTERN)) {
+        if (g.Provider__c != RlyGit.BITBUCKET && !RlyOrgValidator.matches(g.Pipeline__c, PIPELINE_PATTERN)) {
             problems.add('Pipeline is required: the workflow file, CI file or pipeline id');
         }
-        if (!matches(g.Pipeline_Branch__c, REF_PATTERN)) {
+        if (!RlyOrgValidator.matches(g.Pipeline_Branch__c, REF_PATTERN)) {
             problems.add('Pipeline branch is required, for example main');
         }
-        if (!matches(g.Source_Path__c, PATH_PATTERN) || g.Source_Path__c.contains('..')) {
+        if (!RlyOrgValidator.matches(g.Source_Path__c, PATH_PATTERN) || g.Source_Path__c.contains('..')) {
             problems.add('Source path must be a folder such as force-app/main/default');
         }
         return problems;
-    }
-
-    private static Boolean matches(String value, Pattern p) {
-        return String.isNotBlank(value) && p.matcher(value.trim()).matches();
     }
 }

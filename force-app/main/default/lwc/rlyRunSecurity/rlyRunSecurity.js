@@ -3,6 +3,7 @@ import readStatus from '@salesforce/apex/RlyRunSigningController.status';
 import generateKey from '@salesforce/apex/RlyRunSigningController.generateKey';
 import saveKey from '@salesforce/apex/RlyRunSigningController.saveKey';
 import checkRepository from '@salesforce/apex/RlyRunSigningController.checkRepository';
+import { errorText } from 'c/rlyShared';
 
 const ICONS = {
     ok: { icon: '✓', cls: 'rr-ic rr-ic-ok', label: 'In place' },
@@ -10,10 +11,6 @@ const ICONS = {
     unknown: { icon: '?', cls: 'rr-ic rr-ic-unknown', label: "Couldn't read" }
 };
 const GITLAB_WHERE = 'In GitLab: Settings → CI/CD → Variables → Add variable RELAY_RUN_KEY, paste the key, Masked and Protected, environments *.';
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
 
 function when(value) {
     if (!value) {

@@ -24,13 +24,10 @@ import describeTypes from '@salesforce/apex/RlyChangesController.describeTypes';
 import listChanges from '@salesforce/apex/RlyChangesController.listChanges';
 import startPipelinePart from '@salesforce/apex/RlyCompareController.startPipelinePart';
 import { listTypeChunks, partsOf, pillOf, shortSha, STEPS, PROVIDERS } from './migrationHelpers';
+import { errorText, partsToSend, withPart, partIn } from 'c/rlyShared';
 
 /** Parts of a developer org sent at once. */
 const AT_ONCE = 2;
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
 
 /**
  * The Migration tab (build 46, design board "Move to another provider"): moves the hub to another Git provider, all at
@@ -374,24 +371,17 @@ export default class RlyRepoMigration extends LightningElement {
         if (!s || s.phase !== 'sending') {
             return;
         }
-        if (s.parts.every((p) => p.phase === 'ready')) {
+        const next = partsToSend(s, AT_ONCE);
+        if (next.allReady) {
             this.finishDeveloper();
             return;
         }
-        let running = s.parts.filter((p) => p.phase === 'running').length;
-        s.parts.forEach((p) => {
-            if (running < AT_ONCE && p.phase === 'waiting') {
-                running += 1;
-                this.sendPart(p.id);
-            }
-        });
+        next.ids.forEach((id) => this.sendPart(id));
     }
 
-    setPart(id, values) {
-        this.sending = { ...this.sending, parts: this.sending.parts.map((p) => (p.id === id ? { ...p, ...values } : p)) };
-    }
+    setPart(id, values) { this.sending = withPart(this.sending, id, values); }
 
-    partOf(id) { return this.sending ? this.sending.parts.find((p) => p.id === id) : undefined; }
+    partOf(id) { return partIn(this.sending, id); }
 
     async sendPart(id) {
         const p = this.partOf(id);
