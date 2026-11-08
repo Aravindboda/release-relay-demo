@@ -1,0 +1,43 @@
+{
+ "request": "REL-00049",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 4,
+ "deleted": [],
+ "mergedWith": "0e0705506bfcfebf4238bc8888149a0adb1519f9",
+ "validatedTree": "2187fc474cbe488c117c7397a57314e437fdbc93",
+ "environment": "sit",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000dD6CPSA0",
+ "testsRun": 1,
+ "tests": [
+  "LabelFormatterTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [
+  {
+   "name": "LabelFormatterTest",
+   "method": "formatsLine",
+   "message": "System.AssertException: Assertion Failed: Label line: Expected: ANA RUIZ Plano TX, Actual: ANA RUIZ, Plano TX"
+  }
+ ],
+ "message": "1 test failure(s)",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42513112403",
+ "finishedAt": "2026-11-08T19:04:47.763Z",
+ "attempt": "b4b6695eeda7a43c87e10ae97fe33984",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "headSha": "dfe88c03c8ebaad1889e4c46788af7989a39e540"
+}
