@@ -19,6 +19,7 @@
   "force-app/main/default/classes/RlyCredentialTest.cls",
   "force-app/main/default/classes/RlyOrgController.cls",
   "force-app/main/default/classes/RlyPipelineSummary.cls",
+  "force-app/main/default/classes/RlyPipelineSummaryChecks.cls",
   "force-app/main/default/classes/RlyPipelineSummaryStore.cls",
   "force-app/main/default/classes/RlyPipelineSummaryTest.cls",
   "force-app/main/default/classes/RlyPipelineSummaryTiles.cls",
@@ -73,6 +74,6 @@
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42428372657",
- "finishedAt": "2026-11-08T00:09:18.983Z"
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42428730019",
+ "finishedAt": "2026-11-08T00:13:52.791Z"
 }
