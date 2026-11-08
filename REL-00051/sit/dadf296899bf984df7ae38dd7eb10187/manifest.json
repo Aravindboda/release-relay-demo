@@ -1,0 +1,12 @@
+{
+ "request": "REL-00051",
+ "environment": "sit",
+ "takenAt": "2026-11-08T20:11:09.717Z",
+ "sha": "05ff8d01e0983e823aaac94c9ea8c40b6d34d2de",
+ "existing": [],
+ "added": [
+  "RemoteSiteSetting:E2E_Endpoint"
+ ],
+ "deleted": [],
+ "unresolved": []
+}
