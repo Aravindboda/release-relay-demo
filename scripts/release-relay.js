@@ -1,5 +1,21 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 27
+// Release Relay pipeline files: version 28
+// Version 28 (hub build 52): the hub's upload files (.relay-inbox/) never reach a target.
+//   A failed hub raise or add (mode hub, with or without OPTIONS.append) takes this request's upload files
+//     (.relay-inbox/<REQUEST_ID>.zip, -part-<k>.zip, -add-<k>.zip, .deletions) off BRANCH in one commit, pushed, before it
+//     ends; raise.json lists them under "inboxRemoved". A raise or add that works also takes off any of this request's
+//     upload files an earlier failed add left there.
+//   STEP=validate fails and STEP=merge refuses while BRANCH adds any .relay-inbox/ file compared with TARGET (merge base
+//     to head): "The release branch still holds hub upload files ..." (validate.json and merge.json: "inboxFiles").
+//     STEP=deploy deploys only SOURCE_PATH, so such files are never deployed; when the merge brought some into TARGET
+//     (a merge made outside this pipeline) it warns and lists them in deploy.json "inboxFiles".
+//   A new hub raise (mode hub, no OPTIONS.append) starts from merge-base(TARGET, BRANCH): the hub makes BRANCH from the
+//     developer org's branch, so files on that branch the release didn't select used to ride into the pull request.
+//     When BRANCH changes anything besides this request's upload files compared with that merge base, BRANCH is rebuilt
+//     there with only the upload files, the selected components are written on top as before, and the push replaces
+//     the hub's branch (--force-with-lease on the hub's head). The merge into TARGET is still a three-way merge from
+//     the same ancestor, so what TARGET added to the same files is kept. raise.json adds startedFrom, leftOut (the
+//     files left out, first 1000) and leftOutCount. A branch made from TARGET (a hotfix) is used as the hub made it.
 // Version 27 (hub build 48, security fixes):
 //   Signed runs (contract A): with RELAY_RUN_KEY (32 random bytes, base64) set, every step that signs in or pushes
 //     (raise, validate, merge, deploy, sync, rollback, auto, compare, drift, routediff, data-export, data-load, migrate,
@@ -207,6 +223,9 @@ const os = require('os');
 const path = require('path');
 
 const env = process.env;
+
+/** Version 28: the release branch a hub raise or add is working on; a failure then takes its upload files off it. */
+let inboxCleanupBranch = '';
 
 // ---------- version 27: the Salesforce CLI never sees a secret, and never the branch's replacements ----------
 
@@ -446,6 +465,9 @@ function summarizeResult(result) {
 }
 
 function fail(message) {
+    if (inboxCleanupBranch) {
+        dropRequestInbox(); // version 28: a failed hub raise or add takes its upload files off the release branch
+    }
     console.error('::error::' + message);
     summary('**Release Relay failed:** ' + message);
     process.exit(1);
@@ -2448,8 +2470,9 @@ function raiseResult(status, data) {
 
 /** Ends the raise; a hub run first says why in raise.json. */
 function raiseFailed(message, data) {
+    const removed = dropRequestInbox(); // version 28
     if (writesRaiseResult()) {
-        raiseResult('Failed', { ...data, message: String(message).slice(0, 1500) });
+        raiseResult('Failed', { ...data, ...(removed.length ? { inboxRemoved: removed } : {}), message: String(message).slice(0, 1500) });
     }
     fail(message);
 }
@@ -2755,7 +2778,119 @@ function removeMarker(markerFile) {
     }
 }
 
+// ---------- version 28: the hub's upload files never reach a target ----------
+
+const INBOX_DIR = '.relay-inbox';
+
+/** Whether a repository path is one of this request's upload files (.relay-inbox/<REQUEST_ID>.zip, -part-<k>.zip, ...). */
+function isRequestInboxFile(file) {
+    const p = String(file).replace(/\\/g, '/');
+    if (!requestId || !p.startsWith(INBOX_DIR + '/')) {
+        return false;
+    }
+    const name = p.slice(INBOX_DIR.length + 1);
+    return name.startsWith(requestId + '.') || name.startsWith(requestId + '-');
+}
+
+/** This request's upload files tracked in the checked-out commit. */
+function requestInboxFiles() {
+    return (gitQuiet(['ls-files', '-z', '--', INBOX_DIR + '/']) || '').split('\0').filter(Boolean).filter(isRequestInboxFile);
+}
+
+/** Stages the removal of this request's upload files an earlier failed add left on the branch; returns them. */
+function removeStaleInbox() {
+    const stale = requestInboxFiles();
+    if (stale.length) {
+        git(['--literal-pathspecs', 'rm', '-q', '-f', '--', ...stale]);
+    }
+    return stale;
+}
+
+/**
+ * After a failed hub raise or add: this request's upload files come off the release branch (one commit on the
+ * branch's remote head, pushed), so merging the branch can never copy them into the target. Runs once; a problem
+ * here only warns. Returns the files removed.
+ */
+function dropRequestInbox() {
+    const where = inboxCleanupBranch;
+    inboxCleanupBranch = '';
+    if (!where) {
+        return [];
+    }
+    try {
+        if (!remoteBranchExists(where)) {
+            return [];
+        }
+        fetchBranch(where);
+        gitQuiet(['merge', '--abort']);
+        git(['checkout', '-q', '-f', '-B', where, `refs/remotes/origin/${where}`]);
+        const files = requestInboxFiles();
+        if (!files.length) {
+            return [];
+        }
+        git(['--literal-pathspecs', 'rm', '-q', '-f', '--', ...files]);
+        git(['commit', '-q', '-m', `${requestId}: remove the hub's upload files (the ${options.append === true ? 'add' : 'raise'} failed)`]);
+        git(['push', '-q', 'origin', `HEAD:refs/heads/${where}`]);
+        console.log(`Took ${files.length} upload file(s) off ${where}: ${files.join(', ')}`);
+        return files;
+    } catch (e) {
+        console.log(`::warning::The hub's upload files couldn't be taken off ${where} (${String((e && (e.stderr || e.message)) || e).trim().slice(0, 300)}); `
+            + 'the merge refuses while they are there.');
+        return [];
+    }
+}
+
+/** The .relay-inbox/ files BRANCH's head (ref) adds or changes compared with TARGET (merge base to head), or []. */
+function branchInboxFiles(ref) {
+    const base = gitQuiet(['merge-base', `refs/remotes/origin/${target}`, ref]);
+    if (!base) {
+        return [];
+    }
+    const out = gitQuiet(['diff', '--name-only', '--no-renames', '--diff-filter=AM', base, ref, '--', INBOX_DIR + '/']);
+    return out ? out.split('\n').filter(Boolean) : [];
+}
+
+/**
+ * Version 28 (build 52, D3): a new hub raise starts from where TARGET and the developer org's branch meet. The hub
+ * makes the release branch from the developer org's branch (dev1) and commits its upload files on top. Anything else
+ * on dev1 that TARGET doesn't have would ride into the pull request, so the branch is rebuilt: checked out at
+ * merge-base(TARGET, branch) with only this request's upload files brought over; the selected components are then
+ * written on top as before. The merge into TARGET stays a three-way merge from that same ancestor, so lines TARGET
+ * added to the same files (a layout field, a permission, a picklist value) are kept and real overlaps still show as
+ * conflicts. Returns { head, base, left } (left: the files that would have ridden along), or null when nothing would
+ * have (a hotfix or anything else made from TARGET): the branch is then used as the hub made it.
+ */
+function startFromMergeBase() {
+    const head = git(['rev-parse', 'HEAD']);
+    const base = gitQuiet(['merge-base', `refs/remotes/origin/${target}`, 'HEAD']);
+    if (!base) {
+        return null;
+    }
+    const left = (gitQuiet(['diff', '--name-only', '--no-renames', base, 'HEAD']) || '').split('\n').filter(Boolean)
+        .filter((f) => !isRequestInboxFile(f));
+    if (!left.length) {
+        return null;
+    }
+    const uploads = requestInboxFiles();
+    git(['checkout', '-q', '-f', '-B', branch, base]);
+    if (uploads.length) {
+        git(['--literal-pathspecs', 'checkout', head, '--', ...uploads]);
+        git(['commit', '-q', '-m', `${requestId}: the hub's upload files, on ${base.slice(0, 7)}`]); // the raise's commit removes them
+    }
+    console.log(`${branch} starts again at ${base.slice(0, 7)} (where ${target} and the developer org's branch meet); `
+        + `${left.length} file(s) the release didn't select are left out: ${left.slice(0, 20).join(', ')}${left.length > 20 ? ', ...' : ''}`);
+    return { head, base, left };
+}
+
+/** Why a release branch that still holds upload files can't be validated or merged. */
+function inboxRefusal(files) {
+    const shown = files.slice(0, 5).join(', ') + (files.length > 5 ? ` and ${files.length - 5} more` : '');
+    return `The release branch still holds hub upload files (${shown}); merging it would copy them into ${target}. `
+        + `Delete them from ${branch} (adding the changes again from Release Relay also takes them off), then check again.`;
+}
+
 async function raiseFromHub() {
+    inboxCleanupBranch = BRANCH_RE.test(branch) ? branch : ''; // version 28: a failure takes the upload files off
     if (options.append === true) {
         await appendToRelease();
         return;
@@ -2769,6 +2904,7 @@ async function raiseFromHub() {
     fetchBranch(target);
     fetchBranch(branch);
     git(['checkout', '-q', '-B', branch, `refs/remotes/origin/${branch}`]);
+    const rebuilt = startFromMergeBase(); // version 28: nothing unselected from the developer org's branch rides along
     const deletions = hubDeletions(markerFile);
     const deleted = deletions.map((d) => d.entry);
     // A big release comes in parts (version 22): .relay-inbox/<REQUEST_ID>-part-<k>.zip, unpacked in order.
@@ -2794,6 +2930,7 @@ async function raiseFromHub() {
     }
     const valuesTokenized = tokens.count;
     removeMarker(markerFile);
+    removeStaleInbox(); // version 28
     git(['add', '-A', '--', sourcePath()]);
     if (git(['diff', '--cached', '--name-only', '--', sourcePath()]) === '') {
         raiseFailed(`${orgLabel()} already matches ${target} for these components. Nothing to commit.`, { deleted });
@@ -2801,7 +2938,14 @@ async function raiseFromHub() {
     const counts = [copied.length ? `${copied.length} files` : '', deletions.length ? `${deletions.length} deletion(s)` : '']
         .filter(Boolean).join(', ');
     git(['commit', '-q', '-m', title, '-m', `Release Relay ${requestId} from ${orgLabel()} (${counts || 'no files'})`]);
-    git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
+    try {
+        // Version 28: a rebuilt branch replaces the one the hub made, only if nobody pushed to it since.
+        git(['push', '-q', ...(rebuilt ? [`--force-with-lease=refs/heads/${branch}:${rebuilt.head}`] : []), 'origin', `HEAD:refs/heads/${branch}`]);
+    } catch (e) {
+        raiseFailed(`Pushing ${branch} failed${rebuilt ? ' (the pipeline replaces the branch the hub made: allow it to force-push release branches)' : ''}: `
+            + String(e.stderr || e.message).trim().slice(0, 500), { deleted });
+    }
+    inboxCleanupBranch = ''; // version 28: pushed without upload files
     const sha = git(['rev-parse', 'HEAD']);
 
     const list = (items) => items.map((i) => `- ${i.type}: \`${i.name}\``).join('\n');
@@ -2813,9 +2957,12 @@ async function raiseFromHub() {
         deletions.length ? `### Deleted from ${orgLabel()}\n${list(deletions)}\n\nTheir files are removed from this branch; `
             + `validating and deploying delete them from ${targetEnv ? `the ${targetEnv} org` : `${target}'s org`} too (destructiveChangesPost).` : '',
         testsLine(),
+        rebuilt ? `Starts where \`${target}\` and ${orgLabel()}'s branch meet (${rebuilt.base.slice(0, 7)}), so only the selected `
+            + `components are in it${rebuilt.left.length ? `; ${rebuilt.left.length} other file(s) on ${orgLabel()}'s branch are left out` : ''}.` : '',
         'Every item was selected and reviewed in Release Relay. Approve it in Salesforce; Release Relay merges it.'
     ].filter(Boolean).join('\n\n');
-    await openAndRecord(body, { sha, deleted, valuesTokenized });
+    await openAndRecord(body, { sha, deleted, valuesTokenized,
+        ...(rebuilt ? { startedFrom: rebuilt.base, leftOut: rebuilt.left.slice(0, 1000), leftOutCount: rebuilt.left.length } : {}) });
 }
 
 /** The parts of a big release the hub committed (.relay-inbox/<REQUEST_ID>-part-<k>.zip), in number order. */
@@ -2887,6 +3034,7 @@ async function appendToRelease() {
         raiseFailed(tokens.error, { appended: true, deleted });
     }
     removeMarker(markerFile);
+    removeStaleInbox(); // version 28: an earlier failed add's zip
     git(['add', '-A', '--', sourcePath()]);
     if (git(['diff', '--cached', '--name-only', '--', sourcePath()]) === '') {
         // Nothing new, but the consumed zip must not stay on the branch (it would be merged into the target).
@@ -2903,6 +3051,7 @@ async function appendToRelease() {
         + (components.length ? '\n\n' + components.map((c) => `- ${c.entry}`).join('\n') : '')
         + (deletions.length ? '\n\nDeleted:\n' + deletions.map((d) => `- ${d.entry}`).join('\n') : '')]);
     git(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
+    inboxCleanupBranch = ''; // version 28: pushed without upload files
     const sha = git(['rev-parse', 'HEAD']);
 
     let found = null;
@@ -3163,6 +3312,11 @@ async function stepValidate() {
             base = checkoutReleaseBranch();
         }
         validatedHead = gitQuiet(['rev-parse', `refs/remotes/origin/${branch}`]);
+        const inbox = branchInboxFiles(`refs/remotes/origin/${branch}`); // version 28
+        if (inbox.length) {
+            writeResult('validate', { status: 'Failed', inboxFiles: inbox, message: inboxRefusal(inbox), gates: gatesResult(relayGates, []) });
+            return;
+        }
         plan = buildDeployment(base, 'HEAD');
         validatedTree = git(['rev-parse', 'HEAD^{tree}']); // a quick deploy needs exactly this tree
         if (!plan) {
@@ -3464,6 +3618,14 @@ async function stepMerge() {
         }
     }
     if (!alreadyMerged) {
+        // Version 28: upload files left on the release branch would be copied into the target.
+        fetchBranch(target);
+        fetchBranch(branch);
+        const inbox = branchInboxFiles(`refs/remotes/origin/${branch}`);
+        if (inbox.length) {
+            writeResult('merge', { status: 'Failed', pr: Number(pr.id), inboxFiles: inbox, message: inboxRefusal(inbox) });
+            process.exit(1);
+        }
         try {
             await provider.merge(pr, method, expectHead);
         } catch (e) {
@@ -3544,6 +3706,12 @@ async function stepDeploy() {
         writeResult('deploy', { status: 'Failed', sha, message: e.message.slice(0, 1500) });
         process.exit(1);
     }
+    // Version 28: upload files a merge brought into the target are never deployed (outside SOURCE_PATH); say so.
+    const inboxOut = gitQuiet(['diff', '--name-only', '--no-renames', '--diff-filter=AM', `${sha}^1`, sha, '--', '.relay-inbox/']);
+    const inboxFiles = inboxOut ? inboxOut.split('\n').filter(Boolean) : [];
+    if (inboxFiles.length) {
+        console.log(`::warning::The merge brought hub upload files into ${target} (${inboxFiles.slice(0, 5).join(', ')}); they aren't deployed. Delete them from ${target}.`);
+    }
     // The org's current versions of what this deploy changes, for a rollback. Never blocks the deploy.
     const snapshot = takeSnapshot(plan, sha);
     const check = guard.full ? { note: guard.note } : quickDeployCheck(sha, plan);
@@ -3571,7 +3739,7 @@ async function stepDeploy() {
         }
     }
     writeResult('deploy', { status: r.ok ? 'Deployed' : 'Failed', sha, changed: plan.changed, deleted: plan.deletedList,
-        ...r, quick, quickNote: quickNote || '', snapshot });
+        ...r, quick, quickNote: quickNote || '', snapshot, ...(inboxFiles.length ? { inboxFiles } : {}) });
     if (!r.ok) {
         process.exit(1);
     }

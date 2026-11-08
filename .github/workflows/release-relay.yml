@@ -1,4 +1,10 @@
-# Release Relay pipeline files: version 27
+# Release Relay pipeline files: version 28
+# Version 28 (hub build 52): no workflow change; the script (scripts/release-relay.js) moves with it, since the lowest
+# version among a hub's files counts. In the script: a new hub raise starts from where the target and the developer
+# org's branch meet, so unselected files on that branch stay out of the pull request (the raise job replaces the
+# hub's release branch with --force-with-lease, so the job's token must be allowed to force-push release branches);
+# a failed raise or add takes the hub's upload files (.relay-inbox/<REQUEST_ID>*) off the release branch; validate
+# fails and merge refuses while the release branch adds any .relay-inbox/ file.
 # Version 27 (hub build 48, security): signed runs and results, and the release branch treated as untrusted.
 # - Signed runs: the hub signs every run it starts (options.iat and options.sig, HMAC-SHA256 with the run-signing key
 #   from the hub's Pipeline tab). Every job that signs in to an org or pushes checks the signature first, against the
