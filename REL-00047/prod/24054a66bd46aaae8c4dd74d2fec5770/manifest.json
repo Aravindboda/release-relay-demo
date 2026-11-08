@@ -1,0 +1,17 @@
+{
+ "request": "REL-00047",
+ "environment": "prod",
+ "takenAt": "2026-11-08T14:34:11.839Z",
+ "sha": "0b94a26b427af676833a3672567b8d4d92e00a26",
+ "existing": [],
+ "added": [
+  "ApexClass:ShippingQuote",
+  "ApexClass:ShippingQuoteTest",
+  "CustomField:Account.USA_Contact_Count__c",
+  "Flow:USA_Contact_Count"
+ ],
+ "deleted": [],
+ "unresolved": [
+  "CustomField:Contact.Languages__c"
+ ]
+}
