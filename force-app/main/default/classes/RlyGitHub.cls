@@ -122,7 +122,7 @@ public with sharing class RlyGitHub extends RlyGit {
         if (existing.getStatusCode() == 200) {
             body.put('sha', ((Map<String, Object>) parse(existing)).get('sha'));
         }
-        HttpResponse res = send('PUT', contentPath, JSON.serialize(body));
+        HttpResponse res = sendRetryingConflicts('PUT', contentPath, JSON.serialize(body));
         assertOk(res, 'Committing ' + file.path);
         return commitLink(res);
     }

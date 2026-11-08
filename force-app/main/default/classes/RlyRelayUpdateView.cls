@@ -4,6 +4,9 @@
  */
 public with sharing class RlyRelayUpdateView {
 
+    /** @description The test org's name in the labels until a stage is chosen. */
+    public static final String TEST_ORG = 'Test org';
+
     /** @description The card. */
     public class Card {
         /** @description The current user is a Release Relay admin (the card shows only then). */
@@ -124,6 +127,43 @@ public with sharing class RlyRelayUpdateView {
         return c;
     }
 
+    /**
+     * @description The name of the stage an update is checked and installed in, for its step labels: its org's name;
+     * when the update has no org record any more (the org was removed or registered again), the stage whose Git
+     * environment its test steps ran in; "Test org" only when no stage is known.
+     * @param u the update (with Test_Org__r.Name when it was read from the store)
+     * @return the name
+     */
+    public static String testOrgName(RLY_Relay_Update__c u) {
+        if (u == null) {
+            return TEST_ORG;
+        }
+        if (u.Test_Org__r != null && String.isNotBlank(u.Test_Org__r.Name)) {
+            return u.Test_Org__r.Name;
+        }
+        String env = testEnvironment(u);
+        List<RLY_Org__c> stages = RlyReleaseStore.pipelineOrgs(new Set<String>{ 'Stage' });
+        for (RLY_Org__c o : stages) {
+            Boolean sameEnv = env != null && String.isNotBlank(o.Git_Environment__c) && o.Git_Environment__c.trim().equalsIgnoreCase(env);
+            if (o.Id == u.Test_Org__c || sameEnv) {
+                return o.Name;
+            }
+        }
+        return TEST_ORG;
+    }
+
+    // The Git environment the update's test check (or install) ran in, or null before it started.
+    private static String testEnvironment(RLY_Relay_Update__c u) {
+        Map<String, RlyRelayUpdateState.Step> steps = RlyRelayUpdateState.read(u);
+        for (String key : new List<String>{ RlyRelayUpdateState.TEST_CHECK, RlyRelayUpdateState.TEST_INSTALL }) {
+            RlyRelayUpdateState.Step s = steps.get(key);
+            if (s != null && String.isNotBlank(s.environment)) {
+                return s.environment.trim();
+            }
+        }
+        return null;
+    }
+
     private static Choice choice(RLY_Org__c o) {
         Choice ch = new Choice();
         ch.value = o.Id;
@@ -142,7 +182,7 @@ public with sharing class RlyRelayUpdateView {
         v.branch = u.Branch__c;
         v.title = u.Title__c;
         v.testOrgId = u.Test_Org__c;
-        v.testOrgName = u.Test_Org__r == null ? 'Test org' : u.Test_Org__r.Name;
+        v.testOrgName = testOrgName(u);
         v.zipPath = u.Zip_Path__c;
         v.testsCount = String.isBlank(u.Tests__c) ? 0 : u.Tests__c.split(',').size();
         v.testsFrom = u.Tests_From__c;

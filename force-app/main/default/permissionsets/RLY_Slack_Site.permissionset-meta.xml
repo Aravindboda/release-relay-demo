@@ -9,6 +9,14 @@
         <enabled>true</enabled>
         <externalCredentialPrincipal>RLY_Slack-Bot</externalCredentialPrincipal>
     </externalCredentialPrincipalAccesses>
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal>RLY_Git_GitHub-RLY_Git_GitHub</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal>RLY_Git_GitLab-RLY_Git_GitLab</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
     <hasActivationRequired>false</hasActivationRequired>
     <label>Release Relay Slack Site</label>
 </PermissionSet>
