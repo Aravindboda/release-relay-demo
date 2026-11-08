@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/email/unfiled$public/SUPPORTSelfServiceNewUserLoginInformationSAMPLE.email","left":null,"right":"Dear {!Contact.FirstName},\n\nYour {!Organization.Name} Self-Service portal login and password information is below.\n\nThank you,\n\n{!Organization.Name} Customer Support"}

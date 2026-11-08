@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/objects/ReturnOrderItemTax/fields/ReturnOrderLineItemId.field-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>ReturnOrderLineItemId</fullName>\n    <type>MasterDetail</type>\n</CustomField>\n"}

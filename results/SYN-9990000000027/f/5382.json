@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/settings/SecurityHub.settings-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SecurityHubSettings xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <aiGatewayUsageMetric>false</aiGatewayUsageMetric>\n</SecurityHubSettings>\n"}
