@@ -1,0 +1,40 @@
+{
+ "request": "REL-00052",
+ "step": "deploy",
+ "status": "Deployed",
+ "sha": "b576ca1c2a48eb295bbc97a9d5b2c57075080c01",
+ "changed": 5,
+ "deleted": [],
+ "ok": true,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0Afg800000LCmRNCA1",
+ "testsRun": 1,
+ "tests": [
+  "TaxCalculatorTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "Quick deployed validation 0Afg800000LCPWQCA5: its tests already passed, so none ran again.",
+ "validationId": "0Afg800000LCPWQCA5",
+ "quick": true,
+ "quickNote": "Quick deployed validation 0Afg800000LCPWQCA5: its tests already passed, so none ran again.",
+ "snapshot": {
+  "branch": "release-relay-snapshots",
+  "path": "REL-00052/prod/f07e486c6138571720241fe9b92d940e",
+  "existing": 0,
+  "added": 3
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42520795693",
+ "finishedAt": "2026-11-08T20:35:06.643Z",
+ "attempt": "f07e486c6138571720241fe9b92d940e",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 1,
+  "files": [
+   "remoteSiteSettings/E2E_Endpoint.remoteSite-meta.xml"
+  ],
+  "hash": "44d910c2804b3d6b"
+ }
+}
