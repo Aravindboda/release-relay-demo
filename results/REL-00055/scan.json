@@ -1,0 +1,49 @@
+{
+ "request": "REL-00055",
+ "step": "scan",
+ "status": "Passed",
+ "total": 2,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Low": 2
+ },
+ "files": [
+  "force-app/main/default/classes/E2EGateProbe.cls",
+  "force-app/main/default/classes/E2EGateProbeTest.cls"
+ ],
+ "violations": [
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/E2EGateProbe.cls",
+   "line": 1,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.24.0/pmd_rules_apex_documentation.html#apexdoc"
+  },
+  {
+   "severity": 4,
+   "severityLabel": "Low",
+   "rule": "ApexDoc",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/E2EGateProbe.cls",
+   "line": 1,
+   "message": "Missing ApexDoc comment",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.24.0/pmd_rules_apex_documentation.html#apexdoc"
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42527643614",
+ "finishedAt": "2026-11-08T21:56:56.561Z",
+ "attempt": "eccbad694f353344bf976e89b04abf6a"
+}
