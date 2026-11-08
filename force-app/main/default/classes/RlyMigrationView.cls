@@ -34,6 +34,8 @@ public with sharing class RlyMigrationView {
         @AuraEnabled public Gate gate = new Gate();
         /** @description Who did each step and when, and the report. */
         @AuraEnabled public Log log = new Log();
+        /** @description The releases Switch now cancelled (build 54). */
+        @AuraEnabled public List<CancelledRelease> cancelled = new List<CancelledRelease>();
     }
 
     /** @description A Git connection as the page shows it. */
@@ -92,6 +94,28 @@ public with sharing class RlyMigrationView {
         @AuraEnabled public String status;
         /** @description Its pull or merge request. */
         @AuraEnabled public String url;
+        /** @description A pipeline run is going for it (build 54: the switch doesn't stop it). */
+        @AuraEnabled public Boolean running = false;
+    }
+
+    /** @description A release Switch now cancelled (build 54), as kept on the migration. */
+    public class CancelledRelease {
+        /** @description The record. */
+        @AuraEnabled public Id id;
+        /** @description REL-00052. */
+        @AuraEnabled public String name;
+        /** @description Its title. */
+        @AuraEnabled public String title;
+        /** @description Its status before. */
+        @AuraEnabled public String before;
+        /** @description Its pull or merge request on the old provider. */
+        @AuraEnabled public String url;
+        /** @description The pull or merge request was closed with the comment. */
+        @AuraEnabled public Boolean closed = false;
+        /** @description A pipeline run was going for it. */
+        @AuraEnabled public Boolean running = false;
+        /** @description What couldn't be done, in words (blank when everything worked). */
+        @AuraEnabled public String note;
     }
 
     /** @description The methods for this pair. */
@@ -234,6 +258,8 @@ public with sharing class RlyMigrationView {
     public class Gate {
         /** @description Every condition holds. */
         @AuraEnabled public Boolean ready = false;
+        /** @description Every condition holds but open releases: Switch now can cancel them (build 54). */
+        @AuraEnabled public Boolean readyIfCancelled = false;
         /** @description Each condition. */
         @AuraEnabled public List<Condition> conditions = new List<Condition>();
         /** @description The reason the admin accepted the listed differences, if any. */
@@ -250,6 +276,8 @@ public with sharing class RlyMigrationView {
         @AuraEnabled public Boolean ok = false;
         /** @description Why not, or the details. */
         @AuraEnabled public String detail;
+        /** @description Not met, but Switch now can settle it (open releases, build 54). */
+        @AuraEnabled public Boolean warn = false;
     }
 
     /** @description Who did what, and the report. */

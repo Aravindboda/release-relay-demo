@@ -37,7 +37,7 @@ public with sharing class RlyReleaseQuery {
         STATE_DEPLOYED => new Set<String>{ 'Deployed' },
         STATE_ROLLED_BACK => everyStatus(),
         'failed' => new Set<String>{ 'Failed', 'Deploy failed' },
-        'closed' => new Set<String>{ 'Rejected', 'Closed' },
+        'closed' => new Set<String>{ 'Rejected', 'Closed', 'Cancelled' },
         'all' => everyStatus()
     };
 
@@ -65,7 +65,7 @@ public with sharing class RlyReleaseQuery {
 
     private static Set<String> everyStatus() {
         Set<String> statuses = new Set<String>(OPEN_STATES);
-        statuses.addAll(new Set<String>{ 'Deployed', 'Failed', 'Deploy failed', 'Rejected', 'Closed' });
+        statuses.addAll(new Set<String>{ 'Deployed', 'Failed', 'Deploy failed', 'Rejected', 'Closed', 'Cancelled' });
         return statuses;
     }
 

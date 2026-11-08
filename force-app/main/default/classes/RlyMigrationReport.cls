@@ -1,7 +1,7 @@
 /**
  * @description The Migration report (build 46): one page with the current and new connection, the method, the dry run,
  * what moved (each ref with both commits), what didn't move, both checklists, each org's check and accepted differences,
- * the switch and who did each step and when. HTML for Blob.toPdf, like the evidence PDF. No SOQL, DML or callouts.
+ * the switch, the releases it cancelled (build 54) and who did each step and when. HTML for Blob.toPdf, like the evidence PDF. No SOQL, DML or callouts.
  */
 public with sharing class RlyMigrationReport {
 
@@ -32,6 +32,7 @@ public with sharing class RlyMigrationReport {
         h.add(itemsSection('Do in the old setup', v.setup.oldItems));
         h.add(orgsSection(v));
         h.add(gateSection(v.gate));
+        h.add(cancelledSection(v));
         h.add(eventsSection(v.log.events));
         h.add('</body></html>');
         return String.join(h, '\n');
@@ -104,6 +105,22 @@ public with sharing class RlyMigrationReport {
         List<String> h = new List<String>{ '<h2>The switch</h2><p>Switched on: ' + RlyEvidenceTables.esc(String.valueOf(g.switchedOn)) + '</p><table>' };
         for (RlyMigrationView.Condition c : g.conditions) {
             h.add(row2((c.ok ? '✓ ' : '✗ ') + c.label, c.detail));
+        }
+        h.add('</table>');
+        return String.join(h, '');
+    }
+
+    // Build 54: the releases Switch now cancelled, with what happened to each pull request.
+    private static String cancelledSection(RlyMigrationView.View v) {
+        if (v.cancelled == null || v.cancelled.isEmpty()) {
+            return '';
+        }
+        List<String> h = new List<String>{ '<h2>Releases cancelled by the switch</h2><table><tr><th>Release</th><th>Status before</th>'
+            + '<th>Pull request</th><th>Note</th></tr>' };
+        for (RlyMigrationView.CancelledRelease r : v.cancelled) {
+            h.add('<tr><td>' + RlyEvidenceTables.esc(r.name + ' ' + RlySlackCard.text(r.title)) + '</td><td>' + RlyEvidenceTables.esc(r.before)
+                + '</td><td>' + RlyEvidenceTables.esc(RlyMigrationCancelText.pullRequestText(r)) + '</td><td>'
+                + RlyEvidenceTables.esc(RlyMigrationCancelText.noteText(r)) + '</td></tr>');
         }
         h.add('</table>');
         return String.join(h, '');

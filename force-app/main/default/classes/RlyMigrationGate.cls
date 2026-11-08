@@ -1,8 +1,8 @@
 /**
  * @description Switch now's conditions on the Migration tab (build 46): the dry run passed; the run copied everything
  * (or the importer's copy is verified) and every ref matches; the new connection is checked; every org is in sync with its
- * new branch (or the differences are accepted with a reason); no release is open on the current connection. Also the
- * checklists. No callouts.
+ * new branch (or the differences are accepted with a reason); no release is open on the current connection (build 54:
+ * or the admin chooses to cancel the open ones at the switch, RlyMigrationCancel). Also the checklists. No callouts.
  */
 public with sharing class RlyMigrationGate {
 
@@ -56,8 +56,10 @@ public with sharing class RlyMigrationGate {
         g.conditions.add(orgsCondition(v, state));
         g.conditions.add(openCondition(v));
         g.ready = m.Status__c == RlyMigrationStore.OPEN;
+        g.readyIfCancelled = g.ready && !v.holds.open.isEmpty(); // build 54: open releases can be cancelled at the switch
         for (RlyMigrationView.Condition cond : g.conditions) {
             g.ready = g.ready && cond.ok;
+            g.readyIfCancelled = g.readyIfCancelled && (cond.ok || cond.warn);
         }
         return g;
     }
@@ -91,8 +93,10 @@ public with sharing class RlyMigrationGate {
         for (RlyMigrationView.OpenRelease r : v.holds.open) {
             open.add(r.name + ' (' + r.status + ')');
         }
-        return condition('No open releases on ' + (v.current == null ? 'the current connection' : v.current.providerLabel),
-            open.isEmpty(), open.isEmpty() ? null : String.join(open, ', ') + ': finish or close them first.');
+        RlyMigrationView.Condition c = condition('No open releases on ' + (v.current == null ? 'the current connection' : v.current.providerLabel),
+            open.isEmpty(), open.isEmpty() ? null : String.join(open, ', ') + ': they are cancelled when you switch, or finish or close them first.');
+        c.warn = !open.isEmpty();
+        return c;
     }
 
     private static RlyMigrationView.Condition condition(String label, Boolean ok, String detail) {

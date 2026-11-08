@@ -5,7 +5,7 @@
  */
 public with sharing class RlyReleaseEffects {
 
-    private static final Set<String> ENDS_PROMOTION = new Set<String>{ 'Rejected', 'Failed', 'Closed' };
+    private static final Set<String> ENDS_PROMOTION = new Set<String>{ 'Rejected', 'Failed', 'Closed', 'Cancelled' };
 
     /**
      * @description Applies the effects of the saved releases.

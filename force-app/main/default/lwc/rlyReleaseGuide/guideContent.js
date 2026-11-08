@@ -1713,7 +1713,7 @@ const USE_SECTIONS = [
                                 goal: 'See your releases and where each one is.',
                                 items: [
                                     '**Raised by**: leave it blank for everyone, or pick a person. Pick yourself and the title reads **My Releases**.',
-                                    'Status: **Open** (running, checks failed or waiting for approval; the default), **Checks failed**, **Waiting for the window**, **Deployed**, **Rolled back**, **Failed**, **Rejected** (rejected or closed) or **All**. Each shows a count.',
+                                    'Status: **Open** (running, checks failed or waiting for approval; the default), **Checks failed**, **Waiting for the window**, **Deployed**, **Rolled back**, **Failed**, **Rejected** (rejected, cancelled or closed) or **All**. Each shows a count.',
                                     '**Search releases** by number or title, then press Enter.',
                                     '**Export CSV** exports what matches the filters (see History and evidence). **New release** opens New Release.',
                                     '**Live status**: while something runs the list checks every 30 seconds, with a bar counting down; **Check now** checks at once.',
@@ -1748,6 +1748,24 @@ const USE_SECTIONS = [
                                     'Into production, with production approval on, only holders of the Production Approver add-on can approve; others read "Approving production needs the Production Approver add-on."'
                                 ],
                                 problems: [['"Checks can run again on an open pull request that isn\'t approved yet."', 'The release is approved, deploying or closed: nothing to check again.']]
+                            },
+                            // Build 54: Cancel release.
+                            {
+                                title: 'Cancel a release (withdraw it)',
+                                who: 'The person who raised it, or an admin',
+                                where: 'The release page → the bar at the bottom → Cancel release',
+                                goal: 'Withdraw a release you no longer want while it is open (any status but Deployed, Rejected, Cancelled or Closed). Reject is different: an approver turns a release down.',
+                                items: [
+                                    'Press **Cancel release**. The box names the release ("Cancel REL-…?"); write **Why it\'s cancelled** (required) and press **Cancel REL-…**, or **Keep it**.',
+                                    'The release becomes **Cancelled** with "Cancelled by <you>: <reason>"; History adds a **Cancelled** entry; its pull request gets the comment "Cancelled in Release Relay by <you>: <reason>" and is closed; its Slack card says Cancelled and loses Approve and Reject. A cancelled promotion frees the releases it carried, so they can be promoted again.',
+                                    'While a pipeline run is going the box warns "A pipeline run is going: it may still deploy." Cancelling doesn\'t stop the run: check it in the pipeline. A pull request already merged is left as it is.',
+                                    'It can\'t be undone: raise the change again if you need it. Cancelled releases are listed under **Rejected** on the Releases tab.'
+                                ],
+                                check: 'The release shows Cancelled and the reason; the pull request is closed with your comment.',
+                                problems: [
+                                    ['No Cancel release button', 'You didn\'t raise it and aren\'t an admin, or it is already Deployed, Rejected, Cancelled or Closed.'],
+                                    ['"But the pull request couldn\'t be closed: …" on the release', 'The release is cancelled anyway. Close the pull request in the Git provider; the Git token needs Pull requests: Read and write (Set up → M. Secure your repository).']
+                                ]
                             },
                             {
                                 title: 'Resolve a conflict',
@@ -1996,6 +2014,16 @@ const USE_SECTIONS = [
                                 where: 'The release page → Reject',
                                 items: ['Write the **Approval comment** (required to reject) and press **Reject**. It works on Ready for approval and Checks failed. The pull request is closed with your comment, so the developer sees why.'],
                                 problems: [['"couldn\'t close the pull request"', 'The Git token needs the permissions in Set up → M. Secure your repository, step 1 (Pull requests and Issues: Read and write).']]
+                            },
+                            // Build 54: Reject versus Cancel release.
+                            {
+                                title: 'Reject or cancel?',
+                                where: 'The release page',
+                                items: [
+                                    '**Reject**: an approver turns the release down (Ready for approval or Checks failed), with an approval comment.',
+                                    '**Cancel release**: the person who raised it, or an admin, withdraws it while it is open, with a reason. Approvers who didn\'t raise it reject instead. Both close the pull request with the comment and edit the Slack card; a cancelled release says Cancelled, not Rejected.'
+                                ],
+                                links: [{ label: 'Follow a release', to: 'follow' }]
                             },
                             {
                                 title: 'Hotfixes that need 2 approvers',
@@ -2977,6 +3005,7 @@ const USE_SECTIONS = [
                             ['Deployed', 'In the target org; developer branches updated; flows set to Activate activated.', 'Nothing. Download evidence (PDF) if the change request needs it.'],
                             ['Deploy failed', 'The merge or the deploy failed.', 'Read the reason; raise a new release.'],
                             ['Rejected', 'An approver rejected it; the pull request was closed.', 'Read the comment; raise again.'],
+                            ['Cancelled', 'The person who raised it or an admin withdrew it (Cancel release), or the hub moved to another Git provider; the pull request was closed with the reason.', 'Raise again if still needed.'],
                             ['Closed', 'The pull request was closed in the Git provider.', 'Raise again if still needed.'],
                             ['Failed', 'The release couldn\'t be raised (for example a component wasn\'t found, or "Nothing to commit": the target branch already matches).', 'Read the reason; raise again.']
                         ]
@@ -3378,10 +3407,24 @@ const MIGRATION_SECTIONS = [
                                 title: 'Switch now, then the old setup and the report',
                                 who: 'Release Relay admin',
                                 where: 'Migration → 7 · Switch now, 8 · Old setup',
-                                goal: 'One click switches the whole hub. It needs: the dry run passed, every ref matches, the new connection checked, every org in sync (or accepted), and no open releases on the current connection.',
-                                items: ['Finish or close the open releases first (the tab lists them).', 'Press **Switch to <provider> now**. New releases start in the new repository.', 'Do the old setup: delete `RELAY_MIGRATE_TOKEN`, turn off the old pipeline, archive the repository after a waiting period, revoke the old token.', 'Press **Finish and save the Migration report**: the report (PDF) is saved in the migration\'s Files: every step, who did it and when.'],
+                                goal: 'One click switches the whole hub. It needs: the dry run passed, every ref matches, the new connection checked, every org in sync (or accepted), and no open releases on the current connection, or your choice to cancel them (below).',
+                                items: ['Finish or close the open releases first (the tab lists them), or turn on **Cancel the N open releases and switch**.', 'Press **Switch to <provider> now**. New releases start in the new repository.', 'Do the old setup: delete `RELAY_MIGRATE_TOKEN`, turn off the old pipeline, archive the repository after a waiting period, revoke the old token.', 'Press **Finish and save the Migration report**: the report (PDF) is saved in the migration\'s Files: every step, who did it and when.'],
                                 check: 'The Pipeline tab shows the new connection; the report downloads.'
                             }
+                        ]
+                    },
+                    // Build 54: what happens to the releases still open at the switch.
+                    {
+                        type: 'table',
+                        stack: true,
+                        cols: ['Open releases at the switch', 'What happens', 'What you do'],
+                        rows: [
+                            ['Before: step 1 and Start', 'Open means any status but Deployed, Rejected, Cancelled or Closed. The tab lists each open release with its status, a link to it and its pull request, and says "You still have N open releases. Close them, or Release Relay cancels them when you switch." The copy can go on while they are open.', 'Deploy, reject or close them, or leave them to the switch.'],
+                            ['At step 7 · Switch now', 'The condition No open releases shows **!** and names them. Switch now stays off until you turn on the toggle chip **Cancel the N open releases and switch**; the box above it lists the releases (a release with a pipeline run going says so).', 'Turn on the chip, then **Switch to <provider> now** and confirm.'],
+                            ['Each release, at the switch', 'Status **Cancelled** with the reason "Cancelled by the move to <provider> (MIG-…)" on the release page; a **Cancelled** entry in History ("Cancelled by the move from <old> to <new> by <you>"); on the old provider its pull or merge request gets the comment "Cancelled in Release Relay: the hub moved to <provider>." and is closed; its Slack card says Cancelled and loses Approve and Reject.', 'Raise the change again in the new repository if it is still needed.'],
+                            ['Something couldn\'t be done', 'A pull request that can\'t be commented on or closed never stops the switch: the release says why, and 7 · Switch now lists it under Cancelled by the switch. A pipeline run still going is not stopped (Release Relay can\'t stop a run): check it on the old provider. With very many open releases, the ones beyond what one click can call out for are cancelled with their pull request left open, and say so.', 'Close the listed pull requests on the old provider by hand.'],
+                            ['A release opened after you chose', 'The switch stops: "REL-… was opened after you chose".', 'Read the list again and choose again.'],
+                            ['Afterwards', 'Who did what and the Migration report list the cancelled releases (the report has a table: status before, pull request closed or not, notes). On the Releases tab they are under **Rejected** (rejected, cancelled or closed).', 'Nothing.']
                         ]
                     },
                     { type: 'links', links: [{ label: 'Open the Migration tab', tab: 'RLY_Migration' }] }

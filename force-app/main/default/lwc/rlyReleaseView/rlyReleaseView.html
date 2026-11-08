@@ -415,12 +415,30 @@
                     <c-rly-rollback release-id={releaseId} release-name={rel.Name} onclose={closeRollback} onstarted={rollbackStarted}></c-rly-rollback>
                 </template>
 
+                <!-- Cancel release (build 54): names the release, needs a reason -->
+                <template lwc:if={cancelOpen}>
+                    <section class="rr-card rr-cancel" role="dialog" aria-label={cancelTitle}>
+                        <h2 class="rr-h2">{cancelTitle}</h2>
+                        <template lwc:if={cancelRunWarning}><p class="rr-msg rr-msg-warn">{cancelRunWarning}</p></template>
+                        <p class="rr-small">{cancelWhat}</p>
+                        <lightning-textarea label="Why it's cancelled" value={cancelReason} onchange={handleCancelReason} max-length="1000"
+                            required placeholder="For example: replaced by a smaller release"></lightning-textarea>
+                        <div class="rr-cancel-foot">
+                            <lightning-button label="Keep it" onclick={closeCancel} disabled={busy}></lightning-button>
+                            <lightning-button label={cancelButtonLabel} onclick={doCancel} disabled={cancelDisabled}></lightning-button>
+                        </div>
+                    </section>
+                </template>
+
                 <!-- actions -->
                 <template lwc:if={showFooter}>
                     <div class="rr-card rr-foot">
                         <span class="rr-small rr-weak rr-grow">{footNote}</span>
                         <template lwc:if={showCheckAgain}>
                             <lightning-button label="Check again" onclick={doCheckAgain} disabled={checkAgainDisabled}></lightning-button>
+                        </template>
+                        <template lwc:if={showCancel}>
+                            <lightning-button label="Cancel release" title={cancelHelp} onclick={openCancel} disabled={actBusy}></lightning-button>
                         </template>
                         <template lwc:if={showReject}>
                             <lightning-button variant="destructive-text" label="Reject" onclick={doReject} disabled={rejectDisabled}></lightning-button>

@@ -42,6 +42,10 @@
 .rr-tag { display: inline-block; margin: 2px 8px 2px 0; }
 .rr-problems { margin: 8px 12px; padding-left: 18px; color: #8e030f; font-size: 12px; }
 .rr-scroll { max-height: 420px; overflow: auto; }
+.rr-open { margin: 0 0 6px; padding: 0; list-style: none; }
+.rr-open li { padding: 3px 0; border-bottom: 1px solid #f1f1f1; }
+.rr-open li:last-child { border-bottom: 0; }
+.rr-note-flush { margin: 6px 0 0 !important; }
 
 .rr-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 10px; white-space: nowrap; }
 .rr-pill-ok { background: var(--rr-ok-2); color: var(--rr-ok); }
