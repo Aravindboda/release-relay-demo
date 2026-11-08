@@ -114,6 +114,7 @@ private class RlyCredentialTest {
         System.runAs(RlyTestData.admin()) {
             Mock mock = scenario();
             Test.setMock(HttpCalloutMock.class, mock);
+            RlyCredentialHubChecks.selfCredentialForTest = false; // the org may have RLY_Org_Self (PROD does): the test says it doesn't
             Test.startTest();
             RlyCredentialCheck.Pass p = RlyCredentialCheck.gather();
             RlyCredentialCheck.save(p);

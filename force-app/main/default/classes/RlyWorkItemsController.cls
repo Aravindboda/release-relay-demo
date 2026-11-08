@@ -32,7 +32,9 @@ public with sharing class RlyWorkItemsController {
             requireAdmin();
             RlyWorkTypes.Settings v = String.isBlank(settingsJson) ? new RlyWorkTypes.Settings()
                 : (RlyWorkTypes.Settings) JSON.deserialize(settingsJson, RlyWorkTypes.Settings.class);
+            RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.TRACKING); // build 50: Recent changes to settings
             RlyWorkStore.saveSettings(RlyWorkSettings.checked(v));
+            RlySettingsLog.compare(was);
             return RlyWorkSettings.viewOf(RlyWorkStore.trackingSettings());
         } catch (Exception e) {
             throw handled(e);

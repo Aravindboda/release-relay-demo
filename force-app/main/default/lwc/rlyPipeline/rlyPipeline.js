@@ -36,6 +36,9 @@ import readBuiltLock from '@salesforce/apex/RlyBuildLock.status';
 import saveBuiltLock from '@salesforce/apex/RlyBuildLock.setPassword';
 import readWindows from '@salesforce/apex/RlyWindowController.windows';
 import { MIN_DAYS, about, count, longDate, nextNightlyText, nightlyClock, num, stamp, toDate } from 'c/rlyArchiveText';
+import getSummary from '@salesforce/apex/RlyPipelineSummary.summary';
+import { SECTIONS, changeViews, firstTileOf, navItems, problemViews, readSection, sectionKnown, sectionLabel, tileViews, tonePill,
+    writeSection } from './pipelineSections';
 
 /** A list shows its search box from this many rows (or while a search is typed); Connected orgs from more than 6 orgs. */
 const SEARCH_FROM = 7;
@@ -126,10 +129,13 @@ const ALL_SECTIONS = 'all';
 const DOT_CLS = { Connected: 'rr-dot rr-dot-ok', Failed: 'rr-dot rr-dot-bad', Refreshed: 'rr-dot rr-dot-wait' };
 /** Connected orgs: one tab per Salesforce environment (RLY_Org__c.Environment__c); an org without one goes under Other. */
 const OTHER_TAB = 'Not set';
-/** The page's sections, in order; each folds open or closed. Section 1 and Connected orgs start open. */
-const FOLD_DEFAULTS = { git: true, route: false, values: false, gates: false, slack: false, retention: false, lock: false, orgs: true };
+/** The cards, each folding open or closed. Build 50: a section shows its cards open (the list on the left picks the section). */
+const FOLD_DEFAULTS = { git: true, route: true, values: true, gates: true, slack: true, retention: true, lock: true, orgs: true };
 /** The Archive tab, and how long the Retention days box waits after typing before it counts what becomes eligible. */
 const ARCHIVE_TAB = 'RLY_Archive';
+/** The Guide tab and its Set up section (build 50: the header's Guide: set-up steps). */
+const GUIDE_TAB = 'RLY_Relay_Guide';
+const GUIDE_SETUP = 'setup';
 const PREVIEW_WAIT = 400;
 const RETENTION = 'retention';
 /** The What's built lock section (build 31): a password in front of the What's built tab. */
@@ -137,7 +143,7 @@ const LOCK = 'lock';
 /** RlyBuildLock: shortest password. */
 const LOCK_MIN = 8;
 /** Where this browser remembers which sections are open, and the last Connected orgs tab (per viewer, best effort). */
-const FOLD_STORE = 'rly.pipeline.sections';
+const FOLD_STORE = 'rly.pipeline.sections.v2';
 const TAB_STORE = 'rly.pipeline.orgTab';
 const BOT_TOKEN_PREFIX = 'xoxb-';
 /** Where an admin puts the Slack bot token when this org can't save it from the page. */
@@ -527,6 +533,13 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     }
 
     renderedCallback() {
+        if (this.focusPane) {
+            const pane = this.template.querySelector('.rr-pane');
+            if (pane) {
+                pane.scrollTop = 0;
+            }
+            this.focusPane = false;
+        }
         if (this.scrollToRetention && this.retentionSettled) {
             this.scrollRetentionSoon();
         }
@@ -625,6 +638,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     load() {
         this.loading = true;
         this.error = undefined;
+        this.loadSummary();
         this.loadRetention();
         this.loadBuiltLock();
         this.loadWindows();
@@ -2334,6 +2348,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     }
 
     endEdit() {
+        this.loadSummary();
         this.clearRetentionEdit();
         this.lockForm = { enabled: false, password: '', confirm: '' };
         this.lockShowPw = false;
@@ -3038,6 +3053,9 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     @wire(CurrentPageReference)
     setPageRef(ref) {
         const sec = ref && ref.state ? ref.state.c__section : undefined;
+        if (sectionKnown(sec)) {
+            this.section = sec; // build 50: ?c__section=<section key> opens that section (retention for the Archive tab's links)
+        }
         if (sec === RETENTION) {
             this.folds = { ...this.folds, [RETENTION]: true };
             this.scrollToRetention = true;
@@ -3472,6 +3490,124 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
             .finally(() => {
                 this.saving = false;
             });
+    }
+
+    // ---------- status strip and sections (build 50) ----------
+
+    /** RlyPipelineSummary.summary: the tiles, the dots, what to fix and the recent settings changes (stored states only). */
+    summary;
+    summaryError;
+    /** The open section (remembered in this browser; Connection & route by default). */
+    section = readSection();
+    /** The tile shown as selected. */
+    activeTile;
+    focusPane = false;
+
+    loadSummary() {
+        return getSummary()
+            .then((s) => {
+                this.summary = s;
+                this.summaryError = undefined;
+            })
+            .catch((e) => {
+                this.summaryError = errorText(e);
+            });
+    }
+
+    get hasSummary() { return !!this.summary; }
+    get statusTiles() {
+        return tileViews(this.summary, { state: this.pipeFiles, loading: this.pipeFilesLoading },
+            this.activeTile || firstTileOf(this.summary, this.section));
+    }
+    /** The section whose form is open: the list marks it "Editing". */
+    get editingSection() {
+        if (this.isGitEditing || this.isBpEditing || this.editingRoute) {
+            return 'connection';
+        }
+        if (this.isSlackEditing) {
+            return 'approvals';
+        }
+        if (this.isRetentionEditing) {
+            return 'retention';
+        }
+        return this.isLockEditing ? 'advanced' : undefined;
+    }
+    get sectionDots() { return (this.summary && this.summary.dots) || {}; }
+    get navList() {
+        const count = this.summary ? this.summary.orgCount : this.orgs.length;
+        return navItems(this.section, this.sectionDots, count, this.editingSection);
+    }
+    get sectionTitle() { return sectionLabel(this.section); }
+    get sectionPill() { return tonePill(this.sectionDots[this.section]); }
+    get sectionNote() {
+        const notes = (this.summary && this.summary.notes) || {};
+        const tile = (key) => ((this.summary && this.summary.tiles) || []).find((x) => x.key === key);
+        const both = (a, b) => [a, b].filter((x) => !!x).join(' · ');
+        switch (this.section) {
+            case 'connection': return both(tile('git') && tile('git').value, tile('route') && tile('route').value);
+            case 'orgs': return this.orgsSummary;
+            case 'approvals': return both(tile('approvals') && tile('approvals').value, tile('approvals') && tile('approvals').detail);
+            case 'tracking': return notes.tracking || '';
+            case 'security': return both(tile('security') && 'Repository: ' + tile('security').value.toLowerCase(),
+                tile('credentials') && 'credentials: ' + tile('credentials').value.toLowerCase());
+            case 'retention': return this.showRetention ? this.retentionSummary : notes.retention || '';
+            default: return 'Per-org values and quality gates (read from the repository) and the What\'s built lock';
+        }
+    }
+    get secConnection() { return this.section === 'connection'; }
+    get secOrgs() { return this.section === 'orgs'; }
+    get secApprovals() { return this.section === 'approvals'; }
+    get secTracking() { return this.section === 'tracking'; }
+    get secSecurity() { return this.section === 'security'; }
+    get secRetention() { return this.section === 'retention'; }
+    get secAdvanced() { return this.section === 'advanced'; }
+    get sectionOptions() { return SECTIONS.map((s) => ({ value: s.key, label: s.label, selected: s.key === this.section })); }
+    get problemList() { return problemViews(this.summary); }
+    get hasProblems() { return this.problemList.length > 0; }
+    get problemsPill() {
+        const n = this.problemList.length;
+        return n ? n + (n === 1 ? ' to look at' : ' to look at') : 'All fine';
+    }
+    get problemsPillCls() { return this.problemList.length ? 'rr-pill rr-pill-bad' : 'rr-pill rr-pill-ok'; }
+    get changeList() { return changeViews(this.summary); }
+    get hasChanges() { return this.changeList.length > 0; }
+    get setupExpanded() { return this.showSetup ? 'true' : 'false'; }
+    get noRetention() { return !this.showRetention; }
+    get noRepoCards() { return !this.showRepoCards; }
+    get retentionNote() { return (this.summary && this.summary.notes && this.summary.notes.retention) || 'Retention is set in the production hub.'; }
+    /** While the first-run walk-through is open the page scrolls as a whole; otherwise the list and the pane scroll on their own. */
+    get shellCls() { return 'rr-page slds-is-relative' + (this.showWizard ? '' : ' rr-fit'); }
+
+    openSection(key, tileKey) {
+        if (!sectionKnown(key)) {
+            return;
+        }
+        this.section = key;
+        this.activeTile = tileKey;
+        writeSection(key);
+        this.focusPane = true;
+        this.loadSummary();
+    }
+
+    handleSection(event) {
+        this.openSection(event.currentTarget.dataset.key, undefined);
+    }
+
+    handleSectionSelect(event) {
+        this.openSection(event.target.value, undefined);
+    }
+
+    handleTile(event) {
+        const d = event.currentTarget.dataset;
+        this.openSection(d.section, d.key);
+    }
+
+    handleOpenSecurity() {
+        this.openSection('security', 'security');
+    }
+
+    openGuideSetup() {
+        this[NavigationMixin.Navigate]({ type: 'standard__navItemPage', attributes: { apiName: GUIDE_TAB }, state: { c__section: GUIDE_SETUP } });
     }
 
     // ---------- setup help ----------

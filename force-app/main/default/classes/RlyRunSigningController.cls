@@ -63,7 +63,9 @@ public with sharing class RlyRunSigningController {
             if (!RlyRunSigning.isKey(key)) {
                 throw new RlyReleaseException('That isn\'t a run-signing key: press Generate and copy the key it shows.');
             }
+            RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.SECURITY); // build 50: Recent changes to settings
             RlyRunKeyStore.save(key.trim());
+            RlySettingsLog.compare(was);
             return statusNow();
         } catch (Exception e) {
             throw handled(e);
@@ -79,7 +81,9 @@ public with sharing class RlyRunSigningController {
     public static RlyRepoSecurity.Report checkRepository() {
         try {
             requireAdmin();
-            return RlyRepoSecurity.check();
+            RlyRepoSecurity.Report report = RlyRepoSecurity.check();
+            RlyPipelineSummaryStore.keepSecurity(report); // build 50: the status strip reads it without a callout
+            return report;
         } catch (Exception e) {
             throw handled(e);
         }

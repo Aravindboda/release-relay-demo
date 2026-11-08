@@ -83,7 +83,9 @@ public with sharing class RlyRouteController {
             Status__c = 'Not checked',
             Status_Message__c = null
         );
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.GIT); // build 50: Recent changes to settings
         data.saveGit(row);
+        RlySettingsLog.compare(was);
         if (existing == null) {
             RlyProdApproval.onNewHub(); // build 49: a new hub starts with production approval needing the add-on
         }
@@ -158,7 +160,9 @@ public with sharing class RlyRouteController {
             }
             rows.add(new RLY_Org__c(Id = i, Stage_Order__c = o.Role__c == 'Hub' ? 999 : pos++));
         }
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.ORGS); // build 50: Recent changes to settings
         data.saveOrgs(rows);
+        RlySettingsLog.compare(was);
     }
 
     /**
@@ -199,7 +203,9 @@ public with sharing class RlyRouteController {
      */
     @AuraEnabled
     public static RlyBackPromote.BackPromoteBoard setBackPromote(String state) {
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.GIT); // build 50: Recent changes to settings
         RlyBackPromote.setEnabled(state);
+        RlySettingsLog.compare(was);
         return RlyBackPromote.board();
     }
 
@@ -210,7 +216,9 @@ public with sharing class RlyRouteController {
      */
     @AuraEnabled
     public static RlyBackPromote.BackPromoteBoard saveBackPromoteOrg(String settingsJson) {
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.ORGS); // build 50: Recent changes to settings
         RlyBackPromote.saveOrgSettings(settingsJson);
+        RlySettingsLog.compare(was);
         return RlyBackPromote.board();
     }
 

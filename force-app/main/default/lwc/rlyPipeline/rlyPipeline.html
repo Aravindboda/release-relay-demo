@@ -3,7 +3,7 @@
         <c-rly-org-gate status={hubStatus} banner-only={showPage} show-switch={canSwitchSandbox}
             hide-setup-button onstatuschange={handleStatusChange}></c-rly-org-gate>
         <template lwc:if={showPage}>
-            <div class="rr-page slds-is-relative">
+            <div class={shellCls}>
                 <template lwc:if={hubCopy}>
                     <div class="slds-notify slds-notify_alert slds-alert_warning" role="alert">
                         <lightning-icon icon-name="utility:warning" size="x-small" alternative-text="Warning" class="slds-m-right_x-small"></lightning-icon>
@@ -14,17 +14,21 @@
                     <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
                 </template>
 
-                <!-- Page header -->
+                <!-- Page header (build 50 board): title, Guide: set-up steps, Register org; Set up Release Relay stays for admins -->
                 <section class="rr-card rr-head">
-                    <span class="rr-icon rr-icon-app"><lightning-icon icon-name="utility:settings" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
+                    <span class="rr-icon rr-icon-app" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="6" cy="6" r="2.5"></circle><circle cx="18" cy="18" r="2.5"></circle><circle cx="6" cy="18" r="2.5"></circle><path d="M6 8.5v7M8.5 6h4a3 3 0 0 1 3 3v6.5"></path></svg>
+                    </span>
                     <div class="rr-head-text">
                         <p class="rr-kicker">{appName}</p>
                         <h1 class="rr-title">Pipeline</h1>
                     </div>
-                    <lightning-button label={setupLabel} onclick={toggleSetup}></lightning-button>
                     <template lwc:if={isAdmin}>
-                        <lightning-button label={wizardLabel} onclick={toggleWizard}></lightning-button>
-                        <lightning-button variant="brand" label="Register an org" onclick={handleRegister} disabled={editLocked}></lightning-button>
+                        <lightning-button variant="base" label={wizardLabel} onclick={toggleWizard}></lightning-button>
+                    </template>
+                    <lightning-button label="Guide: set-up steps" title="Open the Guide's Set up section" onclick={openGuideSetup}></lightning-button>
+                    <template lwc:if={isAdmin}>
+                        <lightning-button variant="brand" label="Register org" title="Register an org" onclick={handleRegister} disabled={editLocked}></lightning-button>
                     </template>
                 </section>
 
@@ -38,21 +42,63 @@
 
                 <!-- Hidden while production is not set up and the first-run setup is open -->
                 <template lwc:if={showRest}>
-                    <template lwc:if={showSetup}>
-                        <section class="rr-card rr-setup" aria-label="Setup steps">
-                            <h2 class="rr-h2">Before you register an org</h2>
-                            <p class="rr-weak rr-small">The hub signs in to each org itself, with a JWT signed by the hub's certificate. Each org needs this once. Menu names can differ slightly between Salesforce releases.</p>
-                            <ol class="rr-steps">
-                                <li><strong>In this hub:</strong> Setup &gt; Certificate and Key Management. Use the certificate <span class="rr-mono">release_relay</span> (or create a self-signed one) and download its .crt file.</li>
-                                <li><strong>In the org:</strong> create an integration user with API Enabled, View Setup and Configuration, and Modify Metadata Through Metadata API Functions.</li>
-                                <li><strong>In the org:</strong> Setup &gt; External Client App Manager &gt; New External Client App. Turn on OAuth with the scopes api and refresh_token/offline_access, turn on the JWT bearer flow and upload the hub's .crt. Under policies, set Permitted Users to admin-approved users are pre-authorized and add the integration user's profile or permission set. Copy the consumer key.</li>
-                                <li><strong>In this hub:</strong> Setup &gt; Remote Site Settings &gt; New, with the org's My Domain URL, for example <span class="rr-mono">{remoteSite}</span>.</li>
-                                <li><strong>Here:</strong> Register an org, then Check connection and next.</li>
-                            </ol>
-                            <p class="rr-weak rr-small">This hub is <span class="rr-mono">{hubDomain}</span>. Register it too, with the role Hub, so releases can be deployed to production.</p>
-                        </section>
+                    <!-- Status strip (build 50): five tiles from stored states (RlyPipelineSummary); each opens its section -->
+                    <template lwc:if={hasSummary}>
+                        <ul class="rr-strip" aria-label="Pipeline status">
+                            <template for:each={statusTiles} for:item="t">
+                                <li key={t.key} class="rr-strip-cell">
+                                    <button type="button" class={t.cls} title={t.title} data-key={t.key} data-section={t.section} onclick={handleTile}>
+                                        <span class="rr-tile-k">{t.label}</span>
+                                        <span class={t.valueCls}>{t.value}</span>
+                                        <span class="rr-tile-d">{t.detail}<template lwc:if={t.hasChip}> <span class="rr-chip">{t.chip}</span></template></span>
+                                    </button>
+                                </li>
+                            </template>
+                        </ul>
                     </template>
+                    <template lwc:if={summaryError}><p class="rr-small rr-weak" role="status">Status strip: {summaryError}</p></template>
 
+                    <!-- Seven sections: a list on the left (a select on narrow screens), the open section beside it -->
+                    <div class="rr-layout">
+                        <div class="rr-picker">
+                            <label class="slds-form-element__label" for="rr-section-select">Section</label>
+                            <div class="slds-select_container">
+                                <select id="rr-section-select" class="slds-select" onchange={handleSectionSelect}>
+                                    <template for:each={sectionOptions} for:item="o">
+                                        <option key={o.value} value={o.value} selected={o.selected}>{o.label}</option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                        <nav class="rr-nav" aria-label="Pipeline settings">
+                            <ul class="rr-nav-list">
+                                <template for:each={navList} for:item="n">
+                                    <li key={n.key}>
+                                        <button type="button" class={n.cls} aria-current={n.current} data-key={n.key} onclick={handleSection}>
+                                            <span class="rr-nav-text">
+                                                <span class="rr-nav-label">{n.label}</span>
+                                                <template lwc:if={n.hasSub}><span class="rr-nav-sub">{n.sub}</span></template>
+                                                <template lwc:if={n.editing}><span class="rr-nav-sub rr-nav-editing">Editing</span></template>
+                                            </span>
+                                            <template lwc:if={n.hasCount}><span class="rr-nav-count">{n.count}</span></template>
+                                            <span class={n.dotCls} title={n.toneText}></span>
+                                            <span class="slds-assistive-text">{n.toneText}</span>
+                                        </button>
+                                    </li>
+                                </template>
+                            </ul>
+                        </nav>
+                        <div class="rr-pane" role="region" aria-label={sectionTitle}>
+                            <div class="rr-pane-head">
+                                <div class="rr-grow">
+                                    <h2 class="rr-pane-title">{sectionTitle}</h2>
+                                    <p class="rr-small rr-weak rr-break">{sectionNote}</p>
+                                </div>
+                                <span class={sectionPill.cls}>{sectionPill.text}</span>
+                            </div>
+
+                            <!-- Connection & route: Git, back promote, route -->
+                            <template lwc:if={secConnection}>
                     <!-- 1 · Where the code lives (75%) and Back promote (25%) in one row; folding it folds the row into one bar -->
                     <template lwc:if={fold.git.open}>
                         <div class={gitRowCls}>
@@ -318,134 +364,134 @@
                         </template>
                     </section>
 
-                    <!-- Per-org values and Quality gates: read-only, from the repository's pipeline branch; edited in Git -->
-                    <template lwc:if={showRepoCards}>
-                        <section class="rr-sec" aria-label="Per-org values">
-                            <template lwc:if={fold.values.open}>
-    <div class={fold.values.headCls}>
-        <button type="button" class="rr-chev" aria-expanded={fold.values.expanded} aria-controls="rr-sec-values" aria-label={fold.values.foldLabel}
-            title={fold.values.foldLabel} data-key="values" onclick={handleFold} disabled={fold.values.locked}>
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>
-        </button>
-        <h2 class="rr-h2 rr-grow">{fold.values.title}</h2>
-        <span class="rr-kicker">{repoReadText}</span>
-<template lwc:if={valuesFileUrl}><a class="rr-small" href={valuesFileUrl} target="_blank" rel="noopener noreferrer">{valuesLinkText}</a></template>
-    </div>
-</template>
-<template lwc:else>
-    <div class={fold.values.headCls}>
-        <button type="button" class="rr-fold" aria-expanded={fold.values.expanded} aria-controls="rr-sec-values" data-key="values" onclick={handleFold}>
-            <span class="rr-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
-            <span class="rr-h2 rr-fold-title">{fold.values.title}</span>
-            <span class="rr-sum">{fold.values.summary}</span>
-        </button>
-        <template lwc:if={fold.values.pill}><span class={fold.values.pillCls}>{fold.values.pill}</span></template>
-    </div>
-</template>
-                            <template lwc:if={fold.values.open}>
-                                <div id="rr-sec-values" class="rr-body">
-                                <template lwc:if={repoMessage}><div class="rr-msg rr-msg-info" role="status">{repoMessage}</div></template>
-                                <template lwc:if={valuesError}><div class="rr-msg rr-msg-bad" role="alert">{valuesError}</div></template>
-                                <template lwc:if={hasValues}>
-                                    <p class="rr-kicker">Write placeholders <span class="rr-mono">{placeholderSample}</span> in your code. The pipeline puts each org's value in when it deploys, and turns the value back into the placeholder when it retrieves.</p>
-                                    <template lwc:if={showValuesSearch}>
-                                        <c-rly-search-box data-list="values" label="Search per-org values" placeholder="Search by name or value"
-                                            shown={valuesShown} total={valuesTotal} onsearch={handleListSearch}></c-rly-search-box>
+                    <!-- Overview (build 50 board): what to fix in security and credentials, and the recent settings changes -->
+                    <div class="rr-mini">
+                        <section class="rr-card" aria-label="Security and credentials to fix">
+                            <div class="rr-box-head">
+                                <h3 class="rr-h3 rr-grow">Security &amp; credentials</h3>
+                                <span class={problemsPillCls}>{problemsPill}</span>
+                                <lightning-button variant="base" label="Open ›" title="Open Security &amp; credentials" onclick={handleOpenSecurity}></lightning-button>
+                            </div>
+                            <template lwc:if={hasProblems}>
+                                <ul class="rr-li-list">
+                                    <template for:each={problemList} for:item="p">
+                                        <li key={p.key} class="rr-li"><span class={p.tagCls}>{p.tag}</span><span class="rr-grow rr-break">{p.text}</span></li>
                                     </template>
-                                    <div class="rr-scroll rr-scroll-x">
-                                        <table class="slds-table slds-table_bordered slds-table_cell-buffer rr-values rr-ft">
-                                            <thead>
-                                                <tr class="slds-line-height_reset">
-                                                    <th scope="col" class="rr-w-vname"><div class="slds-truncate">Name</div></th>
-                                                    <template for:each={valueColumns} for:item="c">
-                                                        <th key={c.key} scope="col" class={c.thCls} title={c.title}><div class="slds-truncate">{c.label}</div></th>
-                                                    </template>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <template for:each={shownValueRows} for:item="r">
-                                                    <tr key={r.key}>
-                                                        <th scope="row" class="rr-mono" title={r.name}><template for:each={r.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></th>
-                                                        <template for:each={r.cells} for:item="cell">
-                                                            <td key={cell.key}><span class={cell.cls} title={cell.title}>{cell.text}</span></td>
-                                                        </template>
-                                                    </tr>
-                                                </template>
-                                                <template lwc:if={valuesNoMatch}>
-                                                    <tr><td colspan={valueColspan} class="rr-nomatch">{valuesNoMatchText} <button type="button" class="rr-linkbtn" data-list="values" onclick={clearListSearch}>Clear search</button></td></tr>
-                                                </template>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <p class="rr-kicker">Values longer than 24 characters show the first 12 and last 4 (hover for the full value). Columns follow the route; a name the file has for an org not on the route shows as an extra grey column.</p>
-                                    <div class="rr-msg rr-msg-wait" role="note">Values are in Git, so never put passwords here.</div>
-                                </template>
-                                <template lwc:if={valuesEmpty}>
-                                    <p class="rr-empty">No per-org values yet — add them in .relay/values.json</p>
-                                </template>
-                                </div>
+                                </ul>
                             </template>
+                            <template lwc:else><p class="rr-li-empty rr-small rr-weak">Nothing to fix in what was last checked.</p></template>
                         </section>
-
-                        <section class="rr-sec" aria-label="Quality gates">
-                            <template lwc:if={fold.gates.open}>
-    <div class={fold.gates.headCls}>
-        <button type="button" class="rr-chev" aria-expanded={fold.gates.expanded} aria-controls="rr-sec-gates" aria-label={fold.gates.foldLabel}
-            title={fold.gates.foldLabel} data-key="gates" onclick={handleFold} disabled={fold.gates.locked}>
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>
-        </button>
-        <h2 class="rr-h2 rr-grow">{fold.gates.title}</h2>
-        <span class="rr-kicker">{gatesReadText}</span>
-<template lwc:if={gatesFileUrl}><a class="rr-small" href={gatesFileUrl} target="_blank" rel="noopener noreferrer">{gatesLinkText}</a></template>
-    </div>
-</template>
-<template lwc:else>
-    <div class={fold.gates.headCls}>
-        <button type="button" class="rr-fold" aria-expanded={fold.gates.expanded} aria-controls="rr-sec-gates" data-key="gates" onclick={handleFold}>
-            <span class="rr-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
-            <span class="rr-h2 rr-fold-title">{fold.gates.title}</span>
-            <span class="rr-sum">{fold.gates.summary}</span>
-        </button>
-        <template lwc:if={fold.gates.pill}><span class={fold.gates.pillCls}>{fold.gates.pill}</span></template>
-    </div>
-</template>
-                            <template lwc:if={fold.gates.open}>
-                                <div id="rr-sec-gates" class="rr-body">
-                                <template lwc:if={repoMessage}><div class="rr-msg rr-msg-info" role="status">{repoMessage}</div></template>
-                                <template lwc:if={gatesError}><div class="rr-msg rr-msg-bad" role="alert">{gatesError}</div></template>
-                                <template lwc:if={hasGates}>
-                                    <template lwc:if={showGatesSearch}>
-                                        <c-rly-search-box data-list="gates" label="Search quality gates" placeholder="Search by gate or value"
-                                            shown={gatesShown} total={gatesTotal} onsearch={handleListSearch}></c-rly-search-box>
+                        <section class="rr-card" aria-label="Recent changes to settings">
+                            <div class="rr-box-head"><h3 class="rr-h3 rr-grow">Recent changes to settings</h3><span class="rr-kicker">last 10 · kept 90 days</span></div>
+                            <template lwc:if={hasChanges}>
+                                <ul class="rr-li-list">
+                                    <template for:each={changeList} for:item="c">
+                                        <li key={c.key} class="rr-li">
+                                            <span class="rr-grow rr-break"><strong>{c.what}</strong><template lwc:if={c.hasChange}> <span class="rr-weak">{c.change}</span></template></span>
+                                            <span class="rr-small rr-weak rr-nowrap" title={c.section}>{c.meta}</span>
+                                        </li>
                                     </template>
-                                    <dl class="rr-ro rr-scroll">
-                                        <template for:each={shownGateRows} for:item="g">
-                                            <div key={g.key} class={g.cls}>
-                                                <dt class="slds-form-element__label">{g.label}</dt>
-                                                <dd class="slds-form-element__control">
-                                                    <div class="slds-form-element__static">
-                                                        <span class="rr-flag">
-                                                            <template lwc:if={g.isSet}><lightning-icon icon-name="utility:check" size="xx-small" variant="success" alternative-text=""></lightning-icon></template>
-                                                            <template lwc:else><lightning-icon icon-name="utility:dash" size="xx-small" alternative-text=""></lightning-icon></template>
-                                                            <span>{g.text}</span>
-                                                        </span>
-                                                    </div>
-                                                </dd>
-                                            </div>
-                                        </template>
-                                    </dl>
-                                    <template lwc:if={gatesNoMatch}>
-                                        <p class="rr-nomatch-p">{gatesNoMatchText} <button type="button" class="rr-linkbtn" data-list="gates" onclick={clearListSearch}>Clear search</button></p>
-                                    </template>
-                                </template>
-                                <template lwc:if={gatesEmpty}>
-                                    <p class="rr-empty">No quality gates yet — add them in .relay/gates.json. Salesforce's own rules still apply.</p>
-                                </template>
-                                </div>
+                                </ul>
                             </template>
+                            <template lwc:else><p class="rr-li-empty rr-small rr-weak">No settings changed yet. Saves on this tab are listed here.</p></template>
+                        </section>
+                    </div>
+                            </template>
+
+                            <!-- Orgs: setup steps and the connected orgs, grouped by environment -->
+                            <template lwc:if={secOrgs}>
+                    <div class="rr-row">
+                        <button type="button" class="rr-linkbtn" aria-expanded={setupExpanded} onclick={toggleSetup}>{setupLabel}</button>
+                    </div>
+                    <template lwc:if={showSetup}>
+                        <section class="rr-card rr-setup" aria-label="Setup steps">
+                            <h2 class="rr-h2">Before you register an org</h2>
+                            <p class="rr-weak rr-small">The hub signs in to each org itself, with a JWT signed by the hub's certificate. Each org needs this once. Menu names can differ slightly between Salesforce releases.</p>
+                            <ol class="rr-steps">
+                                <li><strong>In this hub:</strong> Setup &gt; Certificate and Key Management. Use the certificate <span class="rr-mono">release_relay</span> (or create a self-signed one) and download its .crt file.</li>
+                                <li><strong>In the org:</strong> create an integration user with API Enabled, View Setup and Configuration, and Modify Metadata Through Metadata API Functions.</li>
+                                <li><strong>In the org:</strong> Setup &gt; External Client App Manager &gt; New External Client App. Turn on OAuth with the scopes api and refresh_token/offline_access, turn on the JWT bearer flow and upload the hub's .crt. Under policies, set Permitted Users to admin-approved users are pre-authorized and add the integration user's profile or permission set. Copy the consumer key.</li>
+                                <li><strong>In this hub:</strong> Setup &gt; Remote Site Settings &gt; New, with the org's My Domain URL, for example <span class="rr-mono">{remoteSite}</span>.</li>
+                                <li><strong>Here:</strong> Register an org, then Check connection and next.</li>
+                            </ol>
+                            <p class="rr-weak rr-small">This hub is <span class="rr-mono">{hubDomain}</span>. Register it too, with the role Hub, so releases can be deployed to production.</p>
                         </section>
                     </template>
+                    <!-- Connected orgs: tabs by Salesforce environment, compact cards; a card opens the org's window -->
+                    <section class="rr-sec" aria-label="Connected orgs">
+                        <template lwc:if={fold.orgs.open}>
+    <div class={fold.orgs.headCls}>
+        <button type="button" class="rr-chev" aria-expanded={fold.orgs.expanded} aria-controls="rr-sec-orgs" aria-label={fold.orgs.foldLabel}
+            title={fold.orgs.foldLabel} data-key="orgs" onclick={handleFold} disabled={fold.orgs.locked}>
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>
+        </button>
+        <div class="rr-ttl"><h2 class="rr-h2">{fold.orgs.title}</h2><p class="rr-sub">Grouped by Salesforce environment. Click an org to see its sign-in, approval and Slack settings, or to edit them.</p></div>
+        <span class="rr-pill rr-pill-none">{orgsCountText}</span>
+    </div>
+</template>
+<template lwc:else>
+    <div class={fold.orgs.headCls}>
+        <button type="button" class="rr-fold" aria-expanded={fold.orgs.expanded} aria-controls="rr-sec-orgs" data-key="orgs" onclick={handleFold}>
+            <span class="rr-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+            <span class="rr-h2 rr-fold-title">{fold.orgs.title}</span>
+            <span class="rr-sum">{fold.orgs.summary}</span>
+        </button>
+        <template lwc:if={fold.orgs.pill}><span class={fold.orgs.pillCls}>{fold.orgs.pill}</span></template>
+    </div>
+</template>
+                        <template lwc:if={fold.orgs.open}>
+                            <div id="rr-sec-orgs" class="rr-sec-body rr-orgs-body">
+                                <template lwc:if={noOrgs}>
+                                    <div class="rr-empty">No orgs registered yet. Follow the setup steps, then register your first org.</div>
+                                </template>
+                                <template lwc:if={hasOrgs}>
+                                    <template lwc:if={showOrgSearch}>
+                                        <div class="rr-org-search">
+                                            <c-rly-search-box data-list="orgs" label="Search connected orgs" placeholder="Search by org, domain, branch or role"
+                                                shown={orgsShown} total={orgsTotal} onsearch={handleListSearch}></c-rly-search-box>
+                                        </div>
+                                    </template>
+                                    <div class="slds-tabs_default rr-tabs">
+                                        <ul class="slds-tabs_default__nav rr-tabs-nav" role="tablist" aria-label="Salesforce environment" onkeydown={handleTabKey}>
+                                            <template for:each={orgTabs} for:item="g">
+                                                <li key={g.value} class={g.cls} role="presentation">
+                                                    <button type="button" id={g.tabId} class="slds-tabs_default__link rr-tab-btn" role="tab" aria-selected={g.selected}
+                                                        aria-controls="rr-org-panel" tabindex={g.tabIndex} data-value={g.value} onclick={handleOrgTab}>
+                                                        <span>{g.name}</span><span class="rr-cnt">{g.count}</span>
+                                                    </button>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                        <div id="rr-org-panel" class="rr-tab-panel" role="tabpanel" aria-labelledby={activeTabId}>
+                                            <template lwc:if={activeTabEmpty}><p class="rr-small rr-weak">{activeTabEmptyText}</p></template>
+                                            <template lwc:if={orgsNoMatch}>
+                                                <p class="rr-small rr-weak">{orgsNoMatchText} <button type="button" class="rr-linkbtn" data-list="orgs" onclick={clearListSearch}>Clear search</button></p>
+                                            </template>
+                                            <ul class="rr-tiles" aria-label="Connected orgs">
+                                                <template for:each={shownTiles} for:item="t">
+                                                    <li key={t.id} class="rr-tile-cell">
+                                                        <c-rly-org-tile tile={t} data-id={t.id} onopen={openOrgDialog}></c-rly-org-tile>
+                                                    </li>
+                                                </template>
+                                                <template lwc:if={showRegisterTile}>
+                                                    <li class="rr-tile-cell">
+                                                        <button type="button" class="rr-addtile" data-env={activeGroup.value} onclick={handleRegister} disabled={editLocked} aria-haspopup="dialog">
+                                                            <strong>+ Register an org</strong><span class="rr-small rr-weak">{registerTileHint}</span>
+                                                        </button>
+                                                    </li>
+                                                </template>
+                                            </ul>
+                                            <template lwc:if={productionNote}><p class="rr-small rr-weak slds-m-top_x-small">{productionNote}</p></template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </section>
+                            </template>
 
+                            <!-- Approvals & Slack: Slack, Approve in Slack, approvers, production approval -->
+                            <template lwc:if={secApprovals}>
                     <!-- Slack connection: read-only (a checklist until it answers); Edit works in place -->
                     <template lwc:if={showSlack}>
                         <section class={slackCardCls} aria-label="Slack connection">
@@ -596,10 +642,24 @@
                             </template>
                         </section>
                     </template>
+                    <c-rly-prod-approval></c-rly-prod-approval>
+                            </template>
 
+                            <!-- Work tracking -->
+                            <template lwc:if={secTracking}>
                     <!-- Work tracking (build 40): the tracker, ticket formats and the ServiceNow change gate; admins edit -->
                     <c-rly-work-tracking></c-rly-work-tracking>
+                            </template>
 
+                            <!-- Security & credentials: run signing, repository security, credentials -->
+                            <template lwc:if={secSecurity}>
+                    <!-- Run signing and Repository security (build 48): the hub's run-signing key and a read-only repository check -->
+                    <c-rly-run-security></c-rly-run-security>
+                    <c-rly-credentials></c-rly-credentials>
+                            </template>
+
+                            <!-- Retention & archive -->
+                            <template lwc:if={secRetention}>
                     <!-- Retention (production hub only): how long finished releases stay; admins edit, everyone else reads -->
                     <template lwc:if={showRetention}>
                         <section class={retentionCardCls} aria-label="Retention" data-section="retention">
@@ -717,7 +777,139 @@
                             </template>
                         </section>
                     </template>
+                    <template lwc:if={noRetention}><p class="rr-empty">{retentionNote}</p></template>
+                            </template>
 
+                            <!-- Advanced: per-org values, quality gates, What's built lock -->
+                            <template lwc:if={secAdvanced}>
+                    <!-- Per-org values and Quality gates: read-only, from the repository's pipeline branch; edited in Git -->
+                    <template lwc:if={showRepoCards}>
+                        <section class="rr-sec" aria-label="Per-org values">
+                            <template lwc:if={fold.values.open}>
+    <div class={fold.values.headCls}>
+        <button type="button" class="rr-chev" aria-expanded={fold.values.expanded} aria-controls="rr-sec-values" aria-label={fold.values.foldLabel}
+            title={fold.values.foldLabel} data-key="values" onclick={handleFold} disabled={fold.values.locked}>
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>
+        </button>
+        <h2 class="rr-h2 rr-grow">{fold.values.title}</h2>
+        <span class="rr-kicker">{repoReadText}</span>
+<template lwc:if={valuesFileUrl}><a class="rr-small" href={valuesFileUrl} target="_blank" rel="noopener noreferrer">{valuesLinkText}</a></template>
+    </div>
+</template>
+<template lwc:else>
+    <div class={fold.values.headCls}>
+        <button type="button" class="rr-fold" aria-expanded={fold.values.expanded} aria-controls="rr-sec-values" data-key="values" onclick={handleFold}>
+            <span class="rr-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+            <span class="rr-h2 rr-fold-title">{fold.values.title}</span>
+            <span class="rr-sum">{fold.values.summary}</span>
+        </button>
+        <template lwc:if={fold.values.pill}><span class={fold.values.pillCls}>{fold.values.pill}</span></template>
+    </div>
+</template>
+                            <template lwc:if={fold.values.open}>
+                                <div id="rr-sec-values" class="rr-body">
+                                <template lwc:if={repoMessage}><div class="rr-msg rr-msg-info" role="status">{repoMessage}</div></template>
+                                <template lwc:if={valuesError}><div class="rr-msg rr-msg-bad" role="alert">{valuesError}</div></template>
+                                <template lwc:if={hasValues}>
+                                    <p class="rr-kicker">Write placeholders <span class="rr-mono">{placeholderSample}</span> in your code. The pipeline puts each org's value in when it deploys, and turns the value back into the placeholder when it retrieves.</p>
+                                    <template lwc:if={showValuesSearch}>
+                                        <c-rly-search-box data-list="values" label="Search per-org values" placeholder="Search by name or value"
+                                            shown={valuesShown} total={valuesTotal} onsearch={handleListSearch}></c-rly-search-box>
+                                    </template>
+                                    <div class="rr-scroll rr-scroll-x">
+                                        <table class="slds-table slds-table_bordered slds-table_cell-buffer rr-values rr-ft">
+                                            <thead>
+                                                <tr class="slds-line-height_reset">
+                                                    <th scope="col" class="rr-w-vname"><div class="slds-truncate">Name</div></th>
+                                                    <template for:each={valueColumns} for:item="c">
+                                                        <th key={c.key} scope="col" class={c.thCls} title={c.title}><div class="slds-truncate">{c.label}</div></th>
+                                                    </template>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template for:each={shownValueRows} for:item="r">
+                                                    <tr key={r.key}>
+                                                        <th scope="row" class="rr-mono" title={r.name}><template for:each={r.nameParts} for:item="t"><template lwc:if={t.hit}><mark key={t.key}>{t.text}</mark></template><template lwc:else><span key={t.key}>{t.text}</span></template></template></th>
+                                                        <template for:each={r.cells} for:item="cell">
+                                                            <td key={cell.key}><span class={cell.cls} title={cell.title}>{cell.text}</span></td>
+                                                        </template>
+                                                    </tr>
+                                                </template>
+                                                <template lwc:if={valuesNoMatch}>
+                                                    <tr><td colspan={valueColspan} class="rr-nomatch">{valuesNoMatchText} <button type="button" class="rr-linkbtn" data-list="values" onclick={clearListSearch}>Clear search</button></td></tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <p class="rr-kicker">Values longer than 24 characters show the first 12 and last 4 (hover for the full value). Columns follow the route; a name the file has for an org not on the route shows as an extra grey column.</p>
+                                    <div class="rr-msg rr-msg-wait" role="note">Values are in Git, so never put passwords here.</div>
+                                </template>
+                                <template lwc:if={valuesEmpty}>
+                                    <p class="rr-empty">No per-org values yet — add them in .relay/values.json</p>
+                                </template>
+                                </div>
+                            </template>
+                        </section>
+
+                        <section class="rr-sec" aria-label="Quality gates">
+                            <template lwc:if={fold.gates.open}>
+    <div class={fold.gates.headCls}>
+        <button type="button" class="rr-chev" aria-expanded={fold.gates.expanded} aria-controls="rr-sec-gates" aria-label={fold.gates.foldLabel}
+            title={fold.gates.foldLabel} data-key="gates" onclick={handleFold} disabled={fold.gates.locked}>
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>
+        </button>
+        <h2 class="rr-h2 rr-grow">{fold.gates.title}</h2>
+        <span class="rr-kicker">{gatesReadText}</span>
+<template lwc:if={gatesFileUrl}><a class="rr-small" href={gatesFileUrl} target="_blank" rel="noopener noreferrer">{gatesLinkText}</a></template>
+    </div>
+</template>
+<template lwc:else>
+    <div class={fold.gates.headCls}>
+        <button type="button" class="rr-fold" aria-expanded={fold.gates.expanded} aria-controls="rr-sec-gates" data-key="gates" onclick={handleFold}>
+            <span class="rr-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+            <span class="rr-h2 rr-fold-title">{fold.gates.title}</span>
+            <span class="rr-sum">{fold.gates.summary}</span>
+        </button>
+        <template lwc:if={fold.gates.pill}><span class={fold.gates.pillCls}>{fold.gates.pill}</span></template>
+    </div>
+</template>
+                            <template lwc:if={fold.gates.open}>
+                                <div id="rr-sec-gates" class="rr-body">
+                                <template lwc:if={repoMessage}><div class="rr-msg rr-msg-info" role="status">{repoMessage}</div></template>
+                                <template lwc:if={gatesError}><div class="rr-msg rr-msg-bad" role="alert">{gatesError}</div></template>
+                                <template lwc:if={hasGates}>
+                                    <template lwc:if={showGatesSearch}>
+                                        <c-rly-search-box data-list="gates" label="Search quality gates" placeholder="Search by gate or value"
+                                            shown={gatesShown} total={gatesTotal} onsearch={handleListSearch}></c-rly-search-box>
+                                    </template>
+                                    <dl class="rr-ro rr-scroll">
+                                        <template for:each={shownGateRows} for:item="g">
+                                            <div key={g.key} class={g.cls}>
+                                                <dt class="slds-form-element__label">{g.label}</dt>
+                                                <dd class="slds-form-element__control">
+                                                    <div class="slds-form-element__static">
+                                                        <span class="rr-flag">
+                                                            <template lwc:if={g.isSet}><lightning-icon icon-name="utility:check" size="xx-small" variant="success" alternative-text=""></lightning-icon></template>
+                                                            <template lwc:else><lightning-icon icon-name="utility:dash" size="xx-small" alternative-text=""></lightning-icon></template>
+                                                            <span>{g.text}</span>
+                                                        </span>
+                                                    </div>
+                                                </dd>
+                                            </div>
+                                        </template>
+                                    </dl>
+                                    <template lwc:if={gatesNoMatch}>
+                                        <p class="rr-nomatch-p">{gatesNoMatchText} <button type="button" class="rr-linkbtn" data-list="gates" onclick={clearListSearch}>Clear search</button></p>
+                                    </template>
+                                </template>
+                                <template lwc:if={gatesEmpty}>
+                                    <p class="rr-empty">No quality gates yet — add them in .relay/gates.json. Salesforce's own rules still apply.</p>
+                                </template>
+                                </div>
+                            </template>
+                        </section>
+                    </template>
+                    <template lwc:if={noRepoCards}><p class="rr-empty">Per-org values and quality gates show once the Git connection is saved: they are read from the repository's pipeline branch.</p></template>
                     <!-- What's built lock (build 31): a password in front of the What's built tab; admins edit, everyone else reads -->
                     <template lwc:if={showBuiltLock}>
                         <section class={lockCardCls} aria-label="What's built lock" data-section="lock">
@@ -827,85 +1019,9 @@
                             </template>
                         </section>
                     </template>
-
-                    <!-- Run signing and Repository security (build 48): the hub's run-signing key and a read-only repository check -->
-                    <c-rly-run-security></c-rly-run-security>
-
-                    <!-- Approvals and Credentials (build 49): production approval's add-on rule, and every credential the hub depends on -->
-                    <c-rly-prod-approval></c-rly-prod-approval>
-                    <c-rly-credentials></c-rly-credentials>
-
-                    <!-- Connected orgs: tabs by Salesforce environment, compact cards; a card opens the org's window -->
-                    <section class="rr-sec" aria-label="Connected orgs">
-                        <template lwc:if={fold.orgs.open}>
-    <div class={fold.orgs.headCls}>
-        <button type="button" class="rr-chev" aria-expanded={fold.orgs.expanded} aria-controls="rr-sec-orgs" aria-label={fold.orgs.foldLabel}
-            title={fold.orgs.foldLabel} data-key="orgs" onclick={handleFold} disabled={fold.orgs.locked}>
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>
-        </button>
-        <div class="rr-ttl"><h2 class="rr-h2">{fold.orgs.title}</h2><p class="rr-sub">Grouped by Salesforce environment. Click an org to see its sign-in, approval and Slack settings, or to edit them.</p></div>
-        <span class="rr-pill rr-pill-none">{orgsCountText}</span>
-    </div>
-</template>
-<template lwc:else>
-    <div class={fold.orgs.headCls}>
-        <button type="button" class="rr-fold" aria-expanded={fold.orgs.expanded} aria-controls="rr-sec-orgs" data-key="orgs" onclick={handleFold}>
-            <span class="rr-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M5 3l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
-            <span class="rr-h2 rr-fold-title">{fold.orgs.title}</span>
-            <span class="rr-sum">{fold.orgs.summary}</span>
-        </button>
-        <template lwc:if={fold.orgs.pill}><span class={fold.orgs.pillCls}>{fold.orgs.pill}</span></template>
-    </div>
-</template>
-                        <template lwc:if={fold.orgs.open}>
-                            <div id="rr-sec-orgs" class="rr-sec-body rr-orgs-body">
-                                <template lwc:if={noOrgs}>
-                                    <div class="rr-empty">No orgs registered yet. Follow the setup steps, then register your first org.</div>
-                                </template>
-                                <template lwc:if={hasOrgs}>
-                                    <template lwc:if={showOrgSearch}>
-                                        <div class="rr-org-search">
-                                            <c-rly-search-box data-list="orgs" label="Search connected orgs" placeholder="Search by org, domain, branch or role"
-                                                shown={orgsShown} total={orgsTotal} onsearch={handleListSearch}></c-rly-search-box>
-                                        </div>
-                                    </template>
-                                    <div class="slds-tabs_default rr-tabs">
-                                        <ul class="slds-tabs_default__nav rr-tabs-nav" role="tablist" aria-label="Salesforce environment" onkeydown={handleTabKey}>
-                                            <template for:each={orgTabs} for:item="g">
-                                                <li key={g.value} class={g.cls} role="presentation">
-                                                    <button type="button" id={g.tabId} class="slds-tabs_default__link rr-tab-btn" role="tab" aria-selected={g.selected}
-                                                        aria-controls="rr-org-panel" tabindex={g.tabIndex} data-value={g.value} onclick={handleOrgTab}>
-                                                        <span>{g.name}</span><span class="rr-cnt">{g.count}</span>
-                                                    </button>
-                                                </li>
-                                            </template>
-                                        </ul>
-                                        <div id="rr-org-panel" class="rr-tab-panel" role="tabpanel" aria-labelledby={activeTabId}>
-                                            <template lwc:if={activeTabEmpty}><p class="rr-small rr-weak">{activeTabEmptyText}</p></template>
-                                            <template lwc:if={orgsNoMatch}>
-                                                <p class="rr-small rr-weak">{orgsNoMatchText} <button type="button" class="rr-linkbtn" data-list="orgs" onclick={clearListSearch}>Clear search</button></p>
-                                            </template>
-                                            <ul class="rr-tiles" aria-label="Connected orgs">
-                                                <template for:each={shownTiles} for:item="t">
-                                                    <li key={t.id} class="rr-tile-cell">
-                                                        <c-rly-org-tile tile={t} data-id={t.id} onopen={openOrgDialog}></c-rly-org-tile>
-                                                    </li>
-                                                </template>
-                                                <template lwc:if={showRegisterTile}>
-                                                    <li class="rr-tile-cell">
-                                                        <button type="button" class="rr-addtile" data-env={activeGroup.value} onclick={handleRegister} disabled={editLocked} aria-haspopup="dialog">
-                                                            <strong>+ Register an org</strong><span class="rr-small rr-weak">{registerTileHint}</span>
-                                                        </button>
-                                                    </li>
-                                                </template>
-                                            </ul>
-                                            <template lwc:if={productionNote}><p class="rr-small rr-weak slds-m-top_x-small">{productionNote}</p></template>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-                    </section>
+                            </template>
+                        </div>
+                    </div>
                 </template>
 
                 <!-- The org window: Register an org (step by step), or a saved org in read mode; Edit makes every section a form -->

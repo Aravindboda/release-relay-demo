@@ -2749,10 +2749,12 @@ const USE_SECTIONS = [
                 aside: SHOT_NOTE,
                 blocks: [
                     { type: 'text', paras: [
-                        'The Pipeline tab holds the setup, in sections: **1 · Where the code lives** (the Git connection) with **Back promote** beside it, **2 · Route**, **Per-org values** and **Quality gates** (once the Git connection is saved), **Slack connection** and **Connected orgs**.',
-                        'Every section folds: press the arrow (or the title) to open or close it. A closed section shows one grey line with what it holds, for example the provider, repository and status, and a pill when something needs you. Section 1 and Connected orgs start open; the tab remembers what you open or close in this browser. A section with a problem (a failed check, missing pipeline files, route warnings, a file that can\'t be read, a Slack error) opens by itself. A section being edited stays open until you Save or Cancel.',
-                        'Everything is read-only until you press **Edit**, and nothing changes until you press Save. One thing is edited at a time: the other Edit buttons and Register an org are grey meanwhile.',
-                        'In the header: **Setup steps for a new org** shows what each org needs before you register it (**Hide setup steps** closes it), **Set up Release Relay** opens the first-run walk-through (B. Hub org), and **Register an org**.'
+                        'The Pipeline tab fits the screen: a header, a **status strip** of five tiles, and the settings in seven sections down the left. The list and the open section scroll on their own.',
+                        'The tiles answer "is the pipeline healthy?" at a glance: **Git** (provider, status, the pipeline files\' version and an **update to vN** chip when newer files are available), **Route** (the lane, and "N orgs · all signed in" or the problem), **Approvals & Slack** (Slack, approvers linked), **Security** (the last Repository security check: "N to fix", OK, or Not checked) and **Credentials** (the nightly credential check: "N expiring", "N critical" or OK). They read what the hub has stored, so the tab opens without calling Git or Slack. Press a tile to open its section.',
+                        'The sections: **Connection & route** (Where the code lives, Back promote, the route, what to fix in security and credentials, and **Recent changes to settings**), **Orgs** (the connected orgs by Salesforce environment, and the setup steps for a new org), **Approvals & Slack** (the Slack connection, Approve in Slack, approvers, production approval), **Work tracking**, **Security & credentials** (run signing, repository security, credentials), **Retention & archive** and **Advanced** (per-org values, quality gates, the What\'s built lock). Each has a dot: green fine, amber needs a look, red needs fixing, grey not set up. The section you open is remembered in this browser. On a narrow screen the list becomes a menu above the section, and the tiles wrap.',
+                        'Read first, edit second: each section shows its settings read-only with **Edit**; Edit opens the same form in place, and nothing changes until you press Save. One thing is edited at a time: the other Edit buttons and Register org are grey meanwhile, and the list marks the section being edited.',
+                        '**Recent changes to settings** lists the last 10 changes made on this tab: who, what, when, and the old and new value (a token, key or password shows only as set, changed or removed). Changes are kept 90 days; the nightly archive call removes older ones.',
+                        'In the header: **Guide: set-up steps** opens the Set up part of this Guide, **Register org** registers an org, and admins have **Set up Release Relay** for the first-run walk-through (B. Hub org). **Setup steps for a new org** is under Orgs.'
                     ] },
                     {
                         type: 'steps',
@@ -2760,7 +2762,7 @@ const USE_SECTIONS = [
                             {
                                 title: 'Register an org',
                                 who: 'Admin',
-                                where: 'Pipeline → Register an org (page header, or the + Register an org card on a Connected orgs tab)',
+                                where: 'Pipeline → Register org (page header, or the + Register an org card on an environment tab under Orgs)',
                                 goal: 'Add a developer org, a stage, a back promote org, or (once) the hub.',
                                 items: [
                                     '**Register an org** opens a window. From a tab\'s **+ Register an org** card, that tab\'s Salesforce environment comes chosen ("Opens with … chosen").',
@@ -2773,7 +2775,7 @@ const USE_SECTIONS = [
                             {
                                 title: 'See and change an org',
                                 who: 'Admin',
-                                where: 'Pipeline → Connected orgs → the org\'s environment tab → its card',
+                                where: 'Pipeline → Orgs → the org\'s environment tab → its card',
                                 goal: 'Keep each org\'s sign-in, approval and Slack settings right.',
                                 items: [
                                     'Connected orgs has one tab per Salesforce environment (Developer sandbox or Developer Edition, Developer Pro sandbox, Partial Copy sandbox, Full Copy sandbox, Production), each with how many orgs it has. An org with no environment is under **Not set**. Arrow keys move between the tabs; the tab you pick is remembered.',
@@ -2790,7 +2792,7 @@ const USE_SECTIONS = [
                             {
                                 title: 'Where the code lives',
                                 who: 'Admin',
-                                where: 'Pipeline → 1 · Where the code lives',
+                                where: 'Pipeline → Connection & route → 1 · Where the code lives',
                                 items: [
                                     'Shows the provider, repository, Named Credential (token), workflow file, pipeline branch, source path and **Code scan** (on or off for every pull request; each org can follow it or set its own).',
                                     '**Check connection** tests it again; **Edit** changes it ("Save tests the connection.").',
