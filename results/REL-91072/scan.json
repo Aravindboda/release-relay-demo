@@ -1,0 +1,96 @@
+{
+ "request": "REL-91072",
+ "step": "scan",
+ "status": "Passed",
+ "total": 4,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Moderate": 1,
+  "Info": 3
+ },
+ "files": [
+  "force-app/main/default/classes/RlyArchiveEligible.cls",
+  "force-app/main/default/classes/RlyManualStepRules.cls",
+  "force-app/main/default/classes/RlyMigrationCancel.cls",
+  "force-app/main/default/classes/RlyMigrationCancelTest.cls",
+  "force-app/main/default/classes/RlyMigrationCancelText.cls",
+  "force-app/main/default/classes/RlyMigrationGate.cls",
+  "force-app/main/default/classes/RlyMigrationOrgController.cls",
+  "force-app/main/default/classes/RlyMigrationReport.cls",
+  "force-app/main/default/classes/RlyMigrationState.cls",
+  "force-app/main/default/classes/RlyMigrationStore.cls",
+  "force-app/main/default/classes/RlyMigrationSwitch.cls",
+  "force-app/main/default/classes/RlyMigrationView.cls",
+  "force-app/main/default/classes/RlyMigrationViews.cls",
+  "force-app/main/default/classes/RlyReleaseCancel.cls",
+  "force-app/main/default/classes/RlyReleaseCancelTest.cls",
+  "force-app/main/default/classes/RlyReleaseEffects.cls",
+  "force-app/main/default/classes/RlyReleaseQuery.cls",
+  "force-app/main/default/classes/RlyReleasesController.cls",
+  "force-app/main/default/classes/RlyRunMonitorBranchRow.cls",
+  "force-app/main/default/classes/RlySlackCard.cls",
+  "force-app/main/default/classes/RlyWorkItems.cls",
+  "force-app/main/default/classes/RlyWorkSync.cls",
+  "force-app/main/default/lwc/rlyHome/rlyHome.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js",
+  "force-app/main/default/lwc/rlyReleaseTracker/rlyReleaseTracker.js",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.html",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.js",
+  "force-app/main/default/lwc/rlyRepoMigration/rlyRepoMigration.html",
+  "force-app/main/default/lwc/rlyRepoMigration/rlyRepoMigration.js"
+ ],
+ "violations": [
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyReleaseTracker/rlyReleaseTracker.js",
+   "line": 421,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  },
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "NoTrailingWhitespace",
+   "engine": "regex",
+   "file": "force-app/main/default/classes/RlyMigrationViews.cls",
+   "line": 175,
+   "message": "Found trailing whitespace at the end of a line of code.",
+   "url": null
+  },
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "NoTrailingWhitespace",
+   "engine": "regex",
+   "file": "force-app/main/default/classes/RlyMigrationViews.cls",
+   "line": 176,
+   "message": "Found trailing whitespace at the end of a line of code.",
+   "url": null
+  },
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "NoTrailingWhitespace",
+   "engine": "regex",
+   "file": "force-app/main/default/classes/RlyMigrationViews.cls",
+   "line": 177,
+   "message": "Found trailing whitespace at the end of a line of code.",
+   "url": null
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42521072729",
+ "finishedAt": "2026-11-08T20:38:34.248Z"
+}
