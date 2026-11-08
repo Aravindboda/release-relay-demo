@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Kind__c</fullName>
+    <description>What kind of credential the row is.</description>
+    <externalId>false</externalId>
+    <label>Kind</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Certificate</fullName>
+                <default>false</default>
+                <label>Certificate</label>
+            </value>
+            <value>
+                <fullName>Git token</fullName>
+                <default>false</default>
+                <label>Git token</label>
+            </value>
+            <value>
+                <fullName>Slack</fullName>
+                <default>false</default>
+                <label>Slack</label>
+            </value>
+            <value>
+                <fullName>Integration user</fullName>
+                <default>false</default>
+                <label>Integration user</label>
+            </value>
+            <value>
+                <fullName>Org sign-in</fullName>
+                <default>false</default>
+                <label>Org sign-in</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

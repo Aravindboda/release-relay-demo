@@ -100,7 +100,7 @@ public with sharing class RlyWorkCalls {
      */
     public static Map<String, Object> changeRecord(RLY_Work_Tracker__c s, String itemNo) {
         return firstRecord(send(request(s, 'GET', '/api/now/table/change_request?sysparm_limit=1&sysparm_display_value=false'
-            + '&sysparm_fields=number,approval,state,start_date,end_date&sysparm_query=number%3D' + EncodingUtil.urlEncode(itemNo, UTF8))));
+            + '&sysparm_fields=number,approval,state,start_date,end_date,short_description,description&sysparm_query=number%3D' + EncodingUtil.urlEncode(itemNo, UTF8))));
     }
 
     /**

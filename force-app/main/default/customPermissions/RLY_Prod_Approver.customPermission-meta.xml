@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomPermission xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Approve releases into the production hub (in Salesforce and Slack) once the hub setting Production approval needs the add-on is on. Assigned with the add-on permission set Release Relay Production Approver, on top of the Approver or Admin group.</description>
+    <isLicensed>false</isLicensed>
+    <label>Release Relay Production Approver</label>
+</CustomPermission>

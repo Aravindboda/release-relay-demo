@@ -8,6 +8,8 @@ public with sharing class RlySlackApproverRows {
 
     private String how;
     private Map<Id, RlySlackDirectory.Access> access;
+    // Build 49: who holds the Production Approver add-on (read once per list).
+    private Set<Id> prodHolders;
 
     /** @description One approver. */
     public class Row {
@@ -29,7 +31,7 @@ public with sharing class RlySlackApproverRows {
         @AuraEnabled public Datetime linkedOn;
         /** @description The person who set it (Admin and Self links). */
         @AuraEnabled public String linkedByName;
-        /** @description Admin or Approver. */
+        /** @description Admin or Approver, with " · Production" for holders of the Production Approver add-on (build 49). */
         @AuraEnabled public String access;
         /** @description Why Remove approver is off, or null when it can be removed. */
         @AuraEnabled public String removeNote;
@@ -70,6 +72,7 @@ public with sharing class RlySlackApproverRows {
     public List<Row> rows() {
         List<Row> attention = new List<Row>();
         List<Row> fine = new List<Row>();
+        prodHolders = RlyRoles.holdersOf(RlyProdApproval.PERMISSION, null);
         for (User u : RlySlackDirectory.approvers()) {
             Row r = row(u);
             if (r.reasonCode == null) {
@@ -113,10 +116,16 @@ public with sharing class RlySlackApproverRows {
             r.linkedByName = u.RLY_Slack_Linked_By_User__r == null ? null : u.RLY_Slack_Linked_By_User__r.Name;
         }
         RlySlackDirectory.Access a = access == null ? null : access.get(u.Id);
-        r.access = a != null && a.admin ? 'Admin' : 'Approver';
+        r.access = accessText(a, u.Id);
         r.removeNote = removeNote(a);
         new RlySlackReason(how).mark(r, u);
         return r;
+    }
+
+    // Admin or Approver, and " · Production" for holders of the Production Approver add-on (build 49).
+    private String accessText(RlySlackDirectory.Access a, Id userId) {
+        String base = a != null && a.admin ? 'Admin' : 'Approver';
+        return prodHolders != null && prodHolders.contains(userId) ? base + ' · Production' : base;
     }
 
     /**

@@ -9,7 +9,8 @@ public with sharing class RlyReleaseStore {
     // Saved only when the release carries them: an add to an open release changes them (RlyAppendRun), and a big
     // release moves Retrieve_Id__c on to its next part (RlyRaiseParts).
     private static final List<String> ADD_FIELDS = new List<String>{ 'Append_State__c', 'Test_Classes__c', 'Deletions__c',
-        'Deletion_Count__c', 'Component_Count__c', 'Retrieve_Id__c' };
+        'Deletion_Count__c', 'Component_Count__c', 'Retrieve_Id__c', 'Validated_Head__c',
+        'Validated_Attempt__c' };
 
     /**
      * @description A registered org with its sign-in fields (consumer key included: for Apex only, never sent to the page).
@@ -228,7 +229,7 @@ public with sharing class RlyReleaseStore {
                     Target_Org__r.Role__c, Target_Org__r.Hotfix_Two_Approvers__c, Target_Org__r.Branch__c, Source_Org__r.Git_Environment__c,
                     Deletions__c, Deletion_Count__c, Target_Org__r.Approval_Rule__c, Target_Org__r.Approval_Types__c, Target_Org__r.Code_Scan__c,
                     Flow_Actions__c, Flow_Results__c, Manual_Only__c, Append_State__c, Inactive_Triggers__c, Target_Org__r.Environment__c,
-                    Git_Connection__c
+                    Git_Connection__c, Validated_Head__c, Validated_Attempt__c
                 FROM RLY_Release__c WHERE Id = :releaseId WITH SYSTEM_MODE];
             return rows.isEmpty() ? null : rows[0];
         }

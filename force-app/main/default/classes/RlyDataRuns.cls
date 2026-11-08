@@ -147,7 +147,7 @@ public with sharing class RlyDataRuns {
         });
     }
 
-    // A data set, two different orgs, a direction; copying down is for admins.
+    // A data set, two different orgs, a direction; copying down is for admins and the deployment team.
     private static void checkRequest(Request req) {
         if (!isComplete(req) || req.sourceOrgId == req.targetOrgId) {
             throw new RlyReleaseException('Pick a data set, a source org and a different target org.');
@@ -155,8 +155,8 @@ public with sharing class RlyDataRuns {
         if (!new Set<String>{ UP, DOWN, REFILL }.contains(req.direction)) {
             throw new RlyReleaseException('Pick Send up or Copy down.');
         }
-        if (req.direction != UP && !RlyOrgController.isAdmin()) {
-            throw new RlyReleaseException('Copying data down is for Release Relay admins.');
+        if (req.direction != UP && !RlyDataRules.mayMoveDown()) {
+            throw new RlyReleaseException('Copying data down is for Release Relay admins and the deployment team.');
         }
     }
 

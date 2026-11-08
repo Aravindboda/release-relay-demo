@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customSettingsType>Hierarchy</customSettingsType>
+    <description>Approval settings (build 49). Org default row: whether approving a release into the production hub needs the Production Approver add-on (custom permission RLY_Prod_Approver). Off by default so a hub upgraded with existing approvers isn&apos;t locked out; a new hub turns it on when its first Git connection is saved. Read and written only by RlyProdApproval; admins change it on the Pipeline tab.</description>
+    <enableFeeds>false</enableFeeds>
+    <label>RLY Approval Setting</label>
+    <visibility>Protected</visibility>
+</CustomObject>

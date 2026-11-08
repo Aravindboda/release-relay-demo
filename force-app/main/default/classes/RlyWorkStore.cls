@@ -157,7 +157,7 @@ public with sharing class RlyWorkStore {
          */
         public List<RLY_Work_Tracker__c> trackers() {
             return [SELECT Id, Name, Type__c, Ticket_Pattern__c, Link_Pattern__c, Named_Credential__c, Post_Updates__c, State_Map__c,
-                           ServiceNow_Table__c, Active__c, Sort_Order__c
+                           ServiceNow_Table__c, Active__c, Sort_Order__c, Change_Mentions_Release__c
                     FROM RLY_Work_Tracker__c WITH SYSTEM_MODE ORDER BY Sort_Order__c ASC NULLS LAST, CreatedDate ASC LIMIT :MAX_TRACKERS];
         }
 
@@ -200,7 +200,7 @@ public with sharing class RlyWorkStore {
         public List<RLY_Release__c> releases(Set<Id> ids) {
             return [SELECT Id, Name, Title__c, Status__c, Release_Type__c, Is_Hotfix__c, Work_Items__c, Error_Message__c,
                            Approval_Status__c, Rollback_Status__c, Source_Org__c, Source_Org__r.Name, Target_Org__c, Target_Org__r.Name,
-                           Target_Org__r.Role__c, Source_Branch__c
+                           Target_Org__r.Role__c, Source_Branch__c, CreatedById
                     FROM RLY_Release__c WHERE Id IN :ids WITH SYSTEM_MODE LIMIT 200];
         }
 

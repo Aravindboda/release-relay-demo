@@ -32,7 +32,8 @@ public with sharing class RlyWorkTrackerCheck {
         RLY_Work_Tracker__c row = new RLY_Work_Tracker__c(Name = name, Type__c = kind, Ticket_Pattern__c = patterns,
             Link_Pattern__c = RlyWorkTrackerFields.linkOf(v.linkPattern), Post_Updates__c = posting, State_Map__c = stateMap, Active__c = active,
             Named_Credential__c = credential,
-            ServiceNow_Table__c = kind == RlyWorkTracker.SERVICENOW ? RlyWorkTrackerFields.tableOf(v.serviceNowTable) : null);
+            ServiceNow_Table__c = kind == RlyWorkTracker.SERVICENOW ? RlyWorkTrackerFields.tableOf(v.serviceNowTable) : null,
+            Change_Mentions_Release__c = v.changeMentionsRelease != false);
         placed(row, v.id);
         return row;
     }

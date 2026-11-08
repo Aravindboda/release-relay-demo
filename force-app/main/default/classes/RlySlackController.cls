@@ -105,6 +105,7 @@ public with sharing class RlySlackController {
         }
         SlackSettings out = connection();
         RlySlack.saveSettings(row);
+        RlySlackTeam.remember(); // build 48: the workspace, after the callout
         return fill(out);
     }
 
@@ -116,7 +117,9 @@ public with sharing class RlySlackController {
     public static SlackSettings testSlack() {
         RlyHubGuard.requireHub();
         requireAdmin();
-        return fill(connection());
+        SlackSettings out = connection();
+        RlySlackTeam.remember(); // build 48: the workspace, after the callout
+        return fill(out);
     }
 
     /**
@@ -202,6 +205,7 @@ public with sharing class RlySlackController {
             Map<String, Object> r = RlySlackApi.call('auth.test', new Map<String, Object>());
             out.connected = true;
             out.workspace = r.get('team') == null ? null : String.valueOf(r.get('team'));
+            RlySlackTeam.noteFrom(r);
             out.status = RlyBotToken.CONNECTED;
         } catch (Exception e) {
             out.status = RlySlackApi.isNotSetUp(e) ? 'Not set up' : ('Error: ' + e.getMessage()).left(255);

@@ -7,7 +7,7 @@ function errorText(e) {
 }
 
 /**
- * On a release Waiting for the window (build 39): for admins, Deploy now anyway with a reason (History, evidence PDF and
+ * On a release Waiting for the window (build 39): for holders of the Release Window Bypass add-on (build 49), Deploy now anyway with a reason (History, evidence PDF and
  * the Slack card record it). Fires "deployed" so the release page reads the release again.
  */
 export default class RlyWindowDeploy extends LightningElement {

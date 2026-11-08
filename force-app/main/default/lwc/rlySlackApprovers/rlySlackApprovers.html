@@ -25,6 +25,7 @@
                 <template lwc:if={problemText}>
                     <div class="rr-msg rr-msg-wait rr-m" role="status">{problemText}</div>
                 </template>
+                <template lwc:if={prodNote}><div class="rr-msg rr-msg-wait rr-m" role="status">{prodNote}</div></template>
                 <template lwc:if={banner}>
                     <div class={bannerCls} role="status">
                         <lightning-icon icon-name={bannerIcon} size="x-small" alternative-text=""></lightning-icon>

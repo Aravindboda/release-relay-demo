@@ -2,7 +2,7 @@
  * @description Tests for hotfixes (RlyHotfix, RlyRaiseRoute, RlyReleaseStart, the hotfix parts of RlyRaiseService,
  * RlyChangesController, RlyStatusReader, RlyPipelineRun and RlyPipelineOptions): a hotfix is raised from a developer org
  * with a reason; raising from a stage org is retired. Each test runs through System.runAs: as an active System
- * Administrator with Release Relay Admin (which grants RLY_Hotfix), or as a new user without it.
+ * Administrator with Release Relay Admin and the Hotfix add-on (which grants RLY_Hotfix), or as a new user without it.
  * Records are inserted before Test.startTest; callouts come after it.
  */
 @IsTest
@@ -11,6 +11,7 @@ private class RlyHotfixTest {
     @TestSetup
     static void setup() {
         RlyTestData.assignPermissionSet('RLY_Admin');
+        RlyTestData.assignPermissionSet('RLY_Hotfix_Addon'); // build 49: RLY_Admin no longer grants RLY_Hotfix
     }
 
     // DEV1 -> SIT -> UAT -> hub with a checked GitHub connection.
