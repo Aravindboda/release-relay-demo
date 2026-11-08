@@ -1,0 +1,13 @@
+{
+ "request": "REL-00048",
+ "environment": "sit",
+ "takenAt": "2026-11-08T18:54:54.575Z",
+ "sha": "0e0705506bfcfebf4238bc8888149a0adb1519f9",
+ "existing": [],
+ "added": [],
+ "deleted": [
+  "ApexClass:RlyDemoHotfix",
+  "ApexClass:RlyDemoHotfixTest"
+ ],
+ "unresolved": []
+}
