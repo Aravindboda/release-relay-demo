@@ -1,3 +1,5 @@
+@import 'c/rlySharedStyles';
+
 :host {
     display: block;
     --rr-blue: #0176d3;
@@ -19,16 +21,12 @@
 .rr-acct { flex: 1 1 0; min-width: 0; border: 1px solid var(--rr-line); border-radius: 4px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
 .rr-arrow { font-size: 20px; color: var(--rr-muted); }
 .rr-kicker { margin: 0; font-size: 12px; color: var(--rr-muted); }
-.rr-small { font-size: 12px; }
-.rr-weak { color: var(--rr-muted); }
 .rr-ok { color: #2e844a; }
 .rr-mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
 .rr-hint { margin: 0; font-size: 12px; color: #747474; }
 .rr-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 10px; }
 .rr-pill-info { background: #e5f2fd; color: #014486; }
 .rr-msg { padding: 8px 10px; border-radius: 4px; font-size: 13px; line-height: 1.45; }
-.rr-msg-bad { background: #fef1ee; color: #8e030f; }
-.rr-msg-wait { background: #fef1cd; color: #8c4b02; }
 .rr-msg-ok { background: #ebf7e6; color: #194e31; }
 .rr-msg-info { background: #f3f3f3; color: #444; }
 .rr-linkbtn { border: 0; background: none; padding: 0; font: inherit; color: #0b5cab; text-decoration: underline; cursor: pointer; }

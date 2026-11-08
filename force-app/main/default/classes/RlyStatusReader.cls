@@ -57,7 +57,7 @@ public with sharing class RlyStatusReader {
         }
         RlyGit git = RlyGit.forConnection(RlyReleaseStore.gitFor(rel));
         String oldStatus = rel.Status__c;
-        RLY_Release__c prior = rel.clone(true, true, true, true);
+        RLY_Release__c prior = RlySlackCardState.snapshot(rel);
         try {
             readLatest(rel, git);
             RlyAutoApproval.afterChecks(rel, git, oldStatus);

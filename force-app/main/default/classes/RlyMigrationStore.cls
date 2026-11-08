@@ -67,17 +67,6 @@ public with sharing class RlyMigrationStore {
         return rows.isEmpty() ? '' : rows[0].Body.toString();
     }
 
-    /**
-     * @description Saves a PDF to a migration's Files, visible to all users.
-     * @param migrationId the migration
-     * @param title the file's title
-     * @param pdf the PDF
-     * @return the file's ContentDocument Id
-     */
-    public static Id saveFile(Id migrationId, String title, Blob pdf) {
-        return new SystemAccess().saveFile(migrationId, title, pdf);
-    }
-
     /** @description System-mode reads and writes. */
     private without sharing class SystemAccess {
 
@@ -118,6 +107,7 @@ public with sharing class RlyMigrationStore {
          */
         public void upsertConnection(RLY_Git_Connection__c row) {
             upsert as system row;
+            RlyReleaseStore.forgetGit();
         }
 
         /**
@@ -136,22 +126,6 @@ public with sharing class RlyMigrationStore {
          */
         public List<StaticResource> readResource(String name) {
             return [SELECT Body FROM StaticResource WHERE Name = :name WITH SYSTEM_MODE LIMIT 1];
-        }
-
-        /**
-         * @description See RlyMigrationStore.saveFile.
-         * @param migrationId the migration
-         * @param title the file's title
-         * @param pdf the PDF
-         * @return the ContentDocument Id
-         */
-        public Id saveFile(Id migrationId, String title, Blob pdf) {
-            ContentVersion v = new ContentVersion(Title = title, PathOnClient = title + '.pdf', VersionData = pdf);
-            insert as system v;
-            Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :v.Id WITH SYSTEM_MODE].ContentDocumentId;
-            insert as system new ContentDocumentLink(ContentDocumentId = docId, LinkedEntityId = migrationId, ShareType = 'V',
-                Visibility = 'AllUsers');
-            return docId;
         }
     }
 }

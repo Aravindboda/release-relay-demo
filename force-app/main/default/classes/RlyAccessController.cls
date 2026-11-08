@@ -13,7 +13,7 @@ public with sharing class RlyAccessController {
         try {
             return RlyProdApproval.view();
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Something went wrong: ');
         }
     }
 
@@ -26,19 +26,12 @@ public with sharing class RlyAccessController {
     public static RlyProdApproval.View saveProdApproval(String state) {
         try {
             RlyHubGuard.requireHub();
-            return RlyProdApproval.save(state);
+            RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.APPROVAL); // build 50: Recent changes to settings
+            RlyProdApproval.View saved = RlyProdApproval.save(state);
+            RlySettingsLog.compare(was);
+            return saved;
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Something went wrong: ');
         }
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        if (e instanceof AuraHandledException) {
-            return (AuraHandledException) e;
-        }
-        String message = e instanceof RlyReleaseException ? e.getMessage() : 'Something went wrong: ' + e.getMessage();
-        AuraHandledException a = new AuraHandledException(message);
-        a.setMessage(message);
-        return a;
     }
 }

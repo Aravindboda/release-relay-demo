@@ -9,6 +9,8 @@
  */
 public with sharing class RlySlackController {
 
+    private static final String ADMINS_ONLY = 'Changing Slack needs the ' + System.Label.RLY_App_Name + ' Admin permission set.';
+
     @TestVisible
     private static RlyBotToken tokenStore = new RlyBotToken();
 
@@ -88,7 +90,7 @@ public with sharing class RlySlackController {
      */
     @AuraEnabled
     public static SlackSettings saveSlack(String settingsJson) {
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         SlackInput input = readInput(settingsJson);
         RLY_Notification__c saved = RlySlack.settings();
         RLY_Notification__c row = new RLY_Notification__c(Id = saved == null ? null : saved.Id, Name = RlySlack.CHANNEL,
@@ -103,9 +105,11 @@ public with sharing class RlySlackController {
         if (String.isNotBlank(input.matchBy)) {
             row.Slack_Match_By__c = RlySlackRules.matchBy(input.matchBy);
         }
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.SLACK); // build 50: Recent changes to settings
         SlackSettings out = connection();
         RlySlack.saveSettings(row);
         RlySlackTeam.remember(); // build 48: the workspace, after the callout
+        RlySettingsLog.compare(was);
         return fill(out);
     }
 
@@ -116,7 +120,7 @@ public with sharing class RlySlackController {
     @AuraEnabled
     public static SlackSettings testSlack() {
         RlyHubGuard.requireHub();
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         SlackSettings out = connection();
         RlySlackTeam.remember(); // build 48: the workspace, after the callout
         return fill(out);
@@ -130,13 +134,13 @@ public with sharing class RlySlackController {
     @AuraEnabled
     public static SlackSettings sendSlackTest(String channel) {
         RlyHubGuard.requireHub();
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         RLY_Notification__c s = RlySlack.settings();
         if (s == null) {
-            throw auraError('Save the Slack settings first.');
+            throw RlyReleaseException.toAura('Save the Slack settings first.');
         }
         if (!RlySlackRules.isChannel(channel)) {
-            throw auraError('Type a channel such as #channel-name, or a channel ID.');
+            throw RlyReleaseException.toAura('Type a channel such as #channel-name, or a channel ID.');
         }
         SlackSettings out = connection();
         String result;
@@ -161,9 +165,9 @@ public with sharing class RlySlackController {
      */
     @AuraEnabled
     public static SlackSettings saveSlackMember(Id userId, String memberId) {
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         if (userId == null) {
-            throw auraError('Pick a user.');
+            throw RlyReleaseException.toAura('Pick a user.');
         }
         String value = RlySlackRules.memberId(memberId);
         SlackSettings out = connection();
@@ -182,7 +186,7 @@ public with sharing class RlySlackController {
     @AuraEnabled
     public static SlackSettings saveBotToken(String token) {
         RlyHubGuard.requireHub();
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         String value = RlyBotToken.checked(token);
         tokenStore.store(value);
         RLY_Notification__c saved = RlySlack.settings();
@@ -190,7 +194,9 @@ public with sharing class RlySlackController {
             ? new RLY_Notification__c(Name = RlySlack.CHANNEL, Channel__c = RlySlack.CHANNEL, Enabled__c = false)
             : new RLY_Notification__c(Id = saved.Id);
         row.Bot_Token_Hint__c = value.right(4);
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.SLACK); // build 50: Recent changes to settings
         RlySlack.saveSettings(row);
+        RlySettingsLog.compare(was);
         SlackSettings out = new SlackSettings();
         out.isAdmin = true;
         out.status = 'Bot token saved. Test the connection.';
@@ -238,24 +244,7 @@ public with sharing class RlySlackController {
             SlackInput input = (SlackInput) JSON.deserialize(settingsJson, SlackInput.class);
             return input == null ? new SlackInput() : input;
         } catch (Exception e) {
-            throw auraError('The Slack settings couldn\'t be read.');
+            throw RlyReleaseException.toAura('The Slack settings couldn\'t be read.');
         }
-    }
-
-    private static void requireAdmin() {
-        if (!RlyOrgController.isAdmin()) {
-            throw auraError('Changing Slack needs the ' + System.Label.RLY_App_Name + ' Admin permission set.');
-        }
-    }
-
-    /**
-     * @description An error the page shows as it is.
-     * @param message the message
-     * @return the exception
-     */
-    public static AuraHandledException auraError(String message) {
-        AuraHandledException ex = new AuraHandledException(message);
-        ex.setMessage(message);
-        return ex;
     }
 }

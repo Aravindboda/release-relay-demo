@@ -125,6 +125,7 @@ private class RlyRunSigningTest {
             RlyReleaseTestData.route();
             insert new RLY_Git_Connection__c(Provider__c = 'GitLab', Repository__c = 'acme/salesforce', Named_Credential__c = 'RLY_GitLab',
                 Pipeline__c = '.gitlab-ci.yml', Pipeline_Branch__c = 'main', Status__c = 'Connected');
+            RlyReleaseStore.forgetGit();
             saveKey();
             RlyHttpMock mock = new RlyHttpMock().match('POST', '/dispatches').reply(204, '').match('POST', '/pipeline').reply(201, '{"id":1}');
             Test.setMock(HttpCalloutMock.class, mock);

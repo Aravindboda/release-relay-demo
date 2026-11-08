@@ -24,7 +24,7 @@ public with sharing class RlyMigrationMoved {
         mv.stays = STAYS;
         mv.requests = state.requests;
         mv.fresh = m.Method__c == RlyMigrationMethods.FRESH;
-        Map<String, Object> result = RlyMigrationRun.parsed(m.Result__c);
+        Map<String, Object> result = RlySyncParse.parsed(m.Result__c);
         if (result == null || target == null) {
             return mv;
         }

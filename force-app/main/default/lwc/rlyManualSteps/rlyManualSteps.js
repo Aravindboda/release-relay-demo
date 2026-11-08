@@ -10,6 +10,7 @@ import removeFile from '@salesforce/apex/RlyManualStepController.removeFile';
 import draftFiles from '@salesforce/apex/RlyManualStepController.draftFiles';
 import removeDraftFile from '@salesforce/apex/RlyManualStepController.removeDraftFile';
 import USER_ID from '@salesforce/user/Id';
+import { errorText, plural, dateTime as when, clearSearchBox } from 'c/rlyShared';
 
 const CATEGORIES = [
     { value: 'Permissions', label: 'Profile or permission access' },
@@ -49,18 +50,6 @@ const SEGMENTS = [
 ];
 /** New Release draft files by ContentDocument Id (RlyStepFiles.FileRow), kept while the page is open. */
 const DRAFT_FILES = new Map();
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
-
-function when(value) {
-    return value ? new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-}
-
-function plural(n, one, many) {
-    return n + ' ' + (n === 1 ? one : many);
-}
 
 function labelOf(options, value) {
     const o = options.find((x) => x.value === value);
@@ -412,10 +401,7 @@ export default class RlyManualSteps extends LightningElement {
     }
 
     clearSearch() {
-        const box = this.template.querySelector('c-rly-search-box');
-        if (box) {
-            box.clear();
-        }
+        clearSearchBox(this.template);
         this.term = '';
     }
     get noRunsText() { return this.selectedOrg ? 'No manual steps in ' + this.selectedOrg.orgName + '.' : ''; }

@@ -32,13 +32,13 @@ public with sharing class RlyApprovalRuleOrg {
 
     private static void check(RLY_Org__c row, String rule, Set<String> types) {
         if (!RlyApprovalRules.RULE_LABELS.containsKey(rule)) {
-            throw refused('Pick an approval rule: Always, Only when the release contains…, or Never.');
+            throw RlyReleaseException.toAura('Pick an approval rule: Always, Only when the release contains…, or Never.');
         }
         if (rule == RlyApprovalRules.RULE_NEVER && row.Role__c == 'Hub') {
-            throw refused(HUB_NEVER + '.');
+            throw RlyReleaseException.toAura(HUB_NEVER + '.');
         }
         if (rule == RlyApprovalRules.RULE_SELECTED && types.isEmpty()) {
-            throw refused(NO_TYPES + '.');
+            throw RlyReleaseException.toAura(NO_TYPES + '.');
         }
         checkTypes(types);
     }
@@ -46,15 +46,9 @@ public with sharing class RlyApprovalRuleOrg {
     private static void checkTypes(Set<String> types) {
         for (String t : types) {
             if (!RlyApprovalRules.TYPE_LABELS.containsKey(t)) {
-                throw refused('Unknown kind of change: ' + t + '.');
+                throw RlyReleaseException.toAura('Unknown kind of change: ' + t + '.');
             }
         }
-    }
-
-    private static AuraHandledException refused(String message) {
-        AuraHandledException e = new AuraHandledException(message);
-        e.setMessage(message);
-        return e;
     }
 
     /**

@@ -6,8 +6,11 @@
  */
 public with sharing class RlyCompareZip {
 
-    /** @description The largest retrieve zip (base64 characters, about 3.5 MB) compare decodes; more would run out of heap. */
-    public static final Integer MAX_ZIP_CHARS = 3500000;
+    /**
+     * @description The largest retrieve zip (base64 characters, about 1.1 MB) compare decodes. Build 50: static resources
+     * and profiles, the large files, are left out of compare, so a part's zip is small; the heap is checked too.
+     */
+    public static final Integer MAX_ZIP_CHARS = 1500000;
     /** @description Shown when the zip is larger than MAX_ZIP_CHARS. */
     public static final String TOO_BIG = 'These components are too large to compare together. Compare fewer at a time.';
 
@@ -45,9 +48,10 @@ public with sharing class RlyCompareZip {
         return out;
     }
 
-    // The zip, decoded only when it is small enough to read within the heap.
+    // The zip, decoded only when it is small enough to read within the heap: the decoded zip and the files read from
+    // it need about twice its base64 length on top of what the request holds already.
     private static Compression.ZipReader opened(String zipBase64) {
-        if (zipBase64.length() > MAX_ZIP_CHARS) {
+        if (zipBase64.length() > MAX_ZIP_CHARS || Limits.getHeapSize() + 2 * zipBase64.length() > Limits.getLimitHeapSize()) {
             throw new RlyReleaseException(TOO_BIG);
         }
         return new Compression.ZipReader(EncodingUtil.base64Decode(zipBase64));

@@ -60,6 +60,8 @@ public with sharing class RlyComparePipeline {
         public String attempt;
         /** @description Sync status: the source folders read, folder => type (only those can be only on the branch). */
         public Map<String, String> folders;
+        /** @description Build 50: components compare leaves out (static resources, profiles): linked, never sent. */
+        public List<String> notCompared;
     }
 
     /** @description The started run. */
@@ -74,6 +76,8 @@ public with sharing class RlyComparePipeline {
         @AuraEnabled public String targetName;
         /** @description The branch compared with. */
         @AuraEnabled public String targetBranch;
+        /** @description Build 50: each left-out component's file on the branch, Type:Name => link. */
+        @AuraEnabled public Map<String, String> gitUrls = new Map<String, String>();
     }
 
     /**
@@ -142,6 +146,9 @@ public with sharing class RlyComparePipeline {
         s.sourceName = source.Name;
         s.targetName = target.Name;
         s.targetBranch = target.Branch__c.trim();
+        if (!whole) {
+            linkLeftOut(job, git, s);
+        }
         Map<String, Object> options = new Map<String, Object>{ 'hub' => true, 'label' => source.Name.left(40),
             'attempt' => s.token, 'batches' => job.parts };
         if (whole) {
@@ -157,6 +164,35 @@ public with sharing class RlyComparePipeline {
             'components' => joined(job.keys), 'deletions' => joined(job.deleted), 'options' => JSON.serialize(options)
         });
         return s;
+    }
+
+    // Build 50: static resources and profiles never go to the pipeline's compare; the page links to their files instead.
+    private static void linkLeftOut(RunJob job, RlyGit git, Started s) {
+        job.keys = withoutLeftOut(job.keys);
+        job.deleted = withoutLeftOut(job.deleted);
+        List<RlyCompareFiles.ComponentDiff> links = new List<RlyCompareFiles.ComponentDiff>();
+        List<String> asked = job.notCompared == null ? new List<String>() : job.notCompared;
+        for (Integer i = 0; i < asked.size() && i < MAX_KEYS; i++) {
+            RlyCompareFiles.ComponentDiff c = new RlyCompareFiles.ComponentDiff();
+            c.key = asked[i];
+            links.add(c);
+        }
+        new RlyCompareBranch(git, git.connection().Source_Path__c, s.targetBranch).linkLeftOut(links);
+        for (RlyCompareFiles.ComponentDiff c : links) {
+            if (c.gitUrl != null) {
+                s.gitUrls.put(c.key, c.gitUrl);
+            }
+        }
+    }
+
+    private static List<String> withoutLeftOut(List<String> keys) {
+        List<String> out = new List<String>();
+        for (String k : keys == null ? new List<String>() : keys) {
+            if (!RlyCompareFiles.isLeftOut(k.substringBefore(':'))) {
+                out.add(k);
+            }
+        }
+        return out;
     }
 
     /**

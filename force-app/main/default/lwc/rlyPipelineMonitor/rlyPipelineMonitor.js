@@ -5,9 +5,8 @@ import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import readBoard from '@salesforce/apex/RlyRunMonitorController.readBoard';
 import readOlder from '@salesforce/apex/RlyRunMonitorController.readOlder';
 import { searchTerm, matchesSearch } from 'c/rlyListSearch';
+import { errorText, sameDay, clock, shortDate, toDate, isGated } from 'c/rlyShared';
 
-/** Modes of RlyHubGuard.getHubStatus in which the tab shows only the org gate. */
-const GATED_MODES = ['sandbox', 'copy', 'setup'];
 /** A run is queued or in progress: the board is read again every 10 s. */
 const FAST_SECONDS = 10;
 /** Nothing is going: every 30 s. */
@@ -48,32 +47,10 @@ const STEP_ICON = {
 };
 const SEGMENT_CLS = { done: 'rr-seg rr-seg-done', run: 'rr-seg rr-seg-run', failed: 'rr-seg rr-seg-bad', none: 'rr-seg' };
 
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
-
-function toDate(value) {
-    if (!value) {
-        return null;
-    }
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? null : d;
-}
-
-/** "9:12 PM". */
-function clock(value) {
-    const d = toDate(value);
-    return d ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
-}
-
 /** "9:12:04 PM". */
 function clockSeconds(value) {
     const d = toDate(value);
     return d ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : '';
-}
-
-function sameDay(a, b) {
-    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
 /** "9:12 PM" today, else "Nov 5, 9:12 PM". */
@@ -83,12 +60,6 @@ function started(value) {
         return '';
     }
     return sameDay(d, new Date()) ? clock(d) : d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + clock(d);
-}
-
-/** "Nov 5". */
-function shortDate(value) {
-    const d = toDate(value);
-    return d ? d.toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
 }
 
 /** "45s", "4m 10s", "1h 02m". */
@@ -266,7 +237,7 @@ export default class RlyPipelineMonitor extends NavigationMixin(LightningElement
             });
     }
 
-    get gated() { return !!this.hubStatus && GATED_MODES.includes(this.hubStatus.mode); }
+    get gated() { return isGated(this.hubStatus); }
     get showPage() { return this.statusRead && !this.gated; }
     get showSpinner() { return this.loading && !this.board; }
 

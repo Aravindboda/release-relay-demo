@@ -76,6 +76,7 @@ private class RlyBranchDeleteTest {
         RLY_Git_Connection__c conn = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
         conn.Source_Path__c = null;
         update conn;
+        RlyReleaseStore.forgetGit();
     }
 
     @IsTest

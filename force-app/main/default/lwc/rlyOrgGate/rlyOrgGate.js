@@ -2,14 +2,11 @@ import { LightningElement, api } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import allowInSandbox from '@salesforce/apex/RlySandboxSwitch.allowInSandbox';
 import endSandboxAllowance from '@salesforce/apex/RlySandboxSwitch.endSandboxAllowance';
+import { errorText } from 'c/rlyShared';
 
 const GUIDE_TAB = 'RLY_Relay_Guide';
 const PIPELINE_TAB = 'RLY_Pipeline';
 const WARN_MODES = ['sandbox', 'copy'];
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
 
 /**
  * RlyHubGuard.getHubStatus as a card (board HubOrgGate): in a sandbox or a sandbox copy of the hub, and in production

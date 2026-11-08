@@ -117,6 +117,16 @@ public with sharing class RlyRepoSecurity {
     }
 
     /**
+     * @description A GitHub read under the connection's repository (/repos/owner/name + path).
+     * @param git the Git provider (GitHub)
+     * @param path the path after the repository
+     * @return the answer
+     */
+    public static HttpResponse gitHubGet(RlyGit git, String path) {
+        return git.request(new RlyGitRequest('GET', '/repos/' + git.connection().Repository__c.trim() + path, null));
+    }
+
+    /**
      * @description A new row (state unknown until found).
      * @param key a stable key
      * @param label what is checked

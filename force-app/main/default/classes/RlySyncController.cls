@@ -23,7 +23,7 @@ public with sharing class RlySyncController {
             RlyHubGuard.requireHub();
             return RlySyncBoard.build();
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -38,7 +38,7 @@ public with sharing class RlySyncController {
             RlyHubGuard.requireHub();
             return RlySyncRuns.startOrg(RlySyncRoute.find(RlySyncStore.orgs(), orgId));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -55,7 +55,7 @@ public with sharing class RlySyncController {
             RlyHubGuard.requireHub();
             return RlySyncRuns.runDeveloper(syncId, parts, types);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -69,7 +69,7 @@ public with sharing class RlySyncController {
             RlyHubGuard.requireHub();
             return RlySyncRuns.startRoute(RlySyncStore.orgs());
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -84,7 +84,7 @@ public with sharing class RlySyncController {
             RlyHubGuard.requireHub();
             return RlySyncResult.read(syncId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -100,7 +100,7 @@ public with sharing class RlySyncController {
             RlyHubGuard.requireHub();
             return RlySyncResult.file(syncId, n);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -114,7 +114,7 @@ public with sharing class RlySyncController {
             RlyHubGuard.requireHub();
             return RlySyncPackages.read(RlySyncRoute.topDown(RlySyncStore.orgs()));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -131,7 +131,7 @@ public with sharing class RlySyncController {
             List<RLY_Org__c> orgs = RlySyncStore.orgs();
             return RlySyncPackages.usage(orgId == null ? RlySyncBoard.firstStage(orgs) : RlySyncRoute.find(orgs, orgId), namespace);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -146,7 +146,7 @@ public with sharing class RlySyncController {
             RlyHubGuard.requireHub();
             return RlySyncPromote.backPromote(RlySyncPicks.parse(pickJson), RlySyncStore.orgs());
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -162,7 +162,7 @@ public with sharing class RlySyncController {
             RlyHubGuard.requireHub();
             return RlySyncPromote.backPromoteAll(higherOrgId, lowerOrgId, RlySyncStore.orgs());
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -177,16 +177,7 @@ public with sharing class RlySyncController {
             RlyHubGuard.requireHub();
             return RlySyncPromote.push(RlySyncPicks.parse(pickJson), RlySyncStore.orgs());
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        if (e instanceof AuraHandledException) {
-            return (AuraHandledException) e;
-        }
-        AuraHandledException out = new AuraHandledException(e.getMessage());
-        out.setMessage(e.getMessage());
-        return out;
     }
 }

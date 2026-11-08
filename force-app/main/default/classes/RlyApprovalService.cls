@@ -12,14 +12,6 @@
 public with sharing class RlyApprovalService {
 
     /**
-     * @description Whether the current user approves releases.
-     * @return true for approvers and admins
-     */
-    public static Boolean canApprove() {
-        return FeatureManagement.checkPermission('RLY_Approver') || FeatureManagement.checkPermission('RLY_Admin');
-    }
-
-    /**
      * @description Code scan blocked it: an approver accepts the findings, with a reason.
      * @param releaseId the release
      * @param reason why the findings are accepted (at least 10 characters)
@@ -36,7 +28,7 @@ public with sharing class RlyApprovalService {
             throw new RlyReleaseException('Say why the findings are accepted (at least 10 characters).');
         }
         String oldStatus = rel.Status__c;
-        RLY_Release__c before = rel.clone(true, true, true, true);
+        RLY_Release__c before = RlySlackCardState.snapshot(rel);
         rel.Scan_Status__c = 'Bypassed';
         rel.Scan_Bypassed_By__c = UserInfo.getUserId();
         rel.Scan_Bypass_Reason__c = reason.trim().left(2000);
@@ -58,7 +50,7 @@ public with sharing class RlyApprovalService {
             throw new RlyReleaseException('Checks can run again on an open pull request that isn\'t approved yet.');
         }
         RlyReleaseAccess.requireRerun(rel); // build 48: the raiser, an approver, the deployment team or an admin
-        RLY_Release__c before = rel.clone(true, true, true, true);
+        RLY_Release__c before = RlySlackCardState.snapshot(rel);
         RlyApprovalRuns.startChecks(rel, RlyReleaseStore.gitFor(rel), 'check');
         saveAndNotify(before, rel);
         return rel;
@@ -91,12 +83,12 @@ public with sharing class RlyApprovalService {
             throw new RlyReleaseException('Only a release that\'s ready for approval can be approved.');
         }
         RlyProdApproval.require(rel, who); // build 49: production needs the Production Approver add-on when the hub says so
-        RLY_Release__c before = rel.clone(true, true, true, true);
+        RLY_Release__c before = RlySlackCardState.snapshot(rel);
         if (RlyManualStepGate.waitsInstead(rel, who)) {
             saveAndNotify(before, rel); // the first of two approvals, or the deploy waits for manual steps: the card says so
             return rel;
         }
-        RLY_Release__c prior = rel.clone(true, true, true, true);
+        RLY_Release__c prior = RlySlackCardState.snapshot(rel);
         RLY_Git_Connection__c conn = RlyReleaseStore.gitFor(rel);
         RlyGit git = RlyGit.forConnection(conn);
         if (RlyApprovalRuns.targetMoved(rel, git)) {
@@ -138,7 +130,7 @@ public with sharing class RlyApprovalService {
         if (String.isBlank(who.comment)) {
             throw new RlyReleaseException('Say why it\'s rejected, so the developer knows what to change.');
         }
-        RLY_Release__c before = rel.clone(true, true, true, true);
+        RLY_Release__c before = RlySlackCardState.snapshot(rel);
         if (rel.PR_Number__c != null) {
             closePullRequest(rel, who);
         }
@@ -170,7 +162,7 @@ public with sharing class RlyApprovalService {
     }
 
     private static void requireApprover() {
-        if (!canApprove()) {
+        if (!RlyReleaseAccess.isApprover()) {
             throw new RlyReleaseException('Only approvers can do this (permission set Release Relay Approver).');
         }
     }

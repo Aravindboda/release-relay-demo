@@ -1,5 +1,5 @@
 /**
- * @description Tests for deletions (RlyDeletions, RlyDeletionFinder, RlyChangesController.findDeletions, RlyGit.listFiles,
+ * @description Tests for deletions (RlyDeletions, RlyDeletionFinder, RlyGit.listFiles,
  * and the deletion parts of RlyRaiseService, RlyRaiseRules, RlyStatusReader, RlyPipelineRun, RlyPipelineOptions,
  * RlyPromotion, RlyCarried, RlyReleaseLinks, RlyReleasesController, RlyPromoteController and RlySlackCardText).
  * Route DEV1 -> SIT -> PROD (hub). Every test runs through System.runAs as an active System Administrator (with
@@ -88,78 +88,20 @@ private class RlyDeletionFinderTest {
     }
 
     @IsTest
-    static void findDeletionsListsWhatTheOrgLacks() {
+    static void deleteFromTheBranchNeedsTheGitConnection() {
         System.runAs(RlyTestData.admin()) {
-            Id devId = RlyReleaseTestData.route().Id;
-            RlyOrgSession.testToken = RlyTestData.TOKEN;
-            RlyMetadataMock mock = new RlyMetadataMock().add('ApexClass', 'AccountService', RECENT).add('CustomObject', 'Invoice__c', RECENT);
-            mock.gitTree = tree(new List<String>{ SRC + 'classes/AccountService.cls', SRC + 'classes/OldHelper.cls',
-                SRC + 'lwc/oldCard/oldCard.js', SRC + 'lwc/jsconfig.json', SRC + 'objects/Account/fields/Industry.field-meta.xml',
-                SRC + 'objects/Account/fields/Old__c.field-meta.xml', SRC + 'objects/Invoice__c/Invoice__c.object-meta.xml',
-                SRC + 'labels/CustomLabels.labels-meta.xml', SRC + 'layouts/Account-Account %28Old%29 Layout.layout-meta.xml', 'README.md' });
-            Test.setMock(HttpCalloutMock.class, mock);
-            Test.startTest();
-            List<RlyChangeFinder.Change> found = RlyChangesController.findDeletions(devId);
-            Test.stopTest();
-            Set<String> keys = new Set<String>();
-            for (RlyChangeFinder.Change c : found) {
-                keys.add(c.key);
-                System.assert(c.deleted, 'A deletion candidate: ' + c.key);
-                System.assertEquals(c.type + ':' + c.name, c.key, 'Keyed type:name');
-            }
-            System.assertEquals(new Set<String>{ 'ApexClass:OldHelper', 'LightningComponentBundle:oldCard', 'CustomField:Account.Old__c',
-                'Layout:Account-Account (Old) Layout' }, keys, 'On dev1 but not in DEV1; standard fields left out');
-        }
-    }
-
-    @IsTest
-    static void findDeletionsExplainsWhatStopsIt() {
-        System.runAs(RlyTestData.admin()) {
-            Id devId = RlyReleaseTestData.route().Id;
-            RlyOrgSession.testToken = RlyTestData.TOKEN;
-            Test.setMock(HttpCalloutMock.class, new RlyMetadataMock());
-            Test.startTest();
-            String missingBranch;
-            try {
-                RlyChangesController.findDeletions(devId);
-            } catch (AuraHandledException e) {
-                missingBranch = e.getMessage();
-            }
-            RLY_Git_Connection__c conn = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
-            conn.Provider__c = 'Bitbucket';
-            update conn;
-            String unsupported;
-            try {
-                RlyChangesController.findDeletions(devId);
-            } catch (AuraHandledException e) {
-                unsupported = e.getMessage();
-            }
-            Test.stopTest();
-            System.assert(missingBranch != null && missingBranch.contains('Listing the files on dev1'), 'No such branch: ' + missingBranch);
-            System.assert(unsupported != null && unsupported.contains('isn\'t available for Bitbucket'), 'Other providers: ' + unsupported);
-        }
-    }
-
-    @IsTest
-    static void branchFallsBackToTheFirstStage() {
-        System.runAs(RlyTestData.admin()) {
-            String noStage;
-            try {
-                RlyDeletionFinder.branchOf(new RLY_Org__c(Name = 'DEV9'));
-            } catch (RlyReleaseException e) {
-                noStage = e.getMessage();
-            }
             String noGit;
             try {
-                RlyDeletionFinder.find(new RLY_Org__c(Name = 'DEV9'));
+                RlyDeletionFinder.git();
             } catch (RlyReleaseException e) {
                 noGit = e.getMessage();
             }
+            String noPath = RlyDeletionFinder.sourcePath();
             RlyReleaseTestData.route();
-            System.assertEquals('sit', RlyDeletionFinder.branchOf(new RLY_Org__c(Name = 'DEV9')), 'The first stage\'s branch');
-            System.assertEquals('dev9', RlyDeletionFinder.branchOf(new RLY_Org__c(Name = 'DEV9', Branch__c = ' dev9 ')), 'Its own branch');
-            System.assertEquals('Give DEV9 its own branch on the Pipeline tab first.', noStage, 'No branch to read');
-            System.assert(noGit.contains('Git connection'), 'Git connection needed: ' + noGit);
+            System.assert(noGit != null && noGit.contains('Git connection'), 'Git connection needed: ' + noGit);
+            System.assertEquals('', noPath, 'No connection: the repository root');
+            System.assertEquals('force-app/main/default', RlyDeletionFinder.sourcePath(), 'The connection\'s source path');
+            System.assertNotEquals(null, RlyDeletionFinder.git(), 'Connected');
         }
     }
 

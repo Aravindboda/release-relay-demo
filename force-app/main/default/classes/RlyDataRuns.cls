@@ -64,13 +64,13 @@ public with sharing class RlyDataRuns {
     public static Started start(Request req) {
         checkRequest(req);
         RlyDataRules.Checked c = RlyDataRules.checkStart(req);
-        RLY_Data_Run__c run = new RLY_Data_Run__c(Run_Id__c = newId(), Data_Set__c = c.dataSet.Id, Direction__c = req.direction,
+        RLY_Data_Run__c run = new RLY_Data_Run__c(Run_Id__c = RlySyncRuns.newId('DAT-'), Data_Set__c = c.dataSet.Id, Direction__c = req.direction,
             Source_Org__c = c.source.Id, Target_Org__c = c.target.Id, Target_Org_Id__c = c.target.Org_Id__c, Mask__c = c.mask,
             Release__c = c.releaseId, Token__c = RlyPipelineRun.newToken(), Requested_By__c = UserInfo.getUserId(),
             Checked_At__c = System.now());
         Started s = new Started();
         s.runId = run.Run_Id__c;
-        if (RlyDataRules.hasSignIn(c.source)) {
+        if (RlySyncRoute.hasSignIn(c.source)) {
             dispatch(run, c, FROM_SOURCE);
             run.Status__c = RlyDataStore.DRY_RUN;
             s.next = 'dryRun';
@@ -162,9 +162,5 @@ public with sharing class RlyDataRuns {
 
     private static Boolean isComplete(Request req) {
         return req != null && req.dataSetId != null && req.sourceOrgId != null && req.targetOrgId != null;
-    }
-
-    private static String newId() {
-        return 'DAT-' + String.valueOf(System.now().getTime()).leftPad(13, '0');
     }
 }

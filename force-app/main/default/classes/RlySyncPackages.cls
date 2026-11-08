@@ -55,18 +55,23 @@ public with sharing class RlySyncPackages {
     }
 
     /**
-     * @description Reads every route org's installed packages and saves them as the latest Packages check.
+     * @description Reads every route org's installed packages and saves them as the latest Packages check. A hub has at
+     * most RlyOrgController.MAX_ORGS orgs, so one request reads them all (one query for their sign-ins, two callouts each).
      * @param orgs the route orgs from the top down
      * @return the packages
      */
     public static Packages read(List<RLY_Org__c> orgs) {
+        if (orgs.size() > RlyOrgController.MAX_ORGS) {
+            throw new RlyReleaseException(RlyOrgController.TOO_MANY_ORGS);
+        }
         Packages p = new Packages();
         p.checkedAt = System.now();
         Map<String, PackageRow> byNamespace = new Map<String, PackageRow>();
+        Map<Id, RLY_Org__c> signIns = RlyReleaseStore.orgs(new Map<Id, RLY_Org__c>(orgs).keySet());
         for (RLY_Org__c o : orgs) {
             p.orgs.add(o.Name);
             try {
-                addOrg(byNamespace, o.Name, RlyOrgSession.getJson(RlyReleaseStore.org(o.Id), RlyOrgSession.toolingQueryPath(
+                addOrg(byNamespace, o.Name, RlyOrgSession.getJson(signIns.get(o.Id), RlyOrgSession.toolingQueryPath(
                     'SELECT SubscriberPackage.Name, SubscriberPackage.NamespacePrefix, SubscriberPackageVersion.MajorVersion, '
                     + 'SubscriberPackageVersion.MinorVersion, SubscriberPackageVersion.PatchVersion FROM InstalledSubscriberPackage')));
             } catch (Exception e) {
@@ -79,7 +84,7 @@ public with sharing class RlySyncPackages {
             p.packages.add(byNamespace.get(ns));
         }
         String summary = JSON.serialize(p);
-        String syncId = 'SYN-' + String.valueOf(System.now().getTime()).leftPad(13, '0');
+        String syncId = RlySyncRuns.newId('SYN-');
         RlySyncStore.save(new RLY_Sync_Check__c(Sync_Id__c = syncId, Kind__c = RlySyncStore.KIND_PACKAGES,
             Status__c = RlySyncStore.SUCCEEDED, Checked_At__c = p.checkedAt, Summary__c = summary.left(131072),
             Counts__c = JSON.serialize(new Map<String, Integer>{ 'packages' => p.packages.size(), 'errors' => p.errors.size() })));

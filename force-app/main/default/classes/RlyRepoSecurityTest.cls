@@ -23,6 +23,7 @@ private class RlyRepoSecurityTest {
     private static void toGitLab() {
         RLY_Git_Connection__c c = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
         update new RLY_Git_Connection__c(Id = c.Id, Provider__c = 'GitLab', Repository__c = 'acme/salesforce', Pipeline__c = '.gitlab-ci.yml');
+        RlyReleaseStore.forgetGit();
     }
 
     @IsTest
@@ -161,6 +162,7 @@ private class RlyRepoSecurityTest {
             RlyRepoSecurity.Report none = RlyRepoSecurity.check();
             insert new RLY_Git_Connection__c(Provider__c = 'Bitbucket', Repository__c = 'acme/release', Named_Credential__c = 'RLY_Bitbucket',
                 Pipeline__c = 'bitbucket-pipelines.yml', Pipeline_Branch__c = 'main', Status__c = 'Connected');
+            RlyReleaseStore.forgetGit();
             RlyRepoSecurity.Report other = RlyRepoSecurity.check();
             Test.stopTest();
             System.assertEquals(1, none.missing, 'No connection yet');

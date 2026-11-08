@@ -1,10 +1,7 @@
 import { LightningElement, api } from 'lwc';
 import releaseNotice from '@salesforce/apex/RlyWindowController.releaseNotice';
 import deployNow from '@salesforce/apex/RlyWindowController.deployNow';
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
+import { errorText } from 'c/rlyShared';
 
 /**
  * On a release Waiting for the window (build 39): for holders of the Release Window Bypass add-on (build 49), Deploy now anyway with a reason (History, evidence PDF and

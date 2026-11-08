@@ -34,7 +34,7 @@ public with sharing class RlySlackFix {
         User holder = RlySlackDirectory.linkedUser(p.memberId);
         Boolean elsewhere = holder != null && holder.Id != u.Id;
         if (elsewhere && fix != MOVE) {
-            throw RlySlackController.auraError(p.memberId + ' is already linked to ' + holder.Name + '. Unlink it there first.');
+            throw RlyReleaseException.toAura(p.memberId + ' is already linked to ' + holder.Name + '. Unlink it there first.');
         }
         if (elsewhere) {
             User cleared = RlySlackDirectory.linkRow(holder.Id, null, null);
@@ -49,16 +49,16 @@ public with sharing class RlySlackFix {
     private static RlySlackPeople.Person find(User u, String how) {
         String key = RlySlackLookup.keyOf(u, how);
         if (how == RlySlackMatch.MANUAL || String.isBlank(key) || !key.contains('@')) {
-            throw RlySlackController.auraError('Nothing to look up for ' + u.Name + ': set the ID by hand.');
+            throw RlyReleaseException.toAura('Nothing to look up for ' + u.Name + ': set the ID by hand.');
         }
         RlySlackPeople.Person p;
         try {
             p = RlySlackPeople.byEmail(key);
         } catch (Exception e) {
-            throw RlySlackController.auraError(RlySlackLookup.problemText(e));
+            throw RlyReleaseException.toAura(RlySlackLookup.problemText(e));
         }
         if (p == null) {
-            throw RlySlackController.auraError('Slack has no account with ' + key + '.');
+            throw RlyReleaseException.toAura('Slack has no account with ' + key + '.');
         }
         return p;
     }
@@ -72,7 +72,7 @@ public with sharing class RlySlackFix {
      */
     public static String setByHand(Id userId, String memberId) {
         if (String.isBlank(memberId)) {
-            throw RlySlackController.auraError('Member IDs start with U or W.');
+            throw RlyReleaseException.toAura('Member IDs start with U or W.');
         }
         String value = RlySlackRules.memberId(memberId);
         User u = approver(userId);
@@ -80,7 +80,7 @@ public with sharing class RlySlackFix {
         User holder = RlySlackDirectory.holders(new Set<String>{ value }).get(value);
         Boolean elsewhere = holder != null && holder.Id != u.Id;
         if (elsewhere && holder.IsActive) {
-            throw RlySlackController.auraError(value + ' is already linked to ' + holder.Name + '. Unlink it there first.');
+            throw RlyReleaseException.toAura(value + ' is already linked to ' + holder.Name + '. Unlink it there first.');
         }
         if (elsewhere) {
             RlySlackDirectory.saveOne(RlySlackDirectory.linkRow(holder.Id, null, null));
@@ -98,7 +98,7 @@ public with sharing class RlySlackFix {
             return 'Slack couldn\'t confirm ' + value + ' (' + RlySlackLookup.problemText(e) + '). ';
         }
         if (p == null) {
-            throw RlySlackController.auraError('Slack has no member ' + value + '.');
+            throw RlyReleaseException.toAura('Slack has no member ' + value + '.');
         }
         return 'Slack says ' + value + ' is ' + p.name + (String.isBlank(p.email) ? '' : RlySlackMatch.SEP + p.email) + '. ';
     }
@@ -111,7 +111,7 @@ public with sharing class RlySlackFix {
     public static void link(Id userId, String value) {
         User other = value == null ? null : RlySlackDirectory.linkedUser(value);
         if (other != null && other.Id != userId) {
-            throw RlySlackController.auraError(value + ' is already linked to ' + other.Name + '.');
+            throw RlyReleaseException.toAura(value + ' is already linked to ' + other.Name + '.');
         }
         RlySlackDirectory.saveOne(RlySlackDirectory.linkRow(userId, value, RlySlackDirectory.BY_ADMIN));
     }
@@ -127,6 +127,6 @@ public with sharing class RlySlackFix {
                 return u;
             }
         }
-        throw RlySlackController.auraError('That person isn\'t an active approver any more. Refresh the list.');
+        throw RlyReleaseException.toAura('That person isn\'t an active approver any more. Refresh the list.');
     }
 }

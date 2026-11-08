@@ -2,13 +2,7 @@ import { LightningElement, wire } from 'lwc';
 import { NavigationMixin, CurrentPageReference } from 'lightning/navigation';
 import readLink from '@salesforce/apex/RlySlackLink.readLink';
 import confirmLink from '@salesforce/apex/RlySlackLink.confirmLink';
-
-function errorText(e) {
-    if (e && e.body && e.body.message) {
-        return e.body.message;
-    }
-    return (e && e.message) || 'Something went wrong.';
-}
+import { errorText } from 'c/rlyShared';
 
 /**
  * Link your Slack account (board HubSlackApprovers 6b): opened from the private "Link my account" button in Slack with

@@ -113,9 +113,8 @@ public with sharing class RlyBuildLock {
     @AuraEnabled(cacheable=false)
     @SuppressWarnings('PMD.AvoidBooleanMethodParameters') // the lock section sends its toggle as a Boolean (page contract)
     public static Status setPassword(Boolean enabled, String password) {
-        if (!RlyOrgController.isAdmin()) {
-            throw failure('Only Release Relay admins can change the What\'s built lock.');
-        }
+        RlyReleaseAccess.requireAdmin('Only Release Relay admins can change the What\'s built lock.');
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.LOCK); // build 50: Recent changes to settings
         Store store = new Store();
         RLY_Lock__c org = store.orgRow();
         Boolean turnOn = enabled == true;
@@ -130,6 +129,7 @@ public with sharing class RlyBuildLock {
         org.Changed_By__c = UserInfo.getName();
         org.Changed_By_Id__c = UserInfo.getUserId();
         store.save(org);
+        RlySettingsLog.compare(was);
         return statusOf(store, org, store.userRow());
     }
 
@@ -142,10 +142,10 @@ public with sharing class RlyBuildLock {
     private static void setOn(RLY_Lock__c org, String password) {
         Boolean typed = String.isNotEmpty(password);
         if (typed && password.length() < MIN_LENGTH) {
-            throw failure('Use at least ' + MIN_LENGTH + ' characters.');
+            throw RlyReleaseException.toAura('Use at least ' + MIN_LENGTH + ' characters.');
         }
         if (!typed && String.isBlank(org.Hash__c)) {
-            throw failure('Set a password of at least ' + MIN_LENGTH + ' characters to turn the lock on.');
+            throw RlyReleaseException.toAura('Set a password of at least ' + MIN_LENGTH + ' characters to turn the lock on.');
         }
         if (typed) {
             org.Salt__c = EncodingUtil.base64Encode(Crypto.generateAesKey(SALT_BITS));
@@ -160,7 +160,7 @@ public with sharing class RlyBuildLock {
     public static void requireUnlocked() {
         Store store = new Store();
         if (!new Rules(System.now()).isUnlocked(store.orgRow(), store.userRow())) {
-            throw failure(LOCKED_MESSAGE);
+            throw RlyReleaseException.toAura(LOCKED_MESSAGE);
         }
     }
 
@@ -185,17 +185,6 @@ public with sharing class RlyBuildLock {
             }
         }
         return s;
-    }
-
-    /**
-     * @description An AuraHandledException whose message reaches the page (and tests).
-     * @param message the message
-     * @return the exception
-     */
-    private static AuraHandledException failure(String message) {
-        AuraHandledException e = new AuraHandledException(message);
-        e.setMessage(message);
-        return e;
     }
 
     /** @description The lock's rules at one moment: tries, lock-out, unlock window, hashing. No reads or writes. */

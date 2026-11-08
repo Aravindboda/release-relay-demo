@@ -41,7 +41,7 @@ public with sharing class RlyRollbackPreview {
         if (String.isBlank(raw)) {
             throw new RlyReleaseException('The snapshot ' + p.org.snapshotPath + ' isn\'t on ' + RlyRollbackPlan.SNAPSHOT_BRANCH + ' any more.');
         }
-        Map<String, Object> manifest = RlyEvidenceText.parse(raw);
+        Map<String, Object> manifest = RlySyncParse.parsedOrEmpty(raw);
         p.takenOn = RlyRollbackPlan.toTime(manifest.get('takenAt'));
         p.restore = strings(manifest.get('existing'));
         p.restore.addAll(strings(manifest.get('deleted')));
@@ -82,7 +82,7 @@ public with sharing class RlyRollbackPreview {
         for (RLY_Release__c r : later) {
             List<String> same = sameNames(touched.get(r.Id), keys);
             if (!same.isEmpty()) {
-                Datetime deployedOn = RlyRollbackPlan.toTime(RlyEvidenceText.parse(r.Deploy_Result__c).get('finishedAt'));
+                Datetime deployedOn = RlyRollbackPlan.toTime(RlySyncParse.parsedOrEmpty(r.Deploy_Result__c).get('finishedAt'));
                 out.add(r.Name + ' also deployed ' + String.join(same, ', ').abbreviate(200) + ' to ' + c.orgName + ' after this release'
                     + (deployedOn == null ? '' : ' (' + deployedOn.format('d MMM HH:mm') + ')') + '. Rolling back undoes that change too.');
             }

@@ -1,10 +1,7 @@
 import { LightningElement, api } from 'lwc';
 import orgSettings from '@salesforce/apex/RlySlackReminderController.orgSettings';
 import saveOrgSettings from '@salesforce/apex/RlySlackReminderController.saveOrgSettings';
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
+import { errorText } from 'c/rlyShared';
 
 function hourLabel(h) {
     const n = Number(h);

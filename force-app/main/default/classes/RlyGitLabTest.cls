@@ -228,6 +228,7 @@ private class RlyGitLabTest {
             String mrUrl = 'https://gitlab.com/acme/release/-/merge_requests/42';
             update new RLY_Release__c(Id = rel.Id, PR_Number__c = 42, PR_URL__c = mrUrl);
             update new RLY_Git_Connection__c(Id = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1].Id, Provider__c = 'GitLab');
+            RlyReleaseStore.forgetGit();
             List<String> page = new List<String>();
             for (Integer i = 0; i < RlyPullRequestFiles.PAGE_SIZE; i++) {
                 page.add(diff(i == 0 ? CLASS_PATH : 'force-app/main/default/classes/C' + i + '.cls', 'none', '@@ -1 +1 @@\n-a\n+b'));

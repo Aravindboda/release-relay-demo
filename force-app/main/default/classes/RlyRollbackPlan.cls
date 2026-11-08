@@ -96,7 +96,7 @@ public with sharing class RlyRollbackPlan {
         c.tests = RlyDeletions.withoutDeletedTests(RlyReleasePhase.tests(owner), owner);
         c.busy = owner.Status__c == DEPLOYING;
         c.approvedOn = owner.Approved_On__c;
-        Map<String, Object> deploy = RlyEvidenceText.parse(owner.Deploy_Result__c);
+        Map<String, Object> deploy = RlySyncParse.parsedOrEmpty(owner.Deploy_Result__c);
         c.deployedOn = toTime(deploy.get('finishedAt'));
         snapshotOf(c, deploy.get('snapshot'));
         if (c.busy) {

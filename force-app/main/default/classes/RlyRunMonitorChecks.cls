@@ -56,7 +56,7 @@ public with sharing class RlyRunMonitorChecks {
      */
     public static String reasonFor(RLY_Release__c rel) {
         List<String> parts = new List<String>();
-        Map<String, Object> val = parsed(rel.Validation_Result__c);
+        Map<String, Object> val = RlySyncParse.parsedOrEmpty(rel.Validation_Result__c);
         if (rel.Validation_Status__c == 'Failed' || rel.Validation_Status__c == 'Error') {
             parts.add(validationReason(val, rel));
         }
@@ -94,17 +94,5 @@ public with sharing class RlyRunMonitorChecks {
         }
         String text = String.join(new List<String>(names), ', ');
         return tests.size() > names.size() ? text + ', …' : text;
-    }
-
-    private static Map<String, Object> parsed(String json) {
-        if (String.isBlank(json)) {
-            return new Map<String, Object>();
-        }
-        try {
-            Object o = System.JSON.deserializeUntyped(json);
-            return o instanceof Map<String, Object> ? (Map<String, Object>) o : new Map<String, Object>();
-        } catch (JSONException e) {
-            return new Map<String, Object>();
-        }
     }
 }

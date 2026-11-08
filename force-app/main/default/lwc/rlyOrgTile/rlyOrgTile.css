@@ -1,3 +1,5 @@
+@import 'c/rlySharedStyles';
+
 :host { display: block; height: 100%; min-width: 0; }
 
 .rr-tile {
@@ -30,8 +32,6 @@
     display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px;
     font-size: 11px; font-weight: 700; white-space: nowrap; flex: none;
 }
-.rr-pill-info { background: #eef4ff; color: #014486; }
-.rr-pill-none { background: #f3f3f3; color: #444; }
 
 .rr-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: inline-block; background: #939393; }
 .rr-dot-ok { background: #2e844a; }

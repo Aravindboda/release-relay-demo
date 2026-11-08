@@ -3,7 +3,7 @@
  * (RlyEvidenceHtml), turns it into a PDF and saves it to the release's Files (ContentVersion linked to the release,
  * visible to all users), returning its download address. exportCsvPart returns the Releases tab's filtered list (the
  * same filter as RlyReleasesController.listReleasesFor) as CSV text a part at a time (RlyEvidenceCsv: approval, deploy
- * and rollback details and the files on its manual steps, listed, not embedded); exportCsv returns it whole. Both only read
+ * and rollback details and the files on its manual steps, listed, not embedded). Both only read
  * releases, so they work in a sandbox copy of the hub too. Files are created in system mode: every Release Relay user
  * may save evidence of a release they can open.
  */
@@ -39,31 +39,17 @@ public with sharing class RlyEvidenceController {
             src.files = RlyStepFileEvidence.evidenceRows(src.rel, src.events);
             EvidenceFile f = new EvidenceFile();
             f.title = src.rel.Name + ' evidence ' + src.madeOn.format('yyyy-MM-dd HH:mm');
-            f.contentDocumentId = access.saveFile(releaseId, f.title, Blob.toPdf(RlyEvidenceHtml.build(src)));
+            f.contentDocumentId = RlyStepFileStore.savePdf(releaseId, f.title, Blob.toPdf(RlyEvidenceHtml.build(src)));
             f.downloadUrl = '/sfc/servlet.shepherd/document/download/' + f.contentDocumentId;
             return f;
         } catch (Exception e) {
-            throw handled(e);
-        }
-    }
-
-    /**
-     * @description The Releases tab's filtered list as CSV text, whole (RlyEvidenceCsv.whole).
-     * @param filterJson {"raisedById", "state", "searchText"} as for RlyReleasesController.listReleasesFor
-     * @return the CSV (a header line, then one line per release)
-     */
-    @AuraEnabled
-    public static String exportCsv(String filterJson) {
-        try {
-            return RlyEvidenceCsv.whole(filterJson);
-        } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
     /**
      * @description One part of the Releases tab's CSV (RlyEvidenceCsv.PART_SIZE releases); the page joins the parts.
-     * @param filterJson the filter, as for exportCsv
+     * @param filterJson the filter, as for RlyReleasesController.listReleasesFor
      * @param offset where the part starts (0 for the first, then the last part's nextOffset)
      * @return the part's text (the first starts with the header), the next offset (null at the end) and the total
      */
@@ -72,7 +58,7 @@ public with sharing class RlyEvidenceController {
         try {
             return RlyEvidenceCsv.part(filterJson, offset);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -94,15 +80,6 @@ public with sharing class RlyEvidenceController {
         return String.join(out, ',');
     }
 
-    private static AuraHandledException handled(Exception e) {
-        if (e instanceof AuraHandledException) {
-            return (AuraHandledException) e;
-        }
-        AuraHandledException ex = new AuraHandledException(e.getMessage());
-        ex.setMessage(e.getMessage());
-        return ex;
-    }
-
     /** @description Releases, their manual step runs and Files are shared hub records: read and saved in system mode. */
     private without sharing class SystemAccess {
 
@@ -115,22 +92,6 @@ public with sharing class RlyEvidenceController {
             return [SELECT Id, Org__r.Name, Step__r.Title__c, Step__r.Timing__c, Status__c, Done_By__r.Name, Done_On__c, Note__c
                     FROM RLY_Manual_Step_Run__c WHERE Release__c = :releaseId
                     WITH SYSTEM_MODE ORDER BY Org__r.Name, Order__c ASC NULLS LAST, Name ASC LIMIT 2000];
-        }
-
-        /**
-         * @description Saves a PDF to a release's Files, visible to all users.
-         * @param releaseId the release
-         * @param title the file's title
-         * @param pdf the PDF
-         * @return the file's ContentDocument Id
-         */
-        public Id saveFile(Id releaseId, String title, Blob pdf) {
-            ContentVersion v = new ContentVersion(Title = title, PathOnClient = title + '.pdf', VersionData = pdf);
-            insert as system v;
-            Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :v.Id WITH SYSTEM_MODE].ContentDocumentId;
-            insert as system new ContentDocumentLink(ContentDocumentId = docId, LinkedEntityId = releaseId, ShareType = 'V',
-                Visibility = 'AllUsers');
-            return docId;
         }
     }
 }

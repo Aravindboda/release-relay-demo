@@ -187,8 +187,10 @@ private class RlyCredentialTest {
             RlyCredentialRows.todayForTest = TODAY_FOR_TEST;
             insert new RLY_Git_Connection__c(Provider__c = 'GitHub', Repository__c = 'acme/release', Named_Credential__c = 'RLY_GitHub',
                 Pipeline__c = 'release-relay.yml', Pipeline_Branch__c = 'main', Source_Path__c = 'force-app/main/default', Active__c = true);
+            RlyReleaseStore.forgetGit();
             insert new RLY_Git_Connection__c(Provider__c = 'GitLab', Repository__c = 'group/project', Named_Credential__c = 'RLY_GitLab',
                 Pipeline__c = '.gitlab-ci.yml', Pipeline_Branch__c = 'main', Source_Path__c = 'force-app/main/default', Active__c = false);
+            RlyReleaseStore.forgetGit();
             RlyCredentialHubChecks.selfCredentialForTest = true;
             Mock mock = new Mock()
                 .answer('callout:RLY_Org_Self/services/data/v63.0/tooling/query', 200, certs('release_relay', '2026-12-01'))
