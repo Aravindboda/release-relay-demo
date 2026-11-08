@@ -57,10 +57,23 @@ public with sharing class RlySyncPackages {
     /**
      * @description Reads every route org's installed packages and saves them as the latest Packages check. A hub has at
      * most RlyOrgController.MAX_ORGS orgs, so one request reads them all (one query for their sign-ins, two callouts each).
+     * Build 55: the read is gather (callouts) then save (the check, and each org's Packages__c).
      * @param orgs the route orgs from the top down
      * @return the packages
      */
     public static Packages read(List<RLY_Org__c> orgs) {
+        Packages p = gather(orgs);
+        saveRead(p, orgs);
+        return p;
+    }
+
+    /**
+     * @description Build 55: reads every org's installed packages (callouts only, no DML): one query per org, after its
+     * sign-in (a token signed in earlier in the request is reused): at most 2 × RlyOrgController.MAX_ORGS callouts.
+     * @param orgs the orgs from the top down
+     * @return the packages
+     */
+    public static Packages gather(List<RLY_Org__c> orgs) {
         if (orgs.size() > RlyOrgController.MAX_ORGS) {
             throw new RlyReleaseException(RlyOrgController.TOO_MANY_ORGS);
         }
@@ -83,12 +96,22 @@ public with sharing class RlySyncPackages {
         for (String ns : names) {
             p.packages.add(byNamespace.get(ns));
         }
+        return p;
+    }
+
+    /**
+     * @description Build 55: saves a read (DML only): the latest Packages check, and each org read without an error gets
+     * its packages (RlyOrgPackageRows.fromRead).
+     * @param p the read
+     * @param orgs the orgs read
+     */
+    public static void saveRead(Packages p, List<RLY_Org__c> orgs) {
         String summary = JSON.serialize(p);
         String syncId = RlySyncRuns.newId('SYN-');
         RlySyncStore.save(new RLY_Sync_Check__c(Sync_Id__c = syncId, Kind__c = RlySyncStore.KIND_PACKAGES,
             Status__c = RlySyncStore.SUCCEEDED, Checked_At__c = p.checkedAt, Summary__c = summary.left(131072),
             Counts__c = JSON.serialize(new Map<String, Integer>{ 'packages' => p.packages.size(), 'errors' => p.errors.size() })));
-        return p;
+        RlyOrgPackageStore.save(RlyOrgPackageRows.fromRead(p, orgs));
     }
 
     /**

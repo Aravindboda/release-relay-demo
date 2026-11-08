@@ -77,6 +77,7 @@ public with sharing class RlyBackPromoteRun {
             rel.Merge_Commit__c = String.valueOf(r.get('sha')).left(40);
         }
         rel.Error_Message__c = ok ? null : failure(rel, status, r).left(2000);
+        RlyPackageResults.onDeploy(rel, r); // build 55: package references left out of the org, in History
     }
 
     private static String failure(RLY_Release__c rel, String status, Map<String, Object> r) {

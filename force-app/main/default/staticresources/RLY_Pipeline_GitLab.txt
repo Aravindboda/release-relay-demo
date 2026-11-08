@@ -1,4 +1,7 @@
-# Release Relay pipeline files: version 28
+# Release Relay pipeline files: version 29
+# Version 29 (hub build 55), as in the GitHub workflow: no job change, the script moves with it (package-aware releases:
+# references to a managed package an org lacks are put back on a raise from it and stripped from the deploy copy for it;
+# raise.json, validate.json, deploy.json and sync.json carry "packages").
 # Version 28 (hub build 52), as in the GitHub workflow: no job change, the script moves with it. A new hub raise starts
 # from where the target and the developer org's branch meet (the job replaces the hub's release branch with
 # --force-with-lease: RELAY_TOKEN's role must be allowed to force-push release branches, which unprotected branches

@@ -87,6 +87,18 @@ const RELEASES_TAB = 'RLY_My_Releases';
 /** New Release: opened in append mode (state c__appendTo) to add changes to an open release. */
 const BUILDER_TAB = 'RLY_New_Release';
 const BRANCH_OK = 'Synced';
+/** Build 55: {"ns1": 3, "ns2": 2} as { total: 5, names: "ns1 3, ns2 2" } ({ total: 3, names: "ns1" } for one); null when empty. */
+function countText(counts) {
+    if (!counts || typeof counts !== 'object') {
+        return null;
+    }
+    const names = Object.keys(counts).filter((k) => Number(counts[k]) > 0).sort();
+    const total = names.reduce((n, k) => n + Number(counts[k]), 0);
+    if (!total) {
+        return null;
+    }
+    return { total, names: names.length === 1 ? names[0] : names.map((k) => k + ' ' + counts[k]).join(', ') };
+}
 /** RLY_Release_Event__c.Event_Type__c: the History card's title and icon per event (board HubApprovalFlowsEvidence 3). */
 const EVENT_LOOK = {
     Raised: { title: 'Raised', icon: 'utility:add' },
@@ -113,7 +125,9 @@ const EVENT_LOOK = {
     Window_Held: { title: 'Waiting for the window', icon: 'utility:clock' },
     Window_Override: { title: 'Deployed outside the window', icon: 'utility:warning' },
     Changes_Added: { title: 'Changes added', icon: 'utility:add' },
-    Cancelled: { title: 'Cancelled', icon: 'utility:ban' }
+    Cancelled: { title: 'Cancelled', icon: 'utility:ban' },
+    Package_References: { title: 'Package references', icon: 'utility:package' },
+    File_Edited: { title: 'File edited', icon: 'utility:edit' }
 };
 /** File events on manual steps (build 34): the History card's Files chip shows only these. */
 const FILE_EVENTS = ['File_Attached', 'File_Removed', 'Proof_Added', 'File_Downloaded'];
@@ -122,13 +136,13 @@ const EVENT_TONE = {
     Deployed: 'ok', Approved: 'ok', Auto_Approved: 'ok', Manual_Step: 'ok', Merged_Back: 'ok', Back_Promoted: 'ok',
     Scan: 'ok', Validation: 'ok', Flow_Activated: 'ok', Proof_Added: 'ok',
     Rejected: 'bad', Deploy_Failed: 'bad', Rollback_Failed: 'bad',
-    Rolled_Back: 'wait', Window_Held: 'wait', Window_Override: 'wait'
+    Rolled_Back: 'wait', Window_Held: 'wait', Window_Override: 'wait', Package_References: 'wait'
 };
 /** Types whose title names the org: "Deployed to <org>", "Approved for <org>"… */
 const EVENT_ORG_WORD = {
     Approved: ' for ', Rejected: ' for ', Deployed: ' to ', Deploy_Failed: ' in ', Validation: ' in ', Manual_Step: ' in ',
     Flow_Activated: ' in ', Auto_Approved: ' for ', Rolled_Back: ' in ', Rollback_Failed: ' in ', Proof_Added: ' in ', File_Downloaded: ' in ',
-    Window_Held: ' for ', Window_Override: ' to '
+    Window_Held: ' for ', Window_Override: ' to ', Package_References: ' in '
 };
 /** RLY_Release__c.Rollback_Status__c (RlyRollbackState): the header pill's tone per rollback state (board HubRollbackValuesGates 2). */
 const ROLLBACK_PILL = { Running: 'rr-pill rr-pill-info', Rolled_Back: 'rr-pill rr-pill-wait', Failed: 'rr-pill rr-pill-bad' };
@@ -565,6 +579,10 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
                 text: this.validationText, conflict: val.status === 'Conflict'
             });
         }
+        const leftOut = this.componentsLeftOutStep();
+        if (leftOut) {
+            steps.push(leftOut);
+        }
         steps.push(this.approvalStep());
         steps.push(this.deployStep());
         this.backMergeSteps().forEach((st) => steps.push(st));
@@ -746,7 +764,49 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         return (val.status === 'Passed' ? 'Check-only deploy passed' : val.message || val.status)
             + (val.testLevel ? ' · ' + val.testLevel + (val.testsRun ? ', ' + val.testsRun + ' tests run' : '') : '')
             + (val.mergedWith ? ' · merged with ' + r.Target_Branch__c + ' at ' + String(val.mergedWith).substring(0, 7) : '')
-            + this.valuesText(val);
+            + this.valuesText(val) + this.packagesText(val.raisePackages, val.packages);
+    }
+
+    /**
+     * Build 55: what the pipeline did with package references (result packages): " · 3 package references kept (ns1)
+     * · left out in <org>: 2 references to package ns2 (not installed) · 1 whole component". Git keeps the full files.
+     */
+    packagesText(raised, deployed) {
+        const parts = [];
+        const kept = countText(raised && raised.kept);
+        if (kept) {
+            parts.push(kept.total + (kept.total === 1 ? ' package reference' : ' package references') + ' kept (' + kept.names + ')');
+        }
+        const left = countText(deployed && deployed.leftOut);
+        const comps = deployed && Array.isArray(deployed.componentsLeftOut) ? deployed.componentsLeftOut.length : 0;
+        if (left || comps) {
+            const what = [];
+            if (left) {
+                what.push(left.total + (left.total === 1 ? ' reference' : ' references') + ' to package ' + left.names + ' (not installed)');
+            }
+            if (comps) {
+                what.push(comps + (comps === 1 ? ' whole component' : ' whole components'));
+            }
+            parts.push('left out in ' + this.targetName + ': ' + what.join(', ') + ' · Git keeps the full files');
+        }
+        return parts.length ? ' · ' + parts.join(' · ') : '';
+    }
+
+    /** Build 55: the whole components of a package the target org lacks, from the validation or the deploy. */
+    componentsLeftOutStep() {
+        const fromDeploy = this.deploy.packages && Array.isArray(this.deploy.packages.componentsLeftOut) ? this.deploy.packages.componentsLeftOut : [];
+        const val = this.validation;
+        const fromCheck = val.packages && Array.isArray(val.packages.componentsLeftOut) ? val.packages.componentsLeftOut : [];
+        const list = fromDeploy.length ? fromDeploy : fromCheck;
+        if (!list.length) {
+            return null;
+        }
+        const named = list.slice(0, 5).map((k) => String(k).replace(/^[^:]*:/, '')).join(', ') + (list.length > 5 ? ' and ' + (list.length - 5) + ' more' : '');
+        return {
+            key: 'pkgleft', title: list.length === 1 ? 'Whole component left out' : list.length + ' whole components left out', state: 'Warn',
+            badge: '!', label: this.targetName, pill: STEP_PILL.Warn,
+            text: named + (list.length === 1 ? ' belongs' : ' belong') + ' to a package ' + this.targetName + ' doesn\'t have: not deployed to ' + this.targetName + '.'
+        };
     }
 
     /** Per-org values (.relay/values.json) the pipeline put in for the target: " · 2 per-org values filled in". */
@@ -804,7 +864,8 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         let text = '';
         if (s === 'Deployed') {
             state = 'Done';
-            text = 'Deployed' + (r.Merge_Commit__c ? ' · merge ' + r.Merge_Commit__c.substring(0, 7) : '') + (dep.testsRun ? ' · ' + dep.testsRun + ' tests run' : '');
+            text = 'Deployed' + (r.Merge_Commit__c ? ' · merge ' + r.Merge_Commit__c.substring(0, 7) : '') + (dep.testsRun ? ' · ' + dep.testsRun + ' tests run' : '')
+                + this.packagesText(null, dep.packages);
         } else if (s === 'Deploying') {
             state = 'Running';
             text = 'Merging the ' + this.crWord + ' and deploying…';
@@ -1615,7 +1676,22 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         }
         return '';
     }
-    get showFooter() { return this.showCheckAgain || this.showReject || this.showApprove || this.showCancel || !!this.footNote; }
+    get showFooter() { return this.showCheckAgain || this.showReject || this.showApprove || this.showCancel || this.showEditFiles || !!this.footNote; }
+
+    // ---------- Edit a file (build 55): the raiser or an admin edits what will be deployed; the checks run again ----------
+
+    editOpen = false;
+    get showEditFiles() { return !!(this.detail && this.detail.canEditFiles) && !this.editOpen; }
+    get editHelp() { return 'Open any file of this release: the source org, the target branch and what will be deployed. Saving commits it to the release branch and runs the checks again.'; }
+    openEditFiles() { this.editOpen = true; }
+    closeEditFiles() { this.editOpen = false; }
+    fileSaved(event) {
+        this.editOpen = false;
+        if (event && event.detail) {
+            this.detail = event.detail;
+        }
+        this.load();
+    }
 
     // ---------- Cancel release (build 54): the raiser or an admin withdraws an open release; Reject is an approver's ----------
 

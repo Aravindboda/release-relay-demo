@@ -415,6 +415,11 @@
                     <c-rly-rollback release-id={releaseId} release-name={rel.Name} onclose={closeRollback} onstarted={rollbackStarted}></c-rly-rollback>
                 </template>
 
+                <!-- Edit a file (build 55): every file of the release, three copies, package lines marked -->
+                <template lwc:if={editOpen}>
+                    <c-rly-file-edit release-id={releaseId} onclose={closeEditFiles} onsaved={fileSaved}></c-rly-file-edit>
+                </template>
+
                 <!-- Cancel release (build 54): names the release, needs a reason -->
                 <template lwc:if={cancelOpen}>
                     <section class="rr-card rr-cancel" role="dialog" aria-label={cancelTitle}>
@@ -436,6 +441,9 @@
                         <span class="rr-small rr-weak rr-grow">{footNote}</span>
                         <template lwc:if={showCheckAgain}>
                             <lightning-button label="Check again" onclick={doCheckAgain} disabled={checkAgainDisabled}></lightning-button>
+                        </template>
+                        <template lwc:if={showEditFiles}>
+                            <lightning-button label="Edit a file…" title={editHelp} onclick={openEditFiles} disabled={actBusy}></lightning-button>
                         </template>
                         <template lwc:if={showCancel}>
                             <lightning-button label="Cancel release" title={cancelHelp} onclick={openCancel} disabled={actBusy}></lightning-button>

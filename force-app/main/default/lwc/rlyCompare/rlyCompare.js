@@ -828,6 +828,18 @@ export default class RlyCompare extends LightningElement {
         this.closed = true;
         this.pipeWaiting = false;
         this.parts = this.parts.map((p) => ({ ...p, waiting: false }));
-        this.dispatchEvent(new CustomEvent('close'));
+        // Build 55: the texts read so far go back with close, so Review can list package references without reading again.
+        this.dispatchEvent(new CustomEvent('close', { detail: { files: this.readTexts() } }));
+    }
+
+    /** Every file read in the hub so far: Type:Name, path, the branch's copy and the source org's copy. */
+    readTexts() {
+        const out = [];
+        this.components.filter((c) => c.phase === READY && !c.item.deleted).forEach((c) => (c.files || []).forEach((f) => {
+            if (typeof f.left === 'string' || typeof f.right === 'string') {
+                out.push({ key: c.key, path: f.path, branch: typeof f.left === 'string' ? f.left : null, org: typeof f.right === 'string' ? f.right : null });
+            }
+        }));
+        return out;
     }
 }

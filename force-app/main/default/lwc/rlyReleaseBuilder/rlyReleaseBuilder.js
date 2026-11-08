@@ -432,22 +432,33 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         if (this.appendInfo) {
             return this.appendInfo.targetName + ' · ' + this.appendInfo.targetBranch;
         }
-        return this.start && this.start.targetName ? this.start.targetName + ' · ' + this.start.targetBranch : 'not set';
+        const t = this.raiseTarget;
+        return t.name ? t.name + ' · ' + t.branch : 'not set';
     }
-    get targetNote() { return '(the first stage of the route)'; }
+    get targetNote() { return this.raiseTarget.fromStage ? '(the next stop after ' + this.sourceName + ')' : '(the first stage of the route)'; }
+    /** Build 55: where the picked org's releases go: the next stop for a stage that can raise releases, else the first stage. */
+    get raiseTarget() {
+        const own = this.start && this.start.raiseTargets && this.orgId ? this.start.raiseTargets[this.orgId] : null;
+        if (own) {
+            return { name: own.name, branch: own.branch, fromStage: true };
+        }
+        return { name: this.start && this.start.targetName, branch: this.start && this.start.targetBranch, fromStage: false };
+    }
     get sourceBranch() { return this.sourceOrg ? this.sourceOrg.Branch__c : ''; }
 
     get orgCards() {
+        const targets = (this.start && this.start.raiseTargets) || {};
         return ((this.start && this.start.developers) || []).map((d) => {
             const ready = d.Status__c === 'Connected';
             const on = d.Id === this.orgId;
+            const into = targets[d.Id] ? targets[d.Id].name : this.start.targetName;
             return {
                 id: d.Id,
                 environment: d.Environment__c,
                 name: d.Name,
                 branch: d.Branch__c,
                 note: ready
-                    ? (d.Source_Tracking__c === 'Available' ? 'Fast: source tracking' : 'Metadata API') + (this.start.targetName ? ' · → ' + this.start.targetName : '')
+                    ? (targets[d.Id] ? 'Can raise releases' : (d.Source_Tracking__c === 'Available' ? 'Fast: source tracking' : 'Metadata API')) + (into ? ' · → ' + into : '')
                     : 'Not connected: check it on the Pipeline tab',
                 showStatus: !ready,
                 status: d.Status__c || 'Not checked',
@@ -498,6 +509,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         if (next !== this.envChoice) {
             this.envChoice = next;
             this.orgId = undefined;
+            this.compareTexts = {};
         }
     }
     goSource() {
@@ -553,6 +565,9 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     get noDevelopers() { return this.start && (this.start.developers || []).length === 0; }
 
     handleOrg(event) {
+        if (this.orgId !== event.currentTarget.dataset.id) {
+            this.compareTexts = {}; // build 55: what Compare read belongs to the org it read
+        }
         this.orgId = event.currentTarget.dataset.id;
     }
 
@@ -937,7 +952,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
 
     // ---------- deletions ----------
 
-    get target() { return (this.start && this.start.targetName) || 'the target'; }
+    get target() { return this.raiseTarget.name || 'the target'; }
     get deleteFromText() { return 'Delete from ' + this.target; }
     get deletedGroupLabel() { return 'Deleted from ' + this.target; }
     get deletionResultCls() { return 'rr-msg rr-msg-inset ' + (this.deletionResultBad ? 'rr-msg-bad' : 'rr-msg-info'); }
@@ -1234,7 +1249,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     get isRaised() { return this.step === 'raise'; }
     /** The target's branch, as the compare board names it (for example: main branch). */
     get targetBranchLabel() {
-        const branch = this.start && this.start.targetBranch;
+        const branch = this.raiseTarget.branch;
         return branch ? branch + ' branch' : this.targetText;
     }
     /** The provider's word for a pull request (merge request in GitLab); neutral when the provider isn't known. */
@@ -1286,11 +1301,11 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         const stops = ((this.start && this.start.routeStops) || []).filter((o) => o.Role__c === 'Stage' || o.Role__c === 'Hub')
             .map((o) => ({ name: o.Name, order: o.Role__c === 'Hub' ? Number.MAX_SAFE_INTEGER : Number(o.Stage_Order__c || 0) }))
             .sort((a, b) => a.order - b.order);
-        const i = stops.findIndex((o) => o.name === (this.start && this.start.targetName));
+        const i = stops.findIndex((o) => o.name === this.raiseTarget.name);
         return i >= 0 && i + 1 < stops.length ? stops[i + 1].name : '';
     }
     get hotfixHelp() {
-        const target = (this.start && this.start.targetName) || 'the first stage';
+        const target = this.raiseTarget.name || 'the first stage';
         const next = this.nextStopName;
         return 'Goes to ' + target + ' like any release (scan, check-only deploy, tests, approval). After approval it can be promoted to '
             + (next || 'the next stop') + ' on its own.';
@@ -1359,10 +1374,10 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
 
     get canCompare() { return !this.manualOnly && (this.hasAdded || this.hasDeletions); }
     get compareTargetName() {
-        return (this.isAppend ? this.appendInfo && this.appendInfo.targetName : this.start && this.start.targetName) || 'the target';
+        return (this.isAppend ? this.appendInfo && this.appendInfo.targetName : this.raiseTarget.name) || 'the target';
     }
     get compareTargetBranch() {
-        return (this.isAppend ? this.appendInfo && this.appendInfo.targetBranch : this.start && this.start.targetBranch) || '';
+        return (this.isAppend ? this.appendInfo && this.appendInfo.targetBranch : this.raiseTarget.branch) || '';
     }
     get compareNote() {
         return 'Compare reads the components from ' + this.sourceName + ' now and the files on the ' + this.compareTargetBranch + ' branch.';
@@ -1386,9 +1401,134 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         this.compareKey = undefined;
         this.compareOpen = true;
     }
-    closeCompare() {
+    closeCompare(event) {
         this.compareOpen = false;
+        const files = event && event.detail && Array.isArray(event.detail.files) ? event.detail.files : [];
+        if (files.length) {
+            const next = { ...this.compareTexts };
+            files.forEach((f) => {
+                next[f.key] = (next[f.key] || []).filter((x) => x.path !== f.path).concat([f]);
+            });
+            this.compareTexts = next;
+        }
     }
+
+    // ---------- package references (build 55, board "Package-aware releases" c) ----------
+
+    /** Files Compare read, by Type:Name: [{ path, branch (the target branch's copy), org (the source org's copy) }]. */
+    compareTexts = {};
+    showPackageLines = false;
+
+    /** Every org's namespaces (RlyReleaseStart.packages): empty when no org has a managed package. */
+    get pkgOrgs() { return (this.start && this.start.packages) || []; }
+    get knownNamespaces() {
+        const out = new Set();
+        this.pkgOrgs.forEach((o) => (o.has || []).forEach((ns) => out.add(ns)));
+        return Array.from(out).sort();
+    }
+    pkgOrgByName(name) { return this.pkgOrgs.find((o) => o.name === name); }
+    /** Whether an org has a namespace; null when its packages were never read. */
+    orgHas(name, ns) {
+        const o = this.pkgOrgByName(name);
+        if (!o || !o.checked) {
+            return null;
+        }
+        return (o.has || []).includes(ns);
+    }
+    /** The columns: the source org, then the target and every later stop on the route. */
+    get packageColumns() {
+        const stops = ((this.start && this.start.routeStops) || []).filter((o) => o.Role__c === 'Stage' || o.Role__c === 'Hub')
+            .map((o) => ({ name: o.Name, order: o.Role__c === 'Hub' ? Number.MAX_SAFE_INTEGER : Number(o.Stage_Order__c || 0) }))
+            .sort((a, b) => a.order - b.order).map((o) => o.name);
+        const at = stops.indexOf(this.compareTargetName);
+        const later = at >= 0 ? stops.slice(at) : [this.compareTargetName];
+        return [this.sourceName].concat(later.filter((n) => n !== this.sourceName));
+    }
+    /** Lines that reference the namespace: ns__Name, or ns.Class at the start of a value. */
+    refLines(text, ns) {
+        if (typeof text !== 'string' || !text) {
+            return [];
+        }
+        const re = new RegExp('(\\b' + ns + '__\\w)|(>\\s*' + ns + '\\.\\w)', 'i');
+        return text.split('\n').map((l, i) => ({ n: i + 1, text: l.trim() })).filter((l) => re.test(l.text));
+    }
+    /** One row per component and namespace found: in its name (a package's own component) or in the files Compare read. */
+    get packageRows() {
+        const known = this.knownNamespaces;
+        if (!known.length || this.manualOnly) {
+            return [];
+        }
+        const source = this.sourceName;
+        const rows = [];
+        this.addedItems.forEach((c) => {
+            const key = c.type + ':' + c.name;
+            const texts = this.compareTexts[key] || [];
+            known.forEach((ns) => {
+                const whole = new RegExp('(^|[^A-Za-z0-9_])' + ns + '(__|\\.)', 'i').test(c.name);
+                const sourceHas = this.orgHas(source, ns);
+                const lines = [];
+                texts.forEach((f) => this.refLines(sourceHas === false ? f.branch : f.org, ns).forEach((l) => lines.push(l)));
+                if (!whole && !lines.length) {
+                    return;
+                }
+                rows.push({
+                    key: 'pk-' + key + '-' + ns, file: c.name + ' (' + words(c.type) + ')', ns, whole, count: lines.length,
+                    kept: sourceHas === false && !whole ? lines.length : 0,
+                    lines: lines.slice(0, 20).map((l, i) => ({ key: 'l' + i, text: l.n + ': ' + l.text })),
+                    cells: this.packageColumns.map((name) => this.packageCell(name, ns, name === source, whole))
+                });
+            });
+        });
+        return rows;
+    }
+    packageCell(name, ns, isSource, whole) {
+        const has = this.orgHas(name, ns);
+        const key = 'c-' + name;
+        if (has === null) {
+            return { key, text: 'Not read', cls: 'rr-pill rr-pill-none' };
+        }
+        if (isSource) {
+            return has ? { key, text: 'From here', cls: 'rr-pill rr-pill-none' } : { key, text: 'Kept · left out', cls: 'rr-pill rr-pill-wait' };
+        }
+        if (!has) {
+            return { key, text: whole ? 'Left out (component)' : 'Left out', cls: 'rr-pill rr-pill-wait' };
+        }
+        return { key, text: 'Sent', cls: 'rr-pill rr-pill-ok' };
+    }
+    get hasPackageBox() { return this.knownNamespaces.length > 0 && !this.manualOnly && this.addedItems.length > 0; }
+    get hasPackageRows() { return this.packageRows.length > 0; }
+    get packageHeaders() { return this.packageColumns.map((n) => ({ key: 'ph-' + n, name: n })); }
+    get packageCountText() {
+        const rows = this.packageRows;
+        const files = new Set(rows.map((r) => r.file)).size;
+        const refs = rows.reduce((n, r) => n + r.count, 0);
+        return files + (files === 1 ? ' file' : ' files') + ' · ' + refs + (refs === 1 ? ' reference' : ' references');
+    }
+    /** Not every component's files were read yet: Compare reads them (and keeps them for this box). */
+    get packageNeedsCompare() {
+        return this.addedItems.some((c) => !this.compareTexts[c.type + ':' + c.name]);
+    }
+    get packageCompareText() {
+        return 'Package references inside files are found in what Compare reads. Open Compare to read '
+            + (Object.keys(this.compareTexts).length ? 'the rest of the files.' : 'the files.');
+    }
+    /** The amber note per namespace the source org lacks: its references are kept from the target branch. */
+    get packageKeptNotes() {
+        const byNs = {};
+        this.packageRows.filter((r) => r.kept > 0).forEach((r) => { byNs[r.ns] = (byNs[r.ns] || 0) + r.kept; });
+        return Object.keys(byNs).sort().map((ns) => {
+            const owner = this.packageColumns.find((n) => this.orgHas(n, ns) === true);
+            return {
+                key: 'pkn-' + ns,
+                lead: 'Kept ' + byNs[ns] + (byNs[ns] === 1 ? ' reference' : ' references') + ' to package ' + ns,
+                text: ' from the ' + this.compareTargetBranch + ' branch: ' + this.sourceName + ' doesn\'t have it, so this release can\'t remove them. '
+                    + 'To remove one, raise from an org that has the package' + (owner ? ' (' + owner + ')' : '') + '.'
+            };
+        });
+    }
+    get packageLinesLabel() { return this.showPackageLines ? 'Hide lines' : 'Show lines'; }
+    get packageLinesPressed() { return this.showPackageLines ? 'true' : 'false'; }
+    togglePackageLines() { this.showPackageLines = !this.showPackageLines; }
 
     // ---------- Delete from the branch (build 37.1, board "Delete from the branch") ----------
 
@@ -1543,7 +1683,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     // ---------- approval preview: the first stage's approval rule (RLY_Org__c.Approval_Rule__c / Approval_Types__c) ----------
 
     get targetStop() {
-        const name = this.start && this.start.targetName;
+        const name = this.raiseTarget.name;
         return ((this.start && this.start.routeStops) || []).find((o) => o.Name === name);
     }
 
@@ -1662,6 +1802,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
 
     startOver() {
         this.selected = new Set();
+        this.compareTexts = {};
         this.title = '';
         this.description = '';
         this.hotfix = false;

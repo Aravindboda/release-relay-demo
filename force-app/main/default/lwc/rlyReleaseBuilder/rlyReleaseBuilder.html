@@ -379,6 +379,56 @@
                                         </template>
                                     </div>
                                 </template>
+                                <!-- build 55: package references found, and what each org gets (board "Package-aware releases" c) -->
+                                <template lwc:if={hasPackageBox}>
+                                    <div class="rr-pkbox" role="group" aria-label="Package references">
+                                        <div class="rr-row">
+                                            <strong>Package references</strong>
+                                            <template lwc:if={hasPackageRows}><span class="rr-pill rr-pill-info">{packageCountText}</span></template>
+                                            <span class="rr-grow"></span>
+                                            <template lwc:if={hasPackageRows}>
+                                                <button type="button" class="rr-linkbtn" aria-pressed={packageLinesPressed} onclick={togglePackageLines}>{packageLinesLabel}</button>
+                                            </template>
+                                        </div>
+                                        <template lwc:if={hasPackageRows}>
+                                            <div class="rr-pk-scroll">
+                                                <table class="rr-pk-table">
+                                                    <caption class="slds-assistive-text">Package references per org</caption>
+                                                    <thead>
+                                                        <tr>
+                                                            <th scope="col">File</th>
+                                                            <th scope="col">Package</th>
+                                                            <template for:each={packageHeaders} for:item="h"><th key={h.key} scope="col">{h.name}</th></template>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <template for:each={packageRows} for:item="r">
+                                                            <tr key={r.key}>
+                                                                <td class="rr-mono rr-break">{r.file}
+                                                                    <template lwc:if={showPackageLines}>
+                                                                        <template for:each={r.lines} for:item="l"><span key={l.key} class="rr-block rr-pk-line">{l.text}</span></template>
+                                                                    </template>
+                                                                </td>
+                                                                <td class="rr-mono">{r.ns}</td>
+                                                                <template for:each={r.cells} for:item="c"><td key={c.key}><span class={c.cls}>{c.text}</span></td></template>
+                                                            </tr>
+                                                        </template>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </template>
+                                        <template for:each={packageKeptNotes} for:item="n">
+                                            <div key={n.key} class="rr-msg rr-msg-wait"><strong>{n.lead}</strong>{n.text}</div>
+                                        </template>
+                                        <template lwc:if={packageNeedsCompare}>
+                                            <div class="rr-row">
+                                                <span class="rr-small rr-weak rr-grow">{packageCompareText}</span>
+                                                <button type="button" class="rr-cmp-link" onclick={openCompareAll} disabled={raising}>Compare</button>
+                                            </div>
+                                        </template>
+                                        <p class="rr-small rr-weak">After raising, every file of the release can be opened and edited on the release page (Edit a file).</p>
+                                    </div>
+                                </template>
                                 <template lwc:if={showRaiseFields}>
                                 <lightning-input label="Title" value={title} max-length="200" required onchange={handleTitle}
                                     placeholder="What this release does, for example: Account region field and layout"></lightning-input>
