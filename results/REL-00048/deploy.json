@@ -1,0 +1,38 @@
+{
+ "request": "REL-00048",
+ "step": "deploy",
+ "status": "Deployed",
+ "sha": "0e0705506bfcfebf4238bc8888149a0adb1519f9",
+ "changed": 0,
+ "deleted": [
+  "ApexClass:RlyDemoHotfix",
+  "ApexClass:RlyDemoHotfixTest"
+ ],
+ "ok": true,
+ "testLevel": "NoTestRun",
+ "deployId": "0AfgL00000dD47NSAS",
+ "testsRun": 0,
+ "tests": [],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "quick": false,
+ "quickNote": "The validation ran no tests (NoTestRun), and production quick deploys only validations that ran tests, so it was deployed in full.",
+ "snapshot": {
+  "branch": "release-relay-snapshots",
+  "path": "REL-00048/sit/2a6e74b6e316657ca2ac99866981f7e4",
+  "existing": 0,
+  "added": 0
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42512280217",
+ "finishedAt": "2026-11-08T18:55:01.282Z",
+ "attempt": "2a6e74b6e316657ca2ac99866981f7e4",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
+}
