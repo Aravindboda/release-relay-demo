@@ -2880,6 +2880,7 @@ async function appendToRelease() {
     }
     const skipped = removeDeletions(deletions, deleted, true);
     const copied = [];
+    const zips = hasZip ? [zipFile] : [];
     zips.forEach((z) => unpackHubZip(z, components, deleted).forEach((f) => copied.push(f)));
     const tokens = tokenizeFiles(copied.map((r) => path.join(sourcePath(), r)), sourceEnv);
     if (tokens.error) {
