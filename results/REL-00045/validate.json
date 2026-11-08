@@ -9,24 +9,29 @@
  "environment": "sit",
  "ok": false,
  "testLevel": "RunSpecifiedTests",
- "deployId": null,
- "testsRun": 0,
+ "deployId": "0AfgL00000d9XfqSAE",
+ "testsRun": 2,
  "tests": [
   "ShippingQuoteTest",
   "RlyDemoTermsTest"
  ],
- "coverageWarnings": [],
+ "coverageWarnings": [
+  {
+   "name": "E2EProbe",
+   "message": "Test coverage of selected Apex Class is 0%, at least 75% test coverage is required"
+  }
+ ],
  "componentErrors": [],
  "testFailures": [],
- "message": "Metadata API request failed: REQUEST_LIMIT_EXCEEDED: TotalRequests Limit exceeded.",
+ "message": "Deployment failed",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42436180014",
- "finishedAt": "2026-11-08T01:56:03.585Z",
- "attempt": "5998014ad0f319c3e5da3f9b8b139d15",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42442751292",
+ "finishedAt": "2026-11-08T03:37:36.913Z",
+ "attempt": "691e9abf6b47185285ff884ecd006d1f",
  "excluded": [],
  "selfUpdate": false,
  "values": {
