@@ -1,0 +1,23 @@
+{
+ "request": "REL-00054",
+ "step": "raise",
+ "status": "Failed",
+ "mode": "hub",
+ "branch": "feature/rel-00054",
+ "target": "sit",
+ "sha": null,
+ "pr": null,
+ "url": null,
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "appended": false,
+ "message": "DEV1 already matches sit for these components. Nothing to commit.",
+ "inboxRemoved": [
+  ".relay-inbox/REL-00054.zip"
+ ],
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42526562189",
+ "finishedAt": "2026-11-08T21:43:02.650Z",
+ "attempt": "b562cdb13366cc9fe0f7d80357b13dd7"
+}
