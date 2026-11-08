@@ -103,9 +103,11 @@ public with sharing class RlySlackController {
         if (String.isNotBlank(input.matchBy)) {
             row.Slack_Match_By__c = RlySlackRules.matchBy(input.matchBy);
         }
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.SLACK); // build 50: Recent changes to settings
         SlackSettings out = connection();
         RlySlack.saveSettings(row);
         RlySlackTeam.remember(); // build 48: the workspace, after the callout
+        RlySettingsLog.compare(was);
         return fill(out);
     }
 
@@ -190,7 +192,9 @@ public with sharing class RlySlackController {
             ? new RLY_Notification__c(Name = RlySlack.CHANNEL, Channel__c = RlySlack.CHANNEL, Enabled__c = false)
             : new RLY_Notification__c(Id = saved.Id);
         row.Bot_Token_Hint__c = value.right(4);
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.SLACK); // build 50: Recent changes to settings
         RlySlack.saveSettings(row);
+        RlySettingsLog.compare(was);
         SlackSettings out = new SlackSettings();
         out.isAdmin = true;
         out.status = 'Bot token saved. Test the connection.';

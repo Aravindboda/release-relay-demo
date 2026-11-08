@@ -24,7 +24,9 @@ public with sharing class RlyWorkTrackersController {
             }
             RlyWorkStore.adoptLegacy();
             RlyWorkTypes.TrackerView v = (RlyWorkTypes.TrackerView) JSON.deserialize(trackerJson, RlyWorkTypes.TrackerView.class);
+            RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.TRACKING); // build 50: Recent changes to settings
             RlyWorkStore.saveTrackers(new List<RLY_Work_Tracker__c>{ RlyWorkTrackerCheck.checked(v) });
+            RlySettingsLog.compare(was);
             return view();
         } catch (Exception e) {
             throw handled(e);
@@ -43,7 +45,9 @@ public with sharing class RlyWorkTrackersController {
             requireAdmin();
             RlyWorkTypes.TrackerView v = RlyWorkSettings.trackerView(trackerFound(trackerId), 0);
             v.active = state == STATE_ON;
+            RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.TRACKING); // build 50: Recent changes to settings
             RlyWorkStore.saveTrackers(new List<RLY_Work_Tracker__c>{ RlyWorkTrackerCheck.checked(v) });
+            RlySettingsLog.compare(was);
             return view();
         } catch (Exception e) {
             throw handled(e);
@@ -61,7 +65,9 @@ public with sharing class RlyWorkTrackersController {
         try {
             requireAdmin();
             trackerFound(trackerId);
+            RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.TRACKING); // build 50: Recent changes to settings
             RlyWorkStore.saveTrackers(reordered(trackerId, direction == DIRECTION_UP ? -1 : 1));
+            RlySettingsLog.compare(was);
             return view();
         } catch (Exception e) {
             throw handled(e);

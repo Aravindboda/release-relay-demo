@@ -116,6 +116,7 @@ public with sharing class RlyBuildLock {
         if (!RlyOrgController.isAdmin()) {
             throw failure('Only Release Relay admins can change the What\'s built lock.');
         }
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.LOCK); // build 50: Recent changes to settings
         Store store = new Store();
         RLY_Lock__c org = store.orgRow();
         Boolean turnOn = enabled == true;
@@ -130,6 +131,7 @@ public with sharing class RlyBuildLock {
         org.Changed_By__c = UserInfo.getName();
         org.Changed_By_Id__c = UserInfo.getUserId();
         store.save(org);
+        RlySettingsLog.compare(was);
         return statusOf(store, org, store.userRow());
     }
 

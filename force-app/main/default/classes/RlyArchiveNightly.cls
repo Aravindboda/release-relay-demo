@@ -36,6 +36,7 @@ public with sharing class RlyArchiveNightly {
         RlyCredentialCheck.Pass credentials = RlyCredentialNightly.checkFirst(body); // build 49: callouts before any DML
         Map<String, Object> out = archiveCall(body);
         RlyCredentialNightly.saveAfter(credentials, out);
+        out.put('settingsChanges', RlySettingsLog.purge()); // build 50: settings changes are kept 90 days
         return out;
     }
 

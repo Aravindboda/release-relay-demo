@@ -26,7 +26,10 @@ public with sharing class RlyAccessController {
     public static RlyProdApproval.View saveProdApproval(String state) {
         try {
             RlyHubGuard.requireHub();
-            return RlyProdApproval.save(state);
+            RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.APPROVAL); // build 50: Recent changes to settings
+            RlyProdApproval.View saved = RlyProdApproval.save(state);
+            RlySettingsLog.compare(was);
+            return saved;
         } catch (Exception e) {
             throw handled(e);
         }

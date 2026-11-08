@@ -142,7 +142,9 @@ public with sharing class RlyOrgController {
         RlyOrgSettings.apply(row, orgJson);
         RlyApprovalRuleOrg.apply(row, orgJson, saved);
         applyStatus(row, saved);
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.ORGS); // build 50: Recent changes to settings
         data.save(row);
+        RlySettingsLog.compare(was);
         return row.Id;
     }
 
