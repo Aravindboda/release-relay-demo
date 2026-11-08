@@ -1,0 +1,78 @@
+{
+ "request": "REL-91062",
+ "step": "scan",
+ "status": "Passed",
+ "total": 3,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Moderate": 3
+ },
+ "files": [
+  "force-app/main/default/classes/RlyAccessController.cls",
+  "force-app/main/default/classes/RlyArchiveController.cls",
+  "force-app/main/default/classes/RlyArchiveNightly.cls",
+  "force-app/main/default/classes/RlyBuildLock.cls",
+  "force-app/main/default/classes/RlyCredentialHubChecks.cls",
+  "force-app/main/default/classes/RlyCredentialTest.cls",
+  "force-app/main/default/classes/RlyOrgController.cls",
+  "force-app/main/default/classes/RlyPipelineSummary.cls",
+  "force-app/main/default/classes/RlyPipelineSummaryStore.cls",
+  "force-app/main/default/classes/RlyPipelineSummaryTest.cls",
+  "force-app/main/default/classes/RlyPipelineSummaryTiles.cls",
+  "force-app/main/default/classes/RlyRouteController.cls",
+  "force-app/main/default/classes/RlyRunSigningController.cls",
+  "force-app/main/default/classes/RlySettingsLog.cls",
+  "force-app/main/default/classes/RlySettingsLogDiff.cls",
+  "force-app/main/default/classes/RlySlackController.cls",
+  "force-app/main/default/classes/RlyWorkItemsController.cls",
+  "force-app/main/default/classes/RlyWorkTrackersController.cls",
+  "force-app/main/default/lwc/rlyPipeline/pipelineSections.js",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js"
+ ],
+ "violations": [
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+   "line": 1680,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+   "line": 3079,
+   "message": "Inline rule disablement not allowed: @lwc/lwc/no-async-operation",
+   "url": null
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+   "line": 3313,
+   "message": "Inline rule disablement not allowed: @lwc/lwc/no-async-operation",
+   "url": null
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42428372657",
+ "finishedAt": "2026-11-08T00:09:18.983Z"
+}
