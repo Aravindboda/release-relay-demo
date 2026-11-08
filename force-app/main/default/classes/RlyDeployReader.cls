@@ -65,5 +65,6 @@ public with sharing class RlyDeployReader {
         rel.Deploy_Status__c = ok ? 'Deployed' : 'Failed';
         rel.Deploy_Result__c = JSON.serialize(deploy).left(131072);
         rel.Error_Message__c = ok ? null : String.valueOf(deploy.get('message')).left(2000);
+        RlyPackageResults.onDeploy(rel, deploy); // build 55: package references left out of the org, in History
     }
 }

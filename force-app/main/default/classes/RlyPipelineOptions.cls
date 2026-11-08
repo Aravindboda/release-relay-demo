@@ -5,7 +5,8 @@
  * the target branch), stageBranch (promote: the stage's branch, whose files the next stop gets), append and appendZip
  * (hub, adding changes to an open release: RlyAppendInputs), attempt (the run's token, echoed in every result file) and syncBranches (the branches to update
  * from the target after the merge: every developer branch when the target is the first stage; after a merge into the
- * hub, every stage branch in route order, then every developer branch: the back-merge).
+ * hub, every stage branch in route order, then every developer branch: the back-merge). Build 55: packages (RlyOrgPackages:
+ * known, sourceMissing for a raise or added changes, targetMissing) when any org has a managed package.
  */
 public with sharing class RlyPipelineOptions {
 
@@ -35,6 +36,7 @@ public with sharing class RlyPipelineOptions {
             options.put('validateMerged', true);
         }
         addModeOptions(rel, mode, options);
+        RlyOrgPackages.addTo(rel, mode, options); // build 55: package-aware releases (absent when no org has a package)
         RlyRunPeople.addTo(rel, options);
         return options;
     }

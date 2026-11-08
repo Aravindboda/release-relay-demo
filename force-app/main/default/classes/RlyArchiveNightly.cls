@@ -8,7 +8,8 @@
  * later calls pass its runId. Build 35: every call that isn't skipped also removes pipeline runs (RLY_Pipeline_Run__c)
  * older than the Retention days (RlyRunMonitorRetention); the answer says how many in "pipelineRuns". Build 49: the night's
  * first call also refreshes the Credentials dashboard (RlyCredentialNightly: its callouts first, its saves last) and
- * says what it found in "credentials".
+ * says what it found in "credentials". Build 55: and reads every org's installed packages (RlyOrgPackageNightly), saved
+ * after the archive pass, with "packages" in the answer.
  */
 public with sharing class RlyArchiveNightly {
 
@@ -34,8 +35,10 @@ public with sharing class RlyArchiveNightly {
      */
     public static Map<String, Object> handle(String body) {
         RlyCredentialCheck.Pass credentials = RlyCredentialNightly.checkFirst(body); // build 49: callouts before any DML
+        RlySyncPackages.Packages packages = RlyOrgPackageNightly.readFirst(body); // build 55: the orgs' packages, callouts too
         Map<String, Object> out = archiveCall(body);
         RlyCredentialNightly.saveAfter(credentials, out);
+        RlyOrgPackageNightly.saveAfter(packages, out);
         out.put('settingsChanges', RlySettingsLog.purge()); // build 50: settings changes are kept 90 days
         return out;
     }
