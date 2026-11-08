@@ -2,37 +2,31 @@
  "request": "REL-00045",
  "step": "validate",
  "status": "Failed",
- "changed": 11,
+ "changed": 13,
  "deleted": [],
  "mergedWith": "46e685ad89520598b83bd884d841c6c188a99c33",
- "validatedTree": "0a82b1a57aead01b98aab4e8e74f15018a78f2ee",
+ "validatedTree": "1981e826c2e29e070e621e63f8e5dbedd40728af",
  "environment": "sit",
  "ok": false,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d9X37SAE",
+ "deployId": null,
  "testsRun": 0,
  "tests": [
   "ShippingQuoteTest",
   "RlyDemoTermsTest"
  ],
  "coverageWarnings": [],
- "componentErrors": [
-  {
-   "type": "Flow",
-   "name": "USA_Contact_Count",
-   "problem": "field integrity exception: unknown (The field \"USA_Contact_Count__c\" for the object \"Account\" doesn't exist.)"
-  }
- ],
+ "componentErrors": [],
  "testFailures": [],
- "message": "1 component error(s)",
+ "message": "Metadata API request failed: REQUEST_LIMIT_EXCEEDED: TotalRequests Limit exceeded.",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42436005498",
- "finishedAt": "2026-11-08T01:51:36.755Z",
- "attempt": "b0ec1d3b777af7d7d292270d5a7449b6",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42436180014",
+ "finishedAt": "2026-11-08T01:56:03.585Z",
+ "attempt": "5998014ad0f319c3e5da3f9b8b139d15",
  "excluded": [],
  "selfUpdate": false,
  "values": {
@@ -40,5 +34,5 @@
   "files": [],
   "hash": ""
  },
- "headSha": "6087508536288fb397dcb3276723d90f0965e5f9"
+ "headSha": "9c2276ed66fab848ebee04eb43bac28ad5e659bb"
 }
