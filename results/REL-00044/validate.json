@@ -1,0 +1,44 @@
+{
+ "request": "REL-00044",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 11,
+ "deleted": [],
+ "mergedWith": "46e685ad89520598b83bd884d841c6c188a99c33",
+ "validatedTree": "0a82b1a57aead01b98aab4e8e74f15018a78f2ee",
+ "environment": "sit",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000d9UoPSAU",
+ "testsRun": 0,
+ "tests": [
+  "ShippingQuoteTest",
+  "RlyDemoTermsTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [
+  {
+   "type": "Flow",
+   "name": "USA_Contact_Count",
+   "problem": "field integrity exception: unknown (The field \"USA_Contact_Count__c\" for the object \"Account\" doesn't exist.)"
+  }
+ ],
+ "testFailures": [],
+ "message": "1 component error(s)",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42435182664",
+ "finishedAt": "2026-11-08T01:40:03.817Z",
+ "attempt": "16f57c044381938847b73415db80ea36",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "headSha": "a60fa765aacbb302d79f280380e706abc6cc90b0"
+}
