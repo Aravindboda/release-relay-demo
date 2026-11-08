@@ -1,0 +1,38 @@
+{
+ "request": "REL-00048",
+ "step": "validate",
+ "status": "Passed",
+ "changed": 0,
+ "deleted": [
+  "ApexClass:RlyDemoHotfix",
+  "ApexClass:RlyDemoHotfixTest"
+ ],
+ "mergedWith": "7854311b7cc84d20cfe08203c59dc2dba6007036",
+ "validatedTree": "9f4ccc31c39d9b3f32488806ccebd31c6c1d3f69",
+ "environment": "sit",
+ "ok": true,
+ "testLevel": "NoTestRun",
+ "deployId": "0AfgL00000dCxkESAS",
+ "testsRun": 0,
+ "tests": [],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42512126483",
+ "finishedAt": "2026-11-08T18:52:48.852Z",
+ "attempt": "841ca08651512d9dfde0c0b6a54cd2e0",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "headSha": "05f81f8fcf015c9cb7bac2bfca29dc4e7e95120a"
+}
