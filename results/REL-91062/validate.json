@@ -1,0 +1,275 @@
+{
+ "request": "REL-91062",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 41,
+ "deleted": [],
+ "mergedWith": "f90380eb262be197322ccfbc2cc002e86ae8ee60",
+ "validatedTree": "81ca00eb8c98925b6343ea87ef10d5368d88e6cf",
+ "environment": "sit",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000d92ybSAA",
+ "testsRun": 0,
+ "tests": [
+  "RlyAppendTest",
+  "RlyApprovalRulesTest",
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyArchiveRestTest",
+  "RlyArchiveRunsTest",
+  "RlyArchiveTest",
+  "RlyBackPromoteTest",
+  "RlyBranchDeleteTest",
+  "RlyBuildInfoTest",
+  "RlyBuildLockTest",
+  "RlyChangePartsTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyComparePipelineTest",
+  "RlyCompareTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyDataTest",
+  "RlyDeletionFinderTest",
+  "RlyDeployReaderTest",
+  "RlyEvidenceTest",
+  "RlyFlowActivationTest",
+  "RlyFlowBatchTest",
+  "RlyGitAdviceTest",
+  "RlyGitLabTest",
+  "RlyGitProvidersTest",
+  "RlyHomeControllerTest",
+  "RlyHotfixTest",
+  "RlyHubGuardTest",
+  "RlyManualOnlyTest",
+  "RlyManualStepGateTest",
+  "RlyManualStepsTest",
+  "RlyMetricsTest",
+  "RlyMigrationPartsTest",
+  "RlyMigrationTest",
+  "RlyOrgControllerTest",
+  "RlyOrgLinksTest",
+  "RlyOrgSessionTest",
+  "RlyPipelineFilesTest",
+  "RlyPromoteOverlapTest",
+  "RlyPromoteTest",
+  "RlyPullRequestCloseTest",
+  "RlyPullRequestFilesTest",
+  "RlyRaisePartsTest",
+  "RlyRaiseServiceTest",
+  "RlyReleaseSizeTest",
+  "RlyReleaseWindowTest",
+  "RlyReleasesFilterTest",
+  "RlyRepoSecurityTest",
+  "RlyRepoSettingsTest",
+  "RlyRollbackTest",
+  "RlyRouteControllerTest",
+  "RlyRunMonitorControllerTest",
+  "RlyRunMonitorRestTest",
+  "RlyRunSigningTest",
+  "RlyRunTitlesTest",
+  "RlyScanRuleTest",
+  "RlySecurityFixesTest",
+  "RlySetupStatusTest",
+  "RlySharedReadTest",
+  "RlySlackActionsTest",
+  "RlySlackApproversTest",
+  "RlySlackCardTest",
+  "RlySlackDueTest",
+  "RlySlackLinkTest",
+  "RlySlackSiteCheckTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest",
+  "RlyStepFilesTest",
+  "RlySyncTest",
+  "RlyTwoApproversTest",
+  "RlyWindowGateTest",
+  "RlyWorkItemsTest",
+  "RlyWorkTrackersTest",
+  "RlyCredentialTest",
+  "RlyRolesTest",
+  "RlyProdApprovalTest",
+  "RlyPipelineSummaryTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [
+  {
+   "type": "ApexClass",
+   "name": "RlyAccessController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySettingsLog : Method does not exist or incorrect signature: void spec(String, RLY_Lock__c, Map<String,String>) from the type RlySettingsLog",
+   "line": 221
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyArchiveController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySettingsLog : Method does not exist or incorrect signature: void spec(String, RLY_Lock__c, Map<String,String>) from the type RlySettingsLog",
+   "line": 221
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyArchiveNightly",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySettingsLog : Method does not exist or incorrect signature: void spec(String, RLY_Lock__c, Map<String,String>) from the type RlySettingsLog",
+   "line": 221
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyBuildLock",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySettingsLog : Method does not exist or incorrect signature: void spec(String, RLY_Lock__c, Map<String,String>) from the type RlySettingsLog",
+   "line": 221
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyCredentialHubChecks",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackDelivery : Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyWindowGate : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyPipelineRun : Dependent class is invalid and needs recompilation:\n Class RlyAppendInputs : Dependent class is invalid and needs recompilation:\n Class RlyAppendRun : Dependent class is invalid and needs recompilation:\n Class RlyStatusReader : Dependent class is invalid and needs recompilation:\n Class RlySharedR",
+   "line": 221
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyCredentialTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyCredentialNightly : Dependent class is invalid and needs recompilation:\n Class RlyArchiveService : Dependent class is invalid and needs recompilation:\n Class RlyArchiveStats : Dependent class is invalid and needs recompilation:\n Class RlyHomeHealth : Dependent class is invalid and needs recompilation:\n Class RlyHomeSlackHealth : Dependent class is invalid and needs recompilation:\n Class RlySlackDirectory : Dependent class is invalid and needs recompilation:\n Class RlySlackController : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlySettingsLog : Method does not exist or incorrect signature",
+   "line": 221
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyOrgController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySettingsLog : Method does not exist or incorrect signature: void spec(String, RLY_Lock__c, Map<String,String>) from the type RlySettingsLog",
+   "line": 221
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyPipelineSummary",
+   "problem": "Method does not exist or incorrect signature: void put(List<RLY_Org__c>, String) from the type Map<String,String>",
+   "line": 138
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyPipelineSummary",
+   "problem": "Method does not exist or incorrect signature: void put(RlyPipelineSummary.Tile, String) from the type Map<String,String>",
+   "line": 140
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyPipelineSummaryStore",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRepoSecurity : Dependent class is invalid and needs recompilation:\n Class RlyReleaseStore : Dependent class is invalid and needs recompilation:\n Class RlyReleaseEffects : Dependent class is invalid and needs recompilation:\n Class RlyBackPromoteRun : Dependent class is invalid and needs recompilation:\n Class RlyPromotion : Dependent class is invalid and needs recompilation:\n Class RlyHotfix : Dependent class is invalid and needs recompilation:\n Class RlyRaiseService : Dependent class is invalid and needs recompilation:\n Class RlyFlowChoices : Dependent class is invalid and needs recompilation:\n Class RlyEvidenceText : Dependent class is invalid and needs recompilation:\n Class RlyR",
+   "line": 221
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyPipelineSummaryTest",
+   "problem": "Field is not writeable: RLY_Credential_Status__c.Days_Left__c",
+   "line": 65
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyPipelineSummaryTest",
+   "problem": "Field is not writeable: RLY_Credential_Status__c.Days_Left__c",
+   "line": 67
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyPipelineSummaryTiles",
+   "problem": "Unexpected token 'on'.",
+   "line": 80
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyPipelineSummaryTiles",
+   "problem": "Unexpected token 'on'.",
+   "line": 81
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyPipelineSummaryTiles",
+   "problem": "Comparison arguments must be compatible types: String, List<String>",
+   "line": 186
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRouteController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlySettingsLog : Method does not exist or incorrect signature: void spec(String, RLY_Lock__c, Map<String,String>) from the type RlySettingsLog",
+   "line": 221
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRunSigningController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlySettingsLog : Method does not exist or incorrect signature: void spec(String, RLY_Lock__c, Map<String,String>) from the type RlySettingsLog",
+   "line": 221
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySettingsLog",
+   "problem": "Method does not exist or incorrect signature: void spec(String, RLY_Lock__c, Map<String,String>) from the type RlySettingsLog",
+   "line": 221
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySettingsLog",
+   "problem": "Method does not exist or incorrect signature: void spec(String, RLY_Lock__c, Map<String,String>) from the type RlySettingsLog",
+   "line": 222
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySettingsLog",
+   "problem": "Identifier name is reserved: into",
+   "line": 237
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySettingsLogDiff",
+   "problem": "Identifier name is reserved: into",
+   "line": 21
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySettingsLogDiff",
+   "problem": "Identifier name is reserved: into",
+   "line": 43
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySettingsLogDiff",
+   "problem": "Identifier name is reserved: any",
+   "line": 82
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlySlackController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlySettingsLog : Method does not exist or incorrect signature: void spec(String, RLY_Lock__c, Map<String,String>) from the type RlySettingsLog",
+   "line": 221
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyWorkItemsController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyWorkTrackersController : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlySettingsLog : Method does not exist or incorrect signature: void spec(String, RLY_Lock__c, Map<String,String>) from the type RlySettingsLog",
+   "line": 221
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyWorkTrackersController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlySettingsLog : Method does not exist or incorrect signature: void spec(String, RLY_Lock__c, Map<String,String>) from the type RlySettingsLog",
+   "line": 221
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyPipeline",
+   "problem": "Unable to find Apex action class referenced as 'RlyPipelineSummary'."
+  }
+ ],
+ "testFailures": [],
+ "message": "27 component error(s)",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42428372657",
+ "finishedAt": "2026-11-08T00:09:13.552Z",
+ "excluded": [],
+ "selfUpdate": true,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ }
+}
