@@ -23,7 +23,7 @@ public with sharing class RlyRelayUpdateResults {
         }
         RlyRelayUpdateState.Step s = steps.get(key);
         RlyGit g = RlyRelayUpdateRuns.git();
-        RlyGit.Run run = g.findRun(RlyRelayUpdateRuns.runTitle(s, key));
+        RlyGit.Run run = findRun(g, RlyRelayUpdateRuns.runTitle(s, key));
         if (run != null && RlyRelayUpdateOutcome.https(run.url) != null) {
             s.runUrl = run.url;
         }
@@ -35,6 +35,15 @@ public with sharing class RlyRelayUpdateResults {
         }
         RlyRelayUpdateState.write(u, steps);
         return key;
+    }
+
+    // The run is only for its link and its end; a failed runs read never stops the results from being read.
+    private static RlyGit.Run findRun(RlyGit g, String title) {
+        try {
+            return g.findRun(title);
+        } catch (RlyGit.GitException e) {
+            return null;
+        }
     }
 
     // validate.json decides; a failed raise.json (no pull request) fails the check before it.
