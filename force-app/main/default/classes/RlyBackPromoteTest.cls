@@ -22,6 +22,7 @@ private class RlyBackPromoteTest {
         insert o;
         RLY_Git_Connection__c conn = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
         update new RLY_Git_Connection__c(Id = conn.Id, Back_Promote__c = true);
+        RlyReleaseStore.forgetGit();
         return o;
     }
 

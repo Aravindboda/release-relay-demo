@@ -96,7 +96,7 @@ public with sharing class RlyDataStore {
      * @return the orgs
      */
     public static List<RLY_Org__c> orgs() {
-        return new SystemAccess().orgs();
+        return RlyReleaseStore.pipelineOrgs(new Set<String>{ 'Developer', 'Stage', 'Hub' });
     }
 
     /** @description Release Relay's own records in system mode. */
@@ -183,15 +183,6 @@ public with sharing class RlyDataStore {
                 Database.delete(rows, true, AccessLevel.SYSTEM_MODE);
             }
             return rows.size();
-        }
-
-        /**
-         * @description The orgs.
-         * @return the orgs
-         */
-        public List<RLY_Org__c> orgs() {
-            return [SELECT Id, Name, Role__c, Branch__c, Git_Environment__c, Stage_Order__c, Status__c, Org_Id__c
-                    FROM RLY_Org__c WHERE Role__c IN ('Developer', 'Stage', 'Hub') WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }
     }
 }

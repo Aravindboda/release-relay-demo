@@ -65,6 +65,7 @@ private class RlyScanRuleTest {
             System.assertEquals('off', RlyPipelineOptions.forMode(RlyReleaseStore.release(rel.Id), 'check').get(SCAN_OPTION), 'Don\'t scan');
             RLY_Git_Connection__c conn = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
             update new RLY_Git_Connection__c(Id = conn.Id, Code_Scan__c = false);
+            RlyReleaseStore.forgetGit();
             update new RLY_Org__c(Id = sit.Id, Code_Scan__c = RlyScanRule.ALWAYS_SCAN);
             System.assert(!RlyPipelineOptions.forMode(RlyReleaseStore.release(rel.Id), 'check').containsKey(SCAN_OPTION), 'Always scan');
         }

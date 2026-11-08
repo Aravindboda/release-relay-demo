@@ -5,9 +5,8 @@ import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import board from '@salesforce/apex/RlyWorkItemsController.board';
 import syncRecent from '@salesforce/apex/RlyWorkItemsController.syncRecent';
 import { searchTerm, matchesSearch } from 'c/rlyListSearch';
+import { errorText, isGated } from 'c/rlyShared';
 
-/** Modes of RlyHubGuard.getHubStatus in which the tab shows only the org gate. */
-const GATED_MODES = ['sandbox', 'copy', 'setup'];
 const FILTERS = [
     { value: 'all', label: 'All' },
     { value: 'inprogress', label: 'In progress' },
@@ -20,10 +19,6 @@ const KIND_PILL = { Jira: 'rr-pill rr-pill-run', 'Azure Boards': 'rr-pill rr-pil
 const ALL_TRACKERS = '__all';
 const UNTRACKED = '__none';
 const TONE_DOT = { ok: 'rr-dot rr-dot-ok', run: 'rr-dot rr-dot-run', wait: 'rr-dot rr-dot-warn', bad: 'rr-dot rr-dot-bad', none: 'rr-dot' };
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
 
 /**
  * Work items tab (build 40): one row per ticket, where it is on the route (a cell per stage and production) and its
@@ -55,7 +50,7 @@ export default class RlyWorkItems extends NavigationMixin(LightningElement) {
             });
     }
 
-    get gated() { return !!this.hubStatus && GATED_MODES.includes(this.hubStatus.mode); }
+    get gated() { return isGated(this.hubStatus); }
     get showPage() { return this.statusRead && !this.gated; }
 
     async load() {

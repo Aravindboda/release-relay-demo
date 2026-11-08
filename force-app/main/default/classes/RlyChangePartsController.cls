@@ -25,7 +25,7 @@ public with sharing class RlyChangePartsController {
         try {
             return RlyChangePages.tracked(new RlyChangePages.Ask(RlyChangesController.source(orgId), RlyChangesController.since(sinceIso), cursor));
         } catch (Exception e) {
-            throw RlyChangesController.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -44,7 +44,7 @@ public with sharing class RlyChangePartsController {
             String cursor = asked.get('cursor') == null ? null : String.valueOf(asked.get('cursor'));
             return RlyChangePages.folders(new RlyChangePages.Ask(RlyChangesController.source(orgId), RlyChangesController.since(sinceIso), cursor), type);
         } catch (Exception e) {
-            throw RlyChangesController.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -60,21 +60,7 @@ public with sharing class RlyChangePartsController {
         try {
             return RlyChangePages.fields(new RlyChangePages.Ask(RlyChangesController.source(orgId), RlyChangesController.since(sinceIso), cursor));
         } catch (Exception e) {
-            throw RlyChangesController.handled(e);
-        }
-    }
-
-    /**
-     * @description Find deleted components: the parts of the org's branch.
-     * @param orgId the developer org
-     * @return the plan
-     */
-    @AuraEnabled
-    public static RlyDeletionPlan.Plan deletionPlan(Id orgId) {
-        try {
-            return RlyDeletionPlan.build(RlyChangesController.source(orgId));
-        } catch (Exception e) {
-            throw RlyChangesController.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -92,12 +78,12 @@ public with sharing class RlyChangePartsController {
             RLY_Org__c target = RlyCompareTarget.of(source, targetBranch);
             return RlyDeletionPlan.buildFor(source, target.Branch__c.trim());
         } catch (Exception e) {
-            throw RlyChangesController.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
     /**
-     * @description Find deleted components and Delete from the branch: the components in one part of the branch.
+     * @description Delete from the branch: the components in one part of the branch (one part per request).
      * @param orgId the developer org
      * @param partJson the part, as the plan gave it
      * @return the components on the branch
@@ -109,12 +95,12 @@ public with sharing class RlyChangePartsController {
             RlyDeletionPlan.Part part = String.isBlank(partJson) ? null : (RlyDeletionPlan.Part) JSON.deserialize(partJson, RlyDeletionPlan.Part.class);
             return RlyDeletionPlan.readPart(part);
         } catch (Exception e) {
-            throw RlyChangesController.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
     /**
-     * @description Find deleted components: every component of one type in the org.
+     * @description Delete from the branch: every component of one type in the org.
      * @param orgId the developer org
      * @param type the metadata type
      * @return the names, lower case
@@ -124,7 +110,7 @@ public with sharing class RlyChangePartsController {
         try {
             return RlyDeletionPresence.names(RlyChangesController.source(orgId), type);
         } catch (Exception e) {
-            throw RlyChangesController.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -139,7 +125,7 @@ public with sharing class RlyChangePartsController {
         try {
             return RlyDeletionPresence.fields(RlyChangesController.source(orgId), cursor);
         } catch (Exception e) {
-            throw RlyChangesController.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 }

@@ -1,5 +1,5 @@
 /**
- * @description The Releases tab's CSV (RlyEvidenceController.exportCsvPart / exportCsv), built PART_SIZE releases at a
+ * @description The Releases tab's CSV (RlyEvidenceController.exportCsvPart), built PART_SIZE releases at a
  * time so a big list never holds every release's check and deploy results at once: the list itself is the light rows
  * of RlyReleaseQuery (up to 200), and for each part only the CSV's fields are read. The deploy ids come from the
  * validation and deploy results, each read in its own query for the part's releases and scanned for "deployId" (not
@@ -46,24 +46,6 @@ public with sharing class RlyEvidenceCsv {
         lines.addAll(lines(ids));
         p.text = String.join(lines, '\r\n');
         return p;
-    }
-
-    /**
-     * @description The whole CSV, part by part.
-     * @param filterJson the filter, as for part
-     * @return the CSV (a header line, then one line per release)
-     */
-    public static String whole(String filterJson) {
-        List<String> parts = new List<String>();
-        Integer offset = 0;
-        while (offset != null) {
-            CsvPart p = part(filterJson, offset);
-            if (String.isNotBlank(p.text)) {
-                parts.add(p.text);
-            }
-            offset = p.nextOffset;
-        }
-        return String.join(parts, '\r\n');
     }
 
     /**

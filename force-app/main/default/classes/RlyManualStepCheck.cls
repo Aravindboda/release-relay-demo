@@ -58,7 +58,7 @@ public with sharing class RlyManualStepCheck {
         }
         apply(run, m.status, note);
         RLY_Release__c rel = releaseToMove(run);
-        RLY_Release__c prior = rel == null ? null : rel.clone(true, true, true, true);
+        RLY_Release__c prior = RlySlackCardState.snapshot(rel);
         if (rel != null) {
             move(rel, run);
             RlySlackCardSync.notifyChange(prior, rel); // callouts (the Slack card too) before any DML

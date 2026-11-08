@@ -117,7 +117,7 @@ public with sharing class RlyWindowGate {
      * @return true with RLY_Window_Bypass
      */
     public static Boolean mayBypass() {
-        return FeatureManagement.checkPermission(BYPASS_PERMISSION);
+        return RlyReleaseAccess.holds(BYPASS_PERMISSION);
     }
 
     /**

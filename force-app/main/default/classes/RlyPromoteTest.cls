@@ -135,6 +135,7 @@ private class RlyPromoteTest {
                 'title' => 'X' }));
             System.assertEquals('Pick a stage to promote from.', noStage, 'Only stages promote');
             update new RLY_Git_Connection__c(Id = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1].Id, Status__c = 'Failed');
+            RlyReleaseStore.forgetGit();
             System.assert(refusal(request(rels, 'X')).contains('Git connection'), 'Needs a checked connection');
             update new RLY_Org__c(Id = orgId('PROD'), Branch__c = null);
             System.assert(refusal(request(rels, 'X')).contains('has no branch'), 'Needs the next stop\'s branch');

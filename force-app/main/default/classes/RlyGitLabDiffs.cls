@@ -19,7 +19,7 @@ public with sharing class RlyGitLabDiffs {
     }
 
     private static Map<String, Object> toFile(Map<String, Object> d) {
-        String patch = RlyGitLabRuns.text(d.get('diff'));
+        String patch = RlySyncParse.text(d.get('diff'));
         Integer[] counted = countLines(patch);
         Map<String, Object> f = new Map<String, Object>{
             'filename' => d.get('new_path'), 'status' => statusOf(d), 'additions' => counted[0], 'deletions' => counted[1]

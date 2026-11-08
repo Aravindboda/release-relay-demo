@@ -59,7 +59,7 @@ public with sharing class RlySlackReminderController {
         try {
             return view(requireOrg(orgId));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -72,15 +72,13 @@ public with sharing class RlySlackReminderController {
     @AuraEnabled
     public static Settings saveOrgSettings(Id orgId, String inputJson) {
         try {
-            if (!RlyOrgController.isAdmin()) {
-                throw new RlyReleaseException('Only Release Relay Admins can change Slack reminders.');
-            }
+            RlyReleaseAccess.requireAdmin('Only Release Relay Admins can change Slack reminders.');
             RLY_Org__c org = requireOrg(orgId);
             Input input = String.isBlank(inputJson) ? null : (Input) JSON.deserialize(inputJson, Input.class);
             RlySlackDueStore.saveSettings(rowOf(org.Id, input));
             return view(RlySlackDueStore.org(org.Id));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -133,11 +131,5 @@ public with sharing class RlySlackReminderController {
         x.timeZone = RlySlackDueReads.hubTimeZone().getID();
         x.canEdit = RlyOrgController.isAdmin();
         return x;
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        AuraHandledException h = new AuraHandledException(e.getMessage());
-        h.setMessage(e.getMessage());
-        return h;
     }
 }

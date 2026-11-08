@@ -12,13 +12,25 @@ public with sharing class RlyReleaseStore {
         'Deletion_Count__c', 'Component_Count__c', 'Retrieve_Id__c', 'Validated_Head__c',
         'Validated_Attempt__c' };
 
+    // The active Git connection, read once per transaction (git); forgetGit empties it when a connection is saved.
+    private static RLY_Git_Connection__c activeGit;
+
     /**
      * @description A registered org with its sign-in fields (consumer key included: for Apex only, never sent to the page).
      * @param orgId the org record
      * @return the org, or null
      */
     public static RLY_Org__c org(Id orgId) {
-        return new SystemAccess().readOrg(orgId);
+        return orgId == null ? null : orgs(new Set<Id>{ orgId }).get(orgId);
+    }
+
+    /**
+     * @description Registered orgs with their sign-in fields, by id (for Apex only, never sent to the page).
+     * @param orgIds the org records
+     * @return the orgs found, by id
+     */
+    public static Map<Id, RLY_Org__c> orgs(Set<Id> orgIds) {
+        return new SystemAccess().readOrgs(orgIds);
     }
 
     /**
@@ -34,7 +46,17 @@ public with sharing class RlyReleaseStore {
      * @return the orgs, without sign-in fields
      */
     public static List<RLY_Org__c> routeOrgs() {
-        return new SystemAccess().readRouteOrgs();
+        return pipelineOrgs(new Set<String>{ 'Stage', 'Hub' });
+    }
+
+    /**
+     * @description Registered orgs with these roles, by name, with the pipeline's fields (never the sign-in fields): the
+     * one read the data, sync, window, back promote and route readers share.
+     * @param roles the roles (Developer, Stage, Hub, Back_Promote)
+     * @return the orgs, by name
+     */
+    public static List<RLY_Org__c> pipelineOrgs(Set<String> roles) {
+        return new SystemAccess().readPipelineOrgs(roles);
     }
 
     /**
@@ -53,11 +75,22 @@ public with sharing class RlyReleaseStore {
     }
 
     /**
-     * @description The hub's Git connection: the active one, else the oldest (build 46: one active connection).
+     * @description The hub's Git connection: the active one, else the oldest (build 46: one active connection), with
+     * every field the tabs read. Read once per transaction; each call gets its own copy.
      * @return the connection, or null
      */
     public static RLY_Git_Connection__c git() {
-        return new SystemAccess().readGit();
+        if (activeGit == null) {
+            activeGit = new SystemAccess().readGit();
+        }
+        return activeGit == null ? null : activeGit.clone(true, true, true, true);
+    }
+
+    /**
+     * @description A Git connection was saved: the next git() reads it again.
+     */
+    public static void forgetGit() {
+        activeGit = null;
     }
 
     /**
@@ -95,11 +128,10 @@ public with sharing class RlyReleaseStore {
      * @return up to 200 releases, newest first (approvals: hotfixes first, then oldest first)
      */
     public static List<RLY_Release__c> releases(String view) {
-        SystemAccess access = new SystemAccess();
         if (view == 'approvals') {
-            return access.waitingForApproval();
+            return RlyReleaseQuery.waitingForApproval();
         }
-        return view == 'all' ? access.allReleases() : access.raisedBy(UserInfo.getUserId());
+        return RlyReleaseQuery.raisedBy(view == 'all' ? null : UserInfo.getUserId());
     }
 
     /**
@@ -155,15 +187,14 @@ public with sharing class RlyReleaseStore {
     private without sharing class SystemAccess {
 
         /**
-         * @description See RlyReleaseStore.org.
-         * @param orgId the org record
-         * @return the org, or null
+         * @description See RlyReleaseStore.orgs.
+         * @param orgIds the org records
+         * @return the orgs, by id
          */
-        public RLY_Org__c readOrg(Id orgId) {
-            List<RLY_Org__c> rows = [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Username__c, Consumer_Key__c, Client_Id__c,
-                                            Certificate__c, Branch__c, Git_Environment__c, Stage_Order__c, Code_Scan__c
-                                     FROM RLY_Org__c WHERE Id = :orgId WITH SYSTEM_MODE];
-            return rows.isEmpty() ? null : rows[0];
+        public Map<Id, RLY_Org__c> readOrgs(Set<Id> orgIds) {
+            return new Map<Id, RLY_Org__c>([SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Username__c, Consumer_Key__c, Client_Id__c,
+                                                   Certificate__c, Branch__c, Git_Environment__c, Stage_Order__c, Code_Scan__c, Source_Tracking__c
+                                            FROM RLY_Org__c WHERE Id IN :orgIds WITH SYSTEM_MODE]);
         }
 
         /**
@@ -177,13 +208,16 @@ public with sharing class RlyReleaseStore {
         }
 
         /**
-         * @description The stages and the hub.
+         * @description See RlyReleaseStore.pipelineOrgs.
+         * @param roles the roles
          * @return the orgs, by name
          */
-        public List<RLY_Org__c> readRouteOrgs() {
+        public List<RLY_Org__c> readPipelineOrgs(Set<String> roles) {
             return [SELECT Id, Name, Role__c, Branch__c, Git_Environment__c, Stage_Order__c, Status__c, Source_Tracking__c, Environment__c,
-                           Hotfix_Two_Approvers__c, Code_Scan__c
-                    FROM RLY_Org__c WHERE Role__c IN ('Stage', 'Hub') WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
+                           Hotfix_Two_Approvers__c, Code_Scan__c, Org_Id__c, Back_Promote_Approval__c, Back_Promote_When__c,
+                           Synced_On__c, Sync_Status__c, CreatedDate, Window_Days__c, Window_From__c, Window_To__c,
+                           Window_Time_Zone__c, Window_Freezes__c
+                    FROM RLY_Org__c WHERE Role__c IN :roles WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }
 
         /**
@@ -200,8 +234,11 @@ public with sharing class RlyReleaseStore {
          * @return the connection, or null
          */
         public RLY_Git_Connection__c readGit() {
-            List<RLY_Git_Connection__c> rows = [SELECT Id, Provider__c, Repository__c, Named_Credential__c, Pipeline__c, Pipeline_Branch__c,
-                                                       Source_Path__c, Code_Scan__c, Status__c, Back_Promote__c, Active__c
+            List<RLY_Git_Connection__c> rows = [SELECT Id, Name, Provider__c, Repository__c, Named_Credential__c, Pipeline__c, Pipeline_Branch__c,
+                                                       Source_Path__c, Code_Scan__c, Status__c, Back_Promote__c, Active__c,
+                                                       Status_Message__c, Last_Checked__c, Retention_Days__c, Archive_Nightly__c,
+                                                       Retention_Changed_On__c, Retention_Changed_By__c, Retention_Changed_By__r.Name,
+                                                       Retention_Previous_Days__c, Last_Nightly_Call__c, Last_Nightly_Result__c
                                                 FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC LIMIT 1];
             return rows.isEmpty() ? null : rows[0];
         }
@@ -252,42 +289,6 @@ public with sharing class RlyReleaseStore {
         public List<RLY_Release_Item__c> readItems(Id releaseId) {
             return [SELECT Id, Metadata_Type__c, Component_Name__c, Is_Deletion__c FROM RLY_Release_Item__c
                     WHERE Release__c = :releaseId WITH SYSTEM_MODE ORDER BY Metadata_Type__c, Component_Name__c LIMIT 5000];
-        }
-
-        /**
-         * @description Releases whose checks finished and that wait for an approver: hotfixes first, then oldest first.
-         * @return the releases
-         */
-        public List<RLY_Release__c> waitingForApproval() {
-            return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
-                           CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
-                    FROM RLY_Release__c WHERE Source_Org__c != null AND Status__c IN ('Ready for approval', 'Checks failed')
-                    WITH SYSTEM_MODE ORDER BY Is_Hotfix__c DESC, CreatedDate ASC LIMIT 200];
-        }
-
-        /**
-         * @description Every release raised from a developer org.
-         * @return the releases
-         */
-        public List<RLY_Release__c> allReleases() {
-            return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
-                           CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
-                    FROM RLY_Release__c WHERE Source_Org__c != null WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
-        }
-
-        /**
-         * @description Releases one user raised.
-         * @param userId the user
-         * @return the releases
-         */
-        public List<RLY_Release__c> raisedBy(Id userId) {
-            return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
-                           CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
-                    FROM RLY_Release__c WHERE Source_Org__c != null AND CreatedById = :userId
-                    WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
         }
 
         /**

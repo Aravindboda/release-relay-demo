@@ -4,6 +4,8 @@
  */
 public with sharing class RlyDataController {
 
+    private static final String ADMINS_ONLY = 'Data sets are edited by Release Relay admins.';
+
     /** @description A data set as the page sends it. */
     private class SetInput {
         /** @description The record (blank: a new set). */
@@ -26,7 +28,7 @@ public with sharing class RlyDataController {
             RlyHubGuard.requireHub();
             return RlyDataBoard.read();
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Something went wrong: ');
         }
     }
 
@@ -39,11 +41,11 @@ public with sharing class RlyDataController {
     public static Id saveSet(String setJson) {
         try {
             RlyHubGuard.requireHub();
-            requireAdmin();
+            RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
             RLY_Data_Set__c row = setOf(setJson);
             return RlyDataStore.saveSet(row);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Something went wrong: ');
         }
     }
 
@@ -55,10 +57,10 @@ public with sharing class RlyDataController {
     public static void removeSet(Id setId) {
         try {
             RlyHubGuard.requireHub();
-            requireAdmin();
+            RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
             RlyDataStore.deleteSet(setId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Something went wrong: ');
         }
     }
 
@@ -74,7 +76,7 @@ public with sharing class RlyDataController {
             RlyDataRuns.Request req = String.isBlank(requestJson) ? null : (RlyDataRuns.Request) JSON.deserialize(requestJson, RlyDataRuns.Request.class);
             return RlyDataRuns.start(req);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Something went wrong: ');
         }
     }
 
@@ -90,7 +92,7 @@ public with sharing class RlyDataController {
             RlyDataExport.Ask p = String.isBlank(partJson) ? null : (RlyDataExport.Ask) JSON.deserialize(partJson, RlyDataExport.Ask.class);
             return RlyDataExport.send(p);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Something went wrong: ');
         }
     }
 
@@ -105,7 +107,7 @@ public with sharing class RlyDataController {
             RlyHubGuard.requireHub();
             return RlyDataRuns.runExported(runId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Something went wrong: ');
         }
     }
 
@@ -120,7 +122,7 @@ public with sharing class RlyDataController {
             RlyHubGuard.requireHub();
             return RlyDataResult.read(runId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Something went wrong: ');
         }
     }
 
@@ -135,7 +137,7 @@ public with sharing class RlyDataController {
             RlyHubGuard.requireHub();
             return RlyDataRuns.load(runId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Something went wrong: ');
         }
     }
 
@@ -149,18 +151,5 @@ public with sharing class RlyDataController {
         RlyDataSet.parse(input.definition);
         return new RLY_Data_Set__c(Id = String.isBlank(input.id) ? null : Id.valueOf(input.id), Title__c = title,
             Definition__c = input.definition, Description__c = input.description == null ? null : input.description.left(4000));
-    }
-
-    private static void requireAdmin() {
-        if (!RlyOrgController.isAdmin()) {
-            throw new RlyReleaseException('Data sets are edited by Release Relay admins.');
-        }
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        String message = e instanceof RlyReleaseException ? e.getMessage() : 'Something went wrong: ' + e.getMessage();
-        AuraHandledException a = new AuraHandledException(message);
-        a.setMessage(message);
-        return a;
     }
 }

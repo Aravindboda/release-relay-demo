@@ -25,7 +25,7 @@ public with sharing class RlyArchiveSettings {
      * @return the record, or null before Git is connected
      */
     public static RLY_Git_Connection__c read() {
-        return new Data().settings();
+        return RlyReleaseStore.git();
     }
 
     /**
@@ -106,23 +106,12 @@ public with sharing class RlyArchiveSettings {
     private without sharing class Data {
 
         /**
-         * @description The hub's settings record (the oldest Git connection).
-         * @return the record, or null
-         */
-        public RLY_Git_Connection__c settings() {
-            List<RLY_Git_Connection__c> rows = [SELECT Id, Retention_Days__c, Archive_Nightly__c, Retention_Changed_On__c,
-                                                    Retention_Changed_By__c, Retention_Changed_By__r.Name, Retention_Previous_Days__c,
-                                                    Last_Nightly_Call__c, Last_Nightly_Result__c
-                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC LIMIT 1];
-            return rows.isEmpty() ? null : rows[0];
-        }
-
-        /**
          * @description Saves fields of the settings record.
          * @param row the record with the fields to save
          */
         public void write(RLY_Git_Connection__c row) {
             Database.update(row, true, AccessLevel.SYSTEM_MODE);
+            RlyReleaseStore.forgetGit();
         }
     }
 }

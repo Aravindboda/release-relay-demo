@@ -131,11 +131,11 @@ public with sharing class RlyBackPromote {
     public static void setEnabled(String state) {
         requireAdmin();
         if (state != 'on' && state != 'off') {
-            throw problem('Say on or off.');
+            throw RlyReleaseException.toAura('Say on or off.');
         }
         RLY_Git_Connection__c conn = RlyReleaseStore.git();
         if (conn == null) {
-            throw problem('Save the Git connection first.');
+            throw RlyReleaseException.toAura('Save the Git connection first.');
         }
         RlyPromoteStore.saveGit(new RLY_Git_Connection__c(Id = conn.Id, Back_Promote__c = state == 'on'));
     }
@@ -150,12 +150,12 @@ public with sharing class RlyBackPromote {
         try {
             s = (Map<String, Object>) JSON.deserializeUntyped(settingsJson);
         } catch (Exception e) {
-            throw problem('The back promote settings couldn\'t be read.');
+            throw RlyReleaseException.toAura('The back promote settings couldn\'t be read.');
         }
         RLY_Org__c o = findOrg(String.valueOf(s.get('orgId')));
         String whenValue = s.get('whenValue') == null ? whenOf(o) : String.valueOf(s.get('whenValue'));
         if (whenValue != WHEN_MANUAL && whenValue != WHEN_AFTER_DEPLOY) {
-            throw problem('Pick when ' + o.Name + ' gets the changes: Manual or After_Deploy.');
+            throw RlyReleaseException.toAura('Pick when ' + o.Name + ' gets the changes: Manual or After_Deploy.');
         }
         Boolean approval = s.get('approval') == null ? o.Back_Promote_Approval__c == true : Boolean.valueOf(s.get('approval'));
         RlyPromoteStore.saveOrgs(new List<RLY_Org__c>{
@@ -173,26 +173,13 @@ public with sharing class RlyBackPromote {
                 return o;
             }
         }
-        throw problem('Pick a registered back promote org.');
+        throw RlyReleaseException.toAura('Pick a registered back promote org.');
     }
 
     /**
      * @description Refuses users who aren't Release Relay admins.
      */
     public static void requireAdmin() {
-        if (!RlyOrgController.isAdmin()) {
-            throw problem('Changing back promote needs the Release Relay Admin permission set.');
-        }
-    }
-
-    /**
-     * @description A problem the page shows as it is.
-     * @param message the message
-     * @return the exception to throw
-     */
-    public static AuraHandledException problem(String message) {
-        AuraHandledException e = new AuraHandledException(message);
-        e.setMessage(message);
-        return e;
+        RlyReleaseAccess.requireAdmin('Changing back promote needs the Release Relay Admin permission set.');
     }
 }

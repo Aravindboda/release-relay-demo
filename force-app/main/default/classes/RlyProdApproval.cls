@@ -100,7 +100,7 @@ public with sharing class RlyProdApproval {
      * @return the note, or null
      */
     public static String noteFor(RLY_Release__c rel) {
-        if (rel == null || rel.Status__c != 'Ready for approval' || !RlyApprovalService.canApprove()) {
+        if (rel == null || rel.Status__c != 'Ready for approval' || !RlyReleaseAccess.isApprover()) {
             return null;
         }
         return mayApprove(rel, UserInfo.getUserId()) ? null : NOTE;
@@ -135,9 +135,7 @@ public with sharing class RlyProdApproval {
      * @return the view as saved
      */
     public static View save(String state) {
-        if (!RlyOrgController.isAdmin()) {
-            throw new RlyReleaseException('Only a Release Relay admin can change who approves production.');
-        }
+        RlyReleaseAccess.requireAdmin('Only a Release Relay admin can change who approves production.');
         new Data().write(state == STATE_ON ? STATE_ON : 'Off', UserInfo.getName());
         return view();
     }

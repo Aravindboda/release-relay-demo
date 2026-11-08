@@ -1,3 +1,5 @@
+@import 'c/rlySharedStyles';
+
 :host {
     padding-bottom: 1.5rem;
     display: block;
@@ -19,26 +21,20 @@
 .rr-head { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 14px; }
 .rr-head-icon { width: 32px; height: 32px; border-radius: 4px; background: #3a49da; flex: none; display: inline-flex; align-items: center; justify-content: center; }
 .rr-head-text { flex: 1 1 220px; min-width: 0; }
-.rr-kicker { font-size: 12px; color: var(--rr-muted); }
 .rr-title { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.2; }
 .rr-segs { display: inline-flex; border: 1px solid #c9c9c9; border-radius: 4px; overflow: hidden; }
 .rr-seg { border: 0; border-right: 1px solid #c9c9c9; background: #fff; padding: 5px 11px; font-size: 12px; cursor: pointer; color: var(--rr-ink); }
 .rr-seg:last-child { border-right: 0; }
 .rr-seg-on { background: var(--rr-blue); color: #fff; }
 .rr-msg { padding: 8px 10px; border-radius: 4px; font-size: 12px; flex: none; }
-.rr-msg-bad { background: #fef1ee; color: #8e030f; }
-.rr-msg-info { background: #eef4ff; color: #014486; }
 .rr-list { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .rr-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
 .rr-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .rr-table th { position: sticky; top: 0; background: #fafaf9; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--rr-muted); padding: 7px 10px; border-bottom: 1px solid var(--rr-line); z-index: 1; white-space: nowrap; }
 .rr-table td { padding: 7px 10px; border-bottom: 1px solid #f1f1f1; vertical-align: top; }
-.rr-a { color: var(--rr-link); text-decoration: none; }
 .rr-a:hover, .rr-link:hover { text-decoration: underline; }
-.rr-strong { font-weight: 700; }
 .rr-link { border: 0; background: none; padding: 0; font: inherit; color: var(--rr-link); cursor: pointer; }
 .rr-rel { display: block; text-align: left; }
-.rr-weak { color: var(--rr-muted); }
 .rr-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #d0d0d0; margin-right: 6px; vertical-align: middle; }
 .rr-dot-ok { background: var(--rr-ok); }
 .rr-dot-run { background: #7db4ef; }
@@ -49,7 +45,6 @@
 .rr-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 10px; white-space: nowrap; }
 .rr-pill-ok { background: var(--rr-ok-2); color: var(--rr-ok); }
 .rr-pill-run { background: #eef4ff; color: var(--rr-blue); }
-.rr-pill-warn { background: var(--rr-warn-2); color: var(--rr-warn); }
 .rr-pill-bad { background: var(--rr-bad-2); color: var(--rr-bad); }
 .rr-pill-none { background: #f3f3f3; color: var(--rr-muted); }
 .rr-pill-vio { background: #f2ecfc; color: #5a1ba9; }

@@ -20,10 +20,10 @@ public with sharing class RlyMigrationReport {
         List<String> h = new List<String>{ '<html><head>' + STYLE + '</head><body>' };
         String fromLabel = v.current == null ? '' : v.current.providerLabel + ' ' + v.current.repository;
         String toLabel = v.target == null ? '' : v.target.providerLabel + ' ' + v.target.repository;
-        h.add('<h1>Migration report ' + esc(m.Migration_Id__c) + '</h1>');
-        h.add('<p>' + esc(fromLabel) + ' → ' + esc(toLabel) + '<br/>Method: ' + esc(methodLabel(v)) + '<br/>Started '
-            + esc(String.valueOf(m.CreatedDate)) + ' by ' + esc(m.CreatedBy?.Name) + ' · switched ' + esc(String.valueOf(m.Switched_On__c))
-            + ' · finished ' + esc(String.valueOf(System.now())) + ' · status ' + esc(m.Status__c) + '</p>');
+        h.add('<h1>Migration report ' + RlyEvidenceTables.esc(m.Migration_Id__c) + '</h1>');
+        h.add('<p>' + RlyEvidenceTables.esc(fromLabel) + ' → ' + RlyEvidenceTables.esc(toLabel) + '<br/>Method: ' + RlyEvidenceTables.esc(methodLabel(v)) + '<br/>Started '
+            + RlyEvidenceTables.esc(String.valueOf(m.CreatedDate)) + ' by ' + RlyEvidenceTables.esc(m.CreatedBy?.Name) + ' · switched ' + RlyEvidenceTables.esc(String.valueOf(m.Switched_On__c))
+            + ' · finished ' + RlyEvidenceTables.esc(String.valueOf(System.now())) + ' · status ' + RlyEvidenceTables.esc(m.Status__c) + '</p>');
         h.add(summarySection('Dry run', v.run.dry));
         h.add(summarySection(m.Method__c == RlyMigrationMethods.IMPORTER ? 'Verify' : 'Run', v.run.result));
         h.add(movedSection(v.moved));
@@ -56,12 +56,12 @@ public with sharing class RlyMigrationReport {
     }
 
     private static String movedSection(RlyMigrationView.Moved mv) {
-        List<String> h = new List<String>{ '<h2>What moved</h2><p>' + esc(mv.counts) + ' · ' + esc(mv.matched)
+        List<String> h = new List<String>{ '<h2>What moved</h2><p>' + RlyEvidenceTables.esc(mv.counts) + ' · ' + RlyEvidenceTables.esc(mv.matched)
             + (mv.fresh ? ' (fresh start: each branch\'s files, one commit, no history)' : '') + '</p>',
             '<table><tr><th>Kind</th><th>Name</th><th>Role</th><th>Current</th><th>New</th><th>Match</th></tr>' };
         for (RlyMigrationView.RefRow r : mv.rows) {
-            h.add('<tr><td>' + esc(r.kind) + '</td><td class="m">' + esc(r.name) + '</td><td>' + esc(r.role) + '</td><td class="m">'
-                + esc(r.source) + '</td><td class="m">' + esc(r.target) + '</td><td>' + (r.match ? '✓' : '✗') + '</td></tr>');
+            h.add('<tr><td>' + RlyEvidenceTables.esc(r.kind) + '</td><td class="m">' + RlyEvidenceTables.esc(r.name) + '</td><td>' + RlyEvidenceTables.esc(r.role) + '</td><td class="m">'
+                + RlyEvidenceTables.esc(r.source) + '</td><td class="m">' + RlyEvidenceTables.esc(r.target) + '</td><td>' + (r.match ? '✓' : '✗') + '</td></tr>');
         }
         h.add('</table>' + (mv.more > 0 ? '<p class="w">' + mv.more + ' more not listed.</p>' : ''));
         return String.join(h, '');
@@ -73,7 +73,7 @@ public with sharing class RlyMigrationReport {
             h.add(row2('Open ' + r.label, r.title + ' (' + r.branches + ') ' + r.url));
         }
         for (String s : mv.stays) {
-            h.add('<tr><td colspan="2">' + esc(s) + '</td></tr>');
+            h.add('<tr><td colspan="2">' + RlyEvidenceTables.esc(s) + '</td></tr>');
         }
         h.add('</table>');
         return String.join(h, '');
@@ -82,8 +82,8 @@ public with sharing class RlyMigrationReport {
     private static String itemsSection(String title, List<RlyMigrationChecklist.Item> items) {
         List<String> h = new List<String>{ '<h2>' + title + '</h2><table><tr><th>Item</th><th>Where</th><th>Done</th><th>By</th><th>When</th></tr>' };
         for (RlyMigrationChecklist.Item i : items) {
-            h.add('<tr><td>' + esc(i.label) + '</td><td>' + esc(i.place) + '</td><td>' + (i.done ? 'Done' : 'Not done') + '</td><td>'
-                + esc(i.who) + '</td><td>' + esc(String.valueOf(i.stamp)) + '</td></tr>');
+            h.add('<tr><td>' + RlyEvidenceTables.esc(i.label) + '</td><td>' + RlyEvidenceTables.esc(i.place) + '</td><td>' + (i.done ? 'Done' : 'Not done') + '</td><td>'
+                + RlyEvidenceTables.esc(i.who) + '</td><td>' + RlyEvidenceTables.esc(String.valueOf(i.stamp)) + '</td></tr>');
         }
         h.add('</table>');
         return String.join(h, '');
@@ -93,15 +93,15 @@ public with sharing class RlyMigrationReport {
         List<String> h = new List<String>{ '<h2>Orgs against their new branch</h2><table><tr><th>Org</th><th>Branch</th><th>How</th>'
             + '<th>Result</th><th>Details</th></tr>' };
         for (RlyMigrationView.OrgRow o : v.orgs) {
-            h.add('<tr><td>' + esc(o.name) + '</td><td class="m">' + esc(o.branch) + '</td><td>' + esc(o.how) + '</td><td>' + esc(o.status)
-                + '</td><td>' + esc(o.detail) + '</td></tr>');
+            h.add('<tr><td>' + RlyEvidenceTables.esc(o.name) + '</td><td class="m">' + RlyEvidenceTables.esc(o.branch) + '</td><td>' + RlyEvidenceTables.esc(o.how) + '</td><td>' + RlyEvidenceTables.esc(o.status)
+                + '</td><td>' + RlyEvidenceTables.esc(o.detail) + '</td></tr>');
         }
-        h.add('</table>' + (String.isBlank(v.gate.acceptReason) ? '' : '<p>Differences accepted: ' + esc(v.gate.acceptReason) + '</p>'));
+        h.add('</table>' + (String.isBlank(v.gate.acceptReason) ? '' : '<p>Differences accepted: ' + RlyEvidenceTables.esc(v.gate.acceptReason) + '</p>'));
         return String.join(h, '');
     }
 
     private static String gateSection(RlyMigrationView.Gate g) {
-        List<String> h = new List<String>{ '<h2>The switch</h2><p>Switched on: ' + esc(String.valueOf(g.switchedOn)) + '</p><table>' };
+        List<String> h = new List<String>{ '<h2>The switch</h2><p>Switched on: ' + RlyEvidenceTables.esc(String.valueOf(g.switchedOn)) + '</p><table>' };
         for (RlyMigrationView.Condition c : g.conditions) {
             h.add(row2((c.ok ? '✓ ' : '✗ ') + c.label, c.detail));
         }
@@ -112,18 +112,14 @@ public with sharing class RlyMigrationReport {
     private static String eventsSection(List<RlyMigrationView.Event> events) {
         List<String> h = new List<String>{ '<h2>Who did each step and when</h2><table><tr><th>When</th><th>Who</th><th>Step</th><th>What</th></tr>' };
         for (RlyMigrationView.Event e : events) {
-            h.add('<tr><td>' + esc(String.valueOf(e.stamp)) + '</td><td>' + esc(e.who) + '</td><td>' + esc(e.step) + '</td><td>'
-                + esc(e.what) + '</td></tr>');
+            h.add('<tr><td>' + RlyEvidenceTables.esc(String.valueOf(e.stamp)) + '</td><td>' + RlyEvidenceTables.esc(e.who) + '</td><td>' + RlyEvidenceTables.esc(e.step) + '</td><td>'
+                + RlyEvidenceTables.esc(e.what) + '</td></tr>');
         }
         h.add('</table>');
         return String.join(h, '');
     }
 
     private static String row2(String label, String value) {
-        return String.isBlank(value) ? '' : '<tr><th style="width:24%">' + esc(label) + '</th><td>' + esc(value) + '</td></tr>';
-    }
-
-    private static String esc(String s) {
-        return s == null ? '' : s.escapeHtml4();
+        return String.isBlank(value) ? '' : '<tr><th style="width:24%">' + RlyEvidenceTables.esc(label) + '</th><td>' + RlyEvidenceTables.esc(value) + '</td></tr>';
     }
 }

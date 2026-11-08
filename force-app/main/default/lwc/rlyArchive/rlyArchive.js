@@ -11,9 +11,8 @@ import {
     KB_PER_RECORD, PASS_SIZE, DAY_MS, num, count, longDate, shortDate, clock, when, stamp, toDate,
     nightlyClock, mb, size, duration, errorText
 } from 'c/rlyArchiveText';
+import { isGated, clearSearchBox } from 'c/rlyShared';
 
-/** Modes of RlyHubGuard.getHubStatus in which the tab shows only the org gate. */
-const GATED_MODES = ['sandbox', 'copy', 'setup'];
 /** Under this width (board section 4) tiles stack two per row and the runs list keeps When, Releases and Status. */
 const NARROW_QUERY = '(max-width: 480px)';
 const PIPELINE_TAB = 'RLY_Pipeline';
@@ -230,7 +229,7 @@ export default class RlyArchive extends NavigationMixin(LightningElement) {
 
     // ---------- gate and access ----------
 
-    get statusGated() { return !!this.hubStatus && GATED_MODES.includes(this.hubStatus.mode); }
+    get statusGated() { return isGated(this.hubStatus); }
     /** The org gate's status: the hub guard's, or readArchive's own mode when it isn't the hub. */
     get gateStatus() {
         if (this.statusGated) {
@@ -563,10 +562,7 @@ export default class RlyArchive extends NavigationMixin(LightningElement) {
     }
 
     clearSearch() {
-        const box = this.template.querySelector('c-rly-search-box');
-        if (box) {
-            box.clear();
-        }
+        clearSearchBox(this.template);
         this.searchText = '';
         this.term = '';
         this.filter = 'all';

@@ -74,14 +74,14 @@ public with sharing class RlyGitLabTree {
         String prefix = folder == '' ? '' : folder + '/';
         for (Object o : rows) {
             Map<String, Object> row = (Map<String, Object>) o;
-            String fullPath = RlyGitLabRuns.text(row.get('path'));
+            String fullPath = RlySyncParse.text(row.get('path'));
             if (fullPath == null) {
                 continue;
             }
             RlyGitTree.Entry e = new RlyGitTree.Entry();
-            e.type = RlyGitLabRuns.text(row.get('type'));
+            e.type = RlySyncParse.text(row.get('type'));
             e.path = fullPath.removeStart(prefix);
-            e.sha = e.type == 'tree' ? folderRef(ref, fullPath) : RlyGitLabRuns.text(row.get('id'));
+            e.sha = e.type == 'tree' ? folderRef(ref, fullPath) : RlySyncParse.text(row.get('id'));
             t.entries.add(e);
         }
     }

@@ -57,7 +57,7 @@ public with sharing class RlyWindowController {
             }
             return out;
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -69,9 +69,7 @@ public with sharing class RlyWindowController {
     @AuraEnabled
     public static WindowView saveWindow(String inputJson) {
         try {
-            if (!RlyOrgController.isAdmin()) {
-                throw new RlyReleaseException('Only a Release Relay admin can change a release window.');
-            }
+            RlyReleaseAccess.requireAdmin('Only a Release Relay admin can change a release window.');
             RlyWindowInput w = RlyWindowInput.parse(inputJson);
             RLY_Org__c org = w == null ? null : RlyWindowStore.org(w.orgId);
             if (org == null) {
@@ -80,7 +78,7 @@ public with sharing class RlyWindowController {
             RlyWindowStore.save(w.rowFor(org.Id));
             return viewOf(RlyWindowStore.org(org.Id));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -94,7 +92,7 @@ public with sharing class RlyWindowController {
         try {
             return RlyWindowGate.noticeFor(RlyReleaseStore.release(releaseId));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -109,7 +107,7 @@ public with sharing class RlyWindowController {
         try {
             RlyHubGuard.requireHub();
             RLY_Release__c rel = RlyReleaseStore.release(releaseId);
-            RLY_Release__c prior = rel == null ? null : rel.clone(true, true, true, true);
+            RLY_Release__c prior = RlySlackCardState.snapshot(rel);
             RlyWindowGate.deployNow(rel, reason);
             RlySlackCardSync.notifyChange(prior, rel); // the Slack card follows (callouts before any DML)
             RlyReleaseStore.save(rel);
@@ -117,7 +115,7 @@ public with sharing class RlyWindowController {
             RlyReleaseLog.flush();
             return rel.Status__c;
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -139,7 +137,7 @@ public with sharing class RlyWindowController {
             }
             return out;
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -173,11 +171,5 @@ public with sharing class RlyWindowController {
         u.text = text;
         u.now = running;
         return u;
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        AuraHandledException a = new AuraHandledException(e.getMessage());
-        a.setMessage(e.getMessage());
-        return a;
     }
 }

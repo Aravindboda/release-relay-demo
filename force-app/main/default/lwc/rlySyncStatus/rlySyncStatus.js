@@ -19,9 +19,8 @@ import startPipelinePart from '@salesforce/apex/RlyCompareController.startPipeli
 import stagePipelinePart from '@salesforce/apex/RlyCompareController.stagePipelinePart';
 import { searchTerm, matchesSearch, highlightParts } from 'c/rlyListSearch';
 import { listTypeChunks, partsOf, statusChip, pairKey, packageStatus, versionList, compareVersions } from './syncHelpers';
+import { errorText, isGated, partsToSend, withPart, partIn } from 'c/rlyShared';
 
-/** Modes of RlyHubGuard.getHubStatus in which the tab shows only the org gate. */
-const GATED_MODES = ['sandbox', 'copy', 'setup'];
 const PAGE_MIN_HEIGHT = 520;
 const PAGE_BOTTOM_GAP = 24;
 const NEW_RELEASE_TAB = 'RLY_New_Release';
@@ -44,10 +43,6 @@ const FILTERS = [
 /** The name split for highlighting the search text. */
 function marked(text, q) {
     return highlightParts(text, q).map((p) => ({ ...p, cls: p.hit ? 'rr-hit' : '' }));
-}
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
 }
 
 /**
@@ -127,7 +122,7 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
         }
     }
 
-    get gated() { return !!this.hubStatus && GATED_MODES.includes(this.hubStatus.mode); }
+    get gated() { return isGated(this.hubStatus); }
     get showPage() { return this.statusRead && !this.gated; }
 
     load() {
@@ -306,24 +301,17 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
         if (!s || s.phase !== 'sending') {
             return;
         }
-        if (s.parts.every((p) => p.phase === 'ready')) {
+        const next = partsToSend(s, AT_ONCE);
+        if (next.allReady) {
             this.finishDeveloper();
             return;
         }
-        let running = s.parts.filter((p) => p.phase === 'running').length;
-        s.parts.forEach((p) => {
-            if (running < AT_ONCE && p.phase === 'waiting') {
-                running += 1;
-                this.sendPart(p.id);
-            }
-        });
+        next.ids.forEach((id) => this.sendPart(id));
     }
 
-    setPart(id, values) {
-        this.sending = { ...this.sending, parts: this.sending.parts.map((p) => (p.id === id ? { ...p, ...values } : p)) };
-    }
+    setPart(id, values) { this.sending = withPart(this.sending, id, values); }
 
-    partOf(id) { return this.sending ? this.sending.parts.find((p) => p.id === id) : undefined; }
+    partOf(id) { return partIn(this.sending, id); }
 
     async sendPart(id) {
         const p = this.partOf(id);

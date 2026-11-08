@@ -201,6 +201,7 @@ const SIGN_IN_PROBLEMS = [
     ['"The org refused the login. Check that its External Client App has the JWT bearer flow on, the hub certificate uploaded, and the user pre-authorized."', 'Check the three things in the External Client App (D. Each org, steps 2 and 3). A new app can take a few minutes before it works.'],
     ['"Saved, but the sign-in didn\'t work yet: … Fix the details, then Check connection and next."', 'The org is saved but not signed in, and the window stays on Sign-in. Fix what the message names, then press **Check connection and next** again. Cancel keeps the org as saved, with the status Failed.'],
     ['"… is already the hub. There is only one hub: edit … instead." or "The hub keeps its role: there must always be one hub."', 'There is one hub only. Register this org with another role, or open the hub\'s card and edit it there.'],
+    ['"Release Relay supports up to 10 orgs per hub."', 'The hub has 10 registered orgs. Remove one you no longer use before registering another.'],
     ['"The Org Id changed since the last check, so this sandbox was refreshed. The new Org Id is saved."', 'Nothing to fix: a note after a sandbox refresh. Check the sandbox still has the integration user and the External Client App (see After a sandbox refresh).']
 ];
 
@@ -706,6 +707,7 @@ const SETUP_SECTIONS = [
                                 goal: 'The hub saves how to reach the org and where it sits on the route.',
                                 items: [
                                     'Org name: a short name people know, for example `SIT` or `DEV1` (examples).',
+                                    'A hub has at most 10 registered orgs, the hub included: the eleventh is refused with "Release Relay supports up to 10 orgs per hub."',
                                     'Role: **Developer org** (people build here; the label says which branch it raises into), **Stage (an org on the route)** or **Back promote (after production)**. **Hub (this org, production)** is offered only until the hub is registered (B. Hub org).',
                                     'My Domain URL: the org\'s, with `https://`.',
                                     'Login type: read from the My Domain URL and grey. A URL with `.sandbox.` is **Sandbox**; any other is **Production or Developer Edition**.',
@@ -1599,7 +1601,7 @@ const USE_SECTIONS = [
                                 goal: 'Pick exactly what goes, and the tests that cover your Apex.',
                                 items: [
                                     'Types are on the left with counts (Code, Automation, Data model, Access and UI, Other); changes on the right. **Show** custom, standard or both, and search by name or type. The ↻ button reads the org again.',
-                                    'Deleted something? Orgs with source tracking list it with a red **Delete** pill. Otherwise press **Find deleted components** and tick only what you deleted (see Deleting components).',
+                                    'Deleted something? Orgs with source tracking list it with a red **Delete** pill. Otherwise pick it with **Delete from <branch> branch…** (see Deleting components).',
                                     'The bar at the bottom counts what you picked. Red means Apex without a test class: "Apex selected without a test class." Press the suggested **+ test class**, or tick it.',
                                     '**Show selection** lists what you picked, with × to remove one; **Clear all** empties it.',
                                     'Press **Next: review**. It stays grey while nothing is picked, while the org is read, or while Apex has no test.'
@@ -1764,7 +1766,8 @@ const USE_SECTIONS = [
                                     'Press **Compare** on a component under **In this release** (or on a flow), or **Compare all** above the list. The window is called **Compare with** the target.',
                                     'The hub gets your org\'s copy and reads the target branch (usually under a minute), then marks each component **Changed**, **New in this release**, **Same**, **Deleted** or **Not available** (**Checking…** while it reads).',
                                     'Left is the target branch (Target, what is there now), right is your org (Source, what the release brings). Switch **Split** / **Unified**; click **⋯ unchanged lines** to open them. A component with several files has a file picker.',
-                                    'Compared: Apex classes and triggers, Visualforce pages and components, flows, layouts, permission sets, Lightning web components and Aura components. Objects, fields, record types, profiles and other types show **Not available** ("Compare isn\'t available for … yet"): see them under **Changes** after raising. Static resources and other binary files aren\'t compared either.',
+                                    'Compared: Apex classes and triggers, Visualforce pages and components, flows, layouts, permission sets, Lightning web components and Aura components. Objects, fields, record types and other types show **Not available** ("Compare isn\'t available for … yet"): see them under **Changes** after raising.',
+                                    'Static resources and profiles are never compared, in the hub or in the pipeline: their files are large. They show **Not compared: open it in Git.** with a link to the file on the target\'s branch.',
                                     'The hub reads the components a few at a time (5 per part, 3 parts at once), so each row shows **Waiting**, **Comparing**, then its result, and the first one ready opens by itself. A part that can\'t be read shows **Couldn\'t read** on its rows with **Try again**; the other components carry on.',
                                     'Up to 50 components in the hub. With more, or when a file is **Too large** for the hub, press **Compare all in the pipeline**: the hub sends your org\'s copy to Git in parts and the pipeline compares every component there (usually 1–2 minutes; the run shows on the Pipeline Monitor as **Compare**). The pipeline also compares types the hub can\'t, such as objects and fields, and shows a very large file as its changed lines only. It needs the GitHub pipeline files version 22.',
                                     'A flow shows its versions on both sides, for example Version 8 · Draft against Version 7 · Active (an example). When your org has an active version and a newer draft, the copy compared is the active one, and the window says the newer version isn\'t compared.'
@@ -1864,9 +1867,7 @@ const USE_SECTIONS = [
                                 title: 'Orgs without source tracking',
                                 where: 'New Release → Select',
                                 text: [
-                                    'Press **Find deleted components**. The hub compares the files in your org\'s own branch with what is in the org and lists what is in the branch but not in the org.',
-                                    'They may have been deleted in your org, or came from another org through the branch and were never deployed to yours. Nothing is ticked for you: **tick only what you deleted**.',
-                                    'It reads the branch a folder at a time and checks your org a type at a time, so a big branch doesn\'t time out; a part that can\'t be read is listed with **Try again**. Every metadata type your org has is covered (the org\'s own list of types says which folder holds which type), territory models, territories and territory rules included. Reports, dashboards and email templates in folders aren\'t compared this way: use **Delete from the branch** for them.',
+                                    'Pick what you deleted with **Delete from <branch> branch…** (below). Release Relay no longer scans the whole branch against your org for you: you choose each deletion, and the branch is read one folder per request.',
                                     'Picklist values aren\'t components: remove a value in the field (Salesforce makes it inactive in the target, it can\'t delete it through a deploy) or add a manual step to delete it in Setup.'
                                 ]
                             },
@@ -1875,7 +1876,7 @@ const USE_SECTIONS = [
                                 where: 'New Release → Select → Delete from <branch> branch…',
                                 text: [
                                     'Pick what to delete straight from the target\'s branch (the first stage\'s, for example **sit**), without deleting it in your org first. Useful after a refresh, or for something that never was in your org.',
-                                    'The window reads the branch a folder at a time: types on the left with their counts, components on the right with search, **All** / **Chosen**. Press **Delete** on a component to choose it (press again to drop it); **Add N to the release** puts them in the release\'s deletions, like Find deleted components.',
+                                    'The window reads the branch a folder at a time: types on the left with their counts, components on the right with search, **All** / **Chosen**. Press **Delete** on a component to choose it (press again to drop it); **Add N to the release** puts them in the release\'s deletions.',
                                     'Each component says whether your org still has it: **Still in DEV1** (amber: delete it there too, or a later release from DEV1 can bring it back) or **Not in DEV1**. Components already in the release say **In release**.',
                                     'Greyed with the reason, and not selectable: Salesforce\'s own objects and fields, org settings, standard value sets, standard profiles, files that hold every rule of an object (workflow, sharing, assignment, auto-response, escalation and matching rules), labels and translations, and managed package components (install or upgrade the package instead).',
                                     'The rest is as for any deletion: checks in the first stage catch anything still using it, then approval, deploy and promotion. Records a queue owns stay where they are: add a manual step to move them first.'
@@ -2519,7 +2520,8 @@ const USE_SECTIONS = [
                                     'Brings the org up to date with production at once. The section shows how many releases it is behind (or **Matches** the hub), which ones, and the last sync with its result.',
                                     '**Sync now** is grey while back promote is off: "Back promote is off. Switch it on under Back promote, next to the Git connection, to sync this org."'
                                 ],
-                                text: ['A sync merges production\'s branch into the org\'s branch, deploys what changed, and only then pushes the branch. A conflict or a failed deploy stops it, and nothing is pushed.']
+                                text: ['A sync merges production\'s branch into the org\'s branch, deploys what changed, and only then pushes the branch. A conflict or a failed deploy stops it, and nothing is pushed.',
+                                    'Several syncs wait in a queue: each refresh of an open hub release or of the Pipeline tab starts or reads one of them, the one read longest ago, so a big sync never shares a request with another.']
                             }
                         ]
                     }

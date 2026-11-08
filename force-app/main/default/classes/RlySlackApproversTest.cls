@@ -316,12 +316,14 @@ private class RlySlackApproversTest {
         System.runAs(RlyTestData.admin()) {
             RLY_Notification__c s = RlyReleaseTestData.slackOn('Deployed');
             update new RLY_Notification__c(Id = s.Id, Slack_Match_By__c = 'Manual');
+            RlySlack.forgetSettings();
             User ann = person('Annmail', 'blank');
             approve(ann);
             RlySlackApprovers.Window w = RlySlackApprovers.load();
             System.assertEquals('notLinked', rowOf(w, ann.Id).reasonCode, 'Manual: not linked');
             System.assert(RlySlackApprovers.matchPass(null, 0).problem.contains('manual'), 'Nothing matched');
             update new RLY_Notification__c(Id = s.Id, Slack_Match_By__c = 'Email');
+            RlySlack.forgetSettings();
             User twin = person('Annmail', 'blank');
             approve(twin);
             update new List<User>{ new User(Id = ann.Id, RLY_Slack_Match_Note__c = RlySlackMatch.NOTE_SAME_EMAIL),

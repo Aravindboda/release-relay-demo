@@ -41,7 +41,7 @@ public with sharing class RlyArchiveNightly {
 
     // One archive pass (or why the call is skipped).
     private static Map<String, Object> archiveCall(String body) {
-        Map<String, Object> input = parse(body);
+        Map<String, Object> input = RlySyncParse.parsedOrEmpty(body);
         RLY_Git_Connection__c conn = RlyArchiveSettings.read();
         Id runId = toId(input.get('runId'));
         String why = skipReason(conn);
@@ -118,18 +118,6 @@ public with sharing class RlyArchiveNightly {
     private static Map<String, Object> answer(Id runId, String reason) {
         return new Map<String, Object>{ 'runId' => runId, 'pass' => 0, 'removed' => 0, 'records' => 0, 'remaining' => 0,
             'done' => true, 'skipped' => false, 'reason' => reason };
-    }
-
-    private static Map<String, Object> parse(String body) {
-        if (String.isBlank(body)) {
-            return new Map<String, Object>();
-        }
-        try {
-            Object o = JSON.deserializeUntyped(body);
-            return o instanceof Map<String, Object> ? (Map<String, Object>) o : new Map<String, Object>();
-        } catch (JSONException e) {
-            return new Map<String, Object>();
-        }
     }
 
     // Only an https address is kept (the GitHub Actions run).
