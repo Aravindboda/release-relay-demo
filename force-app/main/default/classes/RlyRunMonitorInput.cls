@@ -28,23 +28,6 @@ public with sharing class RlyRunMonitorInput {
     };
 
     /**
-     * @description The body as a map; a blank body, bad JSON or anything but an object is an empty map.
-     * @param body the request body
-     * @return the values by key
-     */
-    public static Map<String, Object> parse(String body) {
-        if (String.isBlank(body)) {
-            return new Map<String, Object>();
-        }
-        try {
-            Object o = JSON.deserializeUntyped(body);
-            return o instanceof Map<String, Object> ? (Map<String, Object>) o : new Map<String, Object>();
-        } catch (JSONException e) {
-            return new Map<String, Object>();
-        }
-    }
-
-    /**
      * @description Trimmed text cut to a length, or null for blank or a value that isn't text or a number.
      * @param o the value
      * @param maxLength the field's length

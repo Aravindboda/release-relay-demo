@@ -17,6 +17,13 @@ public with sharing class RlyReleaseQuery {
     private static final String STATE_DEPLOYED = 'deployed';
     // NOT IN needs a value: nothing is hidden outside the deployed state.
     private static final Set<String> HIDE_NOTHING = new Set<String>{ '-' };
+    // The one release list SELECT (Releases tab, Home lists, approvals): its fields, then the conditions callers add.
+    private static final String LIST_SELECT = 'SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, '
+        + 'Target_Org__r.Name, Target_Branch__c, CreatedBy.Name, CreatedDate, Component_Count__c, Scan_Status__c, '
+        + 'Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c, Release_Type__c, Carried_Releases__c, Deletion_Count__c, '
+        + 'CreatedById, Last_Synced__c, Manual_Only__c FROM RLY_Release__c WHERE Source_Org__c != null';
+    private static final String BY_USER = ' AND CreatedById = :userId';
+    private static final String MATCHING = ' AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)';
 
     /** @description Statuses that still need something (the open state). */
     private static final Set<String> OPEN_STATES = new Set<String>{ 'Submitted', 'Retrieving', 'Workflow running', 'Validating',
@@ -92,6 +99,24 @@ public with sharing class RlyReleaseQuery {
     }
 
     /**
+     * @description Releases whose checks finished and that wait for an approver: hotfixes first, then oldest first.
+     * @return up to 200 releases
+     */
+    public static List<RLY_Release__c> waitingForApproval() {
+        return new SystemAccess().rows(' AND Status__c IN (\'Ready for approval\', \'Checks failed\')', new Map<String, Object>(),
+            'Is_Hotfix__c DESC, CreatedDate ASC');
+    }
+
+    /**
+     * @description Releases raised from a developer org by one user, or by everyone.
+     * @param userId the user, or null for everyone
+     * @return up to 200 releases, newest first
+     */
+    public static List<RLY_Release__c> raisedBy(Id userId) {
+        return new SystemAccess().rows(userId == null ? '' : BY_USER, new Map<String, Object>{ 'userId' => userId }, 'CreatedDate DESC');
+    }
+
+    /**
      * @description How many releases a user (or everyone) raised in each state.
      * @param raisedById the user, or blank for everyone
      * @return the count by state (open, checks, deployed, rolledback, failed, closed, all); every state is present
@@ -159,24 +184,9 @@ public with sharing class RlyReleaseQuery {
          * @return the releases, newest first
          */
         public List<RLY_Release__c> listed(Criteria c) {
-            Set<String> statuses = c.statuses;
-            String pattern = c.pattern;
-            Set<String> hidden = c.hiddenRollback;
-            if (c.userId == null) {
-                return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
-                               CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                               Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
-                        FROM RLY_Release__c WHERE Source_Org__c != null AND Status__c IN :statuses AND (Rollback_Status__c = null OR Rollback_Status__c NOT IN :hidden)
-                            AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
-                        WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
-            }
-            Id userId = c.userId;
-            return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
-                           CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
-                    FROM RLY_Release__c WHERE Source_Org__c != null AND CreatedById = :userId AND Status__c IN :statuses
-                        AND (Rollback_Status__c = null OR Rollback_Status__c NOT IN :hidden) AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
-                    WITH SYSTEM_MODE ORDER BY CreatedDate DESC LIMIT 200];
+            return rows((c.userId == null ? '' : BY_USER) + ' AND Status__c IN :statuses AND (Rollback_Status__c = null OR '
+                + 'Rollback_Status__c NOT IN :hidden)' + MATCHING, new Map<String, Object>{ 'userId' => c.userId,
+                'statuses' => c.statuses, 'hidden' => c.hiddenRollback, 'pattern' => c.pattern }, 'CreatedDate DESC');
         }
 
         /**
@@ -185,23 +195,24 @@ public with sharing class RlyReleaseQuery {
          * @return the releases, newest rollback first
          */
         public List<RLY_Release__c> rolledBack(Criteria c) {
-            String pattern = c.pattern;
-            Id userId = c.userId;
-            String rolled = RlyRollbackState.ROLLED_BACK;
-            if (userId == null) {
-                return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
-                               CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                               Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
-                        FROM RLY_Release__c WHERE Source_Org__c != null AND Rollback_Status__c = :rolled
-                            AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
-                        WITH SYSTEM_MODE ORDER BY Rollback_On__c DESC LIMIT 200];
+            return rows((c.userId == null ? '' : BY_USER) + ' AND Rollback_Status__c = :rolled' + MATCHING, new Map<String, Object>{
+                'userId' => c.userId, 'rolled' => RlyRollbackState.ROLLED_BACK, 'pattern' => c.pattern }, 'Rollback_On__c DESC');
+        }
+
+        /**
+         * @description The release list SELECT with conditions (built from this class's constants only) and binds.
+         * @param conditions what follows the developer-org condition
+         * @param binds the bind values
+         * @param orderBy the order
+         * @return up to 200 releases
+         */
+        public List<RLY_Release__c> rows(String conditions, Map<String, Object> binds, String orderBy) {
+            for (String k : new List<String>(binds.keySet())) {
+                if (!conditions.contains(':' + k)) {
+                    binds.remove(k);
+                }
             }
-            return [SELECT Id, Name, Title__c, Status__c, Source_Org__r.Name, Source_Org__r.Role__c, Target_Org__r.Name, Target_Branch__c, CreatedBy.Name,
-                           CreatedDate, Component_Count__c, Scan_Status__c, Validation_Status__c, Is_Hotfix__c, Hotfix_Reason__c,
-                           Release_Type__c, Carried_Releases__c, Deletion_Count__c, CreatedById, Last_Synced__c, Manual_Only__c
-                    FROM RLY_Release__c WHERE Source_Org__c != null AND CreatedById = :userId AND Rollback_Status__c = :rolled
-                        AND (Name LIKE :pattern OR Title__c LIKE :pattern OR Work_Items__c LIKE :pattern)
-                    WITH SYSTEM_MODE ORDER BY Rollback_On__c DESC LIMIT 200];
+            return Database.queryWithBinds(LIST_SELECT + conditions + ' ORDER BY ' + orderBy + ' LIMIT 200', binds, AccessLevel.SYSTEM_MODE);
         }
 
         /**

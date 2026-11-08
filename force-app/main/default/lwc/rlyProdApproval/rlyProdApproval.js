@@ -1,10 +1,7 @@
 import { LightningElement } from 'lwc';
 import readView from '@salesforce/apex/RlyAccessController.prodApproval';
 import saveView from '@salesforce/apex/RlyAccessController.saveProdApproval';
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
+import { errorText } from 'c/rlyShared';
 
 /**
  * Pipeline tab (build 49): Approvals. The hub setting "Production approval needs the add-on" as a toggle (admins), with

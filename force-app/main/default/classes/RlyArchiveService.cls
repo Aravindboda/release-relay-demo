@@ -11,7 +11,7 @@ public with sharing class RlyArchiveService {
     /** @description The Archive tab's API name. */
     public static final String ARCHIVE_TAB = 'RLY_Archive';
     /** @description The custom permission of approvers (product owners), who may see the Archive tab. */
-    public static final String APPROVER_PERMISSION = 'RLY_Approver';
+    public static final String APPROVER_PERMISSION = RlyReleaseAccess.APPROVER;
     /** @description Why someone who isn't an admin can't run the archive (board wording). */
     public static final String ADMIN_ONLY = 'Only admins can run the archive.';
     /** @description Why someone who isn't an admin can't change Retention. */
@@ -125,15 +125,15 @@ public with sharing class RlyArchiveService {
      * @return the Retention section after saving
      */
     public static RlyArchiveViews.Retention saveRetention(RlyArchiveSettings.Choice c) {
-        requireAdmin(EDIT_ADMIN_ONLY);
+        RlyReleaseAccess.requireAdmin(EDIT_ADMIN_ONLY);
         requireHub();
         String problem = RlyArchiveSettings.problem(c);
         if (problem != null) {
-            throw failure(problem);
+            throw RlyReleaseException.toAura(problem);
         }
         RLY_Git_Connection__c conn = RlyArchiveSettings.read();
         if (conn == null) {
-            throw failure(RlyArchiveSettings.NO_SETTINGS);
+            throw RlyReleaseException.toAura(RlyArchiveSettings.NO_SETTINGS);
         }
         RlyArchiveSettings.save(conn, c);
         return readRetention();
@@ -150,7 +150,7 @@ public with sharing class RlyArchiveService {
         a.gateTitle = g.title;
         a.gateMessage = g.message;
         Boolean admin = RlyOrgController.isAdmin();
-        a.canView = admin || FeatureManagement.checkPermission(APPROVER_PERMISSION) || RlyRoles.isAuditor(); // build 49: auditors read it
+        a.canView = RlyReleaseAccess.isApprover() || RlyRoles.isAuditor(); // build 49: auditors read it
         if (g.mode != RlyHubGuard.MODE_HUB || !a.canView) {
             return a;
         }
@@ -193,32 +193,11 @@ public with sharing class RlyArchiveService {
     }
 
     /**
-     * @description Refuses the action for someone who isn't a Release Relay admin.
-     * @param why the sentence the page shows
-     */
-    public static void requireAdmin(String why) {
-        if (!RlyOrgController.isAdmin()) {
-            throw failure(why);
-        }
-    }
-
-    /**
      * @description Refuses the action outside the production hub.
      */
     public static void requireHub() {
         if (!onHub()) {
-            throw failure(COPY_MESSAGE);
+            throw RlyReleaseException.toAura(COPY_MESSAGE);
         }
-    }
-
-    /**
-     * @description An error the page shows as it is.
-     * @param message the sentence
-     * @return the exception to throw
-     */
-    public static AuraHandledException failure(String message) {
-        AuraHandledException e = new AuraHandledException(message);
-        e.setMessage(message);
-        return e;
     }
 }

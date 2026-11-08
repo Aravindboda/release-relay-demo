@@ -1,6 +1,7 @@
 import { LightningElement } from 'lwc';
 import readBoard from '@salesforce/apex/RlyCredentialController.board';
 import checkNow from '@salesforce/apex/RlyCredentialController.checkNow';
+import { errorText } from 'c/rlyShared';
 
 const PILL = {
     OK: 'rr-pill rr-pill-ok',
@@ -11,10 +12,6 @@ const PILL = {
     Unknown: 'rr-pill rr-pill-none'
 };
 const COUNTED = ['Failed', 'Expired', 'Critical', 'Expiring', 'Unknown'];
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
 
 function when(value, withTime) {
     if (!value) {

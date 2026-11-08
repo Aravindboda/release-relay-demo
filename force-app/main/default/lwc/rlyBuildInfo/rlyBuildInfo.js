@@ -8,6 +8,7 @@ import lockStatus from '@salesforce/apex/RlyBuildLock.status';
 import unlockBuilt from '@salesforce/apex/RlyBuildLock.unlock';
 import lockBuilt from '@salesforce/apex/RlyBuildLock.lockAgain';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
+import { errorText, clearSearchBox } from 'c/rlyShared';
 
 /**
  * "What's built" as a technical document (build 30): numbered Contents (sticky; a dropdown at 480px and below),
@@ -96,10 +97,6 @@ function sizeText(kb) {
 
 function bytesText(bytes) {
     return sizeText((bytes || 0) / 1024);
-}
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
 }
 
 function meterCls(p) {
@@ -1015,10 +1012,7 @@ export default class RlyBuildInfo extends LightningElement {
     }
 
     clearSearch() {
-        const box = this.template.querySelector('c-rly-search-box');
-        if (box) {
-            box.clear();
-        }
+        clearSearchBox(this.template);
         this.term = '';
     }
 

@@ -18,7 +18,7 @@ public with sharing class RlySlackRules {
         Set<String> known = new Set<String>(RlySlack.EVENTS);
         for (String e : events == null ? new List<String>() : events) {
             if (!known.contains(e)) {
-                throw RlySlackController.auraError(e + ' isn\'t an event ' + System.Label.RLY_App_Name + ' sends.');
+                throw RlyReleaseException.toAura(e + ' isn\'t an event ' + System.Label.RLY_App_Name + ' sends.');
             }
             out.add(e);
         }
@@ -35,7 +35,7 @@ public with sharing class RlySlackRules {
             return null;
         }
         if (!SECRET_FORMAT.matcher(secret.trim()).matches()) {
-            throw RlySlackController.auraError('The signing secret is the letters and numbers under Slack app > Basic Information > Signing Secret.');
+            throw RlyReleaseException.toAura('The signing secret is the letters and numbers under Slack app > Basic Information > Signing Secret.');
         }
         return secret.trim();
     }
@@ -60,7 +60,7 @@ public with sharing class RlySlackRules {
         }
         String value = memberId.trim().toUpperCase();
         if (!MEMBER_ID.matcher(value).matches()) {
-            throw RlySlackController.auraError('A Slack member ID looks like U012AB3CD (Slack profile > ⋮ > Copy member ID).');
+            throw RlyReleaseException.toAura('A Slack member ID looks like U012AB3CD (Slack profile > ⋮ > Copy member ID).');
         }
         return value;
     }
@@ -73,7 +73,7 @@ public with sharing class RlySlackRules {
     public static String matchBy(String value) {
         Set<String> known = new Set<String>{ RlySlackDirectory.BY_SSO, RlySlackDirectory.BY_EMAIL, RlySlackMatch.MANUAL };
         if (!known.contains(value)) {
-            throw RlySlackController.auraError('Match approvers by SSO Federation ID, Email or Manual only.');
+            throw RlyReleaseException.toAura('Match approvers by SSO Federation ID, Email or Manual only.');
         }
         return value;
     }

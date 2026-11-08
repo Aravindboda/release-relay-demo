@@ -51,18 +51,6 @@ public with sharing class RlyOrgValidator {
         return problems;
     }
 
-    /**
-     * @description The consumer key sent with the details, trimmed: Consumer_Key__c, or Client_Id__c from older pages.
-     * @param o the details sent
-     * @return the key, or null when none was sent
-     */
-    public static String submittedKey(RLY_Org__c o) {
-        if (String.isNotBlank(o.Consumer_Key__c)) {
-            return o.Consumer_Key__c.trim();
-        }
-        return String.isBlank(o.Client_Id__c) ? null : o.Client_Id__c.trim();
-    }
-
     private static List<String> identityProblems(RLY_Org__c o) {
         List<String> problems = new List<String>();
         if (!matches(o.Name, ORG_NAME)) {
@@ -85,7 +73,7 @@ public with sharing class RlyOrgValidator {
         if (String.isBlank(o.Username__c) || !o.Username__c.contains('@') || o.Username__c.trim().length() > 255) {
             problems.add('Integration username must be a Salesforce username');
         }
-        if (!keyIsUsable(submittedKey(o), saved)) {
+        if (!keyIsUsable(RlyOrgSession.consumerKey(o), saved)) {
             problems.add('Consumer key is required: the consumer key of the org\'s External Client App');
         }
         if (!matches(o.Certificate__c, API_NAME)) {
@@ -102,7 +90,13 @@ public with sharing class RlyOrgValidator {
         return key.length() <= KEY_LENGTH && !key.contains(' ');
     }
 
-    private static Boolean matches(String value, Pattern p) {
+    /**
+     * @description Whether a value, trimmed, matches a pattern (blank never does). The Git validator uses it too.
+     * @param value the value
+     * @param p the pattern
+     * @return true when it matches
+     */
+    public static Boolean matches(String value, Pattern p) {
         return String.isNotBlank(value) && p.matcher(value.trim()).matches();
     }
 

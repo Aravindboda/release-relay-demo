@@ -53,7 +53,7 @@ public with sharing class RlyReleaseStart {
             s.targetName = target.Name;
             s.targetBranch = target.Branch__c;
         }
-        RLY_Git_Connection__c git = data.git();
+        RLY_Git_Connection__c git = RlyReleaseStore.git();
         s.repository = git == null ? null : git.Repository__c;
         s.provider = RlyGitName.labelFor(git);
         s.canHotfix = RlyHotfix.allowed();
@@ -99,16 +99,6 @@ public with sharing class RlyReleaseStart {
             return [SELECT Id, Name, Role__c, Branch__c, Stage_Order__c, Git_Environment__c, Status__c, Source_Tracking__c,
                            Org_Type__c, Is_Sandbox__c, Environment__c, Approval_Rule__c, Approval_Types__c
                     FROM RLY_Org__c WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
-        }
-
-        /**
-         * @description The hub's Git connection.
-         * @return the connection, or null
-         */
-        public RLY_Git_Connection__c git() {
-            List<RLY_Git_Connection__c> rows = [SELECT Id, Provider__c, Repository__c, Named_Credential__c, Status__c FROM RLY_Git_Connection__c
-                                                WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC LIMIT 1];
-            return rows.isEmpty() ? null : rows[0];
         }
     }
 }

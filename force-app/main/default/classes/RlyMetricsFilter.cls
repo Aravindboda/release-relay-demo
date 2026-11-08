@@ -79,4 +79,13 @@ public with sharing class RlyMetricsFilter {
             return null;
         }
     }
+
+    /**
+     * @description Whether an event's release counts under the developer org filter.
+     * @param e the event, with Release__r.Source_Org__c
+     * @return true when every org counts or the release came from the filtered org
+     */
+    public Boolean counts(RLY_Release_Event__c e) {
+        return devOrgId == null || e.Release__r.Source_Org__c == devOrgId;
+    }
 }

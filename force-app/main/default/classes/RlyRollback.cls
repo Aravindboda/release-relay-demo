@@ -33,7 +33,7 @@ public with sharing class RlyRollback {
      * @return true for them
      */
     public static Boolean mayRollBack() {
-        return FeatureManagement.checkPermission('RLY_Admin') || FeatureManagement.checkPermission('RLY_Deploy_Team');
+        return RlyReleaseAccess.isDeployTeam();
     }
 
     /**

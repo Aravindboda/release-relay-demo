@@ -130,7 +130,7 @@ public with sharing class RlyDataBoard {
         r.id = o.Id;
         r.name = o.Name;
         r.role = o.Role__c;
-        r.canLoad = RlyDataRules.hasSignIn(o);
+        r.canLoad = RlySyncRoute.hasSignIn(o);
         for (RLY_Data_Run__c run : runs) {
             if (run.Target_Org__c == o.Id && run.Status__c == RlyDataStore.LOADED) {
                 r.lastRunId = run.Run_Id__c;

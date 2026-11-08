@@ -211,6 +211,7 @@ private class RlyHomeControllerTest {
             git.Status_Message__c = 'Connected. Pipeline files found on main.';
             git.Last_Checked__c = System.now();
             update git;
+            RlyReleaseStore.forgetGit();
             update new RLY_Org__c(Id = orgId('SIT'), Code_Scan__c = 'Off', Approval_In__c = 'Slack');
             RlyReleaseTestData.slackOn('Deployed');
             Test.startTest();
@@ -247,6 +248,7 @@ private class RlyHomeControllerTest {
             update new RLY_Org__c(Id = orgId('PROD'), Approval_In__c = 'Slack');
             RLY_Notification__c saved = new RLY_Notification__c(Name = 'Slack', Channel__c = 'Slack', Enabled__c = true);
             insert saved;
+            RlySlack.forgetSettings();
             List<RLY_Org__c> orgs = [SELECT Id, Name, Approval_In__c, Approve_In_Salesforce__c, Approve_In_Slack__c FROM RLY_Org__c
                                      WHERE Role__c IN ('Stage', 'Hub') ORDER BY Name];
             System.assertEquals('signing secret not saved', RlyHomeSlackHealth.approveItem(saved, orgs).text, 'No secret');
@@ -327,6 +329,7 @@ private class RlyHomeControllerTest {
             RlyReleaseTestData.route();
             update new RLY_Git_Connection__c(Id = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1].Id, Code_Scan__c = false,
                 Status__c = 'Failed', Status_Message__c = 'Bad credential');
+            RlyReleaseStore.forgetGit();
             update new RLY_Org__c(Id = orgId('PROD'), Code_Scan__c = 'On');
             RlyHomeHealth.Health h = RlyHomeHealth.read();
             System.assertEquals('Failed', h.items[0].text, 'Git failed');
@@ -341,6 +344,7 @@ private class RlyHomeControllerTest {
             RlyReleaseTestData.route();
             update new RLY_Git_Connection__c(Id = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1].Id, Retention_Days__c = 730,
                 Archive_Nightly__c = true, Last_Nightly_Call__c = System.now().addDays(-2));
+            RlyReleaseStore.forgetGit();
             Test.startTest();
             RlyHomeController.Home h = RlyHomeController.read();
             Test.stopTest();

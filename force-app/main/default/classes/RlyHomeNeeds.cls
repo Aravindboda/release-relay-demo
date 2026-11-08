@@ -73,7 +73,7 @@ public with sharing class RlyHomeNeeds {
     public static Needs forViewer() {
         Data store = new Data();
         Needs n = new Needs();
-        Boolean approver = RlyApprovalService.canApprove();
+        Boolean approver = RlyReleaseAccess.isApprover();
         Boolean deployTeam = RlyManualSteps.canCheck();
         Id me = UserInfo.getUserId();
         if (approver) {

@@ -48,7 +48,13 @@ public with sharing class RlySyncStore {
      * @return the orgs, by name
      */
     public static List<RLY_Org__c> orgs() {
-        return new SystemAccess().orgs();
+        List<RLY_Org__c> out = new List<RLY_Org__c>();
+        for (RLY_Org__c o : RlyReleaseStore.pipelineOrgs(new Set<String>{ 'Developer', 'Stage', 'Hub' })) {
+            if (o.Branch__c != null) {
+                out.add(o);
+            }
+        }
+        return out;
     }
 
     /**
@@ -90,17 +96,6 @@ public with sharing class RlySyncStore {
          */
         public void save(RLY_Sync_Check__c check) {
             Database.upsert(check, RLY_Sync_Check__c.Sync_Id__c, true, AccessLevel.SYSTEM_MODE);
-        }
-
-        /**
-         * @description The orgs with a branch.
-         * @return the orgs
-         */
-        public List<RLY_Org__c> orgs() {
-            return [SELECT Id, Name, Role__c, Branch__c, Git_Environment__c, Stage_Order__c, Status__c, Environment__c,
-                           Back_Promote_Approval__c, Back_Promote_When__c, Synced_On__c, Sync_Status__c, CreatedDate
-                    FROM RLY_Org__c WHERE Role__c IN ('Developer', 'Stage', 'Hub') AND Branch__c != null
-                    WITH SYSTEM_MODE ORDER BY Name LIMIT 200];
         }
 
         /**

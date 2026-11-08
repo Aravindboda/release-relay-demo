@@ -68,15 +68,6 @@ public with sharing class RlyDeletionPlan {
     }
 
     /**
-     * @description The parts of the org's own branch (Find deleted components).
-     * @param org the developer org
-     * @return the plan (no parts when the source path isn't on the branch)
-     */
-    public static Plan build(RLY_Org__c org) {
-        return buildFor(org, RlyDeletionFinder.branchOf(org));
-    }
-
-    /**
      * @description The parts of a branch, with the developer org's folder rules.
      * @param org the developer org
      * @param branch the branch to read

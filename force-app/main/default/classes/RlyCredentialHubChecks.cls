@@ -21,8 +21,8 @@ public with sharing class RlyCredentialHubChecks {
     public static final String HUB_CERT_KEY = 'cert:hub';
 
     private static final Integer TIMEOUT_MS = 20000;
-    // Tests can't create a Named Credential: they say RLY_Org_Self exists.
-    @TestVisible private static Boolean selfCredentialForTest = false;
+    // Tests can't create or remove a Named Credential: true says RLY_Org_Self exists, false says it doesn't, null reads the org.
+    @TestVisible private static Boolean selfCredentialForTest;
 
     /**
      * @description Checks the Git connections' tokens.
@@ -81,13 +81,17 @@ public with sharing class RlyCredentialHubChecks {
         }
     }
 
+    private static Boolean hasSelfCredential() {
+        return selfCredentialForTest != null ? selfCredentialForTest : RlyCredentialStore.hasNamedCredential(SELF_CREDENTIAL);
+    }
+
     /**
      * @description Reads the hub's own certificates through RLY_Org_Self.
      * @param p the pass (its hubCerts are filled for the org sign-in rows)
      */
     public static void certificates(RlyCredentialCheck.Pass p) {
         RLY_Credential_Status__c holder = RlyCredentialRows.row(HUB_CERT_KEY, RlyCredentialRows.KIND_CERT, 'Hub certificates');
-        if (!selfCredentialForTest && !RlyCredentialStore.hasNamedCredential(SELF_CREDENTIAL)) {
+        if (!hasSelfCredential()) {
             p.add(RlyCredentialRows.mark(holder, RlyCredentialRows.UNKNOWN, 'Add the RLY_Org_Self Named Credential (and the RLY_Org_Self_Access '
                 + 'permission set) so the hub can read its own certificates.'));
             return;

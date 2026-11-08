@@ -37,7 +37,10 @@ public with sharing class RlyArchiveController {
         RlyArchiveSettings.Choice c = new RlyArchiveSettings.Choice();
         c.days = days;
         c.nightly = nightly == true;
-        return RlyArchiveService.saveRetention(c);
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.RETENTION); // build 50: Recent changes to settings
+        RlyArchiveViews.Retention saved = RlyArchiveService.saveRetention(c);
+        RlySettingsLog.compare(was);
+        return saved;
     }
 
     /**

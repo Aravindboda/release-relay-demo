@@ -87,6 +87,7 @@ public with sharing class RlyCompareRun {
             r.components.add(RlyCompareParts.removed(key, branch));
         }
         readFlows(r, job);
+        branch.linkLeftOut(r.components);
         branch.readAll(r.components);
         r.more = branch.more;
         return r;

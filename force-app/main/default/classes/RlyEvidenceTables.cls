@@ -83,7 +83,7 @@ public with sharing class RlyEvidenceTables {
     public static List<String> gateFailures(RLY_Release__c rel) {
         List<String> out = new List<String>();
         for (String body : new List<String>{ rel.Scan_Result__c, rel.Validation_Result__c }) {
-            Object gates = RlyEvidenceText.parse(body).get('gates');
+            Object gates = RlySyncParse.parsedOrEmpty(body).get('gates');
             Object failures = gates instanceof Map<String, Object> ? ((Map<String, Object>) gates).get('failures') : null;
             for (Object f : failures instanceof List<Object> ? (List<Object>) failures : new List<Object>()) {
                 out.add(String.valueOf(f));

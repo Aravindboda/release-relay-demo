@@ -1,6 +1,6 @@
 /**
  * @description Who holds what (build 49): the permission set groups and add-ons. Custom permissions answer for the
- * current user (FeatureManagement); for another user (a Slack approver, the approvers window) the holders of a custom
+ * current user through RlyReleaseAccess (the one place FeatureManagement is asked); for another user (a Slack approver, the approvers window) the holders of a custom
  * permission are read from the permission sets that grant it, assigned directly or through a permission set group.
  * The Auditor (permission set RLY_Auditor) has no custom permission: it is read only, and so is a user with no Release
  * Relay role at all (no Admin, Approver or Deploy Team permission and no Developer permission set). Assignments are
@@ -13,7 +13,8 @@ public with sharing class RlyRoles {
     /** @description The Developer permission set (developers have no custom permission). */
     public static final String DEVELOPER_SET = 'RLY_Developer';
     /** @description Custom permissions that give a role with actions. */
-    public static final List<String> ROLE_PERMISSIONS = new List<String>{ 'RLY_Admin', 'RLY_Approver', 'RLY_Deploy_Team' };
+    public static final List<String> ROLE_PERMISSIONS = new List<String>{ RlyReleaseAccess.ADMIN, RlyReleaseAccess.APPROVER,
+        RlyReleaseAccess.DEPLOY_TEAM };
 
     private static Map<String, Boolean> heldSets = new Map<String, Boolean>();
 
@@ -23,7 +24,7 @@ public with sharing class RlyRoles {
      */
     public static Boolean hasRolePermission() {
         for (String p : ROLE_PERMISSIONS) {
-            if (FeatureManagement.checkPermission(p)) {
+            if (RlyReleaseAccess.holds(p)) {
                 return true;
             }
         }
@@ -81,7 +82,7 @@ public with sharing class RlyRoles {
             return false;
         }
         if (userId == UserInfo.getUserId()) {
-            return FeatureManagement.checkPermission(customPermission);
+            return RlyReleaseAccess.holds(customPermission);
         }
         return holdersOf(customPermission, new Set<Id>{ userId }).contains(userId);
     }

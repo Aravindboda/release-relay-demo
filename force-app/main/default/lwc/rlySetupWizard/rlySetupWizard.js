@@ -9,6 +9,11 @@ import saveGit from '@salesforce/apex/RlyRouteController.saveGit';
 import checkGit from '@salesforce/apex/RlyRouteController.checkGit';
 import getPipelineFiles from '@salesforce/apex/RlyRouteController.getPipelineFiles';
 import updatePipelineFiles from '@salesforce/apex/RlyRouteController.updatePipelineFiles';
+import { errorText } from 'c/rlyShared';
+
+/** Most orgs a hub registers (RlyOrgController.MAX_ORGS); the server refuses an eleventh too. */
+const MAX_ORGS = 10;
+const TOO_MANY_ORGS = 'Release Relay supports up to 10 orgs per hub.';
 
 const STEPS = [
     { n: 1, label: 'This org is the hub' },
@@ -24,10 +29,6 @@ const PROVIDERS = [
     { label: 'Azure DevOps', value: 'AzureDevOps', how: 'Azure Pipeline', repo: 'organization/project/repository', pipeLabel: 'Pipeline id', pipe: '12', cred: 'RLY_Git_AzureDevOps' }
 ];
 const STATUS_CLS = { Connected: 'rr-pill rr-pill-ok', Failed: 'rr-pill rr-pill-bad' };
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
 
 function blankGit() {
     return { Provider__c: 'GitHub', Repository__c: '', Named_Credential__c: '', Pipeline__c: '', Pipeline_Branch__c: '', Source_Path__c: '', Code_Scan__c: true };
@@ -431,6 +432,10 @@ export default class RlySetupWizard extends LightningElement {
     get hasOrgRows() { return this.orgRows.length > 0; }
 
     handleRegister() {
+        if ((this.orgs || []).length >= MAX_ORGS) {
+            this.error = TOO_MANY_ORGS;
+            return;
+        }
         this.dispatchEvent(new CustomEvent('registerorg'));
     }
 

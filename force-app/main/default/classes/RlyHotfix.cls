@@ -38,7 +38,7 @@ public with sharing class RlyHotfix {
      * @return true with the RLY_Hotfix custom permission
      */
     public static Boolean allowed() {
-        return FeatureManagement.checkPermission(PERMISSION);
+        return RlyReleaseAccess.holds(PERMISSION);
     }
 
     /**

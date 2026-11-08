@@ -17,7 +17,7 @@ public with sharing class RlyManualStepController {
         try {
             return RlyManualStepBoard.build(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -31,7 +31,7 @@ public with sharing class RlyManualStepController {
         try {
             return RlyManualStepBoard.build(RlyManualStepEdit.save(RlyManualStepEdit.parse(stepJson)));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -45,7 +45,7 @@ public with sharing class RlyManualStepController {
         try {
             return RlyManualStepBoard.build(RlyManualStepEdit.remove(stepId));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -60,7 +60,7 @@ public with sharing class RlyManualStepController {
         try {
             return RlyManualStepBoard.build(RlyManualStepCheck.mark(RlyManualStepCheck.parse(runJson)));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -79,7 +79,7 @@ public with sharing class RlyManualStepController {
             RlyStepFileActions.remove(recordId, contentDocumentId);
             return RlyManualStepBoard.build(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -95,7 +95,7 @@ public with sharing class RlyManualStepController {
         try {
             return RlyStepFileActions.logDownload(contentDocumentId, releaseId, orgId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -109,7 +109,7 @@ public with sharing class RlyManualStepController {
         try {
             return RlyStepFileDrafts.draftFiles(contentDocumentIds);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -124,16 +124,7 @@ public with sharing class RlyManualStepController {
             RlyStepFileDrafts.removeDraft(contentDocumentId);
             return true;
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        if (e instanceof AuraHandledException) {
-            return (AuraHandledException) e;
-        }
-        AuraHandledException ex = new AuraHandledException(e.getMessage());
-        ex.setMessage(e.getMessage());
-        return ex;
     }
 }

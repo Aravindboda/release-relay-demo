@@ -16,6 +16,7 @@ private class RlyChangesControllerTest {
         insert new List<RLY_Org__c>{ dev, RlyTestData.stage('UAT', 'uat', 2), RlyTestData.stage('SIT', 'sit', 1), RlyTestData.org('PROD', 'Hub', 'prod') };
         insert new RLY_Git_Connection__c(Provider__c = 'GitHub', Repository__c = 'acme/release', Named_Credential__c = 'RLY_GitHub',
             Pipeline__c = '.github/workflows/release-relay.yml', Pipeline_Branch__c = 'main', Status__c = 'Connected');
+        RlyReleaseStore.forgetGit();
         return dev.Id;
     }
 

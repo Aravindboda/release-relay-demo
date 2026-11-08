@@ -10,7 +10,11 @@
 public with sharing class RlyOrgController {
 
     /** @description The custom permission admins have. */
-    public static final String ADMIN_PERMISSION = 'RLY_Admin';
+    public static final String ADMIN_PERMISSION = RlyReleaseAccess.ADMIN;
+    /** @description Most registered orgs a hub has (build 50): the hub reads every org in one request. */
+    public static final Integer MAX_ORGS = 10;
+    /** @description Why an eleventh org can't be registered. */
+    public static final String TOO_MANY_ORGS = 'Release Relay supports up to 10 orgs per hub.';
 
     /** @description What the Pipeline tab shows about the registered orgs. */
     public class PipelineOrgs {
@@ -123,11 +127,10 @@ public with sharing class RlyOrgController {
      */
     @AuraEnabled
     public static Id saveOrg(String orgJson) {
-        if (!isAdmin()) {
-            throw new AuraHandledException('Registering orgs needs the Release Relay Admin permission set.');
-        }
+        RlyReleaseAccess.requireAdmin('Registering orgs needs the Release Relay Admin permission set.');
         RLY_Org__c input = RlyOrgValidator.readInput(orgJson);
         Data data = new Data();
+        requireRoom(input, data);
         RLY_Org__c saved = input.Id == null ? null : data.byId(input.Id);
         List<String> problems = RlyOrgValidator.validate(input, saved);
         if (!problems.isEmpty()) {
@@ -142,8 +145,17 @@ public with sharing class RlyOrgController {
         RlyOrgSettings.apply(row, orgJson);
         RlyApprovalRuleOrg.apply(row, orgJson, saved);
         applyStatus(row, saved);
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.ORGS); // build 50: Recent changes to settings
         data.save(row);
+        RlySettingsLog.compare(was);
         return row.Id;
+    }
+
+    // Build 50: a new org needs room under MAX_ORGS.
+    private static void requireRoom(RLY_Org__c input, Data data) {
+        if (input.Id == null && data.orgCount() >= MAX_ORGS) {
+            throw RlyReleaseException.toAura(TOO_MANY_ORGS);
+        }
     }
 
     private static RLY_Org__c buildRow(RLY_Org__c input) {
@@ -163,7 +175,7 @@ public with sharing class RlyOrgController {
         );
         applyApproval(row, input);
         // A new key goes to the encrypted field and clears the old plain one; no key keeps what's saved.
-        String key = RlyOrgValidator.submittedKey(input);
+        String key = RlyOrgSession.consumerKey(input);
         if (key != null) {
             row.Consumer_Key__c = key;
             row.Client_Id__c = null;
@@ -209,9 +221,7 @@ public with sharing class RlyOrgController {
     @AuraEnabled
     public static RLY_Org__c checkOrg(Id orgId) {
         RlyHubGuard.requireHub();
-        if (!isAdmin()) {
-            throw new AuraHandledException('Checking orgs needs the Release Relay Admin permission set.');
-        }
+        RlyReleaseAccess.requireAdmin('Checking orgs needs the Release Relay Admin permission set.');
         Data data = new Data();
         RLY_Org__c org = data.byId(orgId);
         RLY_Org__c result = RlyOrgCheck.run(org);
@@ -228,7 +238,7 @@ public with sharing class RlyOrgController {
      * @return true for admins
      */
     public static Boolean isAdmin() {
-        return FeatureManagement.checkPermission(ADMIN_PERMISSION);
+        return RlyReleaseAccess.isAdmin();
     }
 
     /** @description Registered orgs are shared hub records: read in system mode, changed only after the admin checks above. */
@@ -292,6 +302,14 @@ public with sharing class RlyOrgController {
          */
         public Boolean nameTaken(String name, Id exceptId) {
             return ![SELECT Id FROM RLY_Org__c WHERE Name = :name AND Id != :exceptId WITH SYSTEM_MODE LIMIT 1].isEmpty();
+        }
+
+        /**
+         * @description How many orgs are registered (the hub included).
+         * @return the count
+         */
+        public Integer orgCount() {
+            return [SELECT COUNT() FROM RLY_Org__c WITH SYSTEM_MODE LIMIT 1000];
         }
 
         /**

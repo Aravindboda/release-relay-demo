@@ -39,7 +39,7 @@ public with sharing class RlyMetricsFlow {
         m.truncated = m.truncated || events.size() >= RlyMetricsStore.MAX_EVENTS;
         RlyMetricsRate rate = new RlyMetricsRate(buckets, f.periodStart);
         for (RLY_Release_Event__c e : events) {
-            String outcome = counts(e) ? outcomeOf(e) : null;
+            String outcome = f.counts(e) ? outcomeOf(e) : null;
             if (outcome != null) {
                 countCheck(e, outcome, rate);
             }
@@ -93,7 +93,4 @@ public with sharing class RlyMetricsFlow {
     }
 
     // The developer org filter: only releases raised from it.
-    private Boolean counts(RLY_Release_Event__c e) {
-        return f.devOrgId == null || e.Release__r.Source_Org__c == f.devOrgId;
-    }
 }

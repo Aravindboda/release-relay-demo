@@ -133,6 +133,7 @@ private class RlySlackDueTest {
             Test.startTest();
             Map<String, Object> busy = call(1);
             update new RLY_Notification__c(Id = slack.Id, Enabled__c = false);
+            RlySlack.forgetSettings();
             Map<String, Object> off = call(1);
             Test.stopTest();
             System.assertEquals(0, busy.get('sent'), 'Nothing sent while busy');

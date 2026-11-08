@@ -17,11 +17,11 @@ public with sharing class RlyBackPromoteQueue {
     public static Id queueSync(Id orgId) {
         RlyBackPromote.requireAdmin();
         if (!RlyBackPromote.isOn(RlyReleaseStore.git())) {
-            throw RlyBackPromote.problem('Turn on Back promote first.');
+            throw RlyReleaseException.toAura('Turn on Back promote first.');
         }
         RLY_Org__c o = RlyBackPromote.findOrg(orgId);
         if (hasOpenSync(o.Id, RlyPromoteStore.latestSyncs())) {
-            throw RlyBackPromote.problem('A sync to ' + o.Name + ' is already waiting or running.');
+            throw RlyReleaseException.toAura('A sync to ' + o.Name + ' is already waiting or running.');
         }
         RLY_Release__c sync = newSync(requireHub(), o);
         RlyPromoteStore.insertSyncs(new List<RLY_Release__c>{ sync });
@@ -77,7 +77,7 @@ public with sharing class RlyBackPromoteQueue {
     // A sync release from the hub to the org: waiting for approval, or queued.
     private static RLY_Release__c newSync(RLY_Org__c hub, RLY_Org__c o) {
         if (!isUsable(o)) {
-            throw RlyBackPromote.problem(o.Name + ' needs its branch and Git environment (Pipeline tab) before it can sync.');
+            throw RlyReleaseException.toAura(o.Name + ' needs its branch and Git environment (Pipeline tab) before it can sync.');
         }
         return new RLY_Release__c(Release_Type__c = RlyPromotion.TYPE_BACK_PROMOTE, Mode__c = 'Existing branch',
             Request_Type__c = 'Changes', Title__c = ('Back promote ' + hub.Name + ' to ' + o.Name).left(200),
@@ -93,7 +93,7 @@ public with sharing class RlyBackPromoteQueue {
     private static RLY_Org__c requireHub() {
         RLY_Org__c hub = RlyPromoteStore.hub();
         if (!isUsable(hub)) {
-            throw RlyBackPromote.problem('Register this hub with the role Hub, its branch and Git environment first.');
+            throw RlyReleaseException.toAura('Register this hub with the role Hub, its branch and Git environment first.');
         }
         return hub;
     }

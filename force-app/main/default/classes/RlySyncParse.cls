@@ -1,5 +1,6 @@
 /**
- * @description Sync status: reads the values of a check's result (drift.json, route.json) for RlySyncResult.
+ * @description Reads the values of a check's result (drift.json, route.json) for RlySyncResult, and the JSON helpers
+ * every reader shares: a parsed object (or null, or empty), a list, a map, text and a whole number.
  */
 public with sharing class RlySyncParse {
 
@@ -81,6 +82,16 @@ public with sharing class RlySyncParse {
         } catch (JSONException e) {
             return null;
         }
+    }
+
+    /**
+     * @description Reads a JSON object, or an empty one when the text is blank, isn't JSON or isn't an object.
+     * @param raw the text
+     * @return the values
+     */
+    public static Map<String, Object> parsedOrEmpty(String raw) {
+        Map<String, Object> m = parsed(raw);
+        return m == null ? new Map<String, Object>() : m;
     }
 
     /**

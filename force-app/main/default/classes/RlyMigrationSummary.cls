@@ -17,10 +17,10 @@ public with sharing class RlyMigrationSummary {
             return null;
         }
         RlyMigrationView.Summary s = new RlyMigrationView.Summary();
-        s.status = str(r.get('status'));
+        s.status = RlySyncParse.text(r.get('status'));
         s.ready = r.get('ready') == true;
-        s.message = str(r.get('message'));
-        s.phase = str(r.get('phase'));
+        s.message = RlySyncParse.text(r.get('message'));
+        s.phase = RlySyncParse.text(r.get('phase'));
         for (Object p : r.get('problems') instanceof List<Object> ? (List<Object>) r.get('problems') : new List<Object>()) {
             s.problems.add(String.valueOf(p));
         }
@@ -31,7 +31,7 @@ public with sharing class RlyMigrationSummary {
         for (Object o : r.get('namedBranches') instanceof List<Object> ? (List<Object>) r.get('namedBranches') : new List<Object>()) {
             Map<String, Object> m = (Map<String, Object>) o;
             RlyMigrationView.Named n = new RlyMigrationView.Named();
-            n.name = str(m.get('name'));
+            n.name = RlySyncParse.text(m.get('name'));
             n.inSource = m.get('inSource') == true;
             n.inTarget = m.get('inTarget') == true;
             s.named.add(n);
@@ -48,8 +48,8 @@ public with sharing class RlyMigrationSummary {
     public static String counts(Map<String, Object> r) {
         List<String> parts = new List<String>{ found(r.get('branches')) + ' branch(es)', found(r.get('tags')) + ' tag(s)',
             toInt(r.get('commits'), 0) + ' commit(s)' };
-        if (r.get('mainCommits') != null && String.isNotBlank(str(r.get('defaultBranch')))) {
-            parts.add(toInt(r.get('mainCommits'), 0) + ' on ' + str(r.get('defaultBranch')));
+        if (r.get('mainCommits') != null && String.isNotBlank(RlySyncParse.text(r.get('defaultBranch')))) {
+            parts.add(toInt(r.get('mainCommits'), 0) + ' on ' + RlySyncParse.text(r.get('defaultBranch')));
         }
         Integer kb = toInt(r.get('sizeKb'), 0);
         if (kb > 0) {
@@ -65,10 +65,10 @@ public with sharing class RlyMigrationSummary {
      */
     public static RlyMigrationView.RefRow refRow(Map<String, Object> m) {
         RlyMigrationView.RefRow row = new RlyMigrationView.RefRow();
-        row.kind = str(m.get('kind'));
-        row.name = str(m.get('name'));
-        row.source = str(m.get('source'));
-        row.target = str(m.get('target'));
+        row.kind = RlySyncParse.text(m.get('kind'));
+        row.name = RlySyncParse.text(m.get('name'));
+        row.source = RlySyncParse.text(m.get('source'));
+        row.target = RlySyncParse.text(m.get('target'));
         row.match = m.get('match') == true;
         return row;
     }
@@ -94,7 +94,7 @@ public with sharing class RlyMigrationSummary {
 
     // Progress: the phase, and within the branches how many are pushed.
     private static Integer percent(Map<String, Object> r) {
-        String phase = str(r.get('phase'));
+        String phase = RlySyncParse.text(r.get('phase'));
         Integer p = PHASE_PERCENT.containsKey(phase) ? PHASE_PERCENT.get(phase) : 0;
         if (phase == 'branches' && r.get('branches') instanceof Map<String, Object>) {
             Map<String, Object> b = (Map<String, Object>) r.get('branches');
@@ -120,9 +120,5 @@ public with sharing class RlyMigrationSummary {
 
     private static String mark(Object ok) {
         return ok == true ? '✓' : '✗';
-    }
-
-    private static String str(Object o) {
-        return o == null ? null : String.valueOf(o);
     }
 }
