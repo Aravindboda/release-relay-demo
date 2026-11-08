@@ -5,11 +5,11 @@
  "changed": 39,
  "deleted": [],
  "mergedWith": "46ad30344d016f4969b548ffa8817ac0b53fc704",
- "validatedTree": "de66e172750b8b1e63ddb5f4863f08c5d965aa41",
+ "validatedTree": "f011a48a96f771663f7758084ba27810b208b76e",
  "environment": "sit",
  "ok": false,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d9TKUSA2",
+ "deployId": null,
  "testsRun": 0,
  "tests": [
   "RlyAppendTest",
@@ -94,127 +94,16 @@
   "RlyWorkTrackersTest"
  ],
  "coverageWarnings": [],
- "componentErrors": [
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyRelayUpdate",
-   "problem": "Value too long for field: Description maximum length is:255"
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyRelayUpdate",
-   "problem": "Cannot find Lightning Component Bundle rlyRelayUpdate."
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyRelayUpdate",
-   "problem": "Cannot find Lightning Component Bundle rlyRelayUpdate."
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdateController",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdatePrepare : Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateGit : Expecting ';' but was: 'commit'",
-   "line": 184
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdateGit",
-   "problem": "Expecting ';' but was: 'commit'",
-   "line": 184
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdateGit",
-   "problem": "Expecting ')' but was: 'commit'",
-   "line": 185
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdateGit",
-   "problem": "Extra ';', at ')'.",
-   "line": 185
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdateGit",
-   "problem": "Expecting ')' but was: 'commit'",
-   "line": 186
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdateGit",
-   "problem": "Extra ';', at ')'.",
-   "line": 186
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdateGit",
-   "problem": "Method does not exist or incorrect signature: void requireOk() from the type RlyGit",
-   "line": 185
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdateGit",
-   "problem": "Expression cannot be a statement.",
-   "line": 185
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdateGit",
-   "problem": "Method does not exist or incorrect signature: void field() from the type RlyRelayUpdateGit",
-   "line": 186
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdateGitLab",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateGit : Expecting ';' but was: 'commit'",
-   "line": 184
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdatePrepare",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateGit : Expecting ';' but was: 'commit'",
-   "line": 184
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdateResults",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateRuns : Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateGit : Expecting ';' but was: 'commit'",
-   "line": 184
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdateRuns",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateGit : Expecting ';' but was: 'commit'",
-   "line": 184
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdateTest",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateController : Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdatePrepare : Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateGit : Expecting ';' but was: 'commit'",
-   "line": 184
-  },
-  {
-   "type": "ApexClass",
-   "name": "RlyRelayUpdateView",
-   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateGit : Expecting ';' but was: 'commit'",
-   "line": 184
-  },
-  {
-   "type": "LightningComponentBundle",
-   "name": "rlyPipeline",
-   "problem": "No MODULE named markup://c:rlyRelayUpdate found : [markup://c:rlyPipeline]"
-  }
- ],
+ "componentErrors": [],
  "testFailures": [],
- "message": "19 component error(s)",
+ "message": "Metadata API request failed: REQUEST_LIMIT_EXCEEDED: TotalRequests Limit exceeded.",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42435910969",
- "finishedAt": "2026-11-08T01:50:50.233Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42436105447",
+ "finishedAt": "2026-11-08T01:56:12.959Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
@@ -222,5 +111,5 @@
   "files": [],
   "hash": ""
  },
- "headSha": "c8d5c03d154cfd816af76efff36c24506460867d"
+ "headSha": "ade9a4e33285585c2b1cd7151b4a7832a8dca975"
 }
