@@ -1,0 +1,226 @@
+{
+ "request": "REL-91067",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 39,
+ "deleted": [],
+ "mergedWith": "46ad30344d016f4969b548ffa8817ac0b53fc704",
+ "validatedTree": "de66e172750b8b1e63ddb5f4863f08c5d965aa41",
+ "environment": "sit",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0AfgL00000d9TKUSA2",
+ "testsRun": 0,
+ "tests": [
+  "RlyAppendTest",
+  "RlyApprovalRulesTest",
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyArchiveRestTest",
+  "RlyArchiveRunsTest",
+  "RlyArchiveTest",
+  "RlyBackPromoteTest",
+  "RlyBranchDeleteTest",
+  "RlyBuildInfoTest",
+  "RlyBuildLockTest",
+  "RlyChangePartsTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyComparePipelineTest",
+  "RlyCompareTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyCredentialTest",
+  "RlyDataTest",
+  "RlyDeletionFinderTest",
+  "RlyDeployReaderTest",
+  "RlyEvidenceTest",
+  "RlyFlowActivationTest",
+  "RlyFlowBatchTest",
+  "RlyGitAdviceTest",
+  "RlyGitLabTest",
+  "RlyGitProvidersTest",
+  "RlyHomeControllerTest",
+  "RlyHotfixTest",
+  "RlyHubGuardTest",
+  "RlyManualOnlyTest",
+  "RlyManualStepGateTest",
+  "RlyManualStepsTest",
+  "RlyMetricsTest",
+  "RlyMigrationPartsTest",
+  "RlyMigrationTest",
+  "RlyOrgControllerTest",
+  "RlyOrgLinksTest",
+  "RlyOrgSessionTest",
+  "RlyPipelineFilesTest",
+  "RlyPipelineSummaryTest",
+  "RlyProdApprovalTest",
+  "RlyPromoteOverlapTest",
+  "RlyPromoteTest",
+  "RlyPullRequestCloseTest",
+  "RlyPullRequestFilesTest",
+  "RlyRaisePartsTest",
+  "RlyRaiseServiceTest",
+  "RlyRelayUpdateTest",
+  "RlyReleaseSizeTest",
+  "RlyReleaseWindowTest",
+  "RlyReleasesFilterTest",
+  "RlyRepoSecurityTest",
+  "RlyRepoSettingsTest",
+  "RlyRolesTest",
+  "RlyRollbackTest",
+  "RlyRouteControllerTest",
+  "RlyRunMonitorControllerTest",
+  "RlyRunMonitorRestTest",
+  "RlyRunSigningTest",
+  "RlyRunTitlesTest",
+  "RlyScanRuleTest",
+  "RlySecurityFixesTest",
+  "RlySetupStatusTest",
+  "RlySharedReadTest",
+  "RlySlackActionsTest",
+  "RlySlackApproversTest",
+  "RlySlackCardTest",
+  "RlySlackDueTest",
+  "RlySlackLinkTest",
+  "RlySlackSiteCheckTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest",
+  "RlyStepFilesTest",
+  "RlySyncTest",
+  "RlyTwoApproversTest",
+  "RlyWindowGateTest",
+  "RlyWorkItemsTest",
+  "RlyWorkTrackersTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyRelayUpdate",
+   "problem": "Value too long for field: Description maximum length is:255"
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyRelayUpdate",
+   "problem": "Cannot find Lightning Component Bundle rlyRelayUpdate."
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyRelayUpdate",
+   "problem": "Cannot find Lightning Component Bundle rlyRelayUpdate."
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdateController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdatePrepare : Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateGit : Expecting ';' but was: 'commit'",
+   "line": 184
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdateGit",
+   "problem": "Expecting ';' but was: 'commit'",
+   "line": 184
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdateGit",
+   "problem": "Expecting ')' but was: 'commit'",
+   "line": 185
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdateGit",
+   "problem": "Extra ';', at ')'.",
+   "line": 185
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdateGit",
+   "problem": "Expecting ')' but was: 'commit'",
+   "line": 186
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdateGit",
+   "problem": "Extra ';', at ')'.",
+   "line": 186
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdateGit",
+   "problem": "Method does not exist or incorrect signature: void requireOk() from the type RlyGit",
+   "line": 185
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdateGit",
+   "problem": "Expression cannot be a statement.",
+   "line": 185
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdateGit",
+   "problem": "Method does not exist or incorrect signature: void field() from the type RlyRelayUpdateGit",
+   "line": 186
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdateGitLab",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateGit : Expecting ';' but was: 'commit'",
+   "line": 184
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdatePrepare",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateGit : Expecting ';' but was: 'commit'",
+   "line": 184
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdateResults",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateRuns : Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateGit : Expecting ';' but was: 'commit'",
+   "line": 184
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdateRuns",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateGit : Expecting ';' but was: 'commit'",
+   "line": 184
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdateTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateController : Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdatePrepare : Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateGit : Expecting ';' but was: 'commit'",
+   "line": 184
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRelayUpdateView",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyRelayUpdateGit : Expecting ';' but was: 'commit'",
+   "line": 184
+  },
+  {
+   "type": "LightningComponentBundle",
+   "name": "rlyPipeline",
+   "problem": "No MODULE named markup://c:rlyRelayUpdate found : [markup://c:rlyPipeline]"
+  }
+ ],
+ "testFailures": [],
+ "message": "19 component error(s)",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42435910969",
+ "finishedAt": "2026-11-08T01:50:50.233Z",
+ "excluded": [],
+ "selfUpdate": true,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "headSha": "c8d5c03d154cfd816af76efff36c24506460867d"
+}
