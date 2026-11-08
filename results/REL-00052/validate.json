@@ -1,0 +1,39 @@
+{
+ "request": "REL-00052",
+ "step": "validate",
+ "status": "Passed",
+ "changed": 5,
+ "deleted": [],
+ "mergedWith": "0b94a26b427af676833a3672567b8d4d92e00a26",
+ "validatedTree": "c5e662d4e57e58742b5a4ff139241dc88fdc1cbe",
+ "environment": "prod",
+ "ok": true,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0Afg800000LCPWQCA5",
+ "testsRun": 1,
+ "tests": [
+  "TaxCalculatorTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42520543256",
+ "finishedAt": "2026-11-08T20:32:09.967Z",
+ "attempt": "b05663c6a0bc9b6c0f63bd9a364d213c",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 1,
+  "files": [
+   "remoteSiteSettings/E2E_Endpoint.remoteSite-meta.xml"
+  ],
+  "hash": "44d910c2804b3d6b"
+ },
+ "headSha": "eace4759cf5e195b4434a9a926aa9eae55581f32"
+}
