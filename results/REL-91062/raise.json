@@ -1,19 +1,19 @@
 {
  "request": "REL-91062",
  "step": "raise",
- "status": "Opened",
+ "status": "Failed",
  "mode": "hub",
  "branch": "feature/rly-b50a-check",
  "target": "rly-sit-install",
- "sha": "9e9abeb8f1ded97ea112962486baf27088199d91",
- "pr": 221,
- "url": "https://github.com/Aravindboda/release-relay-demo/pull/221",
+ "sha": null,
+ "pr": null,
+ "url": null,
  "commits": [],
  "conflicts": [],
  "deleted": [],
  "valuesTokenized": 0,
  "appended": false,
- "message": "",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42428730019",
- "finishedAt": "2026-11-08T00:13:18.045Z"
+ "message": "SIT already matches rly-sit-install for these components. Nothing to commit.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42429282408",
+ "finishedAt": "2026-11-08T00:20:28.997Z"
 }
