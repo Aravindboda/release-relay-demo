@@ -6,7 +6,7 @@
  */
 public with sharing class RlyManualStepRules {
 
-    private static final Set<String> LOCKED = new Set<String>{ 'Deploying', 'Deployed', 'Deploy failed', 'Rejected', 'Closed', 'Failed' };
+    private static final Set<String> LOCKED = new Set<String>{ 'Deploying', 'Deployed', 'Deploy failed', 'Rejected', 'Closed', 'Failed', 'Cancelled' };
     private static final Integer MAX_SEQUENCE = 9999;
 
     /**

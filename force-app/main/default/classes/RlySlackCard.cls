@@ -92,6 +92,9 @@ public with sharing class RlySlackCard {
         if (status == 'Rejected') {
             return STOPPED + ' Rejected' + byWhom(approverName) + ': “' + RlySlackMessage.esc(text(rel.Approval_Comment__c).left(300)) + '”';
         }
+        if (status == 'Cancelled') {
+            return STOPPED + ' Cancelled: ' + RlySlackMessage.esc(text(rel.Error_Message__c).left(300)); // build 54: the hub moved
+        }
         if (status == 'Deploying' || status == 'Deployed') {
             return deployLine(rel) + ' · ' + route(rel) + ' · ' + RlySlackCardState.approvedText(rel, approverName);
         }

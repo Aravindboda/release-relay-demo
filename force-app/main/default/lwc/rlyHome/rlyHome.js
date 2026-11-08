@@ -41,7 +41,8 @@ const EVENT_LOOK = {
     Proof_Added: { label: 'Proof added', icon: 'utility:upload', tone: 'G' },
     Window_Held: { label: 'Waiting for the window', icon: 'utility:clock', tone: 'A' },
     Window_Override: { label: 'Deployed outside the window', icon: 'utility:warning', tone: 'A' },
-    Changes_Added: { label: 'Changes added', icon: 'utility:add', tone: 'B' }
+    Changes_Added: { label: 'Changes added', icon: 'utility:add', tone: 'B' },
+    Cancelled: { label: 'Cancelled', icon: 'utility:ban', tone: 'N' }
 };
 const ACTIVITY_CHIPS = [
     { id: 'all', label: 'All' },

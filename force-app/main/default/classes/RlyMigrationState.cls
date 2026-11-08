@@ -32,6 +32,8 @@ public with sharing class RlyMigrationState {
     public List<RlyMigrationRepo.OpenRequest> requests = new List<RlyMigrationRepo.OpenRequest>();
     /** @description Why the admin accepted the listed differences (blank: not accepted). */
     public String acceptReason;
+    /** @description The releases Switch now cancelled (build 54). */
+    public List<RlyMigrationView.CancelledRelease> cancelled = new List<RlyMigrationView.CancelledRelease>();
 
     /** @description A done mark. */
     public class Mark {

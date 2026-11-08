@@ -108,6 +108,8 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public String prodAddonNote;
         /** @description Build 49: the current user may run its checks again (raiser, approver, deployment team, admin). */
         @AuraEnabled public Boolean canRerun;
+        /** @description Build 54: the current user may cancel it now (open; the raiser or an admin). */
+        @AuraEnabled public Boolean canCancel;
     }
 
     /** @description What a release page shows about the release's links to others (Detail extends it; RlyReleaseLinks fills it). */
@@ -392,6 +394,7 @@ public with sharing class RlyReleasesController {
         d.orgLinks = RlyOrgLinks.forRelease(d.release);
         d.prodAddonNote = RlyProdApproval.noteFor(d.release);
         d.canRerun = RlyReleaseAccess.mayRerunChecks(d.release);
+        d.canCancel = RlyReleaseCancel.mayCancel(d.release);
         RlyRollbackView.fill(d);
         RlyReleaseLinks.fill(d);
         RlyReleaseHistory.fill(d);

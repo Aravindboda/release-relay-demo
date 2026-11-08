@@ -1,7 +1,7 @@
 /**
  * @description The Migration tab (build 46, rlyRepoMigration), from the checklists on: Done marks, moving between
- * steps, each org against its new branch (developer orgs in parts), accepting differences, Switch now, Finish (the
- * Migration report) and Cancel. Every action is for Release Relay admins in the hub.
+ * steps, each org against its new branch (developer orgs in parts), accepting differences, Switch now (build 54: cancelling
+ * the open releases when the admin chooses so), Finish (the Migration report) and Cancel. Every action is for Release Relay admins in the hub.
  */
 public with sharing class RlyMigrationOrgController {
 
@@ -125,6 +125,23 @@ public with sharing class RlyMigrationOrgController {
     public static RlyMigrationView.View switchNow(Id migrationId) {
         try {
             RlyMigrationSwitch.switchHub(RlyMigrationGuard.load(migrationId));
+            return RlyMigrationGuard.view(migrationId);
+        } catch (Exception e) {
+            throw RlyReleaseException.toAura(e);
+        }
+    }
+
+    /**
+     * @description Switches the whole hub to the new connection and cancels the releases still open on the old one
+     * (build 54): each becomes Cancelled, its pull request is closed with a comment and its Slack card edited.
+     * @param migrationId the migration
+     * @param cancelIds the open releases the page listed when the admin chose to cancel them
+     * @return the view
+     */
+    @AuraEnabled
+    public static RlyMigrationView.View switchNowCancelling(Id migrationId, List<Id> cancelIds) {
+        try {
+            RlyMigrationSwitch.switchHub(RlyMigrationGuard.load(migrationId), cancelIds == null ? new List<Id>() : cancelIds);
             return RlyMigrationGuard.view(migrationId);
         } catch (Exception e) {
             throw RlyReleaseException.toAura(e);

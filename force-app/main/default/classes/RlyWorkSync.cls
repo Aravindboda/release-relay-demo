@@ -41,7 +41,7 @@ public with sharing class RlyWorkSync {
                 return RlyWorkGate.isWaiting(rel) || rel.Approval_Status__c == 'Approved' ? 'Waiting to deploy to ' + target
                     : 'Ready for approval in ' + target;
             }
-            when 'Rejected', 'Closed' {
+            when 'Rejected', 'Closed', 'Cancelled' {
                 return rel.Status__c;
             }
             when 'Deploying' {

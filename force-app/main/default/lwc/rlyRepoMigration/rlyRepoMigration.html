@@ -26,7 +26,7 @@
                     <ul class="rr-inline">
                         <template for:each={holds.orgs} for:item="o"><li key={o.id}>{o.name} → <span class="rr-mono">{o.branch}</span></li></template>
                     </ul>
-                    <template lwc:if={hasOpen}><p class="rr-note">{openCount} release(s) still open. They have to be finished or closed before the switch (not before the copy).</p></template>
+                    <template lwc:if={hasOpen}><p class="rr-note">{openMessage} The copy can go on while they are open.</p></template>
                     <p class="rr-small rr-weak">What doesn't move: open pull or merge requests, pipeline run history, comments, secrets and variables, protected branches, environments and approvals, webhooks. Every branch, tag and commit can.</p>
                     <div class="rr-foot"><lightning-button variant="brand" label="Start" onclick={handleStart} disabled={busy}></lightning-button></div>
                 </div>
@@ -53,8 +53,12 @@
                             <tr><th scope="row">Orgs and branches</th><td><template for:each={holds.orgs} for:item="o"><span key={o.id} class="rr-tag">{o.name} → <span class="rr-mono">{o.branch}</span></span></template></td></tr>
                             <tr><th scope="row">Open releases</th><td>
                                 <template lwc:if={hasOpen}>
-                                    <template for:each={holds.open} for:item="r"><span key={r.id} class="rr-tag"><template lwc:if={r.url}><a class="rr-a" href={r.url} target="_blank" rel="noopener">{r.name}</a></template><template lwc:else>{r.name}</template> · {r.status}</span></template>
-                                    <p class="rr-small rr-weak">Finish or close them before the switch.</p>
+                                    <ul class="rr-open">
+                                        <template for:each={openRows} for:item="r">
+                                            <li key={r.id}><a class="rr-a rr-strong" href={r.link}>{r.name}</a> <span>{r.title}</span> <span class={r.pill}>{r.status}</span><template lwc:if={r.url}> <a class="rr-a rr-small" href={r.url} target="_blank" rel="noopener">{r.prText}</a></template><template lwc:if={r.running}> <span class="rr-small rr-weak">a pipeline run is going</span></template></li>
+                                        </template>
+                                    </ul>
+                                    <p class="rr-note rr-note-flush"><span class="rr-strong">{openMessage}</span></p>
                                 </template>
                                 <template lwc:else>None</template>
                             </td></tr>
@@ -231,11 +235,39 @@
                             </template>
                         </tbody>
                     </table>
+                    <template lwc:if={showCancelChoice}>
+                        <div class="rr-note">
+                            <p class="rr-strong">{cancelHeading}</p>
+                            <ul class="rr-inline">
+                                <template for:each={openRows} for:item="r">
+                                    <li key={r.id}><a class="rr-a rr-strong" href={r.link}>{r.name}</a> {r.title} · {r.status}<template lwc:if={r.url}> · <a class="rr-a" href={r.url} target="_blank" rel="noopener">{r.prText}</a></template><template lwc:if={r.running}> · <span class="rr-strong">{r.runText}</span></template></li>
+                                </template>
+                            </ul>
+                            <p class="rr-small">{cancelExplain}</p>
+                        </div>
+                        <div class="rr-foot"><button type="button" class={cancelChipCls} aria-pressed={cancelPressed} onclick={handleCancelChip} disabled={busy}>{cancelChipText}</button></div>
+                    </template>
                     <div class="rr-foot">
                         <lightning-button variant="brand" label={switchLabel} onclick={handleSwitch} disabled={cantSwitch}></lightning-button>
                         <template lwc:if={switchedOn}><span class="rr-pill rr-pill-ok">Switched <lightning-formatted-date-time value={switchedOn} year="numeric" month="short" day="numeric" hour="2-digit" minute="2-digit"></lightning-formatted-date-time></span></template>
                     </div>
                     <p class="rr-pad rr-small rr-weak">One click: the new connection becomes the active one for everything, and new releases start there. Old releases keep their own repository.</p>
+                    <template lwc:if={hasCancelled}>
+                        <div class="rr-bar"><span class="rr-strong">Cancelled by the switch</span><span class="rr-small rr-weak">{cancelledCount}</span></div>
+                        <table class="rr-table">
+                            <thead><tr><th>Release</th><th>Status before</th><th>Pull request</th><th>Note</th></tr></thead>
+                            <tbody>
+                                <template for:each={cancelledRows} for:item="r">
+                                    <tr key={r.id}>
+                                        <td><a class="rr-a rr-strong" href={r.link}>{r.name}</a> {r.title} <span class="rr-pill rr-pill-none">Cancelled</span></td>
+                                        <td class="rr-small">{r.before}</td>
+                                        <td class="rr-small"><template lwc:if={r.url}><a class="rr-a" href={r.url} target="_blank" rel="noopener">{r.prState}</a></template><template lwc:else>none</template></td>
+                                        <td class="rr-small rr-wrap">{r.noteText}</td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </template>
                 </section>
             </template>
 
