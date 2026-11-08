@@ -18,6 +18,7 @@ private class RlyPipelineFilesTest {
         insert new RLY_Git_Connection__c(Provider__c = 'GitHub', Repository__c = 'acme/release', Named_Credential__c = 'RLY_GitHub',
             Pipeline__c = 'release-relay.yml', Pipeline_Branch__c = 'main', Source_Path__c = 'force-app/main/default',
             Code_Scan__c = true, Status__c = 'Connected');
+        RlyReleaseStore.forgetGit();
     }
 
     // The packaged version of a GitHub hub's files (the workflow and the script), read like the class reads it.
@@ -188,6 +189,7 @@ private class RlyPipelineFilesTest {
             System.assertEquals(false, RlyRouteController.updatePipelineFiles(RlyPipelineFiles.VIA_COMMIT).ok, 'Nothing to update');
             insert new RLY_Git_Connection__c(Provider__c = 'Bitbucket', Repository__c = 'ws/repo', Named_Credential__c = 'RLY_Bitbucket',
                 Pipeline_Branch__c = 'main', Source_Path__c = 'force-app/main/default');
+            RlyReleaseStore.forgetGit();
             Test.setMock(HttpCalloutMock.class, new RlyHttpMock().match('GET', '/refs/branches/').reply(200, '{}'));
             Test.startTest();
             RlyPipelineFiles.Status s = RlyRouteController.getPipelineFiles();

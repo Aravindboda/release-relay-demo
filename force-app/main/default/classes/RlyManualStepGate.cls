@@ -60,7 +60,7 @@ public with sharing class RlyManualStepGate {
         if (!blocks(rel)) {
             return false;
         }
-        RLY_Release__c prior = rel.clone(true, true, true, true);
+        RLY_Release__c prior = RlySlackCardState.snapshot(rel);
         RlyApprovalRuns.recordApproval(rel, who);
         RlyTwoApprovers.keepBoth(rel, prior);
         return true;

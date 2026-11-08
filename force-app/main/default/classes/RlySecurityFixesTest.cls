@@ -191,6 +191,7 @@ private class RlySecurityFixesTest {
         System.runAs(RlyTestData.admin()) {
             RLY_Notification__c s = RlyReleaseTestData.slackOn('Deployed');
             update new RLY_Notification__c(Id = s.Id, Slack_Team_Id__c = 'T0ACME1');
+            RlySlack.forgetSettings();
             String fromElsewhere = '{"type":"block_actions","team":{"id":"T0OTHER"},"actions":[]}';
             String fromUs = '{"type":"block_actions","team":{"id":"T0ACME1"},"actions":[]}';
             Test.startTest();

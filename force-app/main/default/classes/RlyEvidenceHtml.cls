@@ -106,7 +106,7 @@ public with sharing class RlyEvidenceHtml {
     }
 
     private static String findings(RLY_Release__c rel) {
-        Object listed = RlyEvidenceText.parse(rel.Scan_Result__c).get('violations');
+        Object listed = RlySyncParse.parsedOrEmpty(rel.Scan_Result__c).get('violations');
         List<List<String>> rows = new List<List<String>>();
         for (Object o : listed instanceof List<Object> ? (List<Object>) listed : new List<Object>()) {
             Map<String, Object> m = o instanceof Map<String, Object> ? (Map<String, Object>) o : new Map<String, Object>();

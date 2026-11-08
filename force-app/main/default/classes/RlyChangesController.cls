@@ -6,7 +6,6 @@
  *   listFolderChanges changes of one folder type
  *   listTracked       changes from source tracking (one call, when the org has it)
  *   detectTests       which of these Apex classes are tests
- *   findDeletions     components on the org's branch that the org doesn't have (orgs without source tracking)
  *   inactiveTriggers  which selected Apex triggers are switched off (Status Inactive)
  *   flowVersions      the latest and active version of selected flows (Tooling API FlowDefinition)
  * Calls are short, so the page runs several at once and keeps the results per org.
@@ -36,7 +35,7 @@ public with sharing class RlyChangesController {
         try {
             return RlyMetadata.describe(source(orgId));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -55,7 +54,7 @@ public with sharing class RlyChangesController {
         try {
             return RlyChangeFinder.listed(source(orgId), types, since(sinceIso));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -71,7 +70,7 @@ public with sharing class RlyChangesController {
         try {
             return RlyChangeFinder.inFolders(source(orgId), type, since(sinceIso));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -86,7 +85,7 @@ public with sharing class RlyChangesController {
         try {
             return RlyChangeFinder.tracked(source(orgId), since(sinceIso));
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -101,7 +100,7 @@ public with sharing class RlyChangesController {
         try {
             return RlyChangeFinder.testClasses(source(orgId), classNames);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -117,22 +116,7 @@ public with sharing class RlyChangesController {
         try {
             return RlyFlowVersions.inactiveTriggers(source(orgId), triggerNames);
         } catch (Exception e) {
-            throw handled(e);
-        }
-    }
-
-    /**
-     * @description Deletion candidates of an org without source tracking: on its branch, not in the org. They may also
-     * have come from another org through the branch, so the page never pre-selects them.
-     * @param orgId the developer org
-     * @return the candidates, each with deleted = true
-     */
-    @AuraEnabled
-    public static List<RlyChangeFinder.Change> findDeletions(Id orgId) {
-        try {
-            return RlyDeletionFinder.find(source(orgId));
-        } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -148,7 +132,7 @@ public with sharing class RlyChangesController {
         try {
             return RlyFlowVersions.read(source(orgId), names);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -158,9 +142,9 @@ public with sharing class RlyChangesController {
      * @return the org, with its sign-in fields
      */
     public static RLY_Org__c source(Id orgId) {
-        RLY_Org__c org = new Data().org(orgId);
+        RLY_Org__c org = RlyReleaseStore.org(orgId);
         if (org == null || org.Role__c != 'Developer') {
-            // Callers wrap it with handled(), which sets the message the page shows.
+            // Callers wrap it with RlyReleaseException.toAura(), which sets the message the page shows.
             throw new RlyReleaseException(org?.Role__c == 'Stage'
                 ? RlyRaiseRoute.STAGE_RETIRED : 'Pick a registered developer org.');
         }
@@ -180,33 +164,6 @@ public with sharing class RlyChangesController {
             return (Datetime) JSON.deserialize('"' + sinceIso + '"', Datetime.class);
         } catch (Exception e) {
             throw new RlyReleaseException('That date isn\'t valid.');
-        }
-    }
-
-    /**
-     * @description The page's error for an exception (callers' exceptions are Apex ones, never AuraHandledException).
-     * @param e the exception
-     * @return the error the page shows
-     */
-    public static AuraHandledException handled(Exception e) {
-        AuraHandledException ex = new AuraHandledException(e.getMessage());
-        ex.setMessage(e.getMessage());
-        return ex;
-    }
-
-    /** @description Registered orgs are shared hub records, read in system mode for every user. */
-    private without sharing class Data {
-
-        /**
-         * @description One org with its sign-in fields, for the callouts only (never returned to the page).
-         * @param orgId the org
-         * @return the org, or null
-         */
-        public RLY_Org__c org(Id orgId) {
-            List<RLY_Org__c> rows = [SELECT Id, Name, Role__c, My_Domain__c, Login_Type__c, Username__c, Consumer_Key__c, Client_Id__c,
-                                            Certificate__c, Branch__c, Source_Tracking__c
-                                     FROM RLY_Org__c WHERE Id = :orgId WITH SYSTEM_MODE];
-            return rows.isEmpty() ? null : rows[0];
         }
     }
 }

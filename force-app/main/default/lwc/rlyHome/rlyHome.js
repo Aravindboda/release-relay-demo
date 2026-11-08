@@ -4,9 +4,8 @@ import readHome from '@salesforce/apex/RlyHomeController.read';
 import upcomingFreezes from '@salesforce/apex/RlyWindowController.upcomingFreezes';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import { searchTerm, matchesSearch, highlightParts } from 'c/rlyListSearch';
+import { errorText, plural, sameDay, clock, shortDate, isGated } from 'c/rlyShared';
 
-/** Modes of RlyHubGuard.getHubStatus in which the tab shows only the org gate. */
-const GATED_MODES = ['sandbox', 'copy', 'setup'];
 /** Under this width (board HubHome D) the page stacks and the tables collapse to two-line rows. */
 const NARROW_QUERY = '(max-width: 899px)';
 
@@ -63,26 +62,6 @@ const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 /** The chart's drawing area in the SVG viewBox (0 0 420 170). */
 const CHART = { left: 30, step: 48, bar: 16, top: 20, bottom: 140 };
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
-
-function plural(n, one, many) {
-    return n + ' ' + (n === 1 ? one : many);
-}
-
-function sameDay(a, b) {
-    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-function clock(d) {
-    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
-
-function shortDate(d) {
-    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-}
 
 /** "Yesterday" when the date is the day before today. */
 function isYesterday(d, now) {
@@ -206,7 +185,7 @@ export default class RlyHome extends NavigationMixin(LightningElement) {
     media;
     mediaHandler;
 
-    get gated() { return !!this.hubStatus && GATED_MODES.includes(this.hubStatus.mode); }
+    get gated() { return isGated(this.hubStatus); }
     get showPage() { return this.statusRead && !this.gated; }
     get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
     get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }

@@ -155,33 +155,13 @@
                             </div>
                             <c-rly-search-box label="Search changes" placeholder="Search by name or type" shown={searchShown} total={searchTotal}
                                 onsearch={handleSearch} class="rr-search"></c-rly-search-box>
-                            <template lwc:if={canFindDeletions}>
-                                <lightning-button label={findLabel} icon-name="utility:delete" onclick={findDeleted} disabled={cantFindDeletions}></lightning-button>
-                            </template>
                             <template lwc:if={canDeleteFromBranch}>
                                 <lightning-button label={branchDeleteLabel} icon-name="utility:delete" onclick={openBranchDelete} disabled={scanning}></lightning-button>
                             </template>
                             <lightning-button-icon icon-name="utility:refresh" variant="border-filled" alternative-text="Read the org again" title="Read the org again" onclick={refresh} disabled={scanning}></lightning-button-icon>
                         </div>
 
-                        <template lwc:if={findingDeletions}>
-                            <div class="rr-pad rr-finding" aria-live="polite">
-                                <span class="rr-spin-box"><lightning-spinner alternative-text="Finding deleted components" size="small"></lightning-spinner></span>
-                                <p class="rr-small rr-weak">{delText}</p>
-                            </div>
-                        </template>
                         <template lwc:if={deletionResult}><div class={deletionResultCls} role="status">{deletionResult}</div></template>
-                        <template lwc:if={hasDeletionFailures}>
-                            <ul class="rr-fails" aria-label="Parts that couldn't be read">
-                                <template for:each={deletionFailureRows} for:item="f">
-                                    <li key={f.key} class="rr-msg rr-msg-bad rr-msg-inset rr-fail">
-                                        <span class="rr-fail-text">{f.text}</span>
-                                        <lightning-button label="Try again" data-key={f.key} onclick={retryDeletionPart} disabled={cantFindDeletions}></lightning-button>
-                                    </li>
-                                </template>
-                            </ul>
-                        </template>
-
                         <template lwc:if={scanning}>
                             <div class="rr-pad" aria-live="polite">
                                 <p class="rr-small rr-weak">{scanText}</p>

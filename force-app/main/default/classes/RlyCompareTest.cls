@@ -213,6 +213,7 @@ private class RlyCompareTest {
             RLY_Git_Connection__c g = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
             g.Status__c = 'Not checked';
             update g;
+            RlyReleaseStore.forgetGit();
             String unset;
             try {
                 RlyCompareController.checkCompare(JSON.serialize(job(dev.Id, null)));
@@ -234,6 +235,30 @@ private class RlyCompareTest {
             System.assertEquals(RlyCompareFiles.UNSUPPORTED, big.status, 'Too large');
             System.assert(big.reason.startsWith(RlyCompareFiles.TOO_LARGE), 'Reason given');
             System.assert(RlyCompareZip.read(null, 'DEV1').isEmpty(), 'No zip, no files');
+        }
+    }
+
+    @IsTest
+    static void staticResourcesAndProfilesLinkToGit() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Org__c dev = RlyReleaseTestData.route();
+            RlyOrgSession.testToken = RlyTestData.TOKEN;
+            Test.setMock(HttpCalloutMock.class, mock('Succeeded'));
+            Map<String, Object> j = job(dev.Id, RETRIEVE_ID);
+            j.put('keys', new List<String>{ 'ApexClass:AccountService', 'StaticResource:logo', 'Profile:Custom Sales' });
+            j.put('deleted', new List<String>{ 'Profile:Old' });
+            Test.startTest();
+            RlyCompareRun.Result r = RlyCompareController.checkCompare(JSON.serialize(j));
+            Test.stopTest();
+            Map<String, RlyCompareFiles.ComponentDiff> c = byKey(r);
+            RlyCompareFiles.ComponentDiff logo = c.get('StaticResource:logo');
+            System.assertEquals(RlyCompareFiles.UNSUPPORTED, logo.status, 'Not compared');
+            System.assertEquals(RlyCompareFiles.LEFT_OUT, logo.reason, 'Says to open it in Git');
+            System.assert(logo.gitUrl.endsWith('/sit/force-app/main/default/staticresources/logo.resource-meta.xml'), 'Linked: ' + logo.gitUrl);
+            System.assert(c.get('Profile:Custom Sales').gitUrl.endsWith('/profiles/Custom%20Sales.profile-meta.xml'),
+                'Names are encoded: ' + c.get('Profile:Custom Sales').gitUrl);
+            System.assertEquals(RlyCompareFiles.LEFT_OUT, c.get('Profile:Old').reason, 'A deleted profile isn\'t compared either');
+            System.assertEquals(null, c.get('ApexClass:AccountService').gitUrl, 'Compared components have no link');
         }
     }
 
@@ -263,7 +288,10 @@ private class RlyCompareTest {
             System.assertEquals('aura/box/', RlyCompareFiles.bundleFolder('AuraDefinitionBundle:box'), 'Bundle folder');
             System.assertEquals(RlyCompareFiles.CHANGED, RlyCompareParts.statusOf('a', 'A'), 'Case matters');
             System.assertEquals(RlyCompareFiles.SAME, RlyCompareParts.statusOf('a\r\nb', 'a\nb'), 'Line endings ignored');
-            System.assert(RlyCompareFiles.reasonFor('StaticResource').contains('binary'), 'Static resources');
+            System.assertEquals(RlyCompareFiles.LEFT_OUT, RlyCompareFiles.reasonFor('StaticResource'), 'Static resources left out');
+            System.assertEquals(RlyCompareFiles.LEFT_OUT, RlyCompareFiles.reasonFor('Profile'), 'Profiles left out');
+            System.assertEquals('profiles/Custom Sales.profile-meta.xml', RlyCompareFiles.leftOutPath('Profile:Custom Sales'), 'Profile file');
+            System.assertEquals(null, RlyCompareFiles.leftOutPath('ApexClass:A'), 'Compared types have no link');
             System.assert(RlyCompareParts.tooLarge('a\nb', 'in DEV1').contains('2 lines in DEV1'), 'Line count');
             RlyCompareFiles.FileDiff ctrl = new RlyCompareFiles.FileDiff();
             ctrl.path = 'aura/box/boxController.js';

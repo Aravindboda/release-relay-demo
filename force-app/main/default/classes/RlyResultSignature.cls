@@ -79,7 +79,7 @@ public with sharing class RlyResultSignature {
          */
         public Opened open(String raw, String requestId, String step) {
             Opened o = new Opened();
-            Map<String, Object> wrapper = parsed(raw);
+            Map<String, Object> wrapper = RlySyncParse.parsed(raw);
             if (wrapper == null) {
                 return o;
             }
@@ -94,7 +94,7 @@ public with sharing class RlyResultSignature {
                 o.signed = sig instanceof String && RlyRunSigning.same(RlyRunSigning.mac(key, canonical(requestId, step, payload)), (String) sig);
                 o.rejected = !o.signed;
             }
-            o.data = o.rejected ? null : parsed(payload);
+            o.data = o.rejected ? null : RlySyncParse.parsed(payload);
             return o;
         }
     }
@@ -131,17 +131,5 @@ public with sharing class RlyResultSignature {
             }
         }
         return true;
-    }
-
-    private static Map<String, Object> parsed(String raw) {
-        if (String.isBlank(raw)) {
-            return null;
-        }
-        try {
-            Object o = JSON.deserializeUntyped(raw);
-            return o instanceof Map<String, Object> ? (Map<String, Object>) o : null;
-        } catch (JSONException e) {
-            return null;
-        }
     }
 }

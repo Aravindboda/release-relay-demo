@@ -15,7 +15,7 @@ public with sharing class RlyRollbackController {
         try {
             return RlyRollbackPlan.choices(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -30,7 +30,7 @@ public with sharing class RlyRollbackController {
         try {
             return RlyRollbackPreview.preview(releaseId, orgId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -46,16 +46,7 @@ public with sharing class RlyRollbackController {
                 : (RlyRollback.Request) JSON.deserialize(requestJson, RlyRollback.Request.class);
             RlyRollback.start(releaseId, req);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        if (e instanceof AuraHandledException) {
-            return (AuraHandledException) e;
-        }
-        AuraHandledException ex = new AuraHandledException(e.getMessage());
-        ex.setMessage(e.getMessage());
-        return ex;
     }
 }

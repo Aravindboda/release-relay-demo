@@ -9,6 +9,8 @@
  */
 public with sharing class RlySlackApprovers {
 
+    private static final String ADMINS_ONLY = 'Changing approvers needs the ' + System.Label.RLY_App_Name + ' Admin permission set.';
+
     /** @description What the window shows. */
     public class Window {
         /** @description The viewer can change things (RLY_Admin). */
@@ -42,8 +44,8 @@ public with sharing class RlySlackApprovers {
     @AuraEnabled
     public static Window load() {
         Boolean admin = RlyOrgController.isAdmin();
-        if (!admin && !RlyApprovalService.canApprove()) {
-            throw RlySlackController.auraError('Only ' + System.Label.RLY_App_Name + ' admins and approvers can see Slack approvers.');
+        if (!admin && !RlyReleaseAccess.isApprover()) {
+            throw RlyReleaseException.toAura('Only ' + System.Label.RLY_App_Name + ' admins and approvers can see Slack approvers.');
         }
         Window w = new Window();
         w.isAdmin = admin;
@@ -77,7 +79,7 @@ public with sharing class RlySlackApprovers {
      */
     @AuraEnabled
     public static RlySlackScopes.ScopeCheck checkScopes() {
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         return RlySlackScopes.check();
     }
 
@@ -88,7 +90,7 @@ public with sharing class RlySlackApprovers {
      */
     @AuraEnabled
     public static List<RlySlackApproverAdd.Candidate> searchUsers(String term) {
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         return RlySlackApproverAdd.search(term);
     }
 
@@ -99,7 +101,7 @@ public with sharing class RlySlackApprovers {
      */
     @AuraEnabled
     public static RlySlackApproverAdd.AddResult addApprovers(List<Id> userIds) {
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         return RlySlackApproverAdd.add(userIds);
     }
 
@@ -113,7 +115,7 @@ public with sharing class RlySlackApprovers {
     @AuraEnabled
     public static RlySlackMatch.Pass matchPass(List<Id> userIds, Integer offset) {
         RlyHubGuard.requireHub();
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         return RlySlackMatch.run(userIds, offset);
     }
 
@@ -123,7 +125,7 @@ public with sharing class RlySlackApprovers {
      */
     @AuraEnabled
     public static Window finishMatch() {
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         RLY_Notification__c s = RlySlack.settings();
         if (s != null) {
             RlySlack.saveSettings(new RLY_Notification__c(Id = s.Id, Last_Match__c = System.now(), Last_Match_By__c = UserInfo.getUserId()));
@@ -139,7 +141,7 @@ public with sharing class RlySlackApprovers {
      */
     @AuraEnabled
     public static Window setMember(Id userId, String memberId) {
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         String message = RlySlackFix.setByHand(userId, memberId);
         return withMessage(message);
     }
@@ -152,9 +154,9 @@ public with sharing class RlySlackApprovers {
      */
     @AuraEnabled
     public static Window fixRow(Id userId, String fix) {
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         if (!RlySlackFix.FIXES.contains(fix)) {
-            throw RlySlackController.auraError('Unknown fix.');
+            throw RlyReleaseException.toAura('Unknown fix.');
         }
         return withMessage(RlySlackFix.fix(userId, fix));
     }
@@ -166,7 +168,7 @@ public with sharing class RlySlackApprovers {
      */
     @AuraEnabled
     public static Window unlink(Id userId) {
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         User u = RlySlackFix.approver(userId);
         RlySlackDirectory.saveOne(RlySlackDirectory.linkRow(userId, null, null));
         return withMessage('Unlinked ' + u.Name + (u.RLY_Slack_Member_Id__c == null ? '.' : ' from ' + u.RLY_Slack_Member_Id__c + '.'));
@@ -180,11 +182,11 @@ public with sharing class RlySlackApprovers {
      */
     @AuraEnabled
     public static Window removeApprover(Id userId) {
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         RlySlackDirectory.Access a = RlySlackDirectory.accessOf(userId);
         String blocked = a == null ? 'That person isn\'t an approver.' : RlySlackApproverRows.removeNote(a);
         if (blocked != null) {
-            throw RlySlackController.auraError(blocked);
+            throw RlyReleaseException.toAura(blocked);
         }
         User u = RlySlackFix.approver(userId);
         new Data().unassign(a.directApprover);
@@ -195,12 +197,6 @@ public with sharing class RlySlackApprovers {
         Window w = load();
         w.message = message;
         return w;
-    }
-
-    private static void requireAdmin() {
-        if (!RlyOrgController.isAdmin()) {
-            throw RlySlackController.auraError('Changing approvers needs the ' + System.Label.RLY_App_Name + ' Admin permission set.');
-        }
     }
 
     /** @description RLY_Approver assignments, removed in system mode after the admin check. */

@@ -8,7 +8,6 @@ public with sharing class RlyRepoSecurityGitHubEnvs {
 
     private final RlyGit git;
     private final String branch;
-    private final String repo;
 
     /**
      * @description A reader for a repository.
@@ -18,7 +17,6 @@ public with sharing class RlyRepoSecurityGitHubEnvs {
     public RlyRepoSecurityGitHubEnvs(RlyGit git, String branch) {
         this.git = git;
         this.branch = branch;
-        this.repo = '/repos/' + git.connection().Repository__c.trim();
     }
 
     /**
@@ -34,15 +32,11 @@ public with sharing class RlyRepoSecurityGitHubEnvs {
         return out;
     }
 
-    private HttpResponse get(String path) {
-        return git.request(new RlyGitRequest('GET', repo + path, null));
-    }
-
     private RlyRepoSecurity.Item environmentItem(String env) {
         RlyRepoSecurity.Item i = RlyRepoSecurity.row('env:' + env, 'Environment ' + env);
         String fix = 'Settings → Environments → ' + env + ' → Deployment branches and tags → Selected branches → add ' + branch + ' only.';
         try {
-            HttpResponse res = get('/environments/' + RlyGitRequest.encode(env));
+            HttpResponse res = RlyRepoSecurity.gitHubGet(git, '/environments/' + RlyGitRequest.encode(env));
             if (res.getStatusCode() == 404) {
                 return i.found(RlyRepoSecurity.MISSING, 'Not in GitHub yet: a run makes it open to every branch.')
                     .orFix('Settings → Environments → New environment ' + env + ', then limit its deployment branches to ' + branch + '.');
@@ -65,7 +59,7 @@ public with sharing class RlyRepoSecurityGitHubEnvs {
     }
 
     private RlyRepoSecurity.Item customPolicies(RlyRepoSecurity.Item i, String env) {
-        HttpResponse res = get('/environments/' + RlyGitRequest.encode(env) + '/deployment-branch-policies?per_page=100');
+        HttpResponse res = RlyRepoSecurity.gitHubGet(git, '/environments/' + RlyGitRequest.encode(env) + '/deployment-branch-policies?per_page=100');
         if (res.getStatusCode() != 200) {
             return i.cantRead(RlyRepoSecurity.why(res), 'Environments: read');
         }

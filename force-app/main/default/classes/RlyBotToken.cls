@@ -45,14 +45,14 @@ public virtual with sharing class RlyBotToken {
     public static String checked(String token) {
         String value = token == null ? '' : token.trim();
         if (String.isBlank(value)) {
-            throw RlySlackController.auraError('Paste the bot token (it starts with ' + BOT_PREFIX + ').');
+            throw RlyReleaseException.toAura('Paste the bot token (it starts with ' + BOT_PREFIX + ').');
         }
         if (!value.startsWith(BOT_PREFIX)) {
-            throw RlySlackController.auraError('That isn\'t a bot token. Copy the Bot User OAuth Token (it starts with '
+            throw RlyReleaseException.toAura('That isn\'t a bot token. Copy the Bot User OAuth Token (it starts with '
                 + BOT_PREFIX + ') from OAuth & Permissions in your Slack app.');
         }
         if (!TOKEN_SHAPE.matcher(value).matches()) {
-            throw RlySlackController.auraError('The bot token looks incomplete. Copy it again from your Slack app.');
+            throw RlyReleaseException.toAura('The bot token looks incomplete. Copy it again from your Slack app.');
         }
         return value;
     }
@@ -92,7 +92,7 @@ public virtual with sharing class RlyBotToken {
                 ConnectApi.NamedCredentials.createCredential(input);
             }
         } catch (Exception e) {
-            throw RlySlackController.auraError(failure(e.getMessage(), token));
+            throw RlyReleaseException.toAura(failure(e.getMessage(), token));
         }
     }
 

@@ -41,8 +41,10 @@ private class RlySetupStatusTest {
             System.assertEquals(false, routed.slackConnected, 'No Slack');
             RLY_Git_Connection__c g = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
             update new RLY_Git_Connection__c(Id = g.Id, Status_Message__c = 'Repository reachable.\nPipeline files found on main.');
+            RlyReleaseStore.forgetGit();
             RLY_Notification__c s = RlyReleaseTestData.slackOn('Deployed');
             update new RLY_Notification__c(Id = s.Id, Last_Result__c = 'Sent: test message to #channel-name');
+            RlySlack.forgetSettings();
             RlySetupStatus.SetupStatus done = RlySetupStatus.getSetupStatus();
             System.assert(done.pipelineFilesFound && done.slackConnected, 'Files found and Slack sent');
         }

@@ -18,7 +18,7 @@ public with sharing class RlyMigrationOrgController {
             RlyMigrationSteps.mark(RlyMigrationGuard.load(migrationId), key, value);
             return RlyMigrationGuard.view(migrationId);
         } catch (Exception e) {
-            throw RlyMigrationGuard.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -34,7 +34,7 @@ public with sharing class RlyMigrationOrgController {
             RlyMigrationSteps.goTo(RlyMigrationGuard.load(migrationId), step);
             return RlyMigrationGuard.view(migrationId);
         } catch (Exception e) {
-            throw RlyMigrationGuard.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -49,7 +49,7 @@ public with sharing class RlyMigrationOrgController {
         try {
             return RlyMigrationSwitch.beginOrgCheck(RlyMigrationGuard.load(migrationId), orgId);
         } catch (Exception e) {
-            throw RlyMigrationGuard.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -64,7 +64,7 @@ public with sharing class RlyMigrationOrgController {
         try {
             return RlyMigrationSync.stagePart(RlyMigrationGuard.load(migrationId), partJson);
         } catch (Exception e) {
-            throw RlyMigrationGuard.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -80,7 +80,7 @@ public with sharing class RlyMigrationOrgController {
             return RlyMigrationSync.runDeveloper(RlyMigrationGuard.load(migrationId),
                 (RlyMigrationSync.DeveloperRun) JSON.deserialize(runJson, RlyMigrationSync.DeveloperRun.class));
         } catch (Exception e) {
-            throw RlyMigrationGuard.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -96,7 +96,7 @@ public with sharing class RlyMigrationOrgController {
             RlyMigrationSwitch.refreshOrgCheck(RlyMigrationGuard.load(migrationId), orgId);
             return RlyMigrationGuard.view(migrationId);
         } catch (Exception e) {
-            throw RlyMigrationGuard.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -112,7 +112,7 @@ public with sharing class RlyMigrationOrgController {
             RlyMigrationSwitch.accept(RlyMigrationGuard.load(migrationId), reason);
             return RlyMigrationGuard.view(migrationId);
         } catch (Exception e) {
-            throw RlyMigrationGuard.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -127,7 +127,7 @@ public with sharing class RlyMigrationOrgController {
             RlyMigrationSwitch.switchHub(RlyMigrationGuard.load(migrationId));
             return RlyMigrationGuard.view(migrationId);
         } catch (Exception e) {
-            throw RlyMigrationGuard.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -142,7 +142,7 @@ public with sharing class RlyMigrationOrgController {
             RlyMigrationSwitch.finish(RlyMigrationGuard.load(migrationId));
             return RlyMigrationGuard.view(migrationId);
         } catch (Exception e) {
-            throw RlyMigrationGuard.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -157,7 +157,7 @@ public with sharing class RlyMigrationOrgController {
             RlyMigrationSwitch.cancel(RlyMigrationGuard.load(migrationId));
             return RlyMigrationViews.build(null);
         } catch (Exception e) {
-            throw RlyMigrationGuard.handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 }

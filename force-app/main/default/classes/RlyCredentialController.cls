@@ -40,7 +40,7 @@ public with sharing class RlyCredentialController {
         try {
             return read();
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Something went wrong: ');
         }
     }
 
@@ -52,16 +52,14 @@ public with sharing class RlyCredentialController {
     public static Board checkNow() {
         try {
             RlyHubGuard.requireHub();
-            if (!RlyOrgController.isAdmin()) {
-                throw new RlyReleaseException('Only a Release Relay admin can check the credentials.');
-            }
+            RlyReleaseAccess.requireAdmin('Only a Release Relay admin can check the credentials.');
             RlyCredentialCheck.Pass p = RlyCredentialCheck.gather();
             RlyCredentialCheck.save(p);
             Board b = read();
             b.message = 'Checked: ' + RlyCredentialCheck.summary(p) + '.';
             return b;
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Something went wrong: ');
         }
     }
 
@@ -83,7 +81,7 @@ public with sharing class RlyCredentialController {
             }
             return t;
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Something went wrong: ');
         }
     }
 
@@ -96,15 +94,5 @@ public with sharing class RlyCredentialController {
             b.checkedOn = b.checkedOn == null || (r.lastChecked != null && r.lastChecked > b.checkedOn) ? r.lastChecked : b.checkedOn;
         }
         return b;
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        if (e instanceof AuraHandledException) {
-            return (AuraHandledException) e;
-        }
-        String message = e instanceof RlyReleaseException ? e.getMessage() : 'Something went wrong: ' + e.getMessage();
-        AuraHandledException a = new AuraHandledException(message);
-        a.setMessage(message);
-        return a;
     }
 }

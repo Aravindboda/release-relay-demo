@@ -7,6 +7,7 @@ private class RlyPullRequestCloseTest {
 
     private static void connect(String repository) {
         insert new RLY_Git_Connection__c(Provider__c = 'GitHub', Repository__c = repository, Named_Credential__c = 'RLY_GitHub');
+        RlyReleaseStore.forgetGit();
     }
 
     private static RLY_Release__c pr42() {

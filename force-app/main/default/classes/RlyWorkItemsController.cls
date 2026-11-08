@@ -17,7 +17,7 @@ public with sharing class RlyWorkItemsController {
             RlyWorkStore.adoptLegacy();
             return RlyWorkSettings.viewOf(RlyWorkStore.trackingSettings());
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Work items: ');
         }
     }
 
@@ -35,7 +35,7 @@ public with sharing class RlyWorkItemsController {
             RlyWorkStore.saveSettings(RlyWorkSettings.checked(v));
             return RlyWorkSettings.viewOf(RlyWorkStore.trackingSettings());
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Work items: ');
         }
     }
 
@@ -51,7 +51,7 @@ public with sharing class RlyWorkItemsController {
             b.canSync = !RlyRoles.isReadOnly();
             return b;
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Work items: ');
         }
     }
 
@@ -68,7 +68,7 @@ public with sharing class RlyWorkItemsController {
             }
             return RlyWorkSync.postRecent();
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Work items: ');
         }
     }
 
@@ -83,7 +83,7 @@ public with sharing class RlyWorkItemsController {
             RlyWorkStore.adoptLegacy();
             return ticketsOf(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Work items: ');
         }
     }
 
@@ -100,7 +100,7 @@ public with sharing class RlyWorkItemsController {
             RlyWorkItemEdits.replace(releaseId, tickets);
             return ticketsOf(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Work items: ');
         }
     }
 
@@ -118,7 +118,7 @@ public with sharing class RlyWorkItemsController {
             RlyWorkItemEdits.add(releaseId, tickets);
             return ticketsOf(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Work items: ');
         }
     }
 
@@ -136,7 +136,7 @@ public with sharing class RlyWorkItemsController {
             }
             return ticketsOf(releaseId);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e, 'Work items: ');
         }
     }
 
@@ -163,12 +163,5 @@ public with sharing class RlyWorkItemsController {
 
     private static void requireAdmin() {
         RlyWorkTrackersController.requireAdmin();
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        String message = e instanceof RlyReleaseException ? e.getMessage() : 'Work items: ' + e.getMessage();
-        AuraHandledException ex = new AuraHandledException(message);
-        ex.setMessage(message);
-        return ex;
     }
 }

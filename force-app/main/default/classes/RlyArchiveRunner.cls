@@ -30,15 +30,15 @@ public with sharing class RlyArchiveRunner {
      * @return the run, Running with no passes yet
      */
     public static RlyArchiveViews.Run startRun(Integer days) {
-        RlyArchiveService.requireAdmin(RlyArchiveService.ADMIN_ONLY);
+        RlyReleaseAccess.requireAdmin(RlyArchiveService.ADMIN_ONLY);
         RlyArchiveService.requireHub();
         Integer saved = savedDays(days);
         if (RlyArchiveRuns.running() != null) {
-            throw RlyArchiveService.failure(BUSY);
+            throw RlyReleaseException.toAura(BUSY);
         }
         Datetime cut = RlyArchiveService.cutoff(saved);
         if (RlyArchiveEligible.countReleases(cut) == 0) {
-            throw RlyArchiveService.failure(NOTHING);
+            throw RlyReleaseException.toAura(NOTHING);
         }
         RLY_Archive_Run__c run = RlyArchiveRuns.start(RlyArchiveRuns.RUN_NOW, saved, null);
         return RlyArchiveRuns.view(RlyArchiveRuns.find(run.Id));
@@ -51,18 +51,18 @@ public with sharing class RlyArchiveRunner {
      * @return the pass's result
      */
     public static RlyArchiveViews.PassResult runPass(Id runId, Integer days) {
-        RlyArchiveService.requireAdmin(RlyArchiveService.ADMIN_ONLY);
+        RlyReleaseAccess.requireAdmin(RlyArchiveService.ADMIN_ONLY);
         RlyArchiveService.requireHub();
         Integer saved = savedDays(days);
         RLY_Archive_Run__c run = RlyArchiveRuns.find(runId);
         if (run == null) {
-            throw RlyArchiveService.failure(NOT_FOUND);
+            throw RlyReleaseException.toAura(NOT_FOUND);
         }
         if (run.Status__c != RlyArchiveRuns.RUNNING) {
-            throw RlyArchiveService.failure(ENDED);
+            throw RlyReleaseException.toAura(ENDED);
         }
         if (RlyArchiveRuns.whole(run.Retention_Days__c) != saved) {
-            throw RlyArchiveService.failure('The Retention days changed since this run started. Start a new run.');
+            throw RlyReleaseException.toAura('The Retention days changed since this run started. Start a new run.');
         }
         return pass(run);
     }
@@ -73,10 +73,10 @@ public with sharing class RlyArchiveRunner {
      * @return the run
      */
     public static RlyArchiveViews.Run cancelRun(Id runId) {
-        RlyArchiveService.requireAdmin(RlyArchiveService.ADMIN_ONLY);
+        RlyReleaseAccess.requireAdmin(RlyArchiveService.ADMIN_ONLY);
         RLY_Archive_Run__c run = RlyArchiveRuns.find(runId);
         if (run == null) {
-            throw RlyArchiveService.failure(NOT_FOUND);
+            throw RlyReleaseException.toAura(NOT_FOUND);
         }
         RlyArchiveRuns.cancel(run);
         return RlyArchiveRuns.view(RlyArchiveRuns.find(runId));
@@ -157,10 +157,10 @@ public with sharing class RlyArchiveRunner {
     private static Integer savedDays(Integer days) {
         Integer saved = RlyArchiveSettings.days(RlyArchiveSettings.read());
         if (saved == null) {
-            throw RlyArchiveService.failure(NO_DAYS);
+            throw RlyReleaseException.toAura(NO_DAYS);
         }
         if (days != saved) {
-            throw RlyArchiveService.failure('Type ' + saved + ' to confirm: the saved number of days.');
+            throw RlyReleaseException.toAura('Type ' + saved + ' to confirm: the saved number of days.');
         }
         return saved;
     }

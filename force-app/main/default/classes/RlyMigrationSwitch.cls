@@ -104,7 +104,7 @@ public with sharing class RlyMigrationSwitch {
         m.State__c = state.toJson();
         RlyMigrationView.View v = RlyMigrationViews.build(m);
         String title = 'Migration report ' + m.Migration_Id__c + ' ' + System.now().format('yyyy-MM-dd HH:mm');
-        m.Report_File__c = RlyMigrationStore.saveFile(m.Id, title, Blob.toPdf(RlyMigrationReport.html(m, v)));
+        m.Report_File__c = RlyStepFileStore.savePdf(m.Id, title, Blob.toPdf(RlyMigrationReport.html(m, v)));
         m.Status__c = RlyMigrationStore.FINISHED;
         m.Finished_On__c = System.now();
         RlyMigrationStore.save(m);

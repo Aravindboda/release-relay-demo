@@ -27,7 +27,7 @@ public with sharing class RlySyncRuns {
      */
     public static Started startOrg(RLY_Org__c org) {
         Started s = new Started();
-        s.syncId = newId();
+        s.syncId = newId('SYN-');
         s.orgId = org.Id;
         RLY_Sync_Check__c check = newCheck(s.syncId, RlySyncStore.KIND_ORG);
         check.Org__c = org.Id;
@@ -102,7 +102,7 @@ public with sharing class RlySyncRuns {
             throw new RlyReleaseException('The route needs at least two orgs with a branch (Pipeline tab).');
         }
         Started s = new Started();
-        s.syncId = newId();
+        s.syncId = newId('SYN-');
         s.mode = 'routediff';
         RLY_Sync_Check__c check = newCheck(s.syncId, RlySyncStore.KIND_ROUTE);
         check.Run_Title__c = runTitle(s.syncId, 'routediff');
@@ -219,8 +219,13 @@ public with sharing class RlySyncRuns {
         }
     }
 
-    private static String newId() {
-        return 'SYN-' + String.valueOf(System.now().getTime()).leftPad(13, '0');
+    /**
+     * @description A new run id: the prefix and the time in milliseconds (sync checks SYN-, data runs DAT-).
+     * @param prefix the prefix
+     * @return the id
+     */
+    public static String newId(String prefix) {
+        return prefix + String.valueOf(System.now().getTime()).leftPad(13, '0');
     }
 
     private static void addOnce(List<String> values, String value) {

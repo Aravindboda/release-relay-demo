@@ -222,6 +222,7 @@ private class RlyHubGuardTest {
             System.assertEquals('Not checked', [SELECT Status__c FROM RLY_Git_Connection__c LIMIT 1].Status__c, 'Git switched off first');
 
             update new RLY_Notification__c(Id = rec.Id, Sandbox_Allowed_Until__c = System.now().addHours(-1));
+            RlySlack.forgetSettings();
             RlyHubGuard.forget();
             RlyHubGuard.HubStatus expired = RlyHubGuard.getHubStatus();
             System.assertEquals(RlyHubGuard.MODE_COPY, expired.mode, 'Expired: a copy again');
@@ -229,6 +230,7 @@ private class RlyHubGuardTest {
 
             update new RLY_Notification__c(Id = rec.Id, Sandbox_Allowed_Until__c = System.now().addDays(5),
                 Sandbox_Allowed_Org_Id__c = RlyTestData.fakeId('00D', 9));
+            RlySlack.forgetSettings();
             RlyHubGuard.forget();
             System.assertEquals(false, RlyHubGuard.getHubStatus().sandboxOverride, 'Another org\'s Id (a refresh): not allowed');
             System.assertEquals(false, RlyHubGuard.isHub(), 'Not the hub');

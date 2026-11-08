@@ -1,3 +1,5 @@
+@import 'c/rlySharedStyles';
+
 :host {
     display: block;
     --rr-blue: #0176d3;
@@ -15,12 +17,8 @@
 .rr-card { background: #fff; border: 1px solid var(--rr-line); border-radius: 4px; box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05); min-width: 0; }
 .rr-card-head { padding: 10px 16px; border-bottom: 1px solid var(--rr-line); }
 .rr-h2 { margin: 0; font-size: 15px; font-weight: 700; white-space: nowrap; flex: none; }
-.rr-h3 { margin: 0; font-size: 14px; font-weight: 700; }
 .rr-mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
-.rr-weak { color: var(--rr-muted); }
-.rr-small { font-size: 12px; }
 .rr-xs { font-size: 10.5px; }
-.rr-strong { font-weight: 700; }
 .rr-break { overflow-wrap: anywhere; }
 .rr-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .rr-grow { flex: 1; min-width: 0; }
@@ -28,12 +26,9 @@
 .rr-gap-top, .rr-cap.rr-gap-top { margin-top: 10px !important; }
 .rr-cap { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--rr-muted); margin: 0 0 4px !important; }
 .rr-pill { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; flex: none; }
-.rr-pill-info { background: #eef4ff; color: #014486; }
 .rr-pill-none { background: var(--rr-soft); color: #444; }
-.rr-pill-ok { background: #ebf7e6; color: #2e844a; }
 .rr-pill-xs { height: 16px; padding: 0 6px; font-size: 10px; vertical-align: middle; }
 .rr-msg { padding: 8px 10px; border-radius: 4px; font-size: 12px; line-height: 1.45; }
-.rr-msg-warn { background: #fef1cd; color: #5e3600; }
 .rr-linkbtn { border: 0; background: none; padding: 0; font: inherit; color: var(--rr-link); cursor: pointer; }
 .rr-linkbtn:hover { text-decoration: underline; }
 .rr-linkbtn:focus-visible { outline: 2px solid var(--rr-blue); outline-offset: 2px; }
@@ -328,7 +323,6 @@
 }
 
 /* What's built lock (build 31): lock card, unlocked chip, extras table */
-.rr-pill-wait { background: #fef1cd; color: #8c4b02; }
 .rr-unlocked { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 12px; background: #ebf7e6; color: #2e844a; font-size: 12px; white-space: nowrap; flex: none; }
 .rr-unlocked .rr-linkbtn { font-weight: 600; }
 .rr-lock-wait { min-height: 160px; }

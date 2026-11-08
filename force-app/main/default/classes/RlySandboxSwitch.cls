@@ -24,7 +24,7 @@ public with sharing class RlySandboxSwitch {
         requireSandboxAdmin();
         Integer span = days == null ? DEFAULT_DAYS : days;
         if (span < 1 || span > MAX_DAYS) {
-            throw RlySlackController.auraError(DAYS_RANGE);
+            throw RlyReleaseException.toAura(DAYS_RANGE);
         }
         RlySandboxCopy.quietCopy();
         RLY_Notification__c saved = RlySlack.settings();
@@ -56,11 +56,9 @@ public with sharing class RlySandboxSwitch {
     }
 
     private static void requireSandboxAdmin() {
-        if (!RlyOrgController.isAdmin()) {
-            throw RlySlackController.auraError(ONLY_ADMINS);
-        }
+        RlyReleaseAccess.requireAdmin(ONLY_ADMINS);
         if (!RlyHubGuard.isSandbox()) {
-            throw RlySlackController.auraError(ONLY_SANDBOX);
+            throw RlyReleaseException.toAura(ONLY_SANDBOX);
         }
     }
 
@@ -73,6 +71,7 @@ public with sharing class RlySandboxSwitch {
          */
         public void save(RLY_Notification__c row) {
             upsert as system row;
+            RlySlack.forgetSettings();
         }
     }
 }

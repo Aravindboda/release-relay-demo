@@ -182,6 +182,7 @@ public with sharing class RlyGitConnections {
          */
         public void saveRows(List<RLY_Git_Connection__c> rows) {
             update as system rows;
+            RlyReleaseStore.forgetGit();
         }
     }
 }

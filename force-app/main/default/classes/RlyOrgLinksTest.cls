@@ -31,6 +31,7 @@ private class RlyOrgLinksTest {
             System.assertEquals('https://dev1.my.salesforce.com/', links[0].loginUrl, 'My Domain followed by /');
             RLY_Git_Connection__c conn = [SELECT Id FROM RLY_Git_Connection__c LIMIT 1];
             update new RLY_Git_Connection__c(Id = conn.Id, Back_Promote__c = true);
+            RlyReleaseStore.forgetGit();
             links = RlyOrgLinks.forRelease(RlyReleaseStore.release(rel.Id));
             System.assertEquals(new List<String>{ 'DEV1', 'SIT', 'TRAINING' }, namesOf(links), 'Back promote orgs when on');
             System.assertEquals('https://training.my.salesforce.com/', links[2].loginUrl, 'One slash');

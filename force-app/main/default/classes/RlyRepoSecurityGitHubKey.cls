@@ -8,7 +8,6 @@
 public with sharing class RlyRepoSecurityGitHubKey {
 
     private final RlyGit git;
-    private final String repo;
     private final List<String> missing = new List<String>();
     private final List<String> unreadable = new List<String>();
 
@@ -18,7 +17,6 @@ public with sharing class RlyRepoSecurityGitHubKey {
      */
     public RlyRepoSecurityGitHubKey(RlyGit git) {
         this.git = git;
-        this.repo = '/repos/' + git.connection().Repository__c.trim();
     }
 
     /**
@@ -35,16 +33,12 @@ public with sharing class RlyRepoSecurityGitHubKey {
         return out;
     }
 
-    private HttpResponse get(String path) {
-        return git.request(new RlyGitRequest('GET', repo + path, null));
-    }
-
     // Every org environment has the secret.
     private RlyRepoSecurity.Item environmentsItem(List<String> envs) {
         RlyRepoSecurity.Item i = RlyRepoSecurity.row('key', 'Run-signing key ' + RlyRepoSecurity.KEY_NAME + ' in every org environment');
         try {
             for (String env : envs) {
-                sort(env, get('/environments/' + RlyGitRequest.encode(env) + '/secrets?per_page=100'));
+                sort(env, RlyRepoSecurity.gitHubGet(git, '/environments/' + RlyGitRequest.encode(env) + '/secrets?per_page=100'));
             }
         } catch (Exception e) {
             return i.cantRead(e.getMessage(), 'Environments: read and Secrets: read');
@@ -75,7 +69,7 @@ public with sharing class RlyRepoSecurityGitHubKey {
     private RlyRepoSecurity.Item repositoryItem() {
         RlyRepoSecurity.Item i = RlyRepoSecurity.row('key-repo', 'No repository-level ' + RlyRepoSecurity.KEY_NAME);
         try {
-            HttpResponse res = get('/actions/secrets?per_page=100');
+            HttpResponse res = RlyRepoSecurity.gitHubGet(git, '/actions/secrets?per_page=100');
             if (res.getStatusCode() != 200) {
                 return i.cantRead(RlyRepoSecurity.why(res), 'Secrets: read');
             }

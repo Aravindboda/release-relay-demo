@@ -102,7 +102,7 @@ public with sharing class RlyPromoteController {
             }
             return board;
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
@@ -121,12 +121,12 @@ public with sharing class RlyPromoteController {
             RlyPromotion.Request req = (RlyPromotion.Request) JSON.deserialize(requestJson, RlyPromotion.Request.class);
             return RlyPromotion.create(req);
         } catch (Exception e) {
-            throw handled(e);
+            throw RlyReleaseException.toAura(e);
         }
     }
 
     private static Boolean canPromote() {
-        return RlyApprovalService.canApprove() || RlyOrgController.isAdmin();
+        return RlyReleaseAccess.isApprover();
     }
 
     private static PromoteStage toStage(RLY_Org__c stage, RLY_Org__c nextOrg) {
@@ -159,14 +159,5 @@ public with sharing class RlyPromoteController {
             x.rolledBack.why = r.Rollback_Reason__c;
         }
         return x;
-    }
-
-    private static AuraHandledException handled(Exception e) {
-        if (e instanceof AuraHandledException) {
-            return (AuraHandledException) e;
-        }
-        AuraHandledException ex = new AuraHandledException(e.getMessage());
-        ex.setMessage(e.getMessage());
-        return ex;
     }
 }

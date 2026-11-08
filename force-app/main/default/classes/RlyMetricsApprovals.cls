@@ -31,7 +31,7 @@ public with sharing class RlyMetricsApprovals {
         m.truncated = m.truncated || approvals.size() >= RlyMetricsStore.MAX_EVENTS;
         Set<Id> ids = new Set<Id>();
         for (RLY_Release_Event__c a : approvals) {
-            if (counts(a)) {
+            if (f.counts(a)) {
                 ids.add(a.Release__c);
             }
         }
@@ -44,7 +44,7 @@ public with sharing class RlyMetricsApprovals {
         }
         RlyMetricsMedians c = new RlyMetricsMedians(buckets, f.periodStart);
         for (RLY_Release_Event__c a : approvals) {
-            Datetime ready = counts(a) ? latestBefore(checked.get(a.Release__c), a.Occurred_On__c) : null;
+            Datetime ready = f.counts(a) ? latestBefore(checked.get(a.Release__c), a.Occurred_On__c) : null;
             if (ready != null) {
                 c.add(a.Occurred_On__c, RlyMetricsBuckets.hoursBetween(ready, a.Occurred_On__c));
             }
@@ -54,9 +54,6 @@ public with sharing class RlyMetricsApprovals {
     }
 
     // The developer org filter: only releases raised from it.
-    private Boolean counts(RLY_Release_Event__c e) {
-        return f.devOrgId == null || e.Release__r.Source_Org__c == f.devOrgId;
-    }
 
     private static Datetime latestBefore(List<Datetime> moments, Datetime upTo) {
         Datetime best;

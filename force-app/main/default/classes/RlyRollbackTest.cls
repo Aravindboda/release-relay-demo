@@ -257,7 +257,7 @@ private class RlyRollbackTest {
             List<RlyReleasesController.Row> mine = RlyReleasesController.listReleasesFor(JSON.serialize(new Map<String, Object>{
                 'state' => 'rolledback', 'raisedById' => UserInfo.getUserId() }));
             Map<String, Integer> counts = RlyReleasesController.countReleases('');
-            String csv = RlyEvidenceController.exportCsv('{"state":"rolledback"}');
+            String csv = RlyEvidenceController.exportCsvPart('{"state":"rolledback"}', 0).text;
             Test.stopTest();
             System.assertEquals(1, rows.size(), 'Listed under Rolled back');
             System.assertEquals('Rolled_Back', rows[0].rollbackStatus, 'Row state');

@@ -89,7 +89,7 @@ public with sharing class RlyAppendService {
 
         String retrieveId = byType.isEmpty() ? null : RlyRetrieve.start(source, byType); // callout before any DML
 
-        RLY_Release__c prior = rel.clone(true, true, true, true);
+        RLY_Release__c prior = RlySlackCardState.snapshot(rel);
         RlyAppendRun.State st = RlyAppendRun.stateOf(rel);
         st.adds += 1;
         st.pending = true;

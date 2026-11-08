@@ -62,7 +62,7 @@ public with sharing class RlyRepoSettings {
     public static Settings read() {
         Settings s = new Settings();
         s.readAt = System.now();
-        RLY_Git_Connection__c conn = new Data().git();
+        RLY_Git_Connection__c conn = RlyReleaseStore.git();
         if (conn == null || String.isBlank(conn.Pipeline_Branch__c)) {
             s.message = 'No Git connection yet: the values and gates are read from the repository once it\'s set up.';
             return s;
@@ -96,20 +96,6 @@ public with sharing class RlyRepoSettings {
             s.gates = RlyRepoParse.gateRows(RlyRepoParse.objectOf(text));
         } catch (Exception e) {
             s.gatesError = GATES_PATH + ' isn\'t a valid JSON object, so the gates can\'t be shown.';
-        }
-    }
-
-    /** @description The Git connection is hub configuration: read in system mode for everyone with the tab. */
-    private without sharing class Data {
-
-        /**
-         * @description The hub's Git connection.
-         * @return the connection, or null
-         */
-        public RLY_Git_Connection__c git() {
-            List<RLY_Git_Connection__c> rows = [SELECT Id, Provider__c, Repository__c, Named_Credential__c, Pipeline__c, Pipeline_Branch__c
-                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC LIMIT 1];
-            return rows.isEmpty() ? null : rows[0];
         }
     }
 }

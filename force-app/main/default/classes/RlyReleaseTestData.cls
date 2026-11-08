@@ -18,6 +18,7 @@ public with sharing class RlyReleaseTestData {
         insert new RLY_Git_Connection__c(Provider__c = 'GitHub', Repository__c = 'acme/release', Named_Credential__c = 'RLY_GitHub',
             Pipeline__c = 'release-relay.yml', Pipeline_Branch__c = 'main', Source_Path__c = 'force-app/main/default',
             Code_Scan__c = true, Status__c = 'Connected');
+        RlyReleaseStore.forgetGit();
         return dev;
     }
 
@@ -149,6 +150,7 @@ public with sharing class RlyReleaseTestData {
         RLY_Notification__c s = new RLY_Notification__c(Name = 'Slack', Channel__c = 'Slack', Enabled__c = true,
             Events__c = events, Signing_Secret__c = SIGNING_SECRET);
         insert s;
+        RlySlack.forgetSettings();
         return s;
     }
 

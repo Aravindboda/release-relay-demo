@@ -26,6 +26,8 @@ public with sharing class RlySlack {
 
     // The Slack record's last result, saved by saveResults() once the transaction's callouts are done.
     private static RLY_Notification__c pending;
+    // The Slack record, read once per transaction (settings); forgetSettings empties it when the record is saved.
+    private static RLY_Notification__c cachedSettings;
 
     /**
      * @description The event a status change is, when it is one Slack can be told about. Raised is the move from
@@ -51,7 +53,7 @@ public with sharing class RlySlack {
      * @param oldStatus its status before
      */
     public static void notifyTransition(RLY_Release__c rel, String oldStatus) {
-        RLY_Release__c prior = rel.clone(true, true, true, true);
+        RLY_Release__c prior = RlySlackCardState.snapshot(rel);
         prior.Status__c = oldStatus;
         RlySlackCardSync.notifyChange(prior, rel);
     }
@@ -188,7 +190,17 @@ public with sharing class RlySlack {
      * @return the record, or null when there is none
      */
     public static RLY_Notification__c settings() {
-        return new Data().readSettings();
+        if (cachedSettings == null) {
+            cachedSettings = new Data().readSettings();
+        }
+        return cachedSettings == null ? null : cachedSettings.clone(true, true, true, true);
+    }
+
+    /**
+     * @description The Slack record was saved: the next settings() reads it again.
+     */
+    public static void forgetSettings() {
+        cachedSettings = null;
     }
 
     /**
@@ -230,6 +242,7 @@ public with sharing class RlySlack {
          */
         public void saveRecord(RLY_Notification__c s) {
             upsert as system s;
+            forgetSettings();
         }
     }
 }

@@ -12,20 +12,15 @@ import flowVersions from '@salesforce/apex/RlyChangesController.flowVersions';
 import listTrackedPage from '@salesforce/apex/RlyChangePartsController.listTrackedPage';
 import listFolderPage from '@salesforce/apex/RlyChangePartsController.listFolderPage';
 import listFieldPage from '@salesforce/apex/RlyChangePartsController.listFieldPage';
-import deletionPlan from '@salesforce/apex/RlyChangePartsController.deletionPlan';
-import deletionPart from '@salesforce/apex/RlyChangePartsController.deletionPart';
-import presentNames from '@salesforce/apex/RlyChangePartsController.presentNames';
-import presentFields from '@salesforce/apex/RlyChangePartsController.presentFields';
 import {
-    PARALLEL, DELETION_PARALLEL, MAX_ITEMS, TEST_NAMES_PER_CALL, FLOW_NAMES_PER_CALL, KIND_FOLDER, KIND_FIELDS,
-    listingParts, afterFailure, mergeChanges, presenceKey, deletionCandidates, runPool, folderTypesOf
+    PARALLEL, TEST_NAMES_PER_CALL, FLOW_NAMES_PER_CALL, KIND_FOLDER, KIND_FIELDS,
+    listingParts, afterFailure, mergeChanges
 } from './changeParts';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import getAppend from '@salesforce/apex/RlyAppendController.getAppend';
 import appendChanges from '@salesforce/apex/RlyAppendController.appendChanges';
+import { errorText, isGated, clearSearchBox, runPool } from 'c/rlyShared';
 
-/** Modes of RlyHubGuard.getHubStatus in which the tab shows only the org gate. */
-const GATED_MODES = ['sandbox', 'copy', 'setup'];
 
 const PAGE = 200;
 /** The release page's tab (Releases), where Cancel in append mode goes back to. */
@@ -68,10 +63,6 @@ const BUCKET_WORDS = {
     Apex: 'an Apex class', Flows: 'a Flow', Profiles_Permissions: 'a Profile or permission set', Objects_Fields: 'an object or field',
     Deletions: 'deletions', Manual_Steps: 'manual steps', Hotfix: 'a hotfix', Other: 'other changes'
 };
-
-function errorText(e) {
-    return (e && e.body && e.body.message) || (e && e.message) || 'Something went wrong.';
-}
 
 function chunks(list, size) {
     const out = [];
@@ -261,7 +252,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     statusRead = false;
     get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
     get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
-    get gated() { return !!this.hubStatus && GATED_MODES.includes(this.hubStatus.mode); }
+    get gated() { return isGated(this.hubStatus); }
     get showPage() { return this.statusRead && !this.gated; }
 
     /** Reads the hub status once, then loads the page only on the hub. */
@@ -322,14 +313,9 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     drawerOpen = false;
     allTypes = [];
 
-    // deletions found from the branch (orgs without source tracking)
-    findingDeletions = false;
+    // what the last deletions picked (Delete from the branch, Sync status) say
     deletionResult;
     deletionResultBad = false;
-    /** Find deleted components in parts: the plan, what each part and type gave, and what still failed. */
-    delState;
-    delDone = 0;
-    delTotal = 0;
 
     connectedCallback() {
         this.readHubStatus();
@@ -852,10 +838,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
 
     /** "Clear search" in the empty table. */
     clearSearch() {
-        const box = this.template.querySelector('c-rly-search-box.rr-search');
-        if (box) {
-            box.clear();
-        }
+        clearSearchBox(this.template, 'c-rly-search-box.rr-search');
         this.search = '';
         this.shown = PAGE;
     }
@@ -955,189 +938,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     get target() { return (this.start && this.start.targetName) || 'the target'; }
     get deleteFromText() { return 'Delete from ' + this.target; }
     get deletedGroupLabel() { return 'Deleted from ' + this.target; }
-    /** Orgs without source tracking can't list their deletions: the hub compares the org with its branch. */
-    get canFindDeletions() { return !!this.sourceOrg && this.sourceOrg.Source_Tracking__c !== 'Available'; }
-    get cantFindDeletions() { return this.scanning || this.findingDeletions; }
-    get findLabel() { return this.findingDeletions ? 'Finding deleted components…' : 'Find deleted components'; }
-    /** The developer org's own branch, else the first stage's. */
-    get ownBranch() { return this.sourceBranch || (this.start && this.start.targetBranch) || 'the branch'; }
     get deletionResultCls() { return 'rr-msg rr-msg-inset ' + (this.deletionResultBad ? 'rr-msg-bad' : 'rr-msg-info'); }
-
-    /**
-     * Find deleted components in parts (build 36): the branch's plan (RlyChangePartsController.deletionPlan), then each
-     * part of the branch and each type in the org, DELETION_PARALLEL at a time, every part and type tried once more when
-     * it fails; what still fails is listed with Try again, and the candidates are shown once everything that could be
-     * read is in.
-     */
-    async findDeleted() {
-        this.findingDeletions = true;
-        this.deletionResult = undefined;
-        this.deletionResultBad = false;
-        this.delDone = 0;
-        this.delTotal = 1;
-        try {
-            const plan = await deletionPlan({ orgId: this.orgId });
-            this.delState = { plan, branchKeys: new Map(), presence: new Map(), failedParts: [], failedTypes: [], truncated: plan.truncated,
-                blocked: new Set(), folderTypes: folderTypesOf(plan.rules) };
-            this.delTotal = plan.parts.length;
-            await runPool(plan.parts.map((part) => () => this.readBranchPart(part, 0)), DELETION_PARALLEL);
-            await this.readOrgTypes(this.branchTypes().filter((t) => !this.delState.presence.has(t)));
-            this.showDeletions();
-        } catch (e) {
-            this.deletionResult = errorText(e);
-            this.deletionResultBad = true;
-        } finally {
-            this.findingDeletions = false;
-        }
-    }
-
-    /** One part of the branch; a failure is tried once more, then listed. */
-    readBranchPart(part, attempt) {
-        const plan = this.delState.plan;
-        return deletionPart({ orgId: this.orgId, partJson: JSON.stringify({ ...part, rules: plan.rules, namespace: plan.namespace }) })
-            .then((r) => {
-                this.delState.branchKeys.set(part.id, r.keys || []);
-                (r.blocked || []).forEach((b) => this.delState.blocked.add(b.key));
-                this.delState.truncated = this.delState.truncated || r.truncated;
-                this.delDone += 1;
-            })
-            .catch((e) => {
-                if (attempt < 1) {
-                    return this.readBranchPart(part, attempt + 1);
-                }
-                this.delDone += 1;
-                this.delState.failedParts = [...this.delState.failedParts, { key: part.id, label: part.label, reason: errorText(e), part }];
-                return undefined;
-            });
-    }
-
-    /**
-     * The types found on the branch so far with a component a deploy can delete (not those in folders: listMetadata
-     * needs each folder for them).
-     */
-    branchTypes() {
-        const types = new Set();
-        this.delState.branchKeys.forEach((keys) => keys.forEach((k) => {
-            if (!this.delState.blocked.has(k)) {
-                types.add(k.substring(0, k.indexOf(':')));
-            }
-        }));
-        return [...types].filter((t) => !this.delState.folderTypes.has(t));
-    }
-
-    /** Every component of these types in the org, DELETION_PARALLEL at a time. */
-    async readOrgTypes(types) {
-        this.delTotal += types.length;
-        await runPool(types.map((t) => () => this.readOrgType(t, 0)), DELETION_PARALLEL);
-    }
-
-    /** One type in the org; tried once more, custom fields then a page at a time (Tooling API), then listed. */
-    readOrgType(type, attempt) {
-        return presentNames({ orgId: this.orgId, type })
-            .then((p) => this.keepPresence(type, p.names || []))
-            .catch((e) => {
-                if (attempt < 1) {
-                    return this.readOrgType(type, attempt + 1);
-                }
-                if (type === 'CustomField') {
-                    return this.readFieldPages(null, []).catch((e2) => this.failType(type, e2));
-                }
-                return this.failType(type, e);
-            });
-    }
-
-    readFieldPages(cursor, names) {
-        return presentFields({ orgId: this.orgId, cursor }).then((p) => {
-            names.push(...(p.names || []));
-            return p.nextCursor ? this.readFieldPages(p.nextCursor, names) : this.keepPresence('CustomField', names);
-        });
-    }
-
-    keepPresence(type, names) {
-        this.delState.presence.set(type, new Set(names.map((n) => presenceKey(type, n))));
-        this.delState.failedTypes = this.delState.failedTypes.filter((f) => f.key !== type);
-        this.delDone += 1;
-    }
-
-    failType(type, e) {
-        this.delDone += 1;
-        this.delState.failedTypes = [...this.delState.failedTypes.filter((f) => f.key !== type),
-            { key: type, label: type + ' in ' + this.sourceName, reason: errorText(e) }];
-    }
-
-    /** The candidates from everything read: added to the list, with a note of what couldn't be read. */
-    showDeletions() {
-        const st = this.delState;
-        const keys = [];
-        st.branchKeys.forEach((list) => keys.push(...list));
-        const all = deletionCandidates([...new Set(keys)], st.presence, st.blocked);
-        const found = all.slice(0, MAX_ITEMS).map(asDeletion);
-        this.changes = mergeChanges(this.changes, found);
-        if (this.cache[this.cacheKey]) {
-            this.cache[this.cacheKey] = { ...this.cache[this.cacheKey], changes: this.changes };
-        }
-        const branch = this.ownBranch;
-        const org = this.sourceName;
-        const notes = [];
-        if (all.length > MAX_ITEMS) {
-            notes.push('Showing the first ' + MAX_ITEMS + ' of ' + all.length + '.');
-        }
-        if (st.truncated) {
-            notes.push('GitHub cut a folder list short, so some components on the branch may be missing.');
-        }
-        if (st.failedParts.length || st.failedTypes.length) {
-            notes.push('Some parts couldn\u2019t be read (below); their components aren\u2019t in this list yet.');
-        }
-        const tail = notes.length ? ' ' + notes.join(' ') : '';
-        if (all.length === 0) {
-            this.deletionResult = 'Everything in ' + branch + '\'s branch is in ' + org + '. Nothing to delete.' + tail;
-        } else {
-            this.deletionResult = 'In ' + branch + '\'s branch but not in ' + org
-                + '. They may have been deleted in ' + org + ', or came from another org through the branch and were never deployed to ' + org
-                + '. Tick only what you deleted.' + tail;
-            this.typeFilter = 'deleted';
-            this.shown = PAGE;
-        }
-    }
-
-    get hasDeletionFailures() { return !!this.delState && (this.delState.failedParts.length + this.delState.failedTypes.length) > 0; }
-    get deletionFailureRows() {
-        if (!this.delState) {
-            return [];
-        }
-        const parts = this.delState.failedParts.map((f) => ({ key: 'part|' + f.key, text: 'Couldn\u2019t read ' + f.label + ' on ' + this.ownBranch + ': ' + f.reason }));
-        const types = this.delState.failedTypes.map((f) => ({ key: 'type|' + f.key, text: 'Couldn\u2019t read ' + f.label + ': ' + f.reason }));
-        return [...parts, ...types];
-    }
-    get delText() {
-        return 'Comparing ' + this.ownBranch + '\'s branch with ' + this.sourceName + ': ' + Math.min(this.delDone, this.delTotal) + ' of ' + this.delTotal + ' parts…';
-    }
-
-    /** Try again on a part of the branch or a type in the org, then show the candidates again. */
-    async retryDeletionPart(event) {
-        const [kind, key] = event.currentTarget.dataset.key.split('|');
-        if (!this.delState || this.findingDeletions) {
-            return;
-        }
-        this.findingDeletions = true;
-        this.delDone = 0;
-        this.delTotal = 1;
-        try {
-            if (kind === 'part') {
-                const failure = this.delState.failedParts.find((f) => f.key === key);
-                this.delState.failedParts = this.delState.failedParts.filter((f) => f.key !== key);
-                if (failure) {
-                    await this.readBranchPart(failure.part, 0);
-                }
-                await this.readOrgTypes(this.branchTypes().filter((t) => !this.delState.presence.has(t)));
-            } else {
-                await this.readOrgType(key, 0);
-            }
-            this.showDeletions();
-        } finally {
-            this.findingDeletions = false;
-        }
-    }
 
     // ---------- add by name ----------
 
@@ -1602,7 +1403,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     closeBranchDelete() {
         this.branchDeleteOpen = false;
     }
-    /** The chosen components join the list as deletions, selected, exactly like Find deleted components' picks. */
+    /** The chosen components join the list as deletions, selected. */
     addFromBranch(event) {
         const items = (event.detail && event.detail.items) || [];
         const found = items.map((i) => asDeletion({ key: i.type + ':' + i.name, type: i.type, name: i.name, standard: false, deleted: true, stillIn: !!i.stillIn }));

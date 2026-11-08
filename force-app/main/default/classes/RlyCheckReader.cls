@@ -119,7 +119,12 @@ public with sharing class RlyCheckReader {
         return checkStatus == 'Not configured' || FINISHED.contains(checkStatus);
     }
 
-    private static Boolean blocks(String checkStatus) {
+    /**
+     * @description Whether a check's status stops the release (Failed or Error). Slack's card uses it too.
+     * @param checkStatus the status
+     * @return true when it blocks
+     */
+    public static Boolean blocks(String checkStatus) {
         return checkStatus == 'Failed' || checkStatus == 'Error';
     }
 }

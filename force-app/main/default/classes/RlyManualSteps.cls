@@ -178,6 +178,6 @@ public with sharing class RlyManualSteps {
      * @return true for the deployment team and admins
      */
     public static Boolean canCheck() {
-        return FeatureManagement.checkPermission('RLY_Deploy_Team') || RlyOrgController.isAdmin();
+        return RlyReleaseAccess.isDeployTeam();
     }
 }

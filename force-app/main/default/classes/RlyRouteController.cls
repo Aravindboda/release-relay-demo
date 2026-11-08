@@ -15,6 +15,8 @@
  */
 public with sharing class RlyRouteController {
 
+    private static final String ADMINS_ONLY = 'Changing the pipeline needs the Release Relay Admin permission set.';
+
     /** @description What the Pipeline tab shows about Git and the route. Orgs carry no sign-in fields. */
     public class Setup {
         /** @description The Git connection, or null. */
@@ -39,7 +41,7 @@ public with sharing class RlyRouteController {
     public static Setup getSetup() {
         Data data = new Data();
         Setup s = new Setup();
-        s.git = data.git();
+        s.git = RlyReleaseStore.git();
         s.isAdmin = RlyOrgController.isAdmin();
         for (RLY_Org__c o : data.orgs()) {
             if (o.Role__c == 'Developer') {
@@ -62,14 +64,14 @@ public with sharing class RlyRouteController {
      */
     @AuraEnabled
     public static Id saveGit(String gitJson) {
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         RLY_Git_Connection__c input = readInput(gitJson);
         List<String> problems = RlyGitValidator.validate(input);
         if (!problems.isEmpty()) {
             throw new AuraHandledException(String.join(problems, '. ') + '.');
         }
         Data data = new Data();
-        RLY_Git_Connection__c existing = data.git();
+        RLY_Git_Connection__c existing = RlyReleaseStore.git();
         RLY_Git_Connection__c row = new RLY_Git_Connection__c(
             Id = existing == null ? null : existing.Id,
             Name = (input.Provider__c + ' ' + input.Repository__c.trim()).left(80),
@@ -105,11 +107,11 @@ public with sharing class RlyRouteController {
     @AuraEnabled
     public static RLY_Git_Connection__c checkGit() {
         RlyHubGuard.requireHub();
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         Data data = new Data();
         RLY_Git_Connection__c g = requireGit(data);
         data.saveGit(RlyGitCheck.run(g, data.orgs()));
-        return data.git();
+        return RlyReleaseStore.git();
     }
 
     /**
@@ -130,7 +132,7 @@ public with sharing class RlyRouteController {
     @AuraEnabled
     public static RlyBranchCreate.Result createBranchesPart(Integer fromIndex) {
         RlyHubGuard.requireHub();
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         Data data = new Data();
         RLY_Git_Connection__c g = requireGit(data);
         try {
@@ -146,7 +148,7 @@ public with sharing class RlyRouteController {
      */
     @AuraEnabled
     public static void saveRoute(List<Id> stageIds) {
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         Data data = new Data();
         Map<Id, RLY_Org__c> byId = new Map<Id, RLY_Org__c>(data.orgs());
         List<RLY_Org__c> rows = new List<RLY_Org__c>();
@@ -178,7 +180,7 @@ public with sharing class RlyRouteController {
     @AuraEnabled
     public static RlyPipelineFiles.UpdateResult updatePipelineFiles(String how) {
         RlyHubGuard.requireHub();
-        requireAdmin();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
         return RlyPipelineFiles.updateRepository(how);
     }
 
@@ -227,33 +229,15 @@ public with sharing class RlyRouteController {
     }
 
     private static RLY_Git_Connection__c requireGit(Data data) {
-        RLY_Git_Connection__c g = data.git();
+        RLY_Git_Connection__c g = RlyReleaseStore.git();
         if (g == null) {
             throw new AuraHandledException('Save the Git connection first.');
         }
         return g;
     }
 
-    private static void requireAdmin() {
-        if (!RlyOrgController.isAdmin()) {
-            throw new AuraHandledException('Changing the pipeline needs the Release Relay Admin permission set.');
-        }
-    }
-
     /** @description The connection and orgs are shared hub records: read in system mode, changed only after the admin checks above. */
     private without sharing class Data {
-
-        /**
-         * @description The hub's Git connection.
-         * @return the connection, or null
-         */
-        public RLY_Git_Connection__c git() {
-            List<RLY_Git_Connection__c> rows = [SELECT Id, Name, Provider__c, Repository__c, Named_Credential__c, Pipeline__c,
-                                                       Pipeline_Branch__c, Source_Path__c, Code_Scan__c, Status__c, Status_Message__c,
-                                                       Last_Checked__c, Back_Promote__c
-                                                FROM RLY_Git_Connection__c WITH SYSTEM_MODE ORDER BY Active__c DESC, CreatedDate ASC LIMIT 1];
-            return rows.isEmpty() ? null : rows[0];
-        }
 
         /**
          * @description Registered orgs for the route: no sign-in fields.
@@ -271,6 +255,7 @@ public with sharing class RlyRouteController {
          */
         public void saveGit(RLY_Git_Connection__c row) {
             upsert as system row;
+            RlyReleaseStore.forgetGit();
         }
 
         /**

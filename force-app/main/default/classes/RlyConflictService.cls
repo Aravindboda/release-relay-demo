@@ -12,7 +12,7 @@ public with sharing class RlyConflictService {
      * @return true for approvers and for whoever raised it
      */
     public static Boolean mayResolve(RLY_Release__c rel) {
-        return rel != null && (rel.CreatedById == UserInfo.getUserId() || RlyApprovalService.canApprove());
+        return rel != null && (rel.CreatedById == UserInfo.getUserId() || RlyReleaseAccess.isApprover());
     }
 
     /**
@@ -31,7 +31,7 @@ public with sharing class RlyConflictService {
             throw new RlyReleaseException('Only the developer who raised this release or an approver can resolve its conflicts.');
         }
         String body = RlyConflictRules.resolveFile(rel, requestJson);
-        RLY_Release__c before = rel.clone(true, true, true, true);
+        RLY_Release__c before = RlySlackCardState.snapshot(rel);
         RLY_Git_Connection__c conn = RlyReleaseStore.gitFor(rel);
         RlyGit git = RlyGit.forConnection(conn);
         git.putFile(new RlyGitFile('.relay-inbox/' + rel.Name + '-resolve.json', rel.Source_Branch__c)

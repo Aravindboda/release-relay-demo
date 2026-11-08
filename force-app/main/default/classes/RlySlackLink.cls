@@ -145,7 +145,7 @@ public with sharing class RlySlackLink {
     public static LinkView confirmLink(String token) {
         LinkView v = view(token);
         if (v.state != READY) {
-            throw RlySlackController.auraError(v.message);
+            throw RlyReleaseException.toAura(v.message);
         }
         RlySlackDirectory.saveOne(RlySlackDirectory.linkRow(UserInfo.getUserId(), v.memberId, RlySlackDirectory.BY_SELF));
         v.state = LINKED;

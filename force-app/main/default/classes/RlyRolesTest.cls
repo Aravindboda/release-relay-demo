@@ -163,7 +163,7 @@ private class RlyRolesTest {
                 refused = e.getMessage();
             }
             System.assert(refused != null, 'No Sync now for the Auditor');
-            System.assert(!RlyApprovalService.canApprove(), 'Can\'t approve');
+            System.assert(!RlyReleaseAccess.isApprover(), 'Can\'t approve');
             System.assert(!RlyRollback.mayRollBack(), 'Can\'t roll back');
             System.assert(!RlyReleaseAccess.mayRerunChecks(new RLY_Release__c()), 'Can\'t run checks again');
         }
