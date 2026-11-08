@@ -100,7 +100,9 @@ export default class RlyRelayUpdate extends LightningElement {
 
     get subtitle() {
         if (this.showForm || !this.current) {
-            return 'Check and install a new Release Relay build: the test org first, then production';
+            return this.stageChosen
+                ? 'Check and install a new Release Relay build: ' + this.testOrgName + ' first, then ' + this.prodName
+                : 'Check and install a new Release Relay build: the test org first, then production';
         }
         return this.current.title + ' · ' + this.current.branch;
     }
@@ -110,12 +112,21 @@ export default class RlyRelayUpdate extends LightningElement {
         return 'A branch' + repo + " with the build's zip in .relay-inbox/";
     }
 
+    /** The chosen stage (the form's, or the current update's), when it is one of the route's stages. */
+    get chosenStage() {
+        const id = this.showForm ? this.form.testOrgId : this.current && this.current.testOrgId;
+        return id ? this.stages.find((x) => x.value === id) || null : null;
+    }
+
+    get stageChosen() { return !!this.chosenStage; }
+
+    /** The steps and help text carry the chosen stage's name (for example its check); Test org only until one is chosen. */
     get testOrgName() {
-        if (this.showForm) {
-            const s = this.stages.find((x) => x.value === this.form.testOrgId);
-            return s ? s.label : 'Test org';
+        const s = this.chosenStage;
+        if (s) {
+            return s.label;
         }
-        return this.current.testOrgName;
+        return this.showForm || !this.current || !this.current.testOrgName ? 'Test org' : this.current.testOrgName;
     }
 
     get testInstallBranch() {

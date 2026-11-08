@@ -5,6 +5,9 @@
  */
 public with sharing class RlySlackSiteCheck {
 
+    /** @description Release Relay's own access set: the principals it grants are the ones the Site guest needs too. */
+    private static final String ACCESS_SET = 'RLY_Access';
+
     /** @description Tests check another user in place of a Site guest (an org may have no Site). */
     @TestVisible
     private static User guestForTest;
@@ -103,18 +106,26 @@ public with sharing class RlySlackSiteCheck {
         }
 
         /**
-         * @description Whether the permission sets give access to fewer than two principals: the guest needs Slack's
-         * (RLY_Slack - Bot, from RLY_Slack_Site) and the Git credential's.
+         * @description Whether the permission sets miss a principal that Release Relay's own access set (RLY_Access)
+         * grants: the Git credentials' and Slack's (build 53: any two principals used to pass, so an old credential's
+         * grant hid a missing one).
          * @param sets the permission set Ids
-         * @return true when the Git principal is missing
+         * @return true when a Git principal is missing
          */
         public Boolean lacksGitPrincipal(Set<Id> sets) {
-            Set<Id> principals = new Set<Id>();
-            for (SetupEntityAccess a : [SELECT SetupEntityId FROM SetupEntityAccess WHERE ParentId IN :sets
-                                        AND SetupEntityType = 'ExternalCredentialParameter' WITH SYSTEM_MODE LIMIT 200]) {
-                principals.add(a.SetupEntityId);
+            Set<Id> granted = principalsOf([SELECT SetupEntityId FROM SetupEntityAccess WHERE ParentId IN :sets
+                                            AND SetupEntityType = 'ExternalCredentialParameter' WITH SYSTEM_MODE LIMIT 200]);
+            Set<Id> needed = principalsOf([SELECT SetupEntityId FROM SetupEntityAccess WHERE Parent.Name = :RlySlackSiteCheck.ACCESS_SET
+                                           AND SetupEntityType = 'ExternalCredentialParameter' WITH SYSTEM_MODE LIMIT 200]);
+            return granted.isEmpty() || !granted.containsAll(needed);
+        }
+
+        private Set<Id> principalsOf(List<SetupEntityAccess> rows) {
+            Set<Id> out = new Set<Id>();
+            for (SetupEntityAccess a : rows) {
+                out.add(a.SetupEntityId);
             }
-            return principals.size() < 2;
+            return out;
         }
     }
 }

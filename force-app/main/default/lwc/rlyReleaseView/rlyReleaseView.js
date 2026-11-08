@@ -860,11 +860,19 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     }
     get validationPillCls() { return this.validationLabel === 'Conflict' ? 'rr-pill rr-pill-wait' : pillCls(this.validationLabel); }
 
+    /**
+     * The components the release deploys. Its deletions are items too (Is_Deletion__c), but they are listed once, each
+     * with its own name, under "Deleted from …" (from Detail.deletions); a promotion's component that a later carried
+     * release deletes is listed there only (build 53, D16: deletions also showed here, without the Delete marker).
+     */
     get items() {
         const tests = this.detail && Array.isArray(this.detail.tests) ? this.detail.tests : [];
-        return (this.detail && this.detail.items ? this.detail.items : []).map((i) => ({
-            key: i.Id, dtKey: i.Id + 't', type: typeLabel(i.Metadata_Type__c, tests.includes(i.Component_Name__c)), name: i.Component_Name__c
-        }));
+        const deleted = new Set(this.deletions.map((d) => d.rawType + ':' + d.name));
+        return (this.detail && this.detail.items ? this.detail.items : [])
+            .filter((i) => i.Is_Deletion__c !== true && !deleted.has(i.Metadata_Type__c + ':' + i.Component_Name__c))
+            .map((i, n) => ({
+                key: i.Id || 'i' + n, dtKey: (i.Id || 'i' + n) + 't', type: typeLabel(i.Metadata_Type__c, tests.includes(i.Component_Name__c)), name: i.Component_Name__c
+            }));
     }
     // ---------- search in the long lists (build 27): components, history ----------
 
