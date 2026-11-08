@@ -1,6 +1,6 @@
 /**
  * @description Data access for the Migration tab (build 46): migrations, the new connection, the registered orgs, a
- * release found by its number, the packaged pipeline file and the report's file. Migrations, connections and orgs are
+ * release found by its number, the packaged pipeline file, the report's file and (build 54) releases cancelled by the switch. Migrations, connections and orgs are
  * shared hub records: read and written in system mode, after the controller's admin check.
  */
 public with sharing class RlyMigrationStore {
@@ -47,6 +47,17 @@ public with sharing class RlyMigrationStore {
      */
     public static void saveConnection(RLY_Git_Connection__c row) {
         new SystemAccess().upsertConnection(row);
+    }
+
+    /**
+     * @description Saves releases cancelled by the switch beyond what one request can call out for (build 54): only
+     * Status__c and Error_Message__c.
+     * @param rows the releases (Id, Status__c, Error_Message__c)
+     */
+    public static void cancelReleases(List<RLY_Release__c> rows) {
+        if (!rows.isEmpty()) {
+            new SystemAccess().updateReleases(rows);
+        }
     }
 
     /**
@@ -108,6 +119,18 @@ public with sharing class RlyMigrationStore {
         public void upsertConnection(RLY_Git_Connection__c row) {
             upsert as system row;
             RlyReleaseStore.forgetGit();
+        }
+
+        /**
+         * @description See RlyMigrationStore.cancelReleases.
+         * @param rows the releases
+         */
+        public void updateReleases(List<RLY_Release__c> rows) {
+            List<RLY_Release__c> out = new List<RLY_Release__c>();
+            for (RLY_Release__c r : rows) {
+                out.add(new RLY_Release__c(Id = r.Id, Status__c = r.Status__c, Error_Message__c = r.Error_Message__c));
+            }
+            update as system out;
         }
 
         /**

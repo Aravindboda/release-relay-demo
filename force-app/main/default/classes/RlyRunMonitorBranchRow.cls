@@ -6,7 +6,7 @@
 public with sharing class RlyRunMonitorBranchRow {
 
     private static final Set<String> MERGED = new Set<String>{ 'Merged', 'Deploying', 'Deployed', 'Deploy failed' };
-    private static final Set<String> CLOSED = new Set<String>{ 'Rejected', 'Closed', 'Failed' };
+    private static final Set<String> CLOSED = new Set<String>{ 'Rejected', 'Closed', 'Failed', 'Cancelled' };
 
     /**
      * @description Fills a branch row from its release: number, pull request, target org and last change.

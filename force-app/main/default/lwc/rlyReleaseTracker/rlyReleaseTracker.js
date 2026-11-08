@@ -35,7 +35,7 @@ const STATE_CHIPS = [
     { id: 'deployed', label: 'Deployed', title: 'Deployed to the target org' },
     { id: 'rolledback', label: 'Rolled back', title: 'Rolled back in an org from its snapshot (Git is not changed)' },
     { id: 'failed', label: 'Failed', title: 'The run or the deploy failed' },
-    { id: 'closed', label: 'Rejected', title: 'Rejected or closed without deploying' },
+    { id: 'closed', label: 'Rejected', title: 'Rejected, cancelled or closed without deploying' },
     { id: 'all', label: 'All', title: 'Every status' }
 ];
 const EMPTY_STATE = {
@@ -44,7 +44,7 @@ const EMPTY_STATE = {
     deployed: 'No deployed releases',
     rolledback: 'No rolled back releases',
     failed: 'No failed releases',
-    closed: 'No rejected or closed releases',
+    closed: 'No rejected, cancelled or closed releases',
     all: 'No releases'
 };
 /**
