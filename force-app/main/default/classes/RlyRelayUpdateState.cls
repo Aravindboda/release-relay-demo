@@ -134,8 +134,8 @@ public with sharing class RlyRelayUpdateState {
      * @return true when it can
      */
     public static Boolean canRetryFirst(Map<String, Step> steps) {
-        Step first = steps.get(TEST_CHECK);
-        return first != null && first.status == FAILED && running(steps) == null && !laterStarted(steps, 0);
+        Step firstStep = steps.get(TEST_CHECK);
+        return firstStep != null && firstStep.status == FAILED && running(steps) == null && !laterStarted(steps, 0);
     }
 
     /**

@@ -181,9 +181,9 @@ public with sharing class RlyRelayUpdateGit {
         }
         git.requireOk(ref, 'Reading ' + s.target);
         String head = String.valueOf(field(ref, 'object').get('sha'));
-        HttpResponse commit = git.request(new RlyGitRequest(GET, repo + '/git/commits/' + head, null));
-        git.requireOk(commit, 'Reading ' + s.target + '\'s head');
-        String baseTree = String.valueOf(field(commit, 'tree').get('sha'));
+        HttpResponse headCommit = git.request(new RlyGitRequest(GET, repo + '/git/commits/' + head, null));
+        git.requireOk(headCommit, 'Reading ' + s.target + '\'s head');
+        String baseTree = String.valueOf(field(headCommit, 'tree').get('sha'));
         String tree = created(repo + '/git/trees', new Map<String, Object>{ 'base_tree' => baseTree, 'tree' => new List<Object>{
             new Map<String, Object>{ 'path' => inboxPath(s), 'mode' => '100644', 'type' => 'blob', 'sha' => z.sha } } }, 'Adding the zip');
         String sha = created(repo + '/git/commits', new Map<String, Object>{ 'message' => 'Release Relay update: ' + s.requestId + '.zip', 'tree' => tree,

@@ -184,10 +184,10 @@ private class RlyRelayUpdateTest {
             Test.startTest();
             RlyRelayUpdateView.Card card = RlyRelayUpdateController.refresh();
             Test.stopTest();
-            RlyRelayUpdateView.StepView first = card.current.steps[0];
-            System.assertEquals(RlyRelayUpdateState.PASSED, first.status, 'The check passed');
-            System.assertEquals(576, first.testsRun, 'Tests run');
-            System.assertEquals('https://github.com/acme/release/actions/runs/42', first.runUrl, 'The run link');
+            RlyRelayUpdateView.StepView checkStep = card.current.steps[0];
+            System.assertEquals(RlyRelayUpdateState.PASSED, checkStep.status, 'The check passed');
+            System.assertEquals(576, checkStep.testsRun, 'Tests run');
+            System.assertEquals('https://github.com/acme/release/actions/runs/42', checkStep.runUrl, 'The run link');
             System.assert(card.current.steps[1].startable, 'The install opens once the check passed');
             System.assert(!card.current.steps[2].startable, 'Production waits for the test install');
             System.assertEquals(HEAD, RlyRelayUpdateState.read(RlyRelayUpdateStore.current()).get(RlyRelayUpdateState.TEST_CHECK).head,

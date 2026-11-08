@@ -2,9 +2,9 @@
     <!-- design board: scratchpad b51u/board.html (Install Release Relay update, admins only) -->
     <template lwc:if={visible}>
         <section class="rr-ru" aria-label="Install Release Relay update">
-            <template lwc:if={showTick}>
-                <span class="rr-ticks" aria-hidden="true"><span key={tickKey} class="rr-tick rr-tick-30" onanimationend={handleTick}></span></span>
-            </template>
+            <span class="rr-ticks" aria-hidden="true">
+                <template for:each={ticks} for:item="t"><span key={t.key} class="rr-tick rr-tick-30" onanimationend={handleTick}></span></template>
+            </span>
             <div class="rr-ru-head">
                 <div class="rr-grow">
                     <h2 class="rr-h2">Install Release Relay update</h2>

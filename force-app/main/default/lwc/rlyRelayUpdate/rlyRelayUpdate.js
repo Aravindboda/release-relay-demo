@@ -386,8 +386,8 @@ export default class RlyRelayUpdate extends LightningElement {
         this.tickCycle = this.running ? this.tickCycle + 1 : 0;
     }
 
-    get showTick() { return this.running && this.tickCycle > 0; }
-    get tickKey() { return 'tick-' + this.tickCycle; }
+    // One hidden span per cycle while a step runs: a new key restarts its 30-second animation.
+    get ticks() { return this.running && this.tickCycle > 0 ? [{ key: 'tick-' + this.tickCycle }] : []; }
 
     handleTick() {
         if (!this.running) {

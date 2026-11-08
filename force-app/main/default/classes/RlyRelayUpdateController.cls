@@ -79,8 +79,8 @@ public with sharing class RlyRelayUpdateController {
 
     // The step's name as the card shows it (the test org's or production's name).
     private static String stepLabel(RLY_Relay_Update__c u, String stepKey) {
-        Boolean test = stepKey == RlyRelayUpdateState.TEST_CHECK || stepKey == RlyRelayUpdateState.TEST_INSTALL;
-        String org = test ? (u.Test_Org__r == null ? 'Test org' : u.Test_Org__r.Name) : RlyRelayUpdateRuns.hub().Name;
+        Boolean inTestOrg = stepKey == RlyRelayUpdateState.TEST_CHECK || stepKey == RlyRelayUpdateState.TEST_INSTALL;
+        String org = inTestOrg ? (u.Test_Org__r == null ? 'Test org' : u.Test_Org__r.Name) : RlyRelayUpdateRuns.hub().Name;
         return org + (RlyRelayUpdateState.isCheck(stepKey) ? ' check' : ' install');
     }
 }

@@ -103,13 +103,13 @@ public with sharing class RlyRelayUpdateRuns {
     }
 
     private static RlyRelayUpdateState.Step startCheck(RlyGit g, RLY_Relay_Update__c u, String key) {
-        Boolean test = key == RlyRelayUpdateState.TEST_CHECK;
-        RLY_Org__c org = test ? stage(u.Test_Org__c) : hub();
+        Boolean inTestOrg = key == RlyRelayUpdateState.TEST_CHECK;
+        RLY_Org__c org = inTestOrg ? stage(u.Test_Org__c) : hub();
         RlyRelayUpdateState.Step s = new RlyRelayUpdateState.Step();
         s.environment = environmentOf(org);
         s.requestId = 'REL-' + String.valueOf(System.now().getTime());
         s.branch = 'feature/rly-update-' + s.requestId.toLowerCase();
-        s.target = test ? 'rly-' + s.environment.toLowerCase() + '-install' : PROD_TARGET;
+        s.target = inTestOrg ? 'rly-' + s.environment.toLowerCase() + '-install' : PROD_TARGET;
         s.token = RlyPipelineRun.newToken();
         RlyRelayUpdateGit.ZipFile z = new RlyRelayUpdateGit.ZipFile();
         z.path = u.Zip_Path__c;
