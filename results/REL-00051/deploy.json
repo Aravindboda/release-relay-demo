@@ -1,0 +1,37 @@
+{
+ "request": "REL-00051",
+ "step": "deploy",
+ "status": "Deployed",
+ "sha": "05ff8d01e0983e823aaac94c9ea8c40b6d34d2de",
+ "changed": 1,
+ "deleted": [],
+ "ok": true,
+ "testLevel": "NoTestRun",
+ "deployId": "0AfgL00000dDFkMSAW",
+ "testsRun": 0,
+ "tests": [],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "quick": false,
+ "quickNote": "The validation ran no tests (NoTestRun), and production quick deploys only validations that ran tests, so it was deployed in full.",
+ "snapshot": {
+  "branch": "release-relay-snapshots",
+  "path": "REL-00051/sit/dadf296899bf984df7ae38dd7eb10187",
+  "existing": 0,
+  "added": 1
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42518740321",
+ "finishedAt": "2026-11-08T20:16:59.934Z",
+ "attempt": "dadf296899bf984df7ae38dd7eb10187",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 1,
+  "files": [
+   "remoteSiteSettings/E2E_Endpoint.remoteSite-meta.xml"
+  ],
+  "hash": "d709efbd8359a8e4"
+ }
+}
