@@ -16,13 +16,13 @@ public with sharing class RlySettingsLogDiff {
      * removed or renamed) and the route order.
      * @param orgs the orgs
      * @param sp how to read an org
-     * @param into the snapshot
+     * @param target the snapshot
      */
-    public static void orgsInto(List<RLY_Org__c> orgs, RlySettingsLog.Spec sp, RlySettingsLog.Snapshot into) {
+    public static void orgsInto(List<RLY_Org__c> orgs, RlySettingsLog.Spec sp, RlySettingsLog.Snapshot target) {
         List<RLY_Org__c> stages = new List<RLY_Org__c>();
         for (RLY_Org__c o : orgs) {
-            into.items.put(o.Id + '|*', marker(o.Id, 'Org', o.Name));
-            RlySettingsLog.addRecord(o, RlySettingsLog.withPrefix(sp, o.Name + ' · '), into);
+            target.items.put(o.Id + '|*', marker(o.Id, 'Org', o.Name));
+            RlySettingsLog.addRecord(o, RlySettingsLog.withPrefix(sp, o.Name + ' · '), target);
             if (RlyRouteRules.isStage(o)) {
                 stages.add(o);
             }
@@ -31,25 +31,25 @@ public with sharing class RlySettingsLogDiff {
         for (RLY_Org__c o : RlyRouteRules.ordered(stages)) {
             names.add(o.Name);
         }
-        into.items.put(ROUTE + '|order', order(ROUTE, 'Route', names));
+        target.items.put(ROUTE + '|order', order(ROUTE, 'Route', names));
     }
 
     /**
      * @description Adds the work trackers to a snapshot: each tracker's settings, the tracker itself and their order.
      * @param trackers the trackers, in routing order
      * @param sp how to read a tracker
-     * @param into the snapshot
+     * @param target the snapshot
      */
-    public static void trackersInto(List<RLY_Work_Tracker__c> trackers, RlySettingsLog.Spec sp, RlySettingsLog.Snapshot into) {
+    public static void trackersInto(List<RLY_Work_Tracker__c> trackers, RlySettingsLog.Spec sp, RlySettingsLog.Snapshot target) {
         List<String> names = new List<String>();
         for (RLY_Work_Tracker__c t : trackers) {
             RlySettingsLog.Item m = marker(t.Id, 'Tracker', t.Name);
             m.section = RlySettingsLog.SECTION_TRACKING;
-            into.items.put(t.Id + '|*', m);
-            RlySettingsLog.addRecord(t, RlySettingsLog.withPrefix(sp, 'Tracker "' + t.Name + '" · '), into);
+            target.items.put(t.Id + '|*', m);
+            RlySettingsLog.addRecord(t, RlySettingsLog.withPrefix(sp, 'Tracker "' + t.Name + '" · '), target);
             names.add(t.Name);
         }
-        into.items.put(TRACKER_ORDER + '|order', order(TRACKER_ORDER, 'Tracker order', names));
+        target.items.put(TRACKER_ORDER + '|order', order(TRACKER_ORDER, 'Tracker order', names));
     }
 
     /**
@@ -79,15 +79,15 @@ public with sharing class RlySettingsLogDiff {
     }
 
     private static RLY_Settings_Change__c rowFor(RlySettingsLog.Item a, RlySettingsLog.Item b, Set<String> moved) {
-        RlySettingsLog.Item any = b == null ? a : b;
+        RlySettingsLog.Item item = b == null ? a : b;
         List<String> values = new List<String>{ a == null ? null : a.value, b == null ? null : b.value };
-        if (any.marker) {
-            return markerRow(any, values, a != null && b != null);
+        if (item.marker) {
+            return markerRow(item, values, a != null && b != null);
         }
-        if (moved.contains(any.subject) || same(values[0], values[1])) {
+        if (moved.contains(item.subject) || same(values[0], values[1])) {
             return null;
         }
-        return row(any, any.what, any.secret ? masked(values) : values);
+        return row(item, item.what, item.secret ? masked(values) : values);
     }
 
     // An added or removed record is one row; a renamed one says both names.

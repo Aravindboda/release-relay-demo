@@ -63,9 +63,9 @@ private class RlyPipelineSummaryTest {
                 Bot_Token_Hint__c = 'ab12', Last_Result__c = 'Error: channel_not_found');
             insert new List<RLY_Credential_Status__c>{
                 new RLY_Credential_Status__c(Name = 'GitHub token', Key__c = 'git:t', Kind__c = 'Git token', Status__c = 'Expiring',
-                    Days_Left__c = 25, Expires_On__c = Date.today().addDays(25), Last_Checked__c = System.now()),
+                    Expires_On__c = Date.today().addDays(25), Last_Checked__c = System.now()),
                 new RLY_Credential_Status__c(Name = 'release_relay', Key__c = 'cert:hub:t', Kind__c = 'Certificate', Status__c = 'OK',
-                    Days_Left__c = 300, Last_Checked__c = System.now())
+                    Expires_On__c = Date.today().addDays(300), Last_Checked__c = System.now())
             };
             insert new RLY_Work_Tracker__c(Name = 'Jira Claims', Type__c = 'Jira', Active__c = true, Sort_Order__c = 1);
             RlyRepoSecurity.Report report = new RlyRepoSecurity.Report();
@@ -112,12 +112,12 @@ private class RlyPipelineSummaryTest {
             RLY_Run_Key__c key = new RLY_Run_Key__c(Key__c = 'abc', Security_Checked_On__c = System.now(), Security_Missing__c = 0,
                 Security_Unknown__c = 1);
             List<RlyPipelineSummary.Problem> problems = new List<RlyPipelineSummary.Problem>();
-            RlyPipelineSummary.Tile sec = RlyPipelineSummaryTiles.security(key, problems);
+            RlyPipelineSummary.Tile sec = RlyPipelineSummaryChecks.security(key, problems);
             key.Security_Unknown__c = 0;
-            RlyPipelineSummary.Tile ok = RlyPipelineSummaryTiles.security(key, problems);
-            RlyPipelineSummary.Tile cred = RlyPipelineSummaryTiles.credentials(new List<RLY_Credential_Status__c>{
+            RlyPipelineSummary.Tile ok = RlyPipelineSummaryChecks.security(key, problems);
+            RlyPipelineSummary.Tile cred = RlyPipelineSummaryChecks.credentials(new List<RLY_Credential_Status__c>{
                 new RLY_Credential_Status__c(Name = 'SIT sign-in', Kind__c = 'Org sign-in', Status__c = 'Failed') }, problems);
-            RlyPipelineSummary.Tile allOk = RlyPipelineSummaryTiles.credentials(new List<RLY_Credential_Status__c>{
+            RlyPipelineSummary.Tile allOk = RlyPipelineSummaryChecks.credentials(new List<RLY_Credential_Status__c>{
                 new RLY_Credential_Status__c(Name = 'cert', Status__c = 'OK') }, problems);
             RlyPipelineSummary.Tile slackOff = RlyPipelineSummaryTiles.approvals(new RLY_Notification__c(Enabled__c = false, Bot_Token_Hint__c = 'ab12'));
             RlyPipelineSummary.Tile slackOn = RlyPipelineSummaryTiles.approvals(new RLY_Notification__c(Enabled__c = true, Bot_Token_Hint__c = 'ab12'));
@@ -206,14 +206,14 @@ private class RlyPipelineSummaryTest {
             Integer approvalRows = RlySettingsLog.compare(RlySettingsLog.read(RlySettingsLog.APPROVAL));
             Integer retentionRows = RlySettingsLog.compare(RlySettingsLog.read(RlySettingsLog.RETENTION));
             Test.stopTest();
-            String all = JSON.serialize(RlySettingsLog.recent(50));
-            System.assert(removed >= 1, 'Removed org logged: ' + all);
-            System.assert(all.contains('Org \\"DEV1\\" removed') || removed == 0, 'Removed row: ' + all);
-            System.assertEquals(2, slackRows, 'Slack on and the token: ' + all);
-            System.assert(all.contains('Slack bot token') && !all.contains('cd34'), 'The token hint never written: ' + all);
-            System.assert(trackerRows >= 1, 'Tracker added: ' + all);
+            String logged = JSON.serialize(RlySettingsLog.recent(50));
+            System.assert(removed >= 1, 'Removed org logged: ' + logged);
+            System.assert(logged.contains('Org \\"DEV1\\" removed') || removed == 0, 'Removed row: ' + logged);
+            System.assertEquals(2, slackRows, 'Slack on and the token: ' + logged);
+            System.assert(logged.contains('Slack bot token') && !logged.contains('cd34'), 'The token hint never written: ' + logged);
+            System.assert(trackerRows >= 1, 'Tracker added: ' + logged);
             System.assertEquals(1, keyRows, 'Run-signing key set');
-            System.assert(!all.contains('secret-key-value'), 'The key never written');
+            System.assert(!logged.contains('secret-key-value'), 'The key never written');
             System.assertEquals(0, lockRows + approvalRows + retentionRows, 'Nothing else changed');
             System.assertEquals(0, RlySettingsLog.compare(null), 'No snapshot, nothing logged');
         }

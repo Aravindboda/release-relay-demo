@@ -217,9 +217,9 @@ public with sharing class RlySettingsLog {
             addRecord(RLY_Approval_Setting__c.getOrgDefaults(),
                 spec(SECTION_APPROVALS, APPROVAL, new Map<String, String>{ 'Prod_Needs_Addon__c' => 'Production approval needs the add-on' }), s);
         } else if (s.area == LOCK) {
-            RLY_Lock__c lock = RLY_Lock__c.getOrgDefaults();
-            addRecord(lock, spec(SECTION_ADVANCED, LOCK, new Map<String, String>{ 'Enabled__c' => 'What\'s built lock' }), s);
-            addRecord(lock, secret(spec(SECTION_ADVANCED, LOCK, new Map<String, String>{ 'Hash__c' => 'What\'s built lock password' })), s);
+            RLY_Lock__c lockRow = RLY_Lock__c.getOrgDefaults();
+            addRecord(lockRow, spec(SECTION_ADVANCED, LOCK, new Map<String, String>{ 'Enabled__c' => 'What\'s built lock' }), s);
+            addRecord(lockRow, secret(spec(SECTION_ADVANCED, LOCK, new Map<String, String>{ 'Hash__c' => 'What\'s built lock password' })), s);
         }
     }
 
@@ -232,9 +232,9 @@ public with sharing class RlySettingsLog {
      * @description Adds a record's settings to a snapshot: one value and one item per field.
      * @param rec the record
      * @param sp how to read it
-     * @param into the snapshot
+     * @param target the snapshot
      */
-    public static void addRecord(SObject rec, Spec sp, Snapshot into) {
+    public static void addRecord(SObject rec, Spec sp, Snapshot target) {
         String subject = sp.subject == null ? String.valueOf(rec.get('Id')) : sp.subject;
         for (String field : sp.fields.keySet()) {
             Item i = new Item();
@@ -243,7 +243,7 @@ public with sharing class RlySettingsLog {
             i.what = sp.prefix + sp.fields.get(field);
             i.secret = sp.secret;
             i.value = text(rec.get(field));
-            into.items.put(subject + '|' + field, i);
+            target.items.put(subject + '|' + field, i);
         }
     }
 
