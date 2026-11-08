@@ -1,15 +1,15 @@
 {
  "request": "REL-91068",
  "step": "validate",
- "status": "Failed",
+ "status": "Passed",
  "changed": 78,
  "deleted": [],
  "mergedWith": "46ad30344d016f4969b548ffa8817ac0b53fc704",
- "validatedTree": "d29189b12aa2f69d03ddcbc86f4c68d9574f39b2",
+ "validatedTree": "078088a6022bb9f43f446bb3a44a15f9c9519a31",
  "environment": "sit",
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000d9tI9SAI",
+ "deployId": "0AfgL00000d9evrSAA",
  "testsRun": 596,
  "tests": [
   "RlyAppendTest",
@@ -95,21 +95,15 @@
  ],
  "coverageWarnings": [],
  "componentErrors": [],
- "testFailures": [
-  {
-   "name": "RlyRelayUpdateTest",
-   "method": "unsignedResultsAreRejectedWithAKey",
-   "message": "RlyGit.GitException: Reading pipeline runs failed with HTTP 404. Not found: check the repository name and that the token can see it. {\"message\":\"Not Found\"}"
-  }
- ],
- "message": "1 test failure(s)",
+ "testFailures": [],
+ "message": "",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42442701819",
- "finishedAt": "2026-11-08T03:35:53.612Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42443482525",
+ "finishedAt": "2026-11-08T03:45:15.493Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
@@ -117,5 +111,5 @@
   "files": [],
   "hash": ""
  },
- "headSha": "ffd57ddbf632c7742e90929a6a4201e3469d70f3"
+ "headSha": "36b128dc7eccf3f483c9cd6f4cf3892a0a346fba"
 }
