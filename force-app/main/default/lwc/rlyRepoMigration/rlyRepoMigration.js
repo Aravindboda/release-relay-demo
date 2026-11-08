@@ -113,12 +113,33 @@ export default class RlyRepoMigration extends LightningElement {
         return 'Move from ' + (this.current.providerLabel || 'the current provider') + (t ? ' to ' + t.providerLabel : '');
     }
 
+    // A step shows done (green) only when it actually completed, not because the wizard is past it (build 52).
     get steps() {
+        const done = this.doneSteps;
         return STEPS.map((s) => {
             let cls = 'rr-step';
-            cls += s.n === this.step ? ' rr-step-on' : (s.n < this.step ? ' rr-step-done' : '');
+            cls += s.n === this.step ? ' rr-step-on' : (done.has(s.n) ? ' rr-step-done' : '');
             return { ...s, key: 's' + s.n, cls, current: s.n === this.step ? 'step' : 'false' };
         });
+    }
+    get doneSteps() {
+        const v = this.view || {};
+        const ok = (start) => ((v.gate && v.gate.conditions) || []).some((c) => c.ok && c.label && c.label.startsWith(start));
+        const setup = v.setup || {};
+        const newItems = setup.newItems || [];
+        const done = new Set();
+        const marks = [
+            [1, !!this.target && this.target.status === 'Connected'],
+            [2, !!this.method],
+            [3, ok('Dry run passed')],
+            [4, ok('Verified') || ok('The run copied')],
+            [5, newItems.length > 0 && (setup.newDone || 0) >= newItems.length],
+            [6, ok('Every org is in sync')],
+            [7, !!this.isSwitched || !!this.isFinished],
+            [8, !!this.isFinished]
+        ];
+        marks.forEach(([n, isDone]) => { if (isDone) { done.add(n); } });
+        return done;
     }
     get isStep1() { return this.step === 1; }
     get isStep2() { return this.step === 2; }
@@ -383,15 +404,25 @@ export default class RlyRepoMigration extends LightningElement {
 
     partOf(id) { return partIn(this.sending, id); }
 
+    // A part of the send still running: a failed or finished send drops its parts, so late answers are ignored (build 52).
+    isLive(id) { return !!this.partOf(id); }
+
     async sendPart(id) {
         const p = this.partOf(id);
+        if (!p) {
+            return;
+        }
+        const orgId = this.sending.orgId;
         this.setPart(id, { phase: 'running' });
         try {
-            const retrieveId = await startPipelinePart({ sourceOrgId: this.sending.orgId, keys: p.keys });
+            const retrieveId = await startPipelinePart({ sourceOrgId: orgId, keys: p.keys });
+            if (!this.isLive(id)) {
+                return;
+            }
             this.setPart(id, { retrieveId });
             await this.stagePart(id);
         } catch (e) {
-            this.failSending(e);
+            this.failSending(e, id);
         }
     }
 
@@ -400,9 +431,13 @@ export default class RlyRepoMigration extends LightningElement {
         if (!p) {
             return;
         }
+        const s = this.sending;
         try {
-            const part = { compareId: this.sending.syncId, n: p.n, retrieveId: p.retrieveId, sourceOrgId: this.sending.orgId };
+            const part = { compareId: s.syncId, n: p.n, retrieveId: p.retrieveId, sourceOrgId: s.orgId };
             const st = await stageOrgPart({ migrationId: this.view.id, partJson: JSON.stringify(part) });
+            if (!this.isLive(id)) {
+                return;
+            }
             if (!st.done) {
                 this.wait(id, 'part', 2);
                 return;
@@ -410,7 +445,7 @@ export default class RlyRepoMigration extends LightningElement {
             this.setPart(id, { phase: 'ready' });
             this.pumpParts();
         } catch (e) {
-            this.failSending(e);
+            this.failSending(e, id);
         }
     }
 
@@ -426,9 +461,18 @@ export default class RlyRepoMigration extends LightningElement {
         }
     }
 
-    failSending(e) {
+    // The first error of a send is kept: once it failed, the parts still in flight end quietly (build 52).
+    failSending(e, id) {
+        if (!this.sending || (id && !this.isLive(id))) {
+            return;
+        }
         this.error = 'Sending the org\'s components failed: ' + errorText(e) + ' Try again.';
         this.sending = undefined;
+    }
+
+    /** The grey line while the hub sends a developer org's parts: the check is driven by this page. */
+    get sendingHint() {
+        return this.sending ? 'Keep this page open while the parts are sent.' : '';
     }
 
     handleReason(event) {

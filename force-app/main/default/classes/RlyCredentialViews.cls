@@ -26,7 +26,7 @@ public with sharing class RlyCredentialViews {
         @AuraEnabled public Datetime lastOk;
         /** @description What the check found. */
         @AuraEnabled public String message;
-        /** @description How to renew this kind. */
+        /** @description How to renew this kind (null for an Unknown row). */
         @AuraEnabled public String renew;
     }
 
@@ -71,7 +71,9 @@ public with sharing class RlyCredentialViews {
         r.lastChecked = s.Last_Checked__c;
         r.lastOk = s.Last_OK__c;
         r.message = s.Message__c;
-        r.renew = howToRenew(s.Kind__c, s.Name);
+        // An Unknown row wasn't read (no access, an org out of daily API calls, not checked yet): its message says what
+        // to do, and there's nothing to renew (build 52).
+        r.renew = r.status == RlyCredentialRows.UNKNOWN ? null : howToRenew(s.Kind__c, s.Name);
         return r;
     }
 

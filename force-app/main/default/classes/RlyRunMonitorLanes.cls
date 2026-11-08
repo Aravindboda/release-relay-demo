@@ -2,12 +2,15 @@
  * @description The Pipeline Monitor's Route: one lane per org, grouped and ordered as on the Pipeline tab
  * (RlyRouteController.getSetup: the developer orgs, then the stages in route order with production last, then the back
  * promote orgs), never a fixed list. A lane's run is the newest run whose target org is that org's GitHub environment or
- * name; a developer org also gets the Raise runs of releases raised from it. A lane shows its run when it is still
+ * name; a developer org also gets the Raise runs of releases raised from it, showing only their raise (a failed scan or
+ * validation shows on the stage's lane). A lane shows its run when it is still
  * going or started today; otherwise the run is its "last run" and the lane says No runs today.
  */
 public with sharing class RlyRunMonitorLanes {
 
     private static final String RAISE = 'Raise';
+    private static final String RAISE_JOB = 'Raise pull request';
+    private static final String JOB_OK = 'success';
     private static final Map<String, String> GROUP_LABELS = new Map<String, String>{
         'development' => 'Development', 'route' => 'Route', 'backpromote' => 'Back promote'
     };
@@ -36,6 +39,8 @@ public with sharing class RlyRunMonitorLanes {
         for (RLY_Org__c o : setup.developers) {
             RlyRunMonitorViews.Lane l = lane(o, 'development', 'developer org');
             attach(l, newer(latestFor(o, idx), idx.raisedFrom.get(o.Id)), idx);
+            l.run = raisePart(l.run);
+            l.lastRun = raisePart(l.lastRun);
             out.add(l);
         }
         Integer stageNo = 0;
@@ -90,6 +95,33 @@ public with sharing class RlyRunMonitorLanes {
         l.roleText = role;
         l.environment = o.Git_Environment__c;
         return l;
+    }
+
+    /**
+     * @description A developer org's lane shows the raise of a Raise run: when its pull request opened and a later job
+     * failed (the code scan, or the check-only deploy in the stage org it validates in), the failure belongs to that
+     * stage's lane, so here the run reads Succeeded with the raise job only (build 52). Other runs are unchanged.
+     * @param v the lane's run row, or null
+     * @return the row to show on the developer org's lane
+     */
+    @TestVisible
+    private static RlyRunMonitorViews.Run raisePart(RlyRunMonitorViews.Run v) {
+        if (v == null || v.step != RAISE || v.status != RlyRunMonitorInput.FAILED) {
+            return v;
+        }
+        RlyRunMonitorViews.Step raised;
+        for (RlyRunMonitorViews.Step st : v.steps) {
+            raised = st.name == RAISE_JOB ? st : raised;
+        }
+        if (raised == null || raised.outcome != JOB_OK) {
+            return v;
+        }
+        RlyRunMonitorViews.Run part = (RlyRunMonitorViews.Run) JSON.deserialize(JSON.serialize(v), RlyRunMonitorViews.Run.class);
+        part.status = RlyRunMonitorInput.SUCCEEDED;
+        part.failure = null;
+        part.steps = new List<RlyRunMonitorViews.Step>{
+            (RlyRunMonitorViews.Step) JSON.deserialize(JSON.serialize(raised), RlyRunMonitorViews.Step.class) };
+        return part;
     }
 
     // Today's (or a still going) run is the lane's run; an older one is its last run.

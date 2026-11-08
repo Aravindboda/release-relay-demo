@@ -26,6 +26,7 @@
                 </section>
 
                 <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+                <template lwc:if={sendingHint}><p class="rr-small rr-weak rr-hint-line">{sendingHint}</p></template>
 
                 <!-- org vs branch -->
                 <template lwc:if={isOrgView}>
@@ -57,6 +58,9 @@
                         </template>
                         <template lwc:elseif={orgFailed}>
                             <div class="rr-msg rr-msg-bad rr-inset">{orgFailMessage}</div>
+                        </template>
+                        <template lwc:elseif={orgUnread}>
+                            <div class="rr-empty">{selectedName}: {orgUnreadText}</div>
                         </template>
                         <template lwc:elseif={orgResultEmpty}>
                             <div class="rr-empty"><span class="rr-pill rr-pill-ok">In sync</span> {selectedName} and its branch are the same.</div>

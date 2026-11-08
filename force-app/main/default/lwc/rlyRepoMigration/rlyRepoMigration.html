@@ -78,7 +78,7 @@
                             </div>
                             <p class="rr-small rr-weak">Saved as an inactive connection until Switch now. Grey text is a hint, not a value.</p>
                         </template>
-                        <template lwc:if={targetCheck}><p><span class={targetCheckCls}>{targetCheck}</span></p></template>
+                        <template lwc:if={targetCheck}><p class="rr-wrap"><span class={targetCheckCls}>{targetCheck}</span></p></template>
                     </div>
                 </section>
             </template>
@@ -212,6 +212,7 @@
                             </template>
                         </tbody>
                     </table>
+                    <template lwc:if={sendingHint}><p class="rr-pad rr-small rr-weak">{sendingHint}</p></template>
                     <div class="rr-form">
                         <lightning-input class="rr-reason" label="Why the listed differences are fine" value={acceptReason} placeholder="For example: SIT has a hotfix in flight" onchange={handleReason}></lightning-input>
                         <button type="button" class={acceptChipCls} aria-pressed={acceptPressed} onclick={handleAcceptChip} disabled={busy}>{acceptText}</button>

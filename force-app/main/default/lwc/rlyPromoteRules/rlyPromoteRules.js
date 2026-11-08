@@ -14,9 +14,9 @@ const GUIDE_SECTION = 'moves';
  * The stage names come in (stage-name, next-name); the releases and components are clearly example values.
  */
 export default class RlyPromoteRules extends NavigationMixin(LightningElement) {
-    /** The stage the card promotes from (for example SIT). */
+    /** The stage the card promotes from (for example QA). */
     @api stageName;
-    /** The next stop (for example UAT). */
+    /** The next stop (for example Staging). */
     @api nextName;
     /** panel, rules or card. */
     @api variant = 'panel';
@@ -27,15 +27,20 @@ export default class RlyPromoteRules extends NavigationMixin(LightningElement) {
     get isRules() { return this.variant === 'rules'; }
     get isCard() { return this.variant === 'card'; }
 
-    get fromName() { return this.stageName || 'SIT'; }
-    get toName() { return this.nextName || 'UAT'; }
+    // Names from the route (build 52); the Guide's drawings, without a route, use neutral QA and Staging.
+    get fromName() { return this.stageName || this.routeStop(0) || (this.isPanel ? 'this stage' : 'QA'); }
+    get toName() { return this.nextName || this.routeStop(1) || (this.isPanel ? 'the next stop' : 'Staging'); }
+    routeStop(n) {
+        const stops = (Array.isArray(this.route) ? this.route : []).filter((s) => s && !s.dev && s.name);
+        return stops[n] ? stops[n].name : '';
+    }
     get routeText() { return this.fromName + ' → ' + this.toName; }
     get staysTitle() { return 'Stays in ' + this.fromName; }
     get goesLabel() { return 'Goes to ' + this.toName; }
     get hotfixButton() { return 'Promote hotfix to ' + this.toName; }
     get promoteButton() { return 'Promote 2 releases to ' + this.toName; }
     get bundleTitle() { return 'Bundle into one ' + this.toName + ' release'; }
-    get bigLead() { return this.toName + ' gets each file as it is in ' + this.fromName + '.'; }
+    get bigLead() { const t = this.toName; return t.charAt(0).toUpperCase() + t.slice(1) + ' gets each file as it is in ' + this.fromName + '.'; }
     get bigTail() {
         return ' A release can\'t leave ' + this.fromName + ' without the other changes ' + this.fromName + ' already has in the same component.';
     }

@@ -9,12 +9,29 @@ public with sharing class RlyMigrationRepo {
     private static final Integer PAGE = 50;
     private static final String AZURE_VERSION = 'api-version=7.1';
 
+    private static final Integer NAMES_SHOWN = 5;
+
     /** @description The first page of a repository's branches. */
     public class Refs {
         /** @description The branch names. */
         public List<String> branches = new List<String>();
         /** @description A full page: there may be more. */
         public Boolean more = false;
+
+        /**
+         * @description A few branch names and how many more, so the Check line fits the page (build 52).
+         * @return for example "a, b, c, d, e and 45+ more"
+         */
+        public String someNames() {
+            List<String> shown = new List<String>();
+            for (Integer i = 0; i < branches.size() && i < NAMES_SHOWN; i++) {
+                shown.add(branches[i].abbreviate(60));
+            }
+            Integer rest = branches.size() - shown.size();
+            String plus = more == true ? '+' : '';
+            String tail = rest > 0 ? ' and ' + rest + plus + ' more' : (more == true ? ' and more' : '');
+            return String.join(shown, ', ') + tail;
+        }
     }
 
     /** @description An open pull or merge request in the current repository. */

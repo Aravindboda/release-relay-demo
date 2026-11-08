@@ -130,3 +130,4 @@
 
 /* the Data view (build 43) fills the rest of the page */
 .rr-data-view { display: block; flex: 1 1 auto; min-height: 0; }
+.rr-hint-line { margin: 0; flex: none; }

@@ -263,6 +263,7 @@
                             <template lwc:if={manualOnly}>
                                 <p class="rr-small rr-weak rr-pad-x">No components: this release has only manual steps.</p>
                             </template>
+                            <template lwc:if={addingNote}><p class="rr-small rr-weak rr-pad-x">{addingNote}</p></template>
                             <template lwc:if={showCompSearch}>
                                 <div class="rr-toolbar">
                                     <c-rly-search-box data-list="comp" label="Search components" placeholder="Search by component name or type"

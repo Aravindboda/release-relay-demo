@@ -380,8 +380,8 @@ export default class RlyReleaseGuide extends NavigationMixin(LightningElement) {
             Object.assign(out, this.route(b, key));
         }
         if (out.isRules || out.isPromoteCard) {
-            out.stageName = b.stageName || 'SIT';
-            out.nextName = b.nextName || 'UAT';
+            out.stageName = b.stageName || 'QA';
+            out.nextName = b.nextName || 'Staging';
         }
         if (out.isChecklist) {
             Object.assign(out, this.checklist(b.stages || [], key));

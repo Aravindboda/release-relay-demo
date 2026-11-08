@@ -125,6 +125,16 @@ private class RlyMigrationPartsTest {
             System.assertEquals('Verify a copy you made', toGitHub[1].label, 'GitHub has no guided importer');
             System.assertEquals(3, toBitbucket[1].clicks.size(), 'Bitbucket\'s importer clicks');
             System.assert(!noTarget[0].possible, 'Configure the new connection first');
+            System.assertEquals('The new provider\'s own importer', noTarget[1].label, 'No provider named before the connection is saved');
+            System.assert(!noTarget[1].summary.contains('has no importer'), 'No "has no importer": ' + noTarget[1].summary);
+            System.assert(noTarget[1].cons.startsWith('Done by hand in the new provider;'), 'No empty provider name: ' + noTarget[1].cons);
+            RlyMigrationRepo.Refs refs = new RlyMigrationRepo.Refs();
+            refs.branches = new List<String>{ 'a', 'b', 'c', 'd', 'e', 'f', 'g' };
+            refs.more = true;
+            System.assertEquals('a, b, c, d, e and 2+ more', refs.someNames(), 'A few branch names and how many more');
+            refs.branches = new List<String>{ 'a', 'b' };
+            refs.more = false;
+            System.assertEquals('a, b', refs.someNames(), 'All when few');
             System.assert(items > 30, 'Checklists for every provider: ' + items);
             System.assert(tokenText.contains('write_repository'), tokenText);
             System.assertEquals('RELAY_MONITOR, SCAN_RULES', optional, 'Only names someone enters');

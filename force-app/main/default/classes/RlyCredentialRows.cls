@@ -39,6 +39,9 @@ public with sharing class RlyCredentialRows {
     private static final Map<String, Integer> RANK = new Map<String, Integer>{ OK => 0, UNKNOWN => 1, EXPIRING => 2, CRITICAL => 3,
         EXPIRED => 4, FAILED => 5 };
 
+    /** @description The error code of an org that has used its daily API calls (build 52). */
+    public static final String API_LIMIT_CODE = 'REQUEST_LIMIT_EXCEEDED';
+
     /** @description The order rows are listed in: worst first. */
     public static final List<String> WORST_FIRST = new List<String>{ FAILED, EXPIRED, CRITICAL, EXPIRING, UNKNOWN, OK };
 
@@ -140,6 +143,26 @@ public with sharing class RlyCredentialRows {
         r.Status__c = status;
         r.Message__c = message == null ? null : message.left(2000);
         return r;
+    }
+
+    /**
+     * @description Whether an answer or error says the org has used its daily API calls.
+     * @param text the answer's body or the error's message
+     * @return true when it carries REQUEST_LIMIT_EXCEEDED
+     */
+    public static Boolean isApiLimit(String text) {
+        return text != null && text.containsIgnoreCase(API_LIMIT_CODE);
+    }
+
+    /**
+     * @description Marks the row Unknown because the org has used its daily API calls: nothing to renew, the next pass
+     * checks it again.
+     * @param r the row
+     * @param orgName the org, in words (The hub for the hub itself)
+     * @return the row
+     */
+    public static RLY_Credential_Status__c apiLimitReached(RLY_Credential_Status__c r, String orgName) {
+        return mark(r, UNKNOWN, orgName + ' has used its daily API calls (' + API_LIMIT_CODE + '); checked again on the next pass.');
     }
 
     /**
