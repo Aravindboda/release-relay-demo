@@ -82,3 +82,4 @@
 @keyframes rr-tick { from { transform: translateX(0); } to { transform: translateX(1px); } }
 
 @media (max-width: 700px) { .rr-table tbody th { width: auto; } .rr-chip-cell { width: auto; } }
+.rr-wrap .rr-pill { white-space: normal; max-width: 100%; overflow-wrap: anywhere; }

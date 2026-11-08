@@ -124,6 +124,11 @@
                 <default>false</default>
                 <label>Deployed outside the window</label>
             </value>
+            <value>
+                <fullName>Changes_Added</fullName>
+                <default>false</default>
+                <label>Changes added</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

@@ -2,13 +2,16 @@
  * @description Tests for the Credentials dashboard (build 49): RlyCredentialCheck and its checks (RlyCredentialHubChecks,
  * RlyCredentialOrgChecks, RlyCredentialUsers, RlyCredentialParse), the Slack alert (RlyCredentialAlert), the rows
  * (RlyCredentialRows, RlyCredentialViews, RlyCredentialStore), the pages (RlyCredentialController) and the nightly hook
- * (RlyCredentialNightly). Each test runs as an active System Administrator with Release Relay Admin. Records are
+ * (RlyCredentialNightly); build 52: Unknown for a user without the RLY_Org_Self principal or an org out of daily API
+ * calls, and a refused pull request close kept on the Git token row (RlyCredentialPrAccess). Each test runs as an active System Administrator with Release Relay Admin. Records are
  * inserted before Test.startTest; callouts come after it, and the saves after the callouts.
  */
 @IsTest
 private class RlyCredentialTest {
 
     private static final Date TODAY_FOR_TEST = Date.newInstance(2026, 11, 7);
+    private static final String THROWS = 'throws';
+    private static final String LIMIT_BODY = '[{"message":"TotalRequests Limit exceeded.","errorCode":"REQUEST_LIMIT_EXCEEDED"}]';
 
     @TestSetup
     static void setup() {
@@ -30,6 +33,18 @@ private class RlyCredentialTest {
          */
         public Mock answer(String urlPart, Integer status, String body) {
             rules.add(new List<String>{ urlPart, String.valueOf(status), body, null });
+            return this;
+        }
+
+        /**
+         * @description Makes callouts to URLs containing a fragment throw, as the platform does for a credential the
+         * user can't use.
+         * @param urlPart the fragment
+         * @param message the exception's message
+         * @return this mock
+         */
+        public Mock throwing(String urlPart, String message) {
+            rules.add(new List<String>{ urlPart, THROWS, message, null });
             return this;
         }
 
@@ -56,6 +71,9 @@ private class RlyCredentialTest {
             res.setStatusCode(404);
             res.setBody('{"message":"Not Found"}');
             for (List<String> r : rules) {
+                if (url.contains(r[0]) && r[1] == THROWS) {
+                    throw new CalloutException(r[2]);
+                }
                 if (url.contains(r[0])) {
                     res.setStatusCode(Integer.valueOf(r[1]));
                     res.setBody(r[2]);
@@ -230,6 +248,142 @@ private class RlyCredentialTest {
     }
 
     @IsTest
+    static void aUserWithoutTheSelfPrincipalSeesUnknown() {
+        System.runAs(RlyTestData.admin()) {
+            RlyCredentialHubChecks.selfCredentialForTest = true;
+            Test.setMock(HttpCalloutMock.class, new Mock().throwing('callout:RLY_Org_Self/', 'We couldn\'t access the credential(s). You might '
+                + 'not have the required permissions, or the external credential "RLY_Org_Self" might not exist.'));
+            Test.startTest();
+            RlyCredentialCheck.Pass p = new RlyCredentialCheck.Pass();
+            RlyCredentialHubChecks.certificates(p);
+            Test.stopTest();
+            RLY_Credential_Status__c holder = p.found.get(RlyCredentialHubChecks.HUB_CERT_KEY);
+            System.assertEquals(RlyCredentialRows.UNKNOWN, holder.Status__c, 'No principal access is Unknown, not Failed: ' + holder);
+            System.assertEquals(RlyCredentialHubChecks.NO_SELF_ACCESS, holder.Message__c, 'Says which permission set to add');
+            System.assertEquals(null, RlyCredentialViews.rowOf(holder).renew, 'No certificate renewal text');
+            RLY_Credential_Status__c limited = RlyCredentialHubChecks.selfRefused(
+                RlyCredentialRows.row(RlyCredentialHubChecks.HUB_CERT_KEY, RlyCredentialRows.KIND_CERT, 'Hub certificates'), 'HTTP 403: ' + LIMIT_BODY);
+            System.assertEquals(RlyCredentialRows.UNKNOWN, limited.Status__c, 'Out of API calls is Unknown');
+            System.assert(limited.Message__c.startsWith('The hub has used its daily API calls'), limited.Message__c);
+        }
+    }
+
+    @IsTest
+    static void anOrgOutOfApiCallsSaysSo() {
+        System.runAs(RlyTestData.admin()) {
+            scenario();
+            Mock mock = new Mock()
+                .answer('sit.my.salesforce.com/services/data/v63.0/tooling/query', 403, LIMIT_BODY)
+                .answer('sit.my.salesforce.com/services/data/v63.0/query', 403, LIMIT_BODY)
+                .answer('dev1.my.salesforce.com/services/data/v63.0/tooling/query', 403, '[{"errorCode":"INSUFFICIENT_ACCESS"}]')
+                .answer('dev1.my.salesforce.com/services/data/v63.0/query', 200, '{"records":[{"IsActive":true}]}');
+            Test.setMock(HttpCalloutMock.class, mock);
+            Test.startTest();
+            RlyCredentialCheck.Pass p = new RlyCredentialCheck.Pass();
+            RlyCredentialOrgChecks.run(p);
+            Test.stopTest();
+            RLY_Credential_Status__c certRow = find(p.found, RlyCredentialRows.KIND_CERT, 'SIT');
+            System.assertEquals(RlyCredentialRows.UNKNOWN, certRow.Status__c, 'Unknown: ' + certRow);
+            System.assertEquals('SIT has used its daily API calls (REQUEST_LIMIT_EXCEEDED); checked again on the next pass.', certRow.Message__c,
+                'Not a permission message');
+            RLY_Credential_Status__c userRow = find(p.found, RlyCredentialRows.KIND_USER, 'SIT');
+            System.assertEquals(RlyCredentialRows.UNKNOWN, userRow.Status__c, 'Unknown: ' + userRow);
+            System.assert(userRow.Message__c.startsWith('SIT has used its daily API calls'), userRow.Message__c);
+            System.assertEquals(null, RlyCredentialViews.rowOf(userRow).renew, 'No "Activate the integration user"');
+            RLY_Credential_Status__c devCerts = find(p.found, RlyCredentialRows.KIND_CERT, 'DEV1');
+            System.assert(devCerts.Message__c.contains('View Setup and Configuration'), 'A refused query still asks for the permission: '
+                + devCerts.Message__c);
+        }
+    }
+
+    @IsTest
+    static void aSignInOutOfApiCallsSaysSo() {
+        System.runAs(RlyTestData.admin()) {
+            scenario();
+            RlyOrgSession.testToken = null;
+            RlyOrgSession.testSignInError = 'REQUEST_LIMIT_EXCEEDED: TotalRequests Limit exceeded.';
+            Test.setMock(HttpCalloutMock.class, new Mock());
+            Test.startTest();
+            RlyCredentialCheck.Pass p = new RlyCredentialCheck.Pass();
+            RlyCredentialOrgChecks.run(p);
+            Test.stopTest();
+            RLY_Credential_Status__c signIn = find(p.found, RlyCredentialRows.KIND_SIGNIN, 'SIT');
+            System.assertEquals(RlyCredentialRows.UNKNOWN, signIn.Status__c, 'Unknown, checked again next pass: ' + signIn);
+            System.assert(signIn.Message__c.contains('daily API calls'), signIn.Message__c);
+            System.assertEquals(RlyCredentialRows.UNKNOWN, find(p.found, RlyCredentialRows.KIND_USER, 'SIT').Status__c, 'User Unknown too');
+        }
+    }
+
+    @IsTest
+    static void aRefusedPullRequestCloseStaysOnTheGitTokenRow() {
+        System.runAs(RlyTestData.admin()) {
+            RlyCredentialRows.todayForTest = TODAY_FOR_TEST;
+            RLY_Git_Connection__c conn = new RLY_Git_Connection__c(Provider__c = 'GitHub', Repository__c = 'acme/release',
+                Named_Credential__c = 'RLY_GitHub', Pipeline__c = 'release-relay.yml', Pipeline_Branch__c = 'main',
+                Source_Path__c = 'force-app/main/default', Active__c = true);
+            insert conn;
+            RlyReleaseStore.forgetGit();
+            String key = RlyCredentialHubChecks.gitKey(conn);
+            List<String> refused = new List<String>{ 'the pull request couldn\'t be closed: Closing pull request #42 failed with HTTP 403. '
+                + 'Resource not accessible by personal access token (x)' };
+            Test.startTest();
+            RlyCredentialPrAccess.afterClose(new RLY_Release__c(), refused);
+            RLY_Credential_Status__c saved = RlyCredentialStore.rowByKey(key);
+            System.assertEquals(RlyCredentialRows.FAILED, saved.Status__c, 'Refused for the token: ' + saved);
+            System.assert(saved.Message__c.startsWith('The token can\'t close or comment on pull requests: give it Pull requests: Read and write'),
+                saved.Message__c);
+            System.assertEquals(null, RlyCredentialPrAccess.lastProblem, 'Recorded');
+
+            RLY_Credential_Status__c nightly = RlyCredentialParse.gitHub(RlyCredentialRows.row(key, RlyCredentialRows.KIND_GIT, 'GitHub · acme/release'),
+                okAnswer());
+            RlyCredentialPrAccess.withNote(nightly, saved);
+            System.assertEquals(RlyCredentialRows.FAILED, nightly.Status__c, 'The nightly pass keeps the note: ' + nightly);
+            System.assert(nightly.Message__c.contains('(refused ') && nightly.Message__c.endsWith('The token answers and has no expiry date.'),
+                nightly.Message__c);
+            RlyCredentialStore.save(new List<RLY_Credential_Status__c>{ nightly }, null);
+            RlyCredentialPrAccess.afterClose(new RLY_Release__c(), null);
+            RlyCredentialPrAccess.afterClose(new RLY_Release__c(), new List<String>{ 'the comment couldn\'t be posted: HTTP 500' });
+            System.assertEquals(RlyCredentialRows.FAILED, RlyCredentialStore.rowByKey(key).Status__c, 'No pull request or another problem: kept');
+
+            RlyCredentialPrAccess.afterClose(new RLY_Release__c(), new List<String>());
+            Test.stopTest();
+            RLY_Credential_Status__c cleared = RlyCredentialStore.rowByKey(key);
+            System.assertEquals(RlyCredentialRows.OK, cleared.Status__c, 'A close that worked clears it: ' + cleared);
+            System.assertEquals(RlyCredentialPrAccess.WORKS_AGAIN, cleared.Message__c, 'Says so');
+            System.assertEquals(null, RlyCredentialPrAccess.rowAfter(conn, cleared, new List<String>()), 'Nothing to clear');
+            RLY_Git_Connection__c lab = new RLY_Git_Connection__c(Provider__c = 'GitLab', Repository__c = 'g/p');
+            System.assert(RlyCredentialPrAccess.rowAfter(lab, null, refused).Message__c.startsWith('The token can\'t close or comment on merge requests'),
+                'GitLab words');
+            System.assertEquals(nightly, RlyCredentialPrAccess.withNote(nightly, null), 'No saved row: unchanged');
+        }
+    }
+
+    @IsTest
+    static void aRefusedGitCallNamesThePermissionItNeeded() {
+        System.runAs(RlyTestData.admin()) {
+            HttpResponse res = new HttpResponse();
+            res.setStatusCode(403);
+            res.setBody('{"message":"Resource not accessible by personal access token"}');
+            res.setHeader('x-accepted-github-permissions', 'pull_requests=write');
+            String said;
+            try {
+                RlyGitAdvice.requireSuccess(res, 'Closing pull request #42', new RLY_Git_Connection__c(Named_Credential__c = 'RLY_GitHub'));
+            } catch (RlyGit.GitException e) {
+                said = e.getMessage();
+            }
+            System.assert(said != null && said.contains('HTTP 403') && said.contains('pull_requests=write'), 'Names the permission: ' + said);
+            System.assertEquals('refused', RlyCredentialPrAccess.outcomeOf(new List<String>{ said }), 'A 403 is refused');
+        }
+    }
+
+    private static HttpResponse okAnswer() {
+        HttpResponse res = new HttpResponse();
+        res.setStatusCode(200);
+        res.setBody('{}');
+        return res;
+    }
+
+    @IsTest
     static void gitLabTokensAndOtherProviders() {
         System.runAs(RlyTestData.admin()) {
             RlyCredentialRows.todayForTest = TODAY_FOR_TEST;
@@ -304,7 +458,7 @@ private class RlyCredentialTest {
             System.assertEquals(1, b.counts.get(RlyCredentialRows.EXPIRING), 'Counted');
             System.assert(b.canCheck, 'Admins check now');
             for (RlyCredentialViews.Row r : b.rows) {
-                System.assert(String.isNotBlank(r.renew), 'How to renew ' + r.kind);
+                System.assertEquals(r.status != RlyCredentialRows.UNKNOWN, String.isNotBlank(r.renew), 'How to renew, not for Unknown: ' + r.kind);
             }
             System.assertEquals(13, b.rows[1].daysLeft, 'Days left: ' + b.rows[1].name);
             RlyCredentialController.Tile t = RlyCredentialController.tile();

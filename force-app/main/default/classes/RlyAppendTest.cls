@@ -1,7 +1,7 @@
 /**
  * @description Tests for adding changes to an open release (RlyAppendController, RlyAppendService, RlyAppendRules,
  * RlyAppendRun, RlyAppendInputs and their parts of RlyStatusReader, RlyPipelineRun, RlyPipelineOptions, RlyCheckReader
- * and RlyReleasesController). Route DEV1 -> SIT -> PROD (hub); the release has AccountService and AccountServiceTest and
+ * and RlyReleasesController; build 52: RlyAppendSettle). Route DEV1 -> SIT -> PROD (hub); the release has AccountService and AccountServiceTest and
  * an open pull request. Each test runs through System.runAs as an active System Administrator with Release Relay Admin
  * (or a new user without it). Records are inserted before Test.startTest; callouts come after it.
  */
@@ -183,6 +183,79 @@ private class RlyAppendTest {
             RLY_Release__c row = saved(rel.Id);
             System.assertEquals('Checks failed', row.Status__c, 'The checks didn\'t run');
             System.assertEquals('Layout Old isn\'t in the branch', row.Error_Message__c, 'raise.json says why');
+        }
+    }
+
+    // An add whose hub run started (build 52): Holiday, its test and a layout's deletion counted and listed, waiting for
+    // the run to confirm them.
+    private static RLY_Release__c confirming() {
+        RLY_Release__c rel = RlyReleaseTestData.release('Validating', 'hub');
+        RlyAppendRun.State st = new RlyAppendRun.State();
+        st.adds = 1;
+        st.confirming = true;
+        st.fromOrg = 'DEV1';
+        st.components = new List<String>{ 'ApexClass:Holiday', 'ApexClass:HolidayTest' };
+        st.deletions = new List<String>{ 'Layout:Old Layout' };
+        st.tests = new List<String>{ 'HolidayTest' };
+        update new RLY_Release__c(Id = rel.Id, PR_Number__c = 42, Append_State__c = JSON.serialize(st), Component_Count__c = 4,
+            Test_Classes__c = 'AccountServiceTest,HolidayTest', Deletions__c = 'Layout:Old Layout', Deletion_Count__c = 1);
+        insert new List<RLY_Release_Item__c>{
+            new RLY_Release_Item__c(Release__c = rel.Id, Metadata_Type__c = 'ApexClass', Component_Name__c = 'Holiday'),
+            new RLY_Release_Item__c(Release__c = rel.Id, Metadata_Type__c = 'ApexClass', Component_Name__c = 'HolidayTest'),
+            new RLY_Release_Item__c(Release__c = rel.Id, Metadata_Type__c = 'Layout', Component_Name__c = 'Old Layout', Is_Deletion__c = true)
+        };
+        return rel;
+    }
+
+    @IsTest
+    static void anAddTheRunDidNotMakeIsUndone() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = confirming();
+            RlyFlowScenario scenario = RlyFlowScenario.forRelease(rel);
+            scenario.runStatus = 'completed';
+            scenario.runConclusion = 'failure';
+            scenario.results.put('raise', RlyReleaseTestData.result('raise', '"status":"Failed","message":"The raise step failed"'));
+            Test.setMock(HttpCalloutMock.class, scenario.build());
+            Test.startTest();
+            RlyStatusReader.advance(rel.Id);
+            Test.stopTest();
+            RLY_Release__c row = saved(rel.Id);
+            System.assert(row.Error_Message__c.startsWith('Not added: the pipeline failed to add the changes from DEV1 (The raise step failed)'),
+                row.Error_Message__c);
+            System.assertEquals(2, [SELECT COUNT() FROM RLY_Release_Item__c WHERE Release__c = :rel.Id], 'The add\'s items are gone');
+            System.assertEquals(2, row.Component_Count__c, 'Counted as before');
+            System.assertEquals('AccountServiceTest', row.Test_Classes__c, 'Its test is gone');
+            System.assertEquals(null, row.Deletions__c, 'Its deletion is gone');
+            System.assertEquals(0, row.Deletion_Count__c, 'No deletions');
+            System.assertEquals(false, RlyAppendRun.stateOf(row).confirming, 'Settled');
+            System.assertEquals(1, RlyAppendRun.stateOf(row).adds, 'The count stays for the next zip');
+            System.assertEquals(1, [SELECT COUNT() FROM RLY_Release_Event__c WHERE Release__c = :rel.Id AND Event_Type__c = 'Changes_Added'],
+                'History says it');
+        }
+    }
+
+    @IsTest
+    static void anAddTheRunMadeIsKept() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = confirming();
+            RlyFlowScenario scenario = RlyFlowScenario.forRelease(rel);
+            scenario.results.put('raise', RlyReleaseTestData.result('raise', '"status":"Opened","appended":true'));
+            Test.setMock(HttpCalloutMock.class, scenario.build());
+            Test.startTest();
+            RlyStatusReader.advance(rel.Id);
+            Test.stopTest();
+            RLY_Release__c row = saved(rel.Id);
+            System.assertEquals(5, [SELECT COUNT() FROM RLY_Release_Item__c WHERE Release__c = :rel.Id], 'Kept');
+            System.assertEquals(4, row.Component_Count__c, 'Still counted');
+            System.assertEquals(false, RlyAppendRun.stateOf(row).confirming, 'Confirmed');
+            RlyGit.Run running = new RlyGit.Run();
+            running.status = 'in_progress';
+            System.assertEquals(null, RlyAppendSettle.outcomeOf(null, running), 'Not known while the run goes');
+            running.status = 'completed';
+            running.conclusion = 'success';
+            System.assertEquals('Opened', RlyAppendSettle.outcomeOf(null, running), 'A green run made it');
+            running.conclusion = 'failure';
+            System.assertEquals('Failed', RlyAppendSettle.outcomeOf(null, running), 'A run that failed without raise.json didn\'t');
         }
     }
 

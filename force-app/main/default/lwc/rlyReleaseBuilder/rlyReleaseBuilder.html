@@ -330,7 +330,7 @@
                                 <template for:each={reviewRows} for:item="r">
                                     <li key={r.key} class="rr-file">
                                         <span class="rr-file-text">
-                                            <strong class="rr-file-name">{r.name}</strong>
+                                            <strong class="rr-file-name" title={r.name}>{r.name}</strong>
                                             <span class="rr-small rr-weak">{r.subText}</span>
                                         </span>
                                         <button type="button" class="rr-cmp-link" data-key={r.key} aria-label={r.compareLabel} onclick={openCompare} disabled={raising}>Compare</button>
@@ -344,7 +344,7 @@
                                     <template for:each={reviewDeletions} for:item="r">
                                         <li key={r.key} class="rr-file rr-file-del">
                                             <span class="rr-file-text">
-                                                <strong class="rr-file-name">{r.name}</strong>
+                                                <strong class="rr-file-name" title={r.name}>{r.name}</strong>
                                                 <span class="rr-small">{r.subText}</span>
                                             </span>
                                             <button type="button" class="rr-cmp-link" data-key={r.key} aria-label={r.compareLabel} onclick={openCompare} disabled={raising}>Compare</button>
@@ -388,7 +388,7 @@
                                 <template lwc:if={canHotfix}>
                                     <div class="rr-hotfix">
                                         <div class="rr-row">
-                                            <lightning-input type="checkbox" label="This is a hotfix" checked={isHotfix} onchange={handleHotfix} disabled={raising} class="rr-hotfix-check"></lightning-input>
+                                            <button type="button" class={hotfixChipCls} aria-pressed={hotfixPressed} onclick={handleHotfix} disabled={raising}>{hotfixChipText}</button>
                                             <template lwc:if={isHotfix}><span class="rr-pill rr-pill-bad">Hotfix</span></template>
                                         </div>
                                         <p class="rr-small rr-weak">{hotfixHelp}</p>

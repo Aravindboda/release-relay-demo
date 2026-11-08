@@ -162,7 +162,8 @@
 .rr-file { display: flex; align-items: flex-start; gap: 4px; padding: 8px 10px; border-radius: 4px; font-size: 13px; }
 .rr-file:hover { background: #eef4ff; }
 .rr-file-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.rr-file-name { overflow-wrap: anywhere; }
+/* Whole names (build 52): no break mid-word; a long one ends in … with the full name as its tooltip. */
+.rr-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rr-pair { flex: 999 1 640px; min-width: 0; overflow: hidden; }
 .rr-pair-head { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--rr-line); }
 .rr-pair-side { position: relative; padding: 10px 12px; background: #fafaf9; display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -190,7 +191,9 @@
 /* the hotfix flag on the review step (board HubHotfixBackPromote, 1) */
 .rr-hotfix { border-top: 1px solid var(--rr-line); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
 .rr-hotfix .rr-row { gap: 8px; }
-.rr-hotfix-check { font-weight: 700; }
+.rr-tchip { border: 1px solid #c9c9c9; border-radius: 14px; padding: 3px 12px; font: inherit; font-size: 12px; font-weight: 600; color: var(--rr-blue); background: #fff; cursor: pointer; white-space: nowrap; }
+.rr-tchip-on { background: var(--rr-blue); border-color: var(--rr-blue); color: #fff; }
+.rr-tchip:disabled { opacity: .6; cursor: default; }
 
 /* deletions (board HubDeletions) */
 .rr-del { color: #8e030f; }

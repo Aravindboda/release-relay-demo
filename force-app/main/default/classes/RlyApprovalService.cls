@@ -131,9 +131,7 @@ public with sharing class RlyApprovalService {
             throw new RlyReleaseException('Say why it\'s rejected, so the developer knows what to change.');
         }
         RLY_Release__c before = RlySlackCardState.snapshot(rel);
-        if (rel.PR_Number__c != null) {
-            closePullRequest(rel, who);
-        }
+        List<String> prProblems = rel.PR_Number__c == null ? null : closePullRequest(rel, who);
         rel.Status__c = 'Rejected';
         rel.Approval_Status__c = 'Rejected';
         rel.Approved_By__c = who.userId;
@@ -141,16 +139,18 @@ public with sharing class RlyApprovalService {
         rel.Approved_On__c = System.now();
         rel.Approval_Comment__c = who.comment.left(2000);
         saveAndNotify(before, rel);
+        RlyCredentialPrAccess.afterClose(rel, prProblems); // the Credentials page's Git token row (build 52)
         return rel;
     }
 
     // A pull request that can't be commented on or closed doesn't stop the rejection; the page says so.
-    private static void closePullRequest(RLY_Release__c rel, RlyApprover who) {
+    private static List<String> closePullRequest(RLY_Release__c rel, RlyApprover who) {
         List<String> problems = RlyPullRequestClose.closeWithComment(rel,
             'Rejected in ' + who.via + ' by ' + who.name + ': ' + who.comment.left(1000));
         if (!problems.isEmpty()) {
             rel.Error_Message__c = ('Rejected, but ' + String.join(problems, '; ')).left(2000);
         }
+        return problems;
     }
 
     // Slack hears about the change (callouts first: the card is edited, a selected event adds its messages), then the

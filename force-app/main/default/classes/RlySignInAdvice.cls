@@ -6,6 +6,8 @@ public with sharing class RlySignInAdvice {
 
     private static final String FALLBACK = 'The hub couldn\'t sign in to {org}.';
     private static final List<Rule> RULES = new List<Rule>{
+        new Rule(new List<String>{ 'request_limit_exceeded' },
+            '{org} has used its daily API calls (REQUEST_LIMIT_EXCEEDED); try again once its 24-hour count drops.'),
         new Rule(new List<String>{ 'unauthorized endpoint', 'remote site' },
             'Add {domain} as a Remote Site Setting in the hub (Setup > Remote Site Settings).'),
         new Rule(new List<String>{ 'certificate', 'keystore', 'key not found' },

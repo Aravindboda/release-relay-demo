@@ -6,11 +6,20 @@
  * with options append and appendZip: it converts the zip into the branch, removes the new deletions, commits and pushes,
  * and the open pull request updates. Then the release counts the new components, tests and deletions, and its new items
  * are saved after the release (saveItems). A failed retrieve leaves the release as it was, with Checks failed and why.
+ * Build 52: the add stays to be confirmed (confirming) until the run's raise.json says Opened; when the run failed to add
+ * them, RlyAppendSettle undoes it: its items are removed, the counts, tests and deletions go back, and the release says
+ * "Not added: the pipeline failed" with the retry.
  */
 public with sharing class RlyAppendRun {
 
+    /** @description The History event of an add (build 52: was Raised). */
+    public static final String ADDED_EVENT = 'Changes_Added';
+    /** @description The pending run of an add: the pipeline's hub run. */
+    public static final String HUB_RUN = 'hub';
+
     private static final String FIELD = 'Append_State__c';
     private static final List<RLY_Release_Item__c> QUEUED_ITEMS = new List<RLY_Release_Item__c>();
+    private static final List<RLY_Release_Item__c> QUEUED_REMOVALS = new List<RLY_Release_Item__c>();
 
     /** @description What Append_State__c holds. */
     public class State {
@@ -26,6 +35,8 @@ public with sharing class RlyAppendRun {
         public List<String> deletions = new List<String>();
         /** @description The test classes being added. */
         public List<String> tests = new List<String>();
+        /** @description The hub run started: the add waits for the run to confirm it (build 52). */
+        public Boolean confirming = false;
     }
 
     /**
@@ -49,6 +60,7 @@ public with sharing class RlyAppendRun {
     private static State orEmpty(State st) {
         st.adds = st.adds == null ? 0 : st.adds;
         st.pending = st.pending == true;
+        st.confirming = st.confirming == true;
         st.components = st.components == null ? new List<String>() : st.components;
         st.deletions = st.deletions == null ? new List<String>() : st.deletions;
         st.tests = st.tests == null ? new List<String>() : st.tests;
@@ -115,7 +127,25 @@ public with sharing class RlyAppendRun {
      */
     public static void afterDispatch(RLY_Release__c rel) {
         State st = stateOf(rel);
-        writeState(rel, done(st));
+        st.pending = false;
+        st.confirming = true; // the lists stay until the run confirms the add (settle)
+        writeState(rel, st);
+    }
+
+    /**
+     * @description Ends the add's wait (build 52): confirmed, or undone by RlyAppendSettle; the count stays.
+     * @param rel the release
+     */
+    public static void settled(RLY_Release__c rel) {
+        writeState(rel, done(stateOf(rel)));
+    }
+
+    /**
+     * @description Queues items to remove after the release is saved (saveItems): an add the pipeline didn't make.
+     * @param rows the items
+     */
+    public static void removeLater(List<RLY_Release_Item__c> rows) {
+        QUEUED_REMOVALS.addAll(rows);
     }
 
     /**
@@ -164,6 +194,7 @@ public with sharing class RlyAppendRun {
 
     private static State done(State st) {
         st.pending = false;
+        st.confirming = false;
         st.components = new List<String>();
         st.deletions = new List<String>();
         st.tests = new List<String>();
@@ -178,6 +209,10 @@ public with sharing class RlyAppendRun {
             new SystemAccess().insertItems(QUEUED_ITEMS);
             QUEUED_ITEMS.clear();
         }
+        if (!QUEUED_REMOVALS.isEmpty()) {
+            new SystemAccess().deleteItems(QUEUED_REMOVALS); // an add the pipeline didn't make (notAdded)
+            QUEUED_REMOVALS.clear();
+        }
     }
 
     /** @description Release items are shared hub records: saved in system mode. */
@@ -189,6 +224,14 @@ public with sharing class RlyAppendRun {
          */
         public void insertItems(List<RLY_Release_Item__c> rows) {
             insert as system rows;
+        }
+
+        /**
+         * @description Removes the items of an add the pipeline didn't make.
+         * @param rows the items
+         */
+        public void deleteItems(List<RLY_Release_Item__c> rows) {
+            delete as system rows;
         }
     }
 }

@@ -40,7 +40,8 @@ const EVENT_LOOK = {
     File_Removed: { label: 'File removed', icon: 'utility:delete', tone: 'N' },
     Proof_Added: { label: 'Proof added', icon: 'utility:upload', tone: 'G' },
     Window_Held: { label: 'Waiting for the window', icon: 'utility:clock', tone: 'A' },
-    Window_Override: { label: 'Deployed outside the window', icon: 'utility:warning', tone: 'A' }
+    Window_Override: { label: 'Deployed outside the window', icon: 'utility:warning', tone: 'A' },
+    Changes_Added: { label: 'Changes added', icon: 'utility:add', tone: 'B' }
 };
 const ACTIVITY_CHIPS = [
     { id: 'all', label: 'All' },

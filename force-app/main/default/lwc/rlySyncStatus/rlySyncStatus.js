@@ -230,7 +230,7 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
         this.openKey = undefined;
         this.typeFilter = 'all';
         const c = this.selectedCheck;
-        if (c && c.status === 'Succeeded' && !c.components) {
+        if (c && c.status === 'Succeeded' && !c.done) {
             this.refreshCheck(c.syncId);
         }
     }
@@ -313,15 +313,25 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
 
     partOf(id) { return partIn(this.sending, id); }
 
+    // A part of the send still running: a failed or finished send drops its parts, so late answers are ignored (build 52).
+    isLive(id) { return !!this.partOf(id); }
+
     async sendPart(id) {
         const p = this.partOf(id);
+        if (!p) {
+            return;
+        }
+        const orgId = this.sending.orgId;
         this.setPart(id, { phase: 'running' });
         try {
-            const retrieveId = await startPipelinePart({ sourceOrgId: this.sending.orgId, keys: p.keys });
+            const retrieveId = await startPipelinePart({ sourceOrgId: orgId, keys: p.keys });
+            if (!this.isLive(id)) {
+                return;
+            }
             this.setPart(id, { retrieveId });
             await this.stagePart(id);
         } catch (e) {
-            this.failSending(e);
+            this.failSending(e, id);
         }
     }
 
@@ -330,8 +340,12 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
         if (!p) {
             return;
         }
+        const s = this.sending;
         try {
-            const st = await stagePipelinePart({ partJson: JSON.stringify({ compareId: this.sending.syncId, n: p.n, retrieveId: p.retrieveId, sourceOrgId: this.sending.orgId }) });
+            const st = await stagePipelinePart({ partJson: JSON.stringify({ compareId: s.syncId, n: p.n, retrieveId: p.retrieveId, sourceOrgId: s.orgId }) });
+            if (!this.isLive(id)) {
+                return;
+            }
             if (!st.done) {
                 this.wait(id, 'part', 2);
                 return;
@@ -339,7 +353,7 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
             this.setPart(id, { phase: 'ready' });
             this.pumpParts();
         } catch (e) {
-            this.failSending(e);
+            this.failSending(e, id);
         }
     }
 
@@ -356,15 +370,25 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
         }
     }
 
-    failSending(e) {
+    // The first error of a send is kept: once it failed, the parts still in flight end quietly (build 52).
+    failSending(e, id) {
+        if (!this.sending || (id && !this.isLive(id))) {
+            return;
+        }
         this.error = 'Sending the org\'s components failed: ' + errorText(e) + ' Check again to retry.';
         this.sending = undefined;
+    }
+
+    /** The grey line while the hub sends a developer org's parts: the check is driven by this page. */
+    get sendingHint() {
+        return this.sending ? 'Keep this page open while the parts are sent.' : '';
     }
 
     /** Reads a check again (its result once it's there). */
     async refreshCheck(syncId) {
         try {
-            const v = await readCheck({ syncId });
+            const read = await readCheck({ syncId });
+            const v = { ...read, listAsked: true };
             this.checks = { ...this.checks, [syncId]: v };
             if (v.status === 'Running') {
                 this.wait(syncId, 'check');
@@ -374,6 +398,9 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
             }
         } catch (e) {
             this.error = errorText(e);
+            if (this.checks[syncId]) {
+                this.checks = { ...this.checks, [syncId]: { ...this.checks[syncId], listAsked: true } };
+            }
         }
     }
 
@@ -413,8 +440,23 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
         const c = this.selectedCheck;
         return (c && c.components) || [];
     }
-    get hasOrgResult() { return !!this.selectedCheck && this.selectedCheck.status === 'Succeeded' && !!this.selectedCheck.components; }
-    get orgResultEmpty() { return this.hasOrgResult && this.orgComponents.length === 0; }
+    // The board's checks are saved views (counts, no list: done is false); the list is read when the org is picked. The
+    // panel follows the card: "In sync" only for a read result with nothing in it (build 52).
+    get hasOrgResult() { return !!this.selectedCheck && this.selectedCheck.status === 'Succeeded' && this.selectedCheck.done === true; }
+    get selectedTotal() {
+        const counts = (this.selectedCheck && this.selectedCheck.counts) || {};
+        return (counts.onlyInOrg || 0) + (counts.onlyOnBranch || 0) + (counts.different || 0);
+    }
+    get orgResultEmpty() { return this.hasOrgResult && this.orgComponents.length === 0 && this.selectedTotal === 0; }
+    get orgUnread() { return !!this.selectedCheck && this.selectedCheck.status === 'Succeeded' && this.selectedCheck.done !== true; }
+    get orgUnreadText() {
+        const c = this.selectedCheck;
+        const counts = (c && c.counts) || {};
+        const total = this.selectedTotal;
+        const summary = total === 0 ? 'In sync' : 'Out of sync · ' + (counts.onlyInOrg || 0) + ' only in org · ' + (counts.onlyOnBranch || 0)
+            + ' only on branch · ' + (counts.different || 0) + ' different';
+        return summary + (c && c.listAsked ? '. The list isn\'t on the results branch any more: Check now to read it again.' : '. Reading the list…');
+    }
     get orgWaiting() {
         const c = this.selectedCheck;
         return (!!c && c.status === 'Running' && c.started) || (!!this.sending && this.sending.orgId === this.selectedOrgId);
