@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>65.0</apiVersion>
+    <isExposed>false</isExposed>
+    <description>Pipeline tab, Advanced (build 51): Install Release Relay update, admins only. Four steps in order (test org check and install, production check and install), each started signed by the hub.</description>
+</LightningComponentBundle>

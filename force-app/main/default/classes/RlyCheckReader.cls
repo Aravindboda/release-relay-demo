@@ -39,6 +39,7 @@ public with sharing class RlyCheckReader {
             markMissingResults(rel);
             noteRaiseFailure(rel, git, run);
         }
+        RlyAppendSettle.settle(rel, git, run); // build 52: an add counts once the run confirms it
         decide(rel);
     }
 

@@ -77,7 +77,7 @@ public with sharing class RlyMigrationSteps {
             RlyMigrationRepo.Refs refs = RlyMigrationRepo.refs(RlyGit.forConnection(RlyMigrationGuard.requireTarget(m)));
             state.targetBranches = refs.branches.size();
             state.targetCheck = refs.branches.isEmpty() ? 'Reachable · empty'
-                : 'Reachable · holds ' + refs.branches.size() + (refs.more ? '+' : '') + ' branch(es): ' + String.join(refs.branches, ', ').left(300);
+                : 'Reachable · holds ' + refs.branches.size() + (refs.more ? '+' : '') + ' branch(es): ' + refs.someNames();
         } catch (Exception e) {
             state.targetBranches = null;
             state.targetCheck = 'Not reachable: ' + e.getMessage().left(500);
@@ -106,7 +106,7 @@ public with sharing class RlyMigrationSteps {
         m.Dry_Run__c = null;
         m.Result__c = null;
         m.Run_Status__c = null;
-        m.Step__c = 3;
+        m.Step__c = 2; // stays on How: Next goes to the dry run (build 52)
         state.log('How', 'Picked ' + picked.label);
         RlyMigrationGuard.save(m, state);
     }

@@ -6,7 +6,9 @@
  *   other Git      one call (the pipeline branch exists); their tokens don't say when they expire
  *   Slack          auth.test, when Slack is on; no expiry
  *   certificates   the hub's own, by a Tooling query through the RLY_Org_Self Named Credential (the hub signing in to
- *                  itself); without it the row says to add it
+ *                  itself); without it the row says to add it; a user without its principal, or a hub out of daily
+ *                  API calls, shows Unknown (build 52)
+ * A Git token row keeps a refused pull request close or comment (RlyCredentialPrAccess) until one works again.
  * RlyCredentialParse reads the answers. Each check adds its rows to the pass and never throws.
  */
 public with sharing class RlyCredentialHubChecks {
@@ -19,6 +21,9 @@ public with sharing class RlyCredentialHubChecks {
     public static final String HUB_CERT_PREFIX = 'cert:hub:';
     /** @description Key of the hub certificates placeholder (unknown or failed). */
     public static final String HUB_CERT_KEY = 'cert:hub';
+
+    /** @description What the hub certificates row says when the user can't use RLY_Org_Self (build 52). */
+    public static final String NO_SELF_ACCESS = 'Add the RLY_Org_Self_Access permission set (with the RLY_Org_Self principal) to your group.';
 
     private static final Integer TIMEOUT_MS = 20000;
     // Tests can't create or remove a Named Credential: true says RLY_Org_Self exists, false says it doesn't, null reads the org.
@@ -34,15 +39,25 @@ public with sharing class RlyCredentialHubChecks {
             RLY_Git_Connection__c c = conns[i];
             Boolean active = i == 0;
             if ((active || c.Provider__c == 'GitLab') && p.roomFor(1)) {
-                p.add(gitRow(c, active));
+                RLY_Credential_Status__c r = gitRow(c, active);
+                p.add(RlyCredentialPrAccess.withNote(r, p.saved.get(r.Key__c)));
             }
         }
         p.replaceScope('git:'); // connections removed since
     }
 
+    /**
+     * @description The Git token row's key for a connection.
+     * @param c the connection
+     * @return the key
+     */
+    public static String gitKey(RLY_Git_Connection__c c) {
+        return 'git:' + c.Id;
+    }
+
     private static RLY_Credential_Status__c gitRow(RLY_Git_Connection__c c, Boolean active) {
         String name = c.Provider__c + ' · ' + c.Repository__c + (active ? '' : ' (not active)');
-        RLY_Credential_Status__c r = RlyCredentialRows.row('git:' + c.Id, RlyCredentialRows.KIND_GIT, name);
+        RLY_Credential_Status__c r = RlyCredentialRows.row(gitKey(c), RlyCredentialRows.KIND_GIT, name);
         try {
             RlyGit provider = RlyGit.forConnection(c);
             if (c.Provider__c == 'GitHub') {
@@ -107,8 +122,8 @@ public with sharing class RlyCredentialHubChecks {
             req.setTimeout(TIMEOUT_MS);
             HttpResponse res = new Http().send(req);
             if (res.getStatusCode() != 200) {
-                p.add(RlyCredentialRows.mark(holder, RlyCredentialRows.FAILED, 'The hub answered HTTP ' + res.getStatusCode()
-                    + ' through RLY_Org_Self: ' + String.valueOf(res.getBody()).left(300)));
+                p.add(selfRefused(holder, 'The hub answered HTTP ' + res.getStatusCode() + ' through RLY_Org_Self: '
+                    + String.valueOf(res.getBody()).left(300)));
                 return;
             }
             for (RLY_Credential_Status__c r : RlyCredentialParse.certRows(res.getBody(), HUB_CERT_PREFIX, null)) {
@@ -118,7 +133,30 @@ public with sharing class RlyCredentialHubChecks {
             p.replaceScope(HUB_CERT_PREFIX);
             p.gone(HUB_CERT_KEY);
         } catch (Exception e) {
-            p.add(RlyCredentialRows.mark(holder, RlyCredentialRows.FAILED, 'RLY_Org_Self: ' + e.getMessage()));
+            p.add(selfRefused(holder, 'RLY_Org_Self: ' + e.getMessage()));
         }
+    }
+
+    /**
+     * @description The hub certificates row when the call through RLY_Org_Self didn't answer: Unknown when the user
+     * can't use the credential (no principal access) or the hub has used its daily API calls, Failed otherwise.
+     * @param holder the placeholder row
+     * @param problem the answer or error, in words
+     * @return the row
+     */
+    @TestVisible
+    private static RLY_Credential_Status__c selfRefused(RLY_Credential_Status__c holder, String problem) {
+        if (RlyCredentialRows.isApiLimit(problem)) {
+            return RlyCredentialRows.apiLimitReached(holder, 'The hub');
+        }
+        if (cannotUseCredential(problem)) {
+            return RlyCredentialRows.mark(holder, RlyCredentialRows.UNKNOWN, NO_SELF_ACCESS);
+        }
+        return RlyCredentialRows.mark(holder, RlyCredentialRows.FAILED, problem);
+    }
+
+    // The platform's words when the running user has no access to the credential's principal.
+    private static Boolean cannotUseCredential(String problem) {
+        return problem != null && (problem.containsIgnoreCase('access the credential') || problem.containsIgnoreCase('principal access'));
     }
 }
