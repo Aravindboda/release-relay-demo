@@ -1,0 +1,55 @@
+{
+ "request": "REL-91077",
+ "step": "scan",
+ "status": "Passed",
+ "total": 1,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Moderate": 1
+ },
+ "files": [
+  "force-app/main/default/classes/RlyCheckReaderTest.cls",
+  "force-app/main/default/classes/RlyConflictService.cls",
+  "force-app/main/default/classes/RlyConflictServiceTest.cls",
+  "force-app/main/default/classes/RlyConflictSummary.cls",
+  "force-app/main/default/classes/RlyFileEditRules.cls",
+  "force-app/main/default/classes/RlyFileEditTest.cls",
+  "force-app/main/default/classes/RlyFlowScenario.cls",
+  "force-app/main/default/classes/RlyGit.cls",
+  "force-app/main/default/classes/RlyGitHub.cls",
+  "force-app/main/default/classes/RlyGitLabRuns.cls",
+  "force-app/main/default/classes/RlyPipelineRun.cls",
+  "force-app/main/default/classes/RlyRunTime.cls",
+  "force-app/main/default/classes/RlySlackDue.cls",
+  "force-app/main/default/classes/RlySlackDueRest.cls",
+  "force-app/main/default/classes/RlySlackDueTest.cls",
+  "force-app/main/default/lwc/rlyFileEdit/rlyFileEdit.js",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.js",
+  "force-app/main/default/lwc/rlySyncStatus/rlySyncStatus.html",
+  "force-app/main/default/lwc/rlySyncStatus/rlySyncStatus.js"
+ ],
+ "violations": [
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc-platform/no-inline-disable",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlySyncStatus/rlySyncStatus.js",
+   "line": 270,
+   "message": "Inline rule disablement not allowed: no-await-in-loop",
+   "url": null
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42722576582",
+ "finishedAt": "2026-11-09T23:43:26.082Z"
+}
