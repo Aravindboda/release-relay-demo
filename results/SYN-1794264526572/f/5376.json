@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/objects/Opportunity/listViews/AllOpportunities.listView-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListView xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>AllOpportunities</fullName>\n    <filterScope>Everything</filterScope>\n    <label>All Opportunities</label>\n</ListView>\n"}

@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/triggers/LSOAccessRequestTrigger.trigger","left":null,"right":"trigger LSOAccessRequestTrigger on LSO_Cross_Country_Access_Request__c (before insert) {\n    if (Trigger.isBefore && Trigger.isInsert) {\n        LSOAccessRequestTriggerHandler.preventDuplicateOpenRequests(Trigger.new);\n    }\n}"}

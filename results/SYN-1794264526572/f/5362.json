@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/objects/Contract/listViews/AllContracts.listView-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListView xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>AllContracts</fullName>\n    <filterScope>Everything</filterScope>\n    <label>All Contracts</label>\n</ListView>\n"}
