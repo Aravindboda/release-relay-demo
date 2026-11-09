@@ -1,0 +1,36 @@
+{
+ "request": "REL-00056",
+ "step": "validate",
+ "status": "Conflict",
+ "conflicts": [
+  {
+   "file": "force-app/main/default/labels/CustomLabels.labels-meta.xml",
+   "merged": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomLabels xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <labels>\n        <fullName>E2E_Label_DEV1</fullName>\n        <language>en_US</language>\n        <protected>true</protected>\n        <shortDescription>E2E Label DEV1</shortDescription>\n<<<<<<< HEAD\n        <value>Edited on sit by another team (E09)</value>\n=======\n        <value>Edited in DEV1 (E09)</value>\n>>>>>>> refs/remotes/origin/feature/rel-00056\n    </labels>\n</CustomLabels>\n",
+   "mine": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomLabels xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <labels>\n        <fullName>E2E_Label_DEV1</fullName>\n        <language>en_US</language>\n        <protected>true</protected>\n        <shortDescription>E2E Label DEV1</shortDescription>\n        <value>Edited in DEV1 (E09)</value>\n    </labels>\n</CustomLabels>",
+   "theirs": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomLabels xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <labels>\n        <fullName>E2E_Label_DEV1</fullName>\n        <language>en_US</language>\n        <protected>true</protected>\n        <shortDescription>E2E Label DEV1</shortDescription>\n        <value>Edited on sit by another team (E09)</value>\n    </labels>\n</CustomLabels>",
+   "truncated": false
+  }
+ ],
+ "conflictCount": 1,
+ "message": "1 file(s) conflict with sit. Choose what to keep in Release Relay, then check again.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42718131139",
+ "finishedAt": "2026-11-09T23:10:16.497Z",
+ "attempt": "151a4574e5c6919d1b05571e01906b96",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "packages": {
+  "kept": {},
+  "leftOut": {},
+  "componentsLeftOut": []
+ }
+}
