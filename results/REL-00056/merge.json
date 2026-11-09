@@ -1,0 +1,19 @@
+{
+ "request": "REL-00056",
+ "step": "merge",
+ "status": "Merged",
+ "pr": 251,
+ "sha": "08ac0636d9f74476e7c115d299fec5c5b61acac8",
+ "method": "merge",
+ "sync": [
+  {
+   "branch": "dev1",
+   "status": "Synced",
+   "message": "dev1 now includes sit."
+  }
+ ],
+ "head": "0605391fe3eb71f8eb6002673f0c943c5f4398ad",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42718758286",
+ "finishedAt": "2026-11-09T23:14:22.954Z",
+ "attempt": "78328d6538d15d7c57992c7528f1acef"
+}
