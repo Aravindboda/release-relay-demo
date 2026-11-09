@@ -1,5 +1,5 @@
 /**
- * @description Formats a shipping label line: name in capitals, then city and state.
+ * @description Formats a shipping label line: name in capitals, then city and state. (E14: pushed after the checks)
  */
 public with sharing class LabelFormatter {
     /**
