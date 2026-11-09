@@ -33,6 +33,8 @@ public abstract with sharing class RlyGit extends RlyGitCore {
         public String status;
         /** @description success, failure, cancelled... (when completed). */
         public String conclusion;
+        /** @description When the provider created the run, or null (build 56, D24). */
+        public Datetime createdAt;
 
         /**
          * @description Whether the run has ended.

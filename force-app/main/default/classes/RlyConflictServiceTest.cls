@@ -69,6 +69,12 @@ private class RlyConflictServiceTest {
             System.assertEquals(null, saved.Error_Message__c, 'No error');
             System.assert(d.canResolve, 'Whoever raised it can resolve');
             System.assert(d.running, 'Running');
+            List<RLY_Release_Event__c> events = [SELECT Detail__c, Actor__c FROM RLY_Release_Event__c
+                                                 WHERE Release__c = :rel.Id AND Event_Type__c = :RlyConflictService.EVENT];
+            System.assertEquals(1, events.size(), 'History records the resolution');
+            System.assertEquals(UserInfo.getUserId(), events[0].Actor__c, 'Who resolved it');
+            System.assert(events[0].Detail__c.contains('AccountService.cls edited by hand')
+                && events[0].Detail__c.contains('AccountServiceTest.cls kept sit\'s version'), 'What each file kept: ' + events[0].Detail__c);
         }
     }
 

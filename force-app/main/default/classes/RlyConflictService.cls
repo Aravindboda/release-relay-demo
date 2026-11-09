@@ -2,9 +2,12 @@
  * @description Resolves a release's conflicts with its target: the hub commits the choices
  * (.relay-inbox/REL-xxxxx-resolve.json) to the release branch and starts the pipeline in mode resolve, which
  * applies them and runs the code scan and the merged validation again. Allowed for approvers and for the user who
- * raised the release. Callouts come first (the Slack card too), then the release is saved, then the Slack result.
+ * raised the release; History records who chose what (build 56). Callouts come first (the Slack card too), then the release is saved, then the Slack result.
  */
 public with sharing class RlyConflictService {
+
+    /** @description History event for the choices made (build 56): who resolved, and what each file kept. */
+    public static final String EVENT = 'Conflicts_Resolved';
 
     /**
      * @description Whether the current user may resolve the release's conflicts.
@@ -31,6 +34,8 @@ public with sharing class RlyConflictService {
             throw new RlyReleaseException('Only the developer who raised this release or an approver can resolve its conflicts.');
         }
         String body = RlyConflictRules.resolveFile(rel, requestJson);
+        RlyReleaseLog.add(rel, EVENT, 'Resolved by ' + UserInfo.getName() + ': ' + RlyConflictSummary.of(body, rel.Target_Branch__c))
+            .inOrg(rel.Target_Org__c).byActor(UserInfo.getUserId(), RlyReleaseLog.VIA_SALESFORCE);
         RLY_Release__c before = RlySlackCardState.snapshot(rel);
         RLY_Git_Connection__c conn = RlyReleaseStore.gitFor(rel);
         RlyGit git = RlyGit.forConnection(conn);
