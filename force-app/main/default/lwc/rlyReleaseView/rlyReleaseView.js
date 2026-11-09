@@ -127,7 +127,8 @@ const EVENT_LOOK = {
     Changes_Added: { title: 'Changes added', icon: 'utility:add' },
     Cancelled: { title: 'Cancelled', icon: 'utility:ban' },
     Package_References: { title: 'Package references', icon: 'utility:package' },
-    File_Edited: { title: 'File edited', icon: 'utility:edit' }
+    File_Edited: { title: 'File edited', icon: 'utility:edit' },
+    Conflicts_Resolved: { title: 'Conflicts resolved', icon: 'utility:merge' }
 };
 /** File events on manual steps (build 34): the History card's Files chip shows only these. */
 const FILE_EVENTS = ['File_Attached', 'File_Removed', 'Proof_Added', 'File_Downloaded'];
@@ -152,6 +153,18 @@ const ROLLBACK_RUNNING = 'Running';
 const GATES_FILE = '.relay/gates.json';
 /** Events whose outcome (passed / failed) is in their detail line. */
 const CHECK_EVENTS = ['Scan', 'Validation', 'Flow_Activated'];
+
+/**
+ * D18: a check's line says whether it failed. A line that says "Passed" (for example
+ * "Code scan Passed: 2 findings, 0 blocking") or "Skipped" never reads as failed, even though it holds "blocking".
+ */
+function checkFailed(detail) {
+    const d = detail || '';
+    if (/\b(passed|skipped)\b/i.test(d)) {
+        return false;
+    }
+    return /fail|error|block/i.test(d);
+}
 /** RLY_Release__c.Flow_Actions__c / FlowChoice.choice → the Review step's label. */
 const FLOW_CHOICE_LABEL = { Activate: 'Activate in each org', Inactive: 'Leave inactive: add a manual step to activate' };
 const FLOW_ACTIVATED = 'Activated';
@@ -1399,7 +1412,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             const whenText = day === lastDay ? timeOnly(e.occurredOn) : when(e.occurredOn);
             lastDay = day;
             const orgWord = EVENT_ORG_WORD[e.eventType];
-            const failed = (CHECK_EVENTS.includes(e.eventType) && /fail|error|block/i.test(e.detail || ''))
+            const failed = (CHECK_EVENTS.includes(e.eventType) && checkFailed(e.detail))
                 || (e.eventType === 'Changes_Added' && /^Not added/.test(e.detail || ''));
             const ref = e.reference || '';
             return {
@@ -1443,6 +1456,12 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             return failed ? 'Flow activation failed' : look.title;
         }
         if (CHECK_EVENTS.includes(e.eventType)) {
+            if (!failed && e.eventType === 'Scan' && /\bskipped\b/i.test(e.detail || '')) {
+                return look.title + ' skipped';
+            }
+            if (!failed && e.eventType === 'Scan' && /\b[1-9]\d* findings?\b/i.test(e.detail || '')) {
+                return look.title + ' passed with findings';
+            }
             return look.title + (failed ? ' failed' : ' passed');
         }
         return look.title;

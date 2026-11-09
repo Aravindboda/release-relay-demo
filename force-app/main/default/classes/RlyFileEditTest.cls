@@ -117,7 +117,8 @@ private class RlyFileEditTest {
                     new List<String>{ CLASS_PATH, 'new', 'what it was when opened' },
                     new List<String>{ 'classes/Other.cls', 'new', ON_BRANCH },
                     new List<String>{ '../secrets.txt', 'new', ON_BRANCH },
-                    new List<String>{ CLASS_PATH, ON_BRANCH, ON_BRANCH } }) {
+                    new List<String>{ CLASS_PATH, ON_BRANCH, ON_BRANCH },
+                    new List<String>{ CLASS_PATH, '  ', ON_BRANCH } }) {
                 try {
                     RlyFileEdit.commitEdit(rel.Id, edit(attempt[0], attempt[1], attempt[2]));
                 } catch (RlyReleaseException e) {
@@ -125,10 +126,11 @@ private class RlyFileEditTest {
                 }
             }
             Test.stopTest();
-            System.assertEquals(4, refused.size(), 'All refused: ' + refused);
+            System.assertEquals(5, refused.size(), 'All refused: ' + refused);
             System.assert(refused[0].contains('changed on ' + rel.Source_Branch__c), 'Changed since opened: ' + refused[0]);
             System.assert(refused[1].contains('isn\'t a file of'), 'Not the release\'s: ' + refused[1]);
             System.assert(refused[3].startsWith('Nothing changed'), 'Nothing to save: ' + refused[3]);
+            System.assert(refused[4].contains('empty'), 'A blank file is refused (D23): ' + refused[4]);
             System.assert(!mock.callLog().contains('PUT'), 'Nothing committed: ' + mock.callLog());
         }
     }

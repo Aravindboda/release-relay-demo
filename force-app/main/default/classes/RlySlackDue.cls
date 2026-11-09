@@ -8,7 +8,8 @@
  *              steps to do, failed; nothing to say → no message
  * At most RlySlackPoster.MAX_POSTS messages per call; Slack's "busy" (429) ends the call and the next hour carries on.
  * Callouts first, then the saves (Slack_Reminded__c, Slack_Digest_Sent__c).
- * Answer: {done, pass, sent, skipped, reason} or {skipped:true, done:true, reason}.
+ * Answer: {done, pass, sent, skipped, reason}; when there is nothing to do, {idle:true, done:true, sent:0, skipped:0, reason}
+ * (build 56, D20: skipped is always a count, so the job's log line reads '0 skipped', not 'true skipped').
  */
 public with sharing class RlySlackDue {
 
@@ -34,7 +35,7 @@ public with sharing class RlySlackDue {
             why = 'No org has Slack reminders or the daily digest on.';
         }
         if (why != null) {
-            return new Map<String, Object>{ 'skipped' => true, 'done' => true, 'reason' => why, 'pass' => pass };
+            return new Map<String, Object>{ 'idle' => true, 'done' => true, 'sent' => 0, 'skipped' => 0, 'reason' => why, 'pass' => pass };
         }
         Datetime now = testNow == null ? System.now() : testNow;
         offsetSeconds = RlySlackDueReads.hubTimeZone().getOffset(now) / 1000;

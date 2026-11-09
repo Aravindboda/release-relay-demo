@@ -153,6 +153,7 @@
                         </div>
                         <template lwc:if={routeRunning}><div class="rr-empty"><lightning-spinner alternative-text="Checking" size="small" class="rr-inline-spin"></lightning-spinner>Comparing the branches… the result shows here when the run ends.</div></template>
                         <template lwc:elseif={routeFailed}><div class="rr-msg rr-msg-bad rr-inset">{routeMessage}</div></template>
+                        <template lwc:elseif={pairNotChecked}><div class="rr-empty"><span class="rr-pill">Not checked yet</span> The {pairTitle} branches weren't compared in the last check. Press Check the route.</div></template>
                         <template lwc:elseif={pairEmpty}><div class="rr-empty"><span class="rr-pill rr-pill-ok">In step</span> The {pairTitle} branches have nothing to bring down.</div></template>
                         <template lwc:else>
                             <div class="rr-list">

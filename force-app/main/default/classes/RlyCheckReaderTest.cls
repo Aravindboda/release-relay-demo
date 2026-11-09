@@ -119,6 +119,27 @@ private class RlyCheckReaderTest {
     }
 
     @IsTest
+    static void anEarlierFinishedRunIsNotTheNewOne() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = RlyReleaseTestData.release('Validating', 'hub');
+            update new RLY_Release__c(Id = rel.Id, Checks_Requested__c = System.now());
+            RlyFlowScenario scenario = checking(rel);
+            scenario.runStatus = 'completed';
+            scenario.runConclusion = 'success';
+            scenario.runCreatedAt = '2020-01-01T00:00:00Z'; // the last run, still listed first right after a new dispatch
+            Test.setMock(HttpCalloutMock.class, scenario.build());
+            Test.startTest();
+            RlyStatusReader.advance(rel.Id);
+            Test.stopTest();
+            RLY_Release__c saved = RlyReleaseTestData.reload(rel.Id);
+            System.assertEquals('Pending', saved.Scan_Status__c, 'Waits for the new run (D24)');
+            System.assertEquals('Validating', saved.Status__c, 'Still checking');
+            System.assertEquals(Datetime.newInstanceGmt(2026, 11, 9, 23, 20, 18), RlyRunTime.toTime('2026-11-09T23:20:18Z'), 'GitHub time read');
+            System.assertEquals(null, RlyRunTime.toTime('not a time'), 'Unreadable time is null');
+        }
+    }
+
+    @IsTest
     static void conflictFailsTheValidation() {
         System.runAs(RlyTestData.admin()) {
             RLY_Release__c rel = RlyReleaseTestData.release('Validating', 'hub');

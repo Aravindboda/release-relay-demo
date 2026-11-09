@@ -1,7 +1,7 @@
 /**
  * @description The Slack reminders call (POST /services/apexrest/rly/slack-due) from the pipeline's hourly schedule
  * (pipeline files v24, job slack-due), signed in as the hub's pipeline user (Release Relay Admin). RlySlackDue decides
- * what is due and answers {done, pass, sent, skipped, reason} (or skipped:true with the reason); the job calls again
+ * what is due and answers {done, pass, sent, skipped, reason} (or idle:true with the reason); the job calls again
  * until done. Always HTTP 200 with JSON, so the job can log the answer.
  */
 @RestResource(urlMapping='/rly/slack-due')
