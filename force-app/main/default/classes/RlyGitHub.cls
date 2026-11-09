@@ -200,6 +200,7 @@ public with sharing class RlyGitHub extends RlyGit {
         run.url = String.valueOf(r.get('html_url'));
         run.status = String.valueOf(r.get('status'));
         run.conclusion = r.get('conclusion') == null ? null : String.valueOf(r.get('conclusion'));
+        run.createdAt = RlyRunTime.toTime(r.get('created_at'));
         return run;
     }
 

@@ -16,6 +16,8 @@ public with sharing class RlyFlowScenario {
     public String runStatus = 'in_progress';
     /** @description The run's conclusion, or null. */
     public String runConclusion;
+    /** @description When the run was created (ISO 8601), or null to leave it out. */
+    public String runCreatedAt;
     /** @description The run title's mode: hub, check or merge. */
     public String runMode = 'hub';
     /** @description open, closed, merged or none. */
@@ -80,7 +82,8 @@ public with sharing class RlyFlowScenario {
     private String runJson() {
         return '{"id":555,"html_url":"https://github.com/acme/release/actions/runs/555","display_title":"Release Relay '
             + relName + ' (' + runMode + ')","status":"' + runStatus + '","conclusion":'
-            + (runConclusion == null ? 'null' : '"' + runConclusion + '"') + '}';
+            + (runConclusion == null ? 'null' : '"' + runConclusion + '"')
+            + (runCreatedAt == null ? '' : ',"created_at":"' + runCreatedAt + '"') + '}';
     }
 
     private String pullsJson() {

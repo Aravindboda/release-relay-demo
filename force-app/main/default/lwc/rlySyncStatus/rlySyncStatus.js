@@ -690,11 +690,16 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
         const p = this.currentPair;
         return p ? p.higherName + ' → ' + p.lowerName : '';
     }
-    get pairComponents() {
+    get pairResult() {
         const p = this.currentPair;
-        const r = p ? this.resultPairs.find((x) => pairKey(x.higher, x.lower) === pairKey(p.higherBranch, p.lowerBranch)) : null;
+        return p ? this.resultPairs.find((x) => pairKey(x.higher, x.lower) === pairKey(p.higherBranch, p.lowerBranch)) : null;
+    }
+    get pairComponents() {
+        const r = this.pairResult;
         return r ? r.components || [] : [];
     }
+    // D21 (build 56): a pair the last check didn't cover (or no check yet) is "not checked", never "in step".
+    get pairNotChecked() { return !this.routeRunning && !this.routeFailed && !this.pairResult; }
     get pairRows() {
         const q = this.term;
         const p = this.currentPair;
@@ -706,7 +711,7 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
                 pressed: on ? 'true' : 'false', rowCls: 'rr-row rr-row-route' + (c.key === this.openKey ? ' rr-row-open' : '') };
         });
     }
-    get pairEmpty() { return !!this.routeCheck && this.routeCheck.status === 'Succeeded' && this.pairComponents.length === 0; }
+    get pairEmpty() { return !!this.routeCheck && this.routeCheck.status === 'Succeeded' && !!this.pairResult && this.pairComponents.length === 0; }
     get pairCountText() { return this.pairComponents.length + ' on the ' + (this.currentPair ? this.currentPair.higherBranch : '') + ' branch that the ' + (this.currentPair ? this.currentPair.lowerBranch : '') + ' branch doesn\'t have'; }
     toggleRoutePick(event) {
         const key = event.currentTarget.dataset.key;
