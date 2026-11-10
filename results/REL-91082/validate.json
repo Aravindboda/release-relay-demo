@@ -1,0 +1,309 @@
+{
+ "request": "REL-91082",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 39,
+ "deleted": [],
+ "mergedWith": "3510ed58f2464ebf90fffe4aeb269d9bdc91c17b",
+ "validatedTree": "04b75ebbf37fcfdac93bd81227260af6577e5c09",
+ "environment": "prod",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0Afg800000LNS7ZCAX",
+ "testsRun": 0,
+ "tests": [
+  "RlyAppendTest",
+  "RlyApprovalRulesTest",
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyArchiveRestTest",
+  "RlyArchiveRunsTest",
+  "RlyArchiveTest",
+  "RlyBackPromoteTest",
+  "RlyBranchDeleteTest",
+  "RlyBuildInfoTest",
+  "RlyBuildLockTest",
+  "RlyChangePartsTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyComparePipelineTest",
+  "RlyCompareTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyCredentialTest",
+  "RlyDataTest",
+  "RlyDeletionFinderTest",
+  "RlyDeployReaderTest",
+  "RlyEvidenceTest",
+  "RlyFileEditTest",
+  "RlyFlowActivationTest",
+  "RlyFlowBatchTest",
+  "RlyGitAdviceTest",
+  "RlyGitLabTest",
+  "RlyGitProvidersTest",
+  "RlyHomeControllerTest",
+  "RlyHotfixTest",
+  "RlyHubGuardTest",
+  "RlyManualOnlyTest",
+  "RlyManualStepGateTest",
+  "RlyManualStepsTest",
+  "RlyMetricsTest",
+  "RlyMigrationCancelTest",
+  "RlyMigrationPartsTest",
+  "RlyMigrationTest",
+  "RlyOrgControllerTest",
+  "RlyOrgLinksTest",
+  "RlyOrgPackagesTest",
+  "RlyOrgSessionTest",
+  "RlyPackageResultsTest",
+  "RlyPipelineFilesTest",
+  "RlyPipelineSummaryTest",
+  "RlyProdApprovalTest",
+  "RlyProfileAccessTest",
+  "RlyPromoteOverlapTest",
+  "RlyPromoteTest",
+  "RlyPullRequestCloseTest",
+  "RlyPullRequestFilesTest",
+  "RlyRaisePartsTest",
+  "RlyRaiseServiceTest",
+  "RlyRelayUpdateTest",
+  "RlyReleaseCancelTest",
+  "RlyReleaseSizeTest",
+  "RlyReleaseWindowTest",
+  "RlyReleasesFilterTest",
+  "RlyRepoSecurityTest",
+  "RlyRepoSettingsTest",
+  "RlyRolesTest",
+  "RlyRollbackTest",
+  "RlyRouteControllerTest",
+  "RlyRunMonitorControllerTest",
+  "RlyRunMonitorRestTest",
+  "RlyRunSigningTest",
+  "RlyRunTitlesTest",
+  "RlyScanRuleTest",
+  "RlySecurityFixesTest",
+  "RlySetupStatusTest",
+  "RlySharedReadTest",
+  "RlySlackActionsTest",
+  "RlySlackApproversTest",
+  "RlySlackCardTest",
+  "RlySlackDueTest",
+  "RlySlackLinkTest",
+  "RlySlackSiteCheckTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest",
+  "RlyStepFilesTest",
+  "RlySyncTest",
+  "RlyTwoApproversTest",
+  "RlyWindowGateTest",
+  "RlyWorkItemsTest",
+  "RlyWorkTrackersTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessComposite",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessRead : Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessReader : Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessLayouts : Identifier name is reserved: end",
+   "line": 112
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessReader : Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessLayouts : Identifier name is reserved: end",
+   "line": 112
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessLayouts",
+   "problem": "Identifier name is reserved: end",
+   "line": 112
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessQueries",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessRead : Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessReader : Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessLayouts : Identifier name is reserved: end",
+   "line": 112
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessRead",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessReader : Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessLayouts : Identifier name is reserved: end",
+   "line": 112
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessReader",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessLayouts : Identifier name is reserved: end",
+   "line": 112
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessRows",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessQueries : Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessRead : Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessReader : Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessLayouts : Identifier name is reserved: end",
+   "line": 112
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Unexpected token 'Map'.",
+   "line": 69
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Unexpected token 'Map'.",
+   "line": 69
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Expecting ';' but was: ','",
+   "line": 69
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 69
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 72
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 74
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 75
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 77
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 79
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 87
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 88
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Unexpected token 'on'.",
+   "line": 91
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Missing ';' at 'list'",
+   "line": 131
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Unexpected token 'list'.",
+   "line": 131
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Unexpected token 'list'.",
+   "line": 131
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Unexpected token 'list'.",
+   "line": 139
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Variable does not exist: String",
+   "line": 69
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Variable does not exist: String",
+   "line": 131
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Illegal assignment from RlyProfileAccessReader.Profile to String",
+   "line": 159
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessTest",
+   "problem": "Illegal assignment from RlyProfileAccessReader.Profile to String",
+   "line": 160
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Admin",
+   "problem": "In field: apexClass - no ApexClass named RlyProfileAccessController found"
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Approver",
+   "problem": "In field: apexClass - no ApexClass named RlyProfileAccessController found"
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Auditor",
+   "problem": "In field: apexClass - no ApexClass named RlyProfileAccessController found"
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Deploy_Team",
+   "problem": "In field: apexClass - no ApexClass named RlyProfileAccessController found"
+  },
+  {
+   "type": "PermissionSet",
+   "name": "RLY_Developer",
+   "problem": "In field: apexClass - no ApexClass named RlyProfileAccessController found"
+  }
+ ],
+ "testFailures": [],
+ "message": "32 component error(s)",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42758209257",
+ "finishedAt": "2026-11-10T04:50:03.512Z",
+ "excluded": [],
+ "selfUpdate": true,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "headSha": "42135d17d02421a60082c423147c7f293e03b6f2"
+}
