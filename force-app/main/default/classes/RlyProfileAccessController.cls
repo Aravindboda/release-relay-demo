@@ -96,7 +96,7 @@ public with sharing class RlyProfileAccessController {
      * @param releaseId the release
      * @return its profiles and rows (empty when it has none)
      */
-    @AuraEnabled
+    @AuraEnabled(cacheable=true)
     public static List<RlyProfileAccessRules.ProfileRows> forRelease(Id releaseId) {
         try {
             return RlyProfileAccessRules.fromField(RlyReleaseStore.profileAccess(releaseId));

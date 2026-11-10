@@ -2004,7 +2004,8 @@ const USE_SECTIONS = [
                                 check: 'The release shows Deploying, then Deployed (or Deploy failed with the reason).',
                                 problems: [
                                     ['Approve and deploy is grey', 'The checks are still running, or another action is in progress.'],
-                                    ['"Only approvers can do this (permission set Release Relay Approver)."', 'Ask an admin for the Release Relay Approver group.']
+                                    ['"Only approvers can do this (permission set Release Relay Approver)."', 'Ask an admin for the Release Relay Approver group.'],
+                                    ['Deploy failed for a reason that has passed (for example "REQUEST_LIMIT_EXCEEDED": the org used its daily API calls)', 'Press **Deploy again** at the bottom of the release (approvers, the deployment team and admins). It runs the same merge and deploy with the approved head; the approval stays and History shows "Deploy started again".']
                                 ]
                             },
                             {
@@ -3024,7 +3025,7 @@ const USE_SECTIONS = [
                             ['Waiting for the window', 'Approved, but the target org\'s release window is closed or it is frozen. The release says when it will deploy.', 'Wait; it deploys when the release is opened inside the window. Someone with the Release Window Bypass add-on can Deploy now anyway, with a reason.'],
                             ['Deploying', 'Merging the pull request and deploying.', 'Wait.'],
                             ['Deployed', 'In the target org; developer branches updated; flows set to Activate activated.', 'Nothing. Download evidence (PDF) if the change request needs it.'],
-                            ['Deploy failed', 'The merge or the deploy failed.', 'Read the reason; raise a new release.'],
+                            ['Deploy failed', 'The merge or the deploy failed.', 'Read the reason. If it has passed (for example the org was out of daily API calls), an approver or the deployment team presses Deploy again; otherwise raise a new release.'],
                             ['Rejected', 'An approver rejected it; the pull request was closed.', 'Read the comment; raise again.'],
                             ['Cancelled', 'The person who raised it or an admin withdrew it (Cancel release), or the hub moved to another Git provider; the pull request was closed with the reason.', 'Raise again if still needed.'],
                             ['Closed', 'The pull request was closed in the Git provider.', 'Raise again if still needed.'],
