@@ -1,0 +1,26 @@
+<template>
+    <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+    <template lwc:if={hasAccess}>
+        <section class="rr-pal" aria-label="Profile access">
+            <div class="rr-pal-head">
+                <p class="rr-h3 rr-pal-grow">Profile access</p>
+                <span class="rr-pill rr-pill-info">{countText}</span>
+            </div>
+            <p class="rr-small rr-weak rr-pal-note">Only these rows of each profile are written and deployed; the rest of each profile stays as it is in the target.</p>
+            <template for:each={groups} for:item="g">
+                <div key={g.key} class="rr-pal-group">
+                    <p class="rr-strong rr-small">{g.label}</p>
+                    <table class="rr-pal-table">
+                        <caption class="slds-assistive-text">Profile access for {g.label}</caption>
+                        <thead><tr><th scope="col">Kind</th><th scope="col">Component</th><th scope="col">Sends</th></tr></thead>
+                        <tbody>
+                            <template for:each={g.rows} for:item="r">
+                                <tr key={r.key}><td>{r.kind}</td><th scope="row" class="rr-pal-name">{r.name}</th><td>{r.sends}</td></tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+        </section>
+    </template>
+</template>

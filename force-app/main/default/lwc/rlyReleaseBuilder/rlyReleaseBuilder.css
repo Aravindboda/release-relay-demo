@@ -175,6 +175,7 @@
     background: var(--rr-blue); display: inline-flex; align-items: center; justify-content: center;
 }
 .rr-pair-foot { padding: 10px 12px; border-top: 1px solid var(--rr-line); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.rr-pa-foot { border-top: none; }
 
 @media (max-width: 760px) {
     .rr-page-fit { height: auto; }
