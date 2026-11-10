@@ -1,0 +1,45 @@
+{
+ "request": "MIG-1794330388163",
+ "step": "migrate",
+ "status": "In progress",
+ "phase": "cloning",
+ "message": "Reading the current repository.",
+ "source": "https://github.com/Aravindboda/release-relay-demo",
+ "target": "https://gitlab.com/release-relay-group/release-relay-gitlab.git",
+ "targetProvider": "gitlab",
+ "defaultBranch": "",
+ "commits": 0,
+ "startedAt": "2026-11-10T17:06:40.590Z",
+ "branches": {
+  "found": 0,
+  "pushed": 0,
+  "failed": 0
+ },
+ "tags": {
+  "found": 0,
+  "pushed": 0,
+  "failed": 0
+ },
+ "branchNames": [],
+ "failures": [],
+ "forced": false,
+ "mainCommits": 0,
+ "refs": [],
+ "refsTotal": 0,
+ "matched": 0,
+ "method": "verify",
+ "dryRun": true,
+ "ready": false,
+ "problems": [],
+ "access": {
+  "read": true,
+  "push": null
+ },
+ "targetEmpty": false,
+ "targetRefCount": 146,
+ "sizeKb": 0,
+ "namedBranches": [],
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42861477433",
+ "finishedAt": "2026-11-10T17:06:41.387Z",
+ "attempt": "7878a1bf74c8983c34f56716b4cf5811"
+}
