@@ -1,0 +1,40 @@
+{
+ "request": "REL-00058",
+ "step": "deploy",
+ "status": "Failed",
+ "sha": "e834700688fae733cba5a1200270dbeb3f3ba26d",
+ "changed": 1,
+ "deleted": [],
+ "ok": false,
+ "testLevel": "NoTestRun",
+ "deployId": null,
+ "testsRun": 0,
+ "tests": [],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "Metadata API request failed: REQUEST_LIMIT_EXCEEDED: TotalRequests Limit exceeded.",
+ "quick": false,
+ "quickNote": "The validation ran no tests (NoTestRun), and production quick deploys only validations that ran tests, so it was deployed in full.",
+ "snapshot": {
+  "branch": "release-relay-snapshots",
+  "path": "REL-00058/sit/8960023eb362e4f102dd239f2ec19211",
+  "existing": 1,
+  "added": 0
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42733472509",
+ "finishedAt": "2026-11-10T01:13:43.719Z",
+ "attempt": "8960023eb362e4f102dd239f2ec19211",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "packages": {
+  "kept": {},
+  "leftOut": {},
+  "componentsLeftOut": []
+ }
+}
