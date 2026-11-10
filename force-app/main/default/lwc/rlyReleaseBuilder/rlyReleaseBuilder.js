@@ -94,7 +94,7 @@ function readSyncPick() {
         window.sessionStorage.removeItem('rlySyncPick');
         const pick = raw ? JSON.parse(raw) : null;
         return pick && pick.orgId ? pick : undefined;
-    } catch (e) {
+    } catch {
         return undefined;
     }
 }

@@ -12,7 +12,7 @@ export function matchesPatterns(ticket, patterns) {
     return patterns.trim().split(/\s+/).some((f) => {
         try {
             return new RegExp('^(?:' + f + ')$', 'i').test(ticket);
-        } catch (e) {
+        } catch {
             return false;
         }
     });

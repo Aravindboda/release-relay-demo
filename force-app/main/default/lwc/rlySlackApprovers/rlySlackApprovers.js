@@ -87,14 +87,15 @@ export default class RlySlackApprovers extends LightningElement {
     picked = {};
     searching = false;
     addBusy = false;
-    searchTimer;
     searchSeq = 0;
     // Match now
     matching = false;
     stopAfterPass = false;
     run;
-    waitTimer;
-    flashTimer;
+    /** Running waits ({ key, ms, kind, seq }): Slack busy pause, search debounce, flash (build 57: c-rly-wait, no timers). */
+    waitList = [];
+    /** Resolves the Slack-busy pause when its wait ends. */
+    pauseDone;
     changed = false;
 
     connectedCallback() {
@@ -108,9 +109,34 @@ export default class RlySlackApprovers extends LightningElement {
     disconnectedCallback() {
         // Leaving stops after the pass that is running; what is saved stays saved.
         this.stopAfterPass = true;
-        clearTimeout(this.waitTimer);
-        clearTimeout(this.searchTimer);
-        clearTimeout(this.flashTimer);
+        this.waitList = [];
+    }
+
+    // One wait per kind: a new one replaces the old.
+    startWait(kind, ms, extra) {
+        this.waitList = this.waitList.filter((w) => w.kind !== kind).concat([{ key: kind + '-' + Date.now(), kind, ms, ...extra }]);
+    }
+
+    stopWait(kind) {
+        this.waitList = this.waitList.filter((w) => w.kind !== kind);
+    }
+
+    handleWaitDone(event) {
+        const key = event.currentTarget.dataset.key;
+        const w = this.waitList.find((x) => x.key === key);
+        this.waitList = this.waitList.filter((x) => x.key !== key);
+        if (!w) {
+            return;
+        }
+        if (w.kind === 'pause' && this.pauseDone) {
+            const done = this.pauseDone;
+            this.pauseDone = undefined;
+            done();
+        } else if (w.kind === 'search') {
+            this.runSearch(w.term, w.seq);
+        } else if (w.kind === 'flash') {
+            this.flashIds = [];
+        }
     }
 
     refresh() {
@@ -499,8 +525,8 @@ export default class RlySlackApprovers extends LightningElement {
 
     pause(seconds) {
         return new Promise((resolve) => {
-            // eslint-disable-next-line @lwc/lwc/no-async-operation
-            this.waitTimer = setTimeout(resolve, seconds * 1000);
+            this.pauseDone = resolve;
+            this.startWait('pause', seconds * 1000);
         });
     }
 
@@ -580,31 +606,34 @@ export default class RlySlackApprovers extends LightningElement {
 
     handlePickSearch(event) {
         this.pickTerm = event.target.value || '';
-        clearTimeout(this.searchTimer);
+        this.stopWait('search');
         const term = this.pickTerm.trim();
         if (term.length < 2) {
             this.candidates = [];
+            this.searching = false;
             return;
         }
         const seq = ++this.searchSeq;
         this.searching = true;
-        // eslint-disable-next-line @lwc/lwc/no-async-operation
-        this.searchTimer = setTimeout(() => {
-            searchUsers({ term })
-                .then((list) => {
-                    if (seq === this.searchSeq) {
-                        this.candidates = list || [];
-                    }
-                })
-                .catch((e) => {
-                    this.banner = { text: errorText(e), tone: 'bad' };
-                })
-                .finally(() => {
-                    if (seq === this.searchSeq) {
-                        this.searching = false;
-                    }
-                });
-        }, SEARCH_WAIT_MS);
+        this.startWait('search', SEARCH_WAIT_MS, { term, seq });
+    }
+
+    // Typing paused: search; an answer for an older term is dropped.
+    runSearch(term, seq) {
+        searchUsers({ term })
+            .then((list) => {
+                if (seq === this.searchSeq) {
+                    this.candidates = list || [];
+                }
+            })
+            .catch((e) => {
+                this.banner = { text: errorText(e), tone: 'bad' };
+            })
+            .finally(() => {
+                if (seq === this.searchSeq) {
+                    this.searching = false;
+                }
+            });
     }
 
     togglePick(event) {
@@ -673,11 +702,7 @@ export default class RlySlackApprovers extends LightningElement {
 
     flash(ids) {
         this.flashIds = ids;
-        clearTimeout(this.flashTimer);
-        // eslint-disable-next-line @lwc/lwc/no-async-operation
-        this.flashTimer = setTimeout(() => {
-            this.flashIds = [];
-        }, FLASH_MS);
+        this.startWait('flash', FLASH_MS);
     }
 
     // ---------- window ----------
