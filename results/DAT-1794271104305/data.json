@@ -1,0 +1,32 @@
+{
+ "request": "DAT-1794271104305",
+ "step": "data",
+ "status": "Succeeded",
+ "dryRun": true,
+ "blocked": false,
+ "message": "",
+ "objects": [
+  {
+   "objectName": "Account",
+   "insert": 0,
+   "update": 0,
+   "unchanged": 0,
+   "failed": 0,
+   "duplicates": [],
+   "missingKeys": 0,
+   "triggers": false,
+   "errors": [],
+   "orphans": 0
+  }
+ ],
+ "counts": {
+  "insert": 0,
+  "update": 0,
+  "unchanged": 0,
+  "failed": 0,
+  "duplicates": 0
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42729836864",
+ "finishedAt": "2026-11-10T00:38:45.761Z",
+ "attempt": "d387e08614f8cd26d47d773c10d9d19c"
+}
