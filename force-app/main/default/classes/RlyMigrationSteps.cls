@@ -111,11 +111,6 @@ public with sharing class RlyMigrationSteps {
         RlyMigrationGuard.save(m, state);
     }
 
-
-
-
-
-
     /**
      * @description Sets or clears a checklist item's Done mark.
      * @param m the migration
@@ -145,9 +140,6 @@ public with sharing class RlyMigrationSteps {
         m.Step__c = step;
         RlyMigrationStore.save(new RLY_Migration__c(Id = m.Id, Step__c = step));
     }
-
-
-
 
     // The new connection's fields, checked: another provider than the current one, the fields filled, the repository's shape.
     private static RLY_Git_Connection__c rowOf(RLY_Git_Connection__c input, RLY_Git_Connection__c current) {

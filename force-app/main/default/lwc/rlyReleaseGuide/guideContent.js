@@ -3780,6 +3780,22 @@ const MIGRATION_SECTIONS = [
                             ['A quick deploy needs the check to have left out the same package references', 'An org whose packages changed since the check is deployed in full']
                         ]
                     },
+                    {
+                        type: 'table',
+                        stack: true,
+                        cols: ['What changed in version 30', 'Why'],
+                        rows: [
+                            ['Org vs branch for an org the hub reads in parts skips a part the org sent back empty (only package.xml, for example list views it can\'t retrieve)', 'Such a part has nothing to compare; before, it stopped the whole check with "No results to format"']
+                        ]
+                    },
+                    {
+                        type: 'table',
+                        stack: true,
+                        cols: ['What changed in version 31', 'Why'],
+                        rows: [
+                            ['No behaviour change: the script passes a strict lint (no unused variables, no waits inside loops)', 'Cleaner code for reviewers and code scanners']
+                        ]
+                    },
                     { type: 'links', links: [{ label: 'M. Secure your repository: every step in order', to: 'secure' }] }
                 ]
             }

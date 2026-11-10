@@ -1,0 +1,2 @@
+.rr-wait { position: absolute; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; animation-name: rr-wait; animation-timing-function: linear; animation-iteration-count: 1; }
+@keyframes rr-wait { from { transform: translateX(0); } to { transform: translateX(1px); } }

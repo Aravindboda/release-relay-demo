@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 29
+// Release Relay pipeline files: version 31
 // Version 29 (hub build 55): package-aware releases. A managed package's references belong to the orgs that have it.
 //   OPTIONS.packages = { known: [ns...], sourceMissing: [ns...], targetMissing: [ns...] } (namespaces; only those in
 //   known count; absent or empty = no change). A reference is a leaf's text that names ns__X (not ns__c and the other
@@ -282,7 +282,7 @@ function withSafeProject(cwd, fn) {
     let original = null;
     try {
         original = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
-    } catch (e) {
+    } catch {
         original = null;
     }
     let stripped = null;
@@ -301,7 +301,7 @@ function withSafeProject(cwd, fn) {
             if (found) {
                 stripped = JSON.stringify(project, null, 2) + '\n';
             }
-        } catch (e) {
+        } catch {
             stripped = null; // not JSON: the CLI refuses the project anyway
         }
     }
@@ -571,7 +571,7 @@ function writePrivateKey(keyFile) {
             run('openssl', ['pkcs12', '-in', p12, '-nocerts', '-nodes', '-passin', 'env:RELAY_PW', '-out', keyFile],
                 { env: childEnv, stdio: ['ignore', 'ignore', 'inherit'] });
             fs.chmodSync(keyFile, 0o600);
-        } catch (e) {
+        } catch {
             fail('Couldn\'t read the key from SF_JKS. Check SF_JKS_PASSWORD, and that SF_JKS_ALIAS is the certificate\'s Unique Name.');
         } finally {
             fs.rmSync(dir, { recursive: true, force: true });
@@ -710,7 +710,7 @@ const options = (() => {
     try {
         const o = JSON.parse(input('OPTIONS') || '{}');
         return o && typeof o === 'object' && !Array.isArray(o) ? o : {};
-    } catch (e) {
+    } catch {
         return {};
     }
 })();
@@ -787,7 +787,7 @@ async function runRequestedAt() {
             if (t) {
                 return Math.floor(t / 1000);
             }
-        } catch (e) {
+        } catch {
             // the job's own clock below
         }
         console.log('::warning::The run\'s start time couldn\'t be read (actions: read); the signature\'s age is checked against now.');
@@ -854,7 +854,7 @@ function readResultText(requestFolder, stem, text) {
     let parsed;
     try {
         parsed = JSON.parse(text);
-    } catch (e) {
+    } catch {
         return null;
     }
     const wrapped = parsed && typeof parsed === 'object' && typeof parsed.payload === 'string' && typeof parsed.sig === 'string'
@@ -868,7 +868,7 @@ function readResultText(requestFolder, stem, text) {
     }
     try {
         return wrapped ? JSON.parse(parsed.payload) : parsed;
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -980,7 +980,7 @@ function git(args, options) {
 function gitQuiet(args) {
     try {
         return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: CLI_BUFFER }).trim();
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -1077,7 +1077,7 @@ function writeResult(name, data) {
                 'commit', '-q', '-m', `${requestId} ${name}: ${result.status}`], { cwd: dir });
             git(['push', '-q', 'origin', `HEAD:refs/heads/${RESULTS_BRANCH}`], { cwd: dir });
             return;
-        } catch (e) {
+        } catch {
             console.log(`Saving the ${name} result failed (attempt ${attempt}); retrying.`);
         } finally {
             gitQuiet(['worktree', 'remove', '--force', dir]);
@@ -1090,7 +1090,7 @@ function writeResult(name, data) {
 function gitQuietIn(dir, args) {
     try {
         execFileSync('git', args, { cwd: dir, stdio: ['ignore', 'ignore', 'ignore'] });
-    } catch (e) {
+    } catch {
         // nothing to remove
     }
 }
@@ -1187,7 +1187,7 @@ function login(alias) {
 function apiVersion() {
     try {
         return JSON.parse(fs.readFileSync('sfdx-project.json', 'utf8')).sourceApiVersion || '65.0';
-    } catch (e) {
+    } catch {
         return '65.0';
     }
 }
@@ -1270,7 +1270,7 @@ function loadExcludes() {
             lines = lines.concat(text.split(/\r?\n/));
             excludeSource = "Release Relay's built-in list and " + EXCLUDE_FILE;
         }
-    } catch (e) {
+    } catch {
         // unreadable: the built-in list alone
     }
     excludeRules = [];
@@ -1374,7 +1374,7 @@ function applyForceIgnore() {
             } else {
                 fs.writeFileSync('.forceignore', forceIgnoreOriginal);
             }
-        } catch (e) {
+        } catch {
             // the job ends anyway
         }
     });
@@ -1575,7 +1575,7 @@ function readText(file) {
         }
         const text = buf.toString('utf8');
         return Buffer.from(text, 'utf8').equals(buf) ? text : null;
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -1627,7 +1627,7 @@ function makeDeployCopy() {
     process.on('exit', () => {
         try {
             fs.rmSync(dir, { recursive: true, force: true });
-        } catch (e) {
+        } catch {
             // the job ends anyway
         }
     });
@@ -1635,7 +1635,7 @@ function makeDeployCopy() {
     try {
         dirs = asList(JSON.parse(fs.readFileSync('sfdx-project.json', 'utf8')).packageDirectories)
             .map((p) => String((p && p.path) || '').replace(/\/+$/, '')).filter(Boolean);
-    } catch (e) {
+    } catch {
         dirs = [];
     }
     if (!dirs.some((d) => sourcePath() === d || sourcePath().startsWith(d + '/'))) {
@@ -1801,7 +1801,7 @@ const packagesOption = (() => {
         targetMissing: list(p.targetMissing).filter((n) => known.includes(n)) };
 })();
 /** The step result's "packages" (raise, validate, deploy, sync), or null without OPTIONS.packages. */
-let packagesResult = packagesOption ? { kept: {}, leftOut: {}, componentsLeftOut: [] } : null;
+const packagesResult = packagesOption ? { kept: {}, leftOut: {}, componentsLeftOut: [] } : null;
 
 /** A reference to one of these namespaces in a leaf's text (global: every namespace it names). */
 function packageRefRe(namespaces) {
@@ -2173,7 +2173,7 @@ function putBackText(refText, newText, re) {
 function blobText(ref, file) {
     try {
         return execFileSync('git', ['show', `${ref}:${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: CLI_BUFFER });
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -2644,7 +2644,7 @@ function triggerIsInactive(name) {
     const meta = path.join(sourcePath(), 'triggers', `${name}.trigger-meta.xml`);
     try {
         return /<status>\s*Inactive\s*<\/status>/i.test(fs.readFileSync(meta, 'utf8'));
-    } catch (e) {
+    } catch {
         return false;
     }
 }
@@ -2740,7 +2740,7 @@ function runDeploy(args, testLevel, tests, cwd) {
     let out;
     try {
         out = JSON.parse(raw);
-    } catch (e) {
+    } catch {
         return { ok: false, message: 'The Salesforce CLI returned output that isn\'t JSON.', testLevel };
     }
     const r = out.result || {};
@@ -2831,7 +2831,7 @@ async function stepScan() {
     files.forEach((f) => args.push('--target', f));
     try {
         run('sf', args, { stdio: ['ignore', 'inherit', 'inherit'] });
-    } catch (e) {
+    } catch {
         if (!fs.existsSync(outFile)) {
             writeResult('scan', { status: 'Error', total: 0, blocking: 0, files, violations: [],
                 message: 'Code Analyzer didn\'t run. Open the workflow run for the log.', gate: scanGate,
@@ -2842,7 +2842,7 @@ async function stepScan() {
     let report;
     try {
         report = JSON.parse(fs.readFileSync(outFile, 'utf8'));
-    } catch (e) {
+    } catch {
         writeResult('scan', { status: 'Error', total: 0, blocking: 0, files, violations: [], message: 'The scan report couldn\'t be read.',
             gate: scanGate, gates: gatesResult(relayGates, relayGates.scan ? ['The scan report couldn\'t be read, so the scan gate couldn\'t be checked.'] : []) });
         return;
@@ -2898,7 +2898,7 @@ async function http(method, url, headers, body) {
     let json = null;
     try {
         json = text ? JSON.parse(text) : null;
-    } catch (e) {
+    } catch {
         json = null;
     }
     return { ok: res.ok, status: res.status, json, text };
@@ -3103,18 +3103,27 @@ const providers = {
             }
         },
         async mergeSha(pr) {
-            for (let i = 0; i < 20; i++) {
+            return tryAgain(20, 3000, async () => {
                 const res = await http('GET', `${this.base()}/pullrequests/${pr.id}?api-version=7.1`, this.headers());
                 const raw = res.json || {};
-                if (raw.status === 'completed' && raw.lastMergeCommit) {
-                    return raw.lastMergeCommit.commitId;
-                }
-                await new Promise((r) => setTimeout(r, 3000));
-            }
-            return '';
+                return raw.status === 'completed' && raw.lastMergeCommit ? raw.lastMergeCommit.commitId : '';
+            });
         }
     }
 };
+
+/**
+ * Calls `once` until it returns a non-empty answer, waiting `waitMs` between tries, at most `tries` times (version 31:
+ * one try after the other without an await inside a loop). The empty string when every try came back empty.
+ */
+async function tryAgain(tries, waitMs, once) {
+    const answer = await once();
+    if (answer || tries <= 1) {
+        return answer || '';
+    }
+    await new Promise((r) => setTimeout(r, waitMs));
+    return tryAgain(tries - 1, waitMs, once);
+}
 
 const provider = providers[PROVIDER] || providers.github;
 
@@ -3320,7 +3329,7 @@ function convertFromHub(mdapi, out, failWith = raiseFailed) {
         try {
             const parsed = JSON.parse(String(e.stdout || '{}'));
             detail = [parsed.name, parsed.message].concat(parsed.actions || []).filter(Boolean).join(' | ') || detail;
-        } catch (ignored) {
+        } catch {
             // not JSON: keep the raw output
         }
         failWith('Converting the files from the hub failed: ' + detail.replace(/\s+/g, ' ').trim().slice(0, 1500));
@@ -3807,7 +3816,7 @@ async function raisePromotion() {
         args.push(sha);
         try {
             execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: CLI_BUFFER });
-        } catch (e) {
+        } catch {
             const files = conflictedFiles();
             gitQuiet(['cherry-pick', '--abort']);
             raiseFailed(`${sha.slice(0, 7)} doesn't apply cleanly on ${target}`
@@ -4135,14 +4144,14 @@ function resolveConflicts() {
     let resolutions;
     try {
         resolutions = JSON.parse(fs.readFileSync(inbox, 'utf8')).resolutions || [];
-    } catch (e) {
+    } catch {
         fail(`${inbox} isn't valid JSON.`);
     }
     git(['rm', '-q', '--', inbox]);
     git(['commit', '-q', '-m', `${requestId}: conflict choices received`]);
     try {
         run('git', ['merge', '--no-ff', '--no-commit', `refs/remotes/origin/${target}`], { stdio: ['ignore', 'pipe', 'pipe'] });
-    } catch (e) {
+    } catch {
         // conflicts expected: resolved below
     }
     if (conflictedFiles().length) {
@@ -4279,7 +4288,7 @@ async function stepMerge() {
         let head = '';
         try {
             head = String((await provider.head(pr)) || '');
-        } catch (e) {
+        } catch {
             head = '';
         }
         if (!head && !alreadyMerged) {
@@ -4308,17 +4317,14 @@ async function stepMerge() {
             process.exit(1);
         }
     }
-    let sha = '';
-    for (let i = 0; i < 5 && !SHA_RE.test(sha); i++) {
-        sha = String((await provider.mergeSha(pr)) || '');
-        if (sha && !SHA_RE.test(sha)) {
+    const sha = await tryAgain(5, 3000, async () => {
+        let found = String((await provider.mergeSha(pr)) || '');
+        if (found && !SHA_RE.test(found)) {
             fetchBranch(target);
-            sha = gitQuiet(['rev-parse', sha]) || sha; // a short hash from the provider
+            found = gitQuiet(['rev-parse', found]) || found; // a short hash from the provider
         }
-        if (!SHA_RE.test(sha)) {
-            await new Promise((r) => setTimeout(r, 3000));
-        }
-    }
+        return SHA_RE.test(found) ? found : '';
+    });
     if (!SHA_RE.test(sha)) {
         writeResult('merge', { status: 'Failed', pr: Number(pr.id), message: 'Merged, but the merge commit couldn\'t be read.' });
         process.exit(1);
@@ -4470,7 +4476,7 @@ function validationGuard(sha) {
 function manifestItems(file) {
     try {
         return file && fs.existsSync(file) ? parsePackageXml(fs.readFileSync(file, 'utf8')).map((i) => `${i.type}:${i.name}`) : [];
-    } catch (e) {
+    } catch {
         return [];
     }
 }
@@ -4487,7 +4493,7 @@ function validationInOrgProblem(deployId, plan) {
     } catch (e) {
         try {
             out = e.stdout ? JSON.parse(String(e.stdout)) : null;
-        } catch (ignore) {
+        } catch {
             out = null;
         }
     }
@@ -4530,7 +4536,7 @@ function validationResult() {
         fetchBranch(RESULTS_BRANCH);
         const raw = gitQuiet(['show', `refs/remotes/origin/${RESULTS_BRANCH}:results/${requestId}/validate.json`]);
         return raw ? readResultText(requestId, 'validate', raw) : null;
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -4542,7 +4548,7 @@ function targetIsSandbox() {
             '--target-org', 'target-org', '--json']));
         const rows = (out.result && out.result.records) || [];
         return rows.length ? rows[0].IsSandbox === true : null;
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -4646,7 +4652,7 @@ function pickedPaths() {
     const root = sourcePath().replace(/\/+$/, '') + '/';
     return options.paths.map((p) => {
         const f = String(p).trim();
-        if (!f.startsWith(root) || f.includes('..') || !/^[A-Za-z0-9 _.,@()+'%&$#~=\[\]/-]{1,400}$/.test(f)) {
+        if (!f.startsWith(root) || f.includes('..') || !/^[A-Za-z0-9 _.,@()+'%&$#~=[\]/-]{1,400}$/.test(f)) {
             fail(`Picked path "${f.slice(0, 120)}" isn't a file under ${root}.`);
         }
         return f;
@@ -5032,7 +5038,7 @@ function takeSnapshot(plan, sha) {
         let out;
         try {
             out = JSON.parse(raw);
-        } catch (e) {
+        } catch {
             throw new Error('The Salesforce CLI returned output that isn\'t JSON.');
         }
         const r = out.result || {};
@@ -5108,7 +5114,7 @@ function findSnapshot() {
             let takenAt = '';
             try {
                 takenAt = String(JSON.parse(gitQuiet(['show', `${tip}:${envDir}/${id}/manifest.json`]) || '{}').takenAt || '');
-            } catch (e) {
+            } catch {
                 takenAt = '';
             }
             return { id, takenAt };
@@ -5122,7 +5128,7 @@ function findSnapshot() {
     let snap;
     try {
         snap = JSON.parse(raw);
-    } catch (e) {
+    } catch {
         throw new Error(`${snapPath}/manifest.json on ${SNAPSHOT_BRANCH} isn't valid JSON.`);
     }
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-rollback-'));
@@ -5252,7 +5258,7 @@ async function stepNotify() {
         const out = run('sf', ['api', 'request', 'rest', '/services/apexrest/release-relay/v1/status', '--method', 'POST',
             '--body', JSON.stringify({ request: requestId }), '--target-org', 'relay-notify']);
         let json = null;
-        try { json = JSON.parse(out); } catch (ignore) { json = null; }
+        try { json = JSON.parse(out); } catch { json = null; }
         summary(`Salesforce updated ${requestId}: ${json && json.status ? json.status : 'done'}.`);
     } catch (e) {
         // The scheduled sync or an open release page picks the result up anyway.
@@ -5295,7 +5301,7 @@ function headBytes(file) {
     try {
         return execFileSync('git', ['show', `HEAD:${file.split(path.sep).join('/')}`],
             { stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024 });
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -5336,7 +5342,7 @@ function unpackComparePart(n, tmp) {
     let bytes;
     try {
         bytes = execFileSync('git', ['show', spec], { stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 512 * 1024 * 1024 });
-    } catch (e) {
+    } catch {
         compareFailed(`Part ${n} of the compare (${COMPARE_INBOX}/${requestId}/${n}.zip) couldn't be read from ${RESULTS_BRANCH}. Compare again from Release Relay.`);
     }
     const zip = path.join(tmp, `${n}.zip`);
@@ -5347,6 +5353,14 @@ function unpackComparePart(n, tmp) {
         execFileSync('unzip', ['-q', '-o', zip, '-d', mdapi], { stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) {
         compareFailed(`Part ${n} of the compare couldn't be unzipped: ${String(e.stderr || e.message).trim().slice(0, 500)}`);
+    }
+    // version 30: a part the org sent back empty (only package.xml: a ListView part, say) has nothing to convert,
+    // and the CLI stops with "No results to format"; it adds nothing to the compare.
+    const sent = fs.readdirSync(mdapi, { recursive: true }).filter((f) => path.basename(String(f)) !== 'package.xml'
+        && fs.statSync(path.join(mdapi, String(f))).isFile());
+    if (sent.length === 0) {
+        console.log(`Part ${n} came back empty from the org (only package.xml): skipped.`);
+        return [];
     }
     convertFromHub(mdapi, out, compareFailed);
     const converted = [path.join(out, 'force-app', 'main', 'default'), path.join(out, 'force-app')].find((p) => fs.existsSync(p));
@@ -5565,7 +5579,7 @@ function writeCompareResults(data, files, fileName = 'compare.json', stepName = 
                 'commit', '-q', '-m', `${resultsId()} ${stepName}: ${result.status}`], { cwd: dir });
             git(['push', '-q', 'origin', `HEAD:refs/heads/${RESULTS_BRANCH}`], { cwd: dir });
             return;
-        } catch (e) {
+        } catch {
             console.log(`Saving the ${stepName} result failed (attempt ${attempt}); retrying.`);
         } finally {
             gitQuiet(['worktree', 'remove', '--force', dir]);
@@ -5828,7 +5842,7 @@ function describedRules(alias) {
     try {
         out = JSON.parse(execFileSync('sf', ['org', 'list', 'metadata-types', '--target-org', alias, '--json'],
             { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 }));
-    } catch (e) {
+    } catch {
         return {};
     }
     const rules = {};
@@ -5847,7 +5861,7 @@ function plainCliText(raw) {
     try {
         const j = JSON.parse(text);
         text = (j.name ? j.name + ': ' : '') + (j.message || text);
-    } catch (e) {
+    } catch {
         text = text.replace(/›?\s*Warning: @salesforce\/cli update available[^\n]*\n?/g, '');
     }
     return text.replace(/\s+/g, ' ').trim();
@@ -5895,7 +5909,7 @@ function retrieveAll(alias, items, tmp) {
             }
         }
         let out = {};
-        try { out = JSON.parse(raw); } catch (e) { driftFailed('The Salesforce CLI returned output that isn\'t JSON.'); }
+        try { out = JSON.parse(raw); } catch { driftFailed('The Salesforce CLI returned output that isn\'t JSON.'); }
         const r = out.result || {};
         asList(r.fileProperties).forEach((p) => {
             if (p && p.type && p.fullName) {
@@ -5974,7 +5988,7 @@ function textAtRef(ref, file) {
     let buf;
     try {
         buf = execFileSync('git', ['show', `${ref}:${file}`], { stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024 });
-    } catch (e) {
+    } catch {
         return null;
     }
     return compareText(buf);
@@ -6174,7 +6188,7 @@ function sfJson(args) {
         let parsed = null;
         try {
             parsed = JSON.parse(out);
-        } catch (x) {
+        } catch {
             parsed = null;
         }
         throw new Error((parsed && (parsed.message || parsed.name)) || String(e.stderr || e.message).trim().slice(0, 500));
@@ -6231,7 +6245,7 @@ function saveDataFiles(files, removals, message) {
                 'commit', '-q', '--allow-empty', '-m', message], { cwd: dir });
             git(['push', '-q', 'origin', `HEAD:refs/heads/${RESULTS_BRANCH}`], { cwd: dir });
             return;
-        } catch (e) {
+        } catch {
             console.log(`Saving the data run's files failed (attempt ${attempt}); retrying.`);
         } finally {
             gitQuiet(['worktree', 'remove', '--force', dir]);
@@ -6479,7 +6493,7 @@ function activeTriggerObjects(alias) {
         "SELECT TableEnumOrId FROM ApexTrigger WHERE Status = 'Active'"]) {
         try {
             return new Set(sfRecords(alias, soql, true).map((r) => String((r.EntityDefinition && r.EntityDefinition.QualifiedApiName) || r.TableEnumOrId || '').toLowerCase()));
-        } catch (e) {
+        } catch {
             continue;
         }
     }
@@ -6733,7 +6747,7 @@ async function monitorGitLabApi(url, asText) {
             return null;
         }
         return asText ? res.text : res.json;
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -6790,7 +6804,7 @@ async function monitorApi(url) {
     try {
         const res = await http('GET', url, { Authorization: `Bearer ${env.GH_TOKEN}`, 'X-GitHub-Api-Version': '2022-11-28' });
         return res.ok ? res.json : null;
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -6800,7 +6814,7 @@ function monitorEndStatus() {
     let needs = {};
     try {
         needs = JSON.parse(input('NEEDS_JSON') || '{}') || {};
-    } catch (e) {
+    } catch {
         needs = {};
     }
     const results = Object.keys(MONITOR_JOBS).map((j) => needs[j] && needs[j].result).filter(Boolean);
@@ -6891,7 +6905,7 @@ async function stepMonitor() {
     const out = run('sf', ['api', 'request', 'rest', '/services/apexrest/rly/pipeline-run', '--method', 'POST',
         '--body', JSON.stringify(body), '--target-org', 'relay-hub']);
     let json = null;
-    try { json = JSON.parse(out); } catch (ignore) { json = null; }
+    try { json = JSON.parse(out); } catch { json = null; }
     if (json && json.ok === true) {
         console.log(`Pipeline Monitor: run ${gh.runId} (attempt ${gh.attempt}) is ${json.status} in the hub.`);
         (json.warnings || []).forEach((w) => monitorWarn(w));
@@ -6912,7 +6926,7 @@ async function stepMonitor() {
 /** A migration's id: MIG- and the hub's clock in milliseconds. */
 const MIGRATE_ID_RE = /^MIG-(\d{13})$/;
 /** An https repository address without credentials, query or fragment. */
-const MIGRATE_URL_RE = /^https:\/\/[A-Za-z0-9.-]+(:\d{2,5})?\/[A-Za-z0-9._~\/-]+$/;
+const MIGRATE_URL_RE = /^https:\/\/[A-Za-z0-9.-]+(:\d{2,5})?\/[A-Za-z0-9._~/-]+$/;
 /** The push user name each provider takes with a token (Basic authentication). */
 const MIGRATE_USERS = { github: 'x-access-token', gitlab: 'oauth2', bitbucket: 'x-token-auth', azure: 'release-relay' };
 /** Refs pushed in one git push; a failed batch is retried one ref at a time, so each failure is named. */
@@ -6935,7 +6949,7 @@ function migrateClean(text) {
             out = out.split(secret).join('•••');
         }
     }
-    return out.replace(/(https?:\/\/)[^\/\s@]+@/g, '$1').replace(/(authorization:\s*)(basic|bearer)\s+\S+/gi, '$1•••')
+    return out.replace(/(https?:\/\/)[^/\s@]+@/g, '$1').replace(/(authorization:\s*)(basic|bearer)\s+\S+/gi, '$1•••')
         .replace(/[\r\t]+/g, ' ').trim().slice(0, 600);
 }
 
@@ -6958,7 +6972,7 @@ function migrateTargetConfig() {
     const provider = String(options.targetProvider || '').toLowerCase();
     const user = input('RELAY_MIGRATE_USER') || MIGRATE_USERS[provider] || 'x-access-token';
     const basic = Buffer.from(`${user}:${input('RELAY_MIGRATE_TOKEN')}`).toString('base64');
-    const origin = migrateTargetUrl().replace(/^(https:\/\/[^\/]+\/).*$/, '$1');
+    const origin = migrateTargetUrl().replace(/^(https:\/\/[^/]+\/).*$/, '$1');
     return [[`http.${origin}.extraheader`, `Authorization: Basic ${basic}`]];
 }
 
@@ -7002,7 +7016,7 @@ function migrateSave(status, message, final, ready) {
     try {
         execFileSync(process.execPath, [__filename], { env: { ...process.env, STEP: 'migrate-progress', GITHUB_STEP_SUMMARY: '',
             RELAY_MIGRATE_PROGRESS: JSON.stringify(data) }, stdio: ['ignore', 'inherit', 'inherit'] });
-    } catch (e) {
+    } catch {
         console.log('::warning::The migration progress couldn\'t be saved; the copy goes on.');
     }
 }
@@ -7010,7 +7024,7 @@ function migrateSave(status, message, final, ready) {
 /** STEP=migrate-progress (internal): one progress save in a child process, so a failed save can't end the copy. */
 function stepMigrateProgress() {
     let data = {};
-    try { data = JSON.parse(input('RELAY_MIGRATE_PROGRESS') || '{}'); } catch (ignore) { data = {}; }
+    try { data = JSON.parse(input('RELAY_MIGRATE_PROGRESS') || '{}'); } catch { data = {}; }
     writeResult('migrate', data);
 }
 
@@ -7273,7 +7287,7 @@ async function stepScanSave() {
     let data = null;
     try {
         data = JSON.parse(fs.readFileSync(input('RELAY_SCAN_FILE') || path.join(WORK_DIR, 'scan-result.json'), 'utf8'));
-    } catch (e) {
+    } catch {
         data = null;
     }
     if (!data || typeof data !== 'object' || data.step !== 'scan' || data.request !== requestId) {

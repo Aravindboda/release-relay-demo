@@ -122,7 +122,7 @@ function liveOr(liveValue, generated) {
 function readHint() {
     try {
         return window.sessionStorage.getItem(UNLOCK_HINT) === '1';
-    } catch (e) {
+    } catch {
         return false;
     }
 }
@@ -134,7 +134,7 @@ function writeHint(on) {
         } else {
             window.sessionStorage.removeItem(UNLOCK_HINT);
         }
-    } catch (e) {
+    } catch {
         // storage blocked: the lock card may flash once, nothing else changes
     }
 }
@@ -239,7 +239,8 @@ export default class RlyBuildInfo extends LightningElement {
     focusPassword = false;
     /** The "not part of Release Relay" table is open. */
     extrasOpen = false;
-    lockTimer;
+    /** The running wait until the lock ends ({ key, ms }), or null (build 57: c-rly-wait, no timers). */
+    lockWait = null;
 
     /** The one open section (null: all closed). */
     openKey = 'overview';
@@ -336,19 +337,16 @@ export default class RlyBuildInfo extends LightningElement {
 
     /** Locked out: the card asks the server again when the wait is over, so Unlock comes back without a reload. */
     waitOutLock() {
-        clearTimeout(this.lockTimer);
         const until = this.lock && this.lock.lockedUntil ? new Date(this.lock.lockedUntil).getTime() - Date.now() : 0;
-        if (until > 0) {
-            // eslint-disable-next-line @lwc/lwc/no-async-operation
-            this.lockTimer = setTimeout(() => {
-                this.unlockResult = '';
-                this.readLock();
-            }, until + 1000);
-        }
+        this.lockWait = until > 0 ? { key: 'lock-' + Date.now(), ms: until + 1000 } : null;
     }
 
-    disconnectedCallback() {
-        clearTimeout(this.lockTimer);
+    get lockWaits() { return this.lockWait ? [this.lockWait] : []; }
+
+    handleLockWaitDone() {
+        this.lockWait = null;
+        this.unlockResult = '';
+        this.readLock();
     }
 
     /** Back to the lock card: the loaded document and figures are dropped from the component. */
