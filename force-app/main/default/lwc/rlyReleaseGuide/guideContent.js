@@ -1576,7 +1576,7 @@ const USE_SECTIONS = [
                 aside: SHOT_NOTE,
                 blocks: [
                     { type: 'text', paras: [
-                        'You build in your developer org and raise releases from it. You need the Release Relay Developer group (or Full Access). New Release has five steps: **Where**, **Org**, **Select**, **Review**, **Raise**.',
+                        'You build in your developer org and raise releases from it. You need the Release Relay Developer group (or Full Access). New Release has six steps: **Where**, **Org**, **Select**, **Review**, **Profile access**, **Raise**.',
                         'Releases always come from a **developer org**. Stage orgs (for example QA) and production are never offered as sources: a hotfix is raised from the developer org that has the fix, and what is in a stage moves on with **Promote** (for example QA → Production).'
                     ] },
                     {
@@ -1657,9 +1657,30 @@ const USE_SECTIONS = [
                                 shot: { name: 'review', cap: 'Example from a demo hub (an earlier layout of the page): what goes in and which tests run.' }
                             },
                             {
+                                title: 'Profile access (optional)',
+                                who: 'Developer',
+                                where: 'New Release → Review → Next: profile access',
+                                goal: 'Send exactly the profile access the release needs: only the rows you set go, and the rest of each profile stays as it is in every org.',
+                                items: [
+                                    'Search and pick the **profiles** (up to 20). Each picked profile is a chip with the number of rows set for it; press it to show its rows, × to remove it.',
+                                    'The rows come from what you selected: field access (Read, Edit), object access (Create, Read, Edit, Delete, View all, Modify all), Apex classes and Visualforce pages (Enabled), tabs (Default on, Default off, Hidden), record types (Visible, Default) and their page layouts, apps, custom permissions and custom metadata types.',
+                                    'Grey chips show the developer org\'s value now; the column next to them shows the target\'s (for example SIT). Press a chip to send that row: it turns blue and starts from the developer org\'s values. Edit needs Read, so turning one on turns on what it needs. ↶ stops sending a row.',
+                                    '**Copy … values** sends every row as the developer org has it; **Clear** sends none for that profile.',
+                                    '**Add access** adds a row that isn\'t in the release: a system permission (for example ApiEnabled), a custom setting, or a component already in the target.',
+                                    'Under the page: what couldn\'t be read, and the calls this read made with each org\'s daily API use (for example "SIT: 3 calls for this read · 2,345 of 15,000 daily API calls used").',
+                                    '**Skip and raise** raises without profile changes; **Raise … with n access rows** sends them.'
+                                ],
+                                check: 'The release page lists them under **Profile access**, and the pull request lists them per profile.',
+                                problems: [
+                                    ['"… isn\'t a valid name for field access."', 'Use Object.Field__c (and Object.RecordType for record types).'],
+                                    ['A note "Couldn\'t read … in SIT"', 'That org didn\'t answer (for example its daily API calls ran out): the rows show "–". You can still set them and raise.'],
+                                    ['The check fails on a profile row (for example "no such column" or a field missing in the target)', 'The field or class isn\'t in the target yet: add it to the release, or stop sending that row.']
+                                ]
+                            },
+                            {
                                 title: 'Raise it',
                                 who: 'Developer',
-                                where: 'New Release → Review → Raise pull request (or Raise hotfix)',
+                                where: 'New Release → Profile access → Raise (or Skip and raise)',
                                 goal: 'The hub retrieves the components and the pipeline opens the pull request into the first stage\'s branch.',
                                 items: [
                                     'Press **Raise pull request** (**Raise hotfix** for a hotfix). It is grey until there is a title (and a reason for a hotfix) and the test rule is met.',
@@ -3794,6 +3815,15 @@ const MIGRATION_SECTIONS = [
                         cols: ['What changed in version 31', 'Why'],
                         rows: [
                             ['No behaviour change: the script passes a strict lint (no unused variables, no waits inside loops)', 'Cleaner code for reviewers and code scanners']
+                        ]
+                    },
+                    {
+                        type: 'table',
+                        stack: true,
+                        cols: ['What changed in version 32', 'Why'],
+                        rows: [
+                            ['A raise writes the profile access rows picked in the hub into each profile\'s file on the branch (only those entries)', 'Profile access moves without sending whole profiles'],
+                            ['A deploy sends a changed profile with only its entries that differ from the target\'s branch', 'The rest of the profile stays as it is in the org, whatever else the file holds']
                         ]
                     },
                     { type: 'links', links: [{ label: 'M. Secure your repository: every step in order', to: 'secure' }] }

@@ -386,19 +386,19 @@ export default class RlyReleaseBuilder extends NavigationMixin(HubGate(Lightning
 
     get isOrigin() { return this.step === 'origin'; }
     get isSource() { return this.step === 'source'; }
-    get originKicker() { return APP_NAME + ' hub · New release · step 1 of 5'; }
+    get originKicker() { return APP_NAME + ' hub · New release · step 1 of 6'; }
     /** The select step fits the screen: its lists scroll inside the card and the bar stays at the bottom. */
     get pageCls() { return 'rr-page slds-is-relative' + (this.isSelect ? ' rr-page-fit' : ''); }
-    get sourceKicker() { return APP_NAME + ' hub · New release · step 2 of 5'; }
+    get sourceKicker() { return APP_NAME + ' hub · New release · step 2 of 6'; }
     get isSelect() { return this.step === 'select'; }
     get isReview() { return this.step === 'review'; }
 
     get pathSteps() {
-        const order = ['origin', 'source', 'select', 'review', 'raise'];
-        const labels = { origin: 'Where', source: 'Org', select: 'Select', review: 'Review', raise: this.isAppend ? 'Add' : 'Raise' };
+        const order = ['origin', 'source', 'select', 'review', 'access', 'raise'];
+        const labels = { origin: 'Where', source: 'Org', select: 'Select', review: 'Review', access: 'Profile access', raise: this.isAppend ? 'Add' : 'Raise' };
         const at = order.indexOf(this.step);
-        // Append mode skips Where and Org: the release's own org and target.
-        const skipped = this.isAppend ? ['origin', 'source'] : [];
+        // Append mode skips Where and Org (the release's own org and target) and Profile access (it went with the raise).
+        const skipped = this.isAppend ? ['origin', 'source', 'access'] : [];
         return order.map((v, i) => ({
             key: v,
             label: skipped.includes(v) ? labels[v] : (i < at ? '✓ ' : i + 1 + ' ') + labels[v],
@@ -1268,12 +1268,12 @@ export default class RlyReleaseBuilder extends NavigationMixin(HubGate(Lightning
         return this.raising || this.hubCopy || content || !(this.title || '').trim()
             || (this.isHotfix && !(this.hotfixReason || '').trim());
     }
-    get reviewKicker() { return this.isAppend ? this.appendTitle + ' · Review' : 'New release · step 4 of 5 · Review'; }
+    get reviewKicker() { return this.isAppend ? this.appendTitle + ' · Review' : 'New release · step 4 of 6 · Review'; }
     get reviewTitle() { return this.isAppend ? this.appendSummary + ' · the checks run again' : 'Review before raising'; }
     get showRaiseFields() { return !this.isAppend; }
     get raisedTitle() { return this.isAppend ? this.appendTitle : 'New release'; }
     get footText() { return this.isAppend ? 'Commits the changes to ' + this.appendName + '\'s branch; its ' + this.crWord + ' updates and the checks run again.' : this.intoText; }
-    get submitLabel() { return this.isAppend ? this.appendLabel : this.raiseLabel; }
+    get submitLabel() { return this.isAppend ? this.appendLabel : 'Next: profile access'; }
 
     // ---------- the hotfix flag ----------
 
@@ -1711,13 +1711,57 @@ export default class RlyReleaseBuilder extends NavigationMixin(HubGate(Lightning
         return t ? ' (' + t.Name + '\'s rule: ' + (labels[t.Approval_Rule__c] || t.Approval_Rule__c) + ')' : '';
     }
 
-    /** Review's main button: raise, or in append mode add to the release. */
+    /** Review's main button: in append mode add to the release; else on to Profile access (build 58). */
     submit() {
         if (this.isAppend) {
             this.addToRelease();
         } else {
-            this.raise();
+            this.goAccess();
         }
+    }
+
+    // ---------- step 5: profile access (build 58) ----------
+
+    /** c-rly-profile-access's state, kept while the steps change; profileAccess is what the raise sends. */
+    accessState;
+    profileAccess = [];
+
+    get isAccess() { return this.step === 'access'; }
+    get accessKicker() { return 'New release · step 5 of 6 · Profile access'; }
+    get accessComponents() { return this.manualOnly ? [] : this.addedItems.map((c) => ({ type: c.type, name: c.name })); }
+    get accessRowCount() { return (this.profileAccess || []).reduce((n, p) => n + p.rows.length, 0); }
+    get hasAccessRows() { return this.accessRowCount > 0; }
+    get accessSummary() {
+        const n = this.accessRowCount;
+        return n ? n + (n === 1 ? ' row' : ' rows') + ' in ' + this.profileAccess.length + (this.profileAccess.length === 1 ? ' profile' : ' profiles')
+            : 'Nothing set: skip to raise without profile changes';
+    }
+    get accessRaiseLabel() {
+        const n = this.accessRowCount;
+        return this.raising ? 'Raising…' : this.raiseLabel + ' with ' + n + (n === 1 ? ' access row' : ' access rows');
+    }
+
+    goAccess() {
+        this.raiseError = undefined;
+        this.step = 'access';
+    }
+
+    backToReview() {
+        this.raiseError = undefined;
+        this.step = 'review';
+    }
+
+    handleAccessChange(event) {
+        this.accessState = event.detail.state;
+        this.profileAccess = event.detail.profileAccess || [];
+    }
+
+    skipAndRaise() {
+        this.raise(false);
+    }
+
+    raiseWithAccess() {
+        this.raise(true);
     }
 
     /** Append mode: retrieves the picked changes and adds them to the release (the checks run again). */
@@ -1753,7 +1797,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(HubGate(Lightning
         return { type: c.type, name: c.name, deleted: false, standard: !!c.standard, inactive: c.type === 'ApexTrigger' && this.inactive.has(c.name) };
     }
 
-    async raise() {
+    async raise(withAccess) {
         this.raising = true;
         this.raiseError = undefined;
         try {
@@ -1771,7 +1815,8 @@ export default class RlyReleaseBuilder extends NavigationMixin(HubGate(Lightning
                 hotfixReason: this.isHotfix ? this.hotfixReason.trim() : null,
                 manualSteps: this.manualSteps,
                 flowChoices: only ? [] : this.flowChoices,
-                workItems: this.workItems
+                workItems: this.workItems,
+                profileAccess: withAccess ? this.profileAccess : []
             };
             this.raisedId = await raiseRelease({ requestJson: JSON.stringify(request) });
             this.step = 'raise';
@@ -1791,6 +1836,8 @@ export default class RlyReleaseBuilder extends NavigationMixin(HubGate(Lightning
         this.hotfixReason = '';
         this.manualSteps = [];
         this.manualOnly = false;
+        this.accessState = undefined;
+        this.profileAccess = [];
         this.flowPicks = {};
         this.flowInfo = {};
         this.raisedId = undefined;

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>63.0</apiVersion>
+    <isExposed>false</isExposed>
+    <masterLabel>Release Relay: Profile access rows</masterLabel>
+    <description>Shared module: the profile file sections, the rows a release's components need and the rules between their values.</description>
+</LightningComponentBundle>

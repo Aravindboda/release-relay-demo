@@ -1,0 +1,13 @@
+@import 'c/rlySharedStyles';
+
+:host { display: block; }
+.rr-pal { background: #fff; border: 1px solid #e5e5e5; border-radius: 4px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.rr-pal-head { display: flex; align-items: center; gap: 8px; }
+.rr-pal-grow { flex: 1 1 auto; }
+.rr-pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+.rr-pal-note { margin: 0; }
+.rr-pal-group { display: flex; flex-direction: column; gap: 4px; }
+.rr-pal-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
+.rr-pal-table th, .rr-pal-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #e5e5e5; overflow-wrap: anywhere; }
+.rr-pal-table thead th { color: #5c5c5c; font-weight: 700; }
+.rr-pal-name { font-weight: 400; }
