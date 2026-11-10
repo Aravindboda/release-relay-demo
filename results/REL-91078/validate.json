@@ -1,16 +1,16 @@
 {
  "request": "REL-91078",
  "step": "validate",
- "status": "Passed",
- "changed": 8,
+ "status": "Failed",
+ "changed": 20,
  "deleted": [],
- "mergedWith": "2e11c7487d1744e4b36b3bb5124a6b7e0395302e",
- "validatedTree": "471d7a7a5ccb6c506801be6c20593fc1c737cede",
+ "mergedWith": "03f4cecb6344385551de6aa28ac2298daa22aff3",
+ "validatedTree": "fded2a64b461058b8b17639637278dbfbd8b8e08",
  "environment": "sit",
- "ok": true,
+ "ok": false,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000dLFqPSAW",
- "testsRun": 628,
+ "deployId": null,
+ "testsRun": 0,
  "tests": [
   "RlyAppendTest",
   "RlyApprovalRulesTest",
@@ -101,14 +101,14 @@
  "coverageWarnings": [],
  "componentErrors": [],
  "testFailures": [],
- "message": "",
+ "message": "TotalRequests Limit exceeded.",
  "gates": {
   "file": ".relay/gates.json",
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42732166474",
- "finishedAt": "2026-11-10T01:05:29.262Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42735199163",
+ "finishedAt": "2026-11-10T01:22:12.245Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
@@ -116,5 +116,5 @@
   "files": [],
   "hash": ""
  },
- "headSha": "3154aa7e8fe01b48ee1174bb9297356adc476b79"
+ "headSha": "7ac7bbb78bf05e3a0557d9e166dd0c37a6f14649"
 }
