@@ -1,4 +1,5 @@
-# Release Relay pipeline files: version 31
+# Release Relay pipeline files: version 32
+# Version 32 (hub build 58): no workflow change; the script writes profile access rows on a hub raise and deploys only a profile's changed entries.
 # Version 31 (hub build 57): no workflow change; the script is lint-clean (no unused variables, no await inside loops).
 # Version 30 (hub build 57): no workflow change; the script skips an Org vs branch part the org sent back empty.
 # Version 29 (hub build 55): no workflow change; the script (scripts/release-relay.js) moves with it, since the lowest

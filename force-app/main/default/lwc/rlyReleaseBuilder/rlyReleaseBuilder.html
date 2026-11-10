@@ -491,6 +491,30 @@
                     </div>
                 </template>
 
+                <!-- step 5: profile access (build 58, board "Profile access step"): optional; only the rows set here are sent -->
+                <template lwc:if={isAccess}>
+                    <section class="rr-card rr-head">
+                        <div class="rr-head-text">
+                            <p class="rr-kicker">{accessKicker}</p>
+                            <h1 class="rr-title">Profile access</h1>
+                        </div>
+                        <span class="rr-pill rr-pill-info">{accessSummary}</span>
+                    </section>
+                    <c-rly-profile-access org-id={orgId} source-name={sourceName} components={accessComponents} state={accessState}
+                        disabled={raising} onaccesschange={handleAccessChange}></c-rly-profile-access>
+                    <section class="rr-card">
+                        <template lwc:if={raiseError}><div class="rr-pad"><div class="rr-msg rr-msg-bad" role="alert">{raiseError}</div></div></template>
+                        <div class="rr-pair-foot rr-pa-foot">
+                            <lightning-button label="Back" onclick={backToReview} disabled={raising}></lightning-button>
+                            <span class="rr-grow rr-small rr-weak">{footText}</span>
+                            <lightning-button label="Skip and raise" onclick={skipAndRaise} disabled={cantRaise}></lightning-button>
+                            <template lwc:if={hasAccessRows}>
+                                <lightning-button variant="brand" label={accessRaiseLabel} onclick={raiseWithAccess} disabled={cantRaise}></lightning-button>
+                            </template>
+                        </div>
+                    </section>
+                </template>
+
                 <!-- Compare before raising (board HubCompare 2–3) -->
                 <template lwc:if={compareOpen}>
                     <c-rly-compare source-org-id={orgId} source-name={sourceName} target-name={compareTargetName} target-branch={compareTargetBranch}

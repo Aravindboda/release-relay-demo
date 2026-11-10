@@ -47,6 +47,8 @@ public with sharing class RlyMetadata {
         public String manageableState;
         /** @description Namespace of a managed component. */
         public String namespacePrefix;
+        /** @description The component's record Id (a profile's, to match its name in Setup). */
+        public String id;
     }
 
     /** @description One listMetadata query: a type, and a folder for folder-based types. */
