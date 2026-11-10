@@ -280,6 +280,16 @@ export default class RlyFileEdit extends LightningElement {
 
     get editLabel() { return this.editing ? 'Show marked lines' : 'Edit text'; }
     toggleEdit() { this.editing = !this.editing; }
+
+    // D23 (build 56): a native textarea doesn't take value={draft} when it first renders, so it opened empty and saving
+    // would have replaced the file with nothing. Fill it once each time it appears.
+    renderedCallback() {
+        const ta = this.template.querySelector('textarea.rr-fe-text');
+        if (ta && !ta.dataset.filled) {
+            ta.value = this.draft || '';
+            ta.dataset.filled = 'yes';
+        }
+    }
     handleDraft(event) { this.draft = event.target.value; }
     discard() {
         this.draft = this.file ? this.file.release || '' : undefined;

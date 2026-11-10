@@ -72,7 +72,8 @@ private class RlySlackDueTest {
             RlySlackDue.testNow = tomorrowAt(22);
             Map<String, Object> night = call(1);
             Test.stopTest();
-            System.assertEquals(true, noOrg.get('skipped'), 'No org has them on: nothing read');
+            System.assertEquals(true, noOrg.get('idle'), 'No org has them on: nothing read');
+            System.assertEquals(0, noOrg.get('skipped'), 'Skipped is a count (D20)');
             System.assertEquals(0, night.get('sent'), 'Quiet at night');
             System.assert(String.valueOf(night.get('reason')).startsWith('Quiet hours'), 'Says why: ' + night);
         }
@@ -138,7 +139,7 @@ private class RlySlackDueTest {
             Test.stopTest();
             System.assertEquals(0, busy.get('sent'), 'Nothing sent while busy');
             System.assert(String.valueOf(busy.get('reason')).contains(RlySlackDue.BUSY), 'Waits for the next hour: ' + busy);
-            System.assertEquals(true, off.get('skipped'), 'Slack off: skipped');
+            System.assertEquals(true, off.get('idle'), 'Slack off: idle');
         }
     }
 

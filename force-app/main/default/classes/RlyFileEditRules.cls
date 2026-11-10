@@ -45,7 +45,7 @@ public with sharing class RlyFileEditRules {
 
     // Not empty, not too large, and something changed.
     private static void checkContent(RlyFileEdit.EditRequest req) {
-        if (req.content == null || req.content.length() > MAX_CHARS) {
+        if (String.isBlank(req.content) || req.content.length() > MAX_CHARS) {
             throw new RlyReleaseException('The file is empty or too large to save here.');
         }
         if (req.content.equals(req.expected)) {

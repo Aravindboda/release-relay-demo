@@ -83,6 +83,7 @@ public with sharing class RlyGitLabRuns {
         String state = RlySyncParse.text(pipeline.get('status'));
         run.status = STATUS_OF.containsKey(state) ? STATUS_OF.get(state) : 'queued';
         run.conclusion = run.status == 'completed' ? CONCLUSION_OF.get(state) : null;
+        run.createdAt = RlyRunTime.toTime(pipeline.get('created_at'));
         return run;
     }
 

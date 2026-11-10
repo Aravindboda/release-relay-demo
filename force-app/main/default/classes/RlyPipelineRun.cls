@@ -95,6 +95,9 @@ public with sharing class RlyPipelineRun {
      */
     public static RlyGit.Run findRun(RlyGit git, RLY_Release__c rel) {
         RlyGit.Run run = git.findRun(runTitle(rel));
+        if (run != null && RlyRunTime.startedBeforeRequest(run, rel)) {
+            return null; // D24 (build 56): the provider doesn't list the new run yet; the newest is the last one, already over
+        }
         if (run != null) {
             rel.Run_ID__c = run.id.left(30);
             rel.Run_URL__c = run.url;

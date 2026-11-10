@@ -144,6 +144,11 @@
                 <default>false</default>
                 <label>File edited</label>
             </value>
+            <value>
+                <fullName>Conflicts_Resolved</fullName>
+                <default>false</default>
+                <label>Conflicts resolved</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>
