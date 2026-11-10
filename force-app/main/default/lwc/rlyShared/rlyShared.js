@@ -235,7 +235,7 @@ export function decodeName(name) {
     }
     try {
         return decodeURIComponent(name.replace(/\+/g, '%2B'));
-    } catch (e) {
+    } catch {
         return name;
     }
 }
@@ -325,4 +325,16 @@ export function withPart(sending, id, values) {
  */
 export function partIn(sending, id) {
     return sending && sending.parts ? sending.parts.find((p) => p.id === id) : undefined;
+}
+
+/**
+ * Runs async steps one after the other until a step says it is done (build 57: sequential server calls without an
+ * await inside a loop). Each step gets the state the last one returned.
+ * @param {Function} step async (state) => ({ done, state })
+ * @param {*} state the first step's state
+ * @returns {Promise<*>} the last step's state
+ */
+export async function oneAfterAnother(step, state) {
+    const r = await step(state);
+    return r.done ? r.state : oneAfterAnother(step, r.state);
 }

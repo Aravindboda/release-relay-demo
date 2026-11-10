@@ -9,7 +9,7 @@ import refreshRelease from '@salesforce/apex/RlyReleasesController.refreshReleas
 import exportCsvPart from '@salesforce/apex/RlyEvidenceController.exportCsvPart';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
-import { errorText, sameDay, isGated, clearSearchBox } from 'c/rlyShared';
+import { errorText, sameDay, isGated, clearSearchBox, oneAfterAnother } from 'c/rlyShared';
 
 
 const APPROVAL = ['Ready for approval'];
@@ -416,15 +416,14 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
         this.exporting = true;
         try {
             const parts = [];
-            let offset = 0;
-            while (offset !== null && offset !== undefined) {
-                // eslint-disable-next-line no-await-in-loop
+            await oneAfterAnother(async (offset) => {
                 const part = await exportCsvPart({ filterJson: this.exportJson, offset });
                 if (part && part.text) {
                     parts.push(part.text);
                 }
-                offset = part ? part.nextOffset : null;
-            }
+                const nextOffset = part ? part.nextOffset : null;
+                return { done: nextOffset === null || nextOffset === undefined, state: nextOffset };
+            }, 0);
             const csv = parts.join('\r\n');
             const today = new Date();
             const pad = (n) => String(n).padStart(2, '0');

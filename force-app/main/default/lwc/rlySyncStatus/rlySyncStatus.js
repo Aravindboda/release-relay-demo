@@ -19,7 +19,7 @@ import startPipelinePart from '@salesforce/apex/RlyCompareController.startPipeli
 import stagePipelinePart from '@salesforce/apex/RlyCompareController.stagePipelinePart';
 import { searchTerm, matchesSearch, highlightParts } from 'c/rlyListSearch';
 import { listTypeChunks, partsOf, statusChip, pairKey, packageStatus, versionList, compareVersions } from './syncHelpers';
-import { errorText, isGated, partsToSend, withPart, partIn } from 'c/rlyShared';
+import { errorText, isGated, partsToSend, withPart, partIn, oneAfterAnother } from 'c/rlyShared';
 
 const PAGE_MIN_HEIGHT = 520;
 const PAGE_BOTTOM_GAP = 24;
@@ -266,12 +266,16 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
             const t = await describeTypes({ orgId });
             const types = t.types || [];
             const keys = [];
-            for (const chunk of listTypeChunks(types)) {
-                // eslint-disable-next-line no-await-in-loop
-                const found = await listChanges({ orgId, types: chunk, sinceIso: null });
+            const chunks = listTypeChunks(types);
+            await oneAfterAnother(async (i) => {
+                if (i >= chunks.length) {
+                    return { done: true, state: i };
+                }
+                const found = await listChanges({ orgId, types: chunks[i], sinceIso: null });
                 (found || []).filter((c) => !c.deleted).forEach((c) => keys.push(c.key));
                 this.sending = { ...this.sending, listed: keys.length };
-            }
+                return { done: false, state: i + 1 };
+            }, 0);
             if (!keys.length) {
                 throw new Error('Nothing was listed in the org.');
             }

@@ -19,7 +19,7 @@ function when(value) {
     try {
         return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })
             .format(new Date(value));
-    } catch (e) {
+    } catch {
         return String(value);
     }
 }
@@ -94,7 +94,7 @@ export default class RlyRunSecurity extends LightningElement {
         try {
             await navigator.clipboard.writeText(this.newKey);
             this.copied = true;
-        } catch (e) {
+        } catch {
             this.error = "Copying was blocked by the browser: select the key and copy it.";
         }
     }
