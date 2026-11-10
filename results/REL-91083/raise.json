@@ -1,0 +1,19 @@
+{
+ "request": "REL-91083",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rly-b58b-hub",
+ "target": "release-relay-hub",
+ "sha": "52bab722d5c27ded55ae8477fb6eb4e07128db12",
+ "pr": 262,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/262",
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "appended": false,
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42758449301",
+ "finishedAt": "2026-11-10T04:51:34.856Z"
+}
