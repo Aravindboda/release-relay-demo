@@ -1,0 +1,31 @@
+{
+ "request": "REL-91090",
+ "step": "scan",
+ "status": "Passed",
+ "total": 0,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {},
+ "files": [
+  "force-app/main/default/classes/RlyDeployAgain.cls",
+  "force-app/main/default/classes/RlyDeployAgainTest.cls",
+  "force-app/main/default/classes/RlyProfileAccessController.cls",
+  "force-app/main/default/classes/RlyReleasesController.cls",
+  "force-app/main/default/lwc/rlyHome/rlyHome.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.html",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.js"
+ ],
+ "violations": [],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42857118302",
+ "finishedAt": "2026-11-10T16:42:54.947Z"
+}
