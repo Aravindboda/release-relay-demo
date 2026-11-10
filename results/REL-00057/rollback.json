@@ -1,0 +1,18 @@
+{
+ "request": "REL-00057",
+ "step": "rollback",
+ "status": "Rolled back",
+ "environment": "sit",
+ "deployId": "0AfgL00000dKyb3SAC",
+ "restored": 1,
+ "removed": 0,
+ "snapshot": "REL-00057/sit/c89270bf53cd7d336a6c101d5cd2d9dd",
+ "message": "Rolled sit back to snapshot REL-00057/sit/c89270bf53cd7d336a6c101d5cd2d9dd (taken 2026-11-09T23:53:59.814Z, before deploying 568022c): restored 1 component(s), removed 0 the release had added (NoTestRun). Git wasn't changed: a follow-up release brings the branches in line.",
+ "testLevel": "NoTestRun",
+ "testsRun": 0,
+ "componentErrors": [],
+ "testFailures": [],
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42725172080",
+ "finishedAt": "2026-11-10T00:02:38.516Z",
+ "attempt": "11e4add441e3a74c3f681837706ed5e5"
+}
