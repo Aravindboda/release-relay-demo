@@ -84,6 +84,26 @@ private class RlyDeployReaderTest {
     }
 
     @IsTest
+    static void branchMovedAfterApprovalGoesBackToChecks() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = RlyReleaseTestData.release('Deploying', 'merge');
+            update new RLY_Release__c(Id = rel.Id, Approval_Status__c = 'Approved', Approved_By__c = UserInfo.getUserId(), Approved_On__c = System.now());
+            RlyFlowScenario scenario = deploying(rel);
+            scenario.results.put('merge', RlyReleaseTestData.result('merge', '"status":"Failed","head":"10ee57ae444c","expectHead":"d3fa02aab4fe",'
+                + '"message":"The release branch changed after it was approved; run the checks again."'));
+            Test.setMock(HttpCalloutMock.class, scenario.build());
+            Test.startTest();
+            RlyStatusReader.advance(rel.Id);
+            Test.stopTest();
+            RLY_Release__c saved = [SELECT Status__c, Approval_Status__c, Approved_By__c, Error_Message__c FROM RLY_Release__c WHERE Id = :rel.Id];
+            System.assertEquals('Checks failed', saved.Status__c, 'Back to the checks, where Check again is offered (D29)');
+            System.assertEquals('Pending', saved.Approval_Status__c, 'The approval is taken back');
+            System.assertEquals(null, saved.Approved_By__c, 'No approver kept');
+            System.assert(saved.Error_Message__c.contains('10ee57a') && saved.Error_Message__c.contains('Nothing was merged'), 'Says why: ' + saved.Error_Message__c);
+        }
+    }
+
+    @IsTest
     static void runFailedBeforeDeployResult() {
         System.runAs(RlyTestData.admin()) {
             RLY_Release__c rel = RlyReleaseTestData.release('Deploying', 'merge');
