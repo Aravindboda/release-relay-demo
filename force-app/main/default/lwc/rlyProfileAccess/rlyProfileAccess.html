@@ -12,7 +12,7 @@
                     <template for:each={pickedChips} for:item="p">
                         <span key={p.profile} class="rr-pa-picked">
                             <button type="button" class={p.cls} aria-pressed={p.pressed} data-profile={p.profile} onclick={showProfile}>
-                                <span>{p.label}</span><span class="rr-pa-count">{p.count}</span>
+                                <span>{p.shown}</span><span class="rr-pa-count">{p.count}</span>
                             </button>
                             <button type="button" class="rr-pa-x" data-profile={p.profile} onclick={dropProfile} disabled={disabled}
                                 title="Remove this profile" aria-label="Remove this profile">
@@ -28,7 +28,7 @@
             <div class="rr-chips" role="group" aria-label="Profiles to add">
                 <template for:each={matches} for:item="m">
                     <button key={m.profile} type="button" class="rr-chip" data-profile={m.profile} onclick={pickProfile} disabled={atLimit}>
-                        <lightning-icon icon-name="utility:add" size="xx-small" alternative-text=""></lightning-icon><span>{m.label}</span>
+                        <lightning-icon icon-name="utility:add" size="xx-small" alternative-text=""></lightning-icon><span>{m.shown}</span>
                     </button>
                 </template>
             </div>
@@ -94,17 +94,38 @@
             </section>
         </template>
 
-        <!-- add access -->
+        <!-- add access: picked from the developer org (build 58.1) -->
         <section class="rr-pa-card" aria-label="Add access">
             <p class="rr-h3">Add access</p>
-            <p class="rr-small rr-weak">For system permissions, custom settings, or a component already in the target.</p>
+            <p class="rr-small rr-weak">For system permissions, custom settings, or a component already in the target. Pick the kind, then pick from {sourceName}.</p>
             <div class="rr-pa-add">
                 <lightning-combobox class="rr-pa-add-kind" label="Kind" options={sectionOptions} value={addSection} placeholder="Pick a kind"
                     onchange={handleAddSection} disabled={disabled}></lightning-combobox>
-                <lightning-input class="rr-pa-add-name" label="API name" value={addKey} placeholder="ApiEnabled" onchange={handleAddKey}
-                    disabled={disabled}></lightning-input>
-                <lightning-button label="Add" icon-name="utility:add" onclick={addRow} disabled={disabled}></lightning-button>
+                <template lwc:if={hasKind}>
+                    <lightning-input class="rr-pa-add-name" type="search" label="Find" value={pickSearch} placeholder={pickPlaceholder}
+                        onchange={handlePickSearch} disabled={disabled}></lightning-input>
+                </template>
             </div>
+            <template lwc:if={inObject}>
+                <div class="rr-chips">
+                    <button type="button" class="rr-chip" onclick={backToObjects}>
+                        <lightning-icon icon-name="utility:chevronleft" size="xx-small" alternative-text=""></lightning-icon><span>All objects</span>
+                    </button>
+                    <span class="rr-small rr-strong rr-pa-crumb">{objectCrumb}</span>
+                </div>
+            </template>
+            <template lwc:if={picksLoading}><p class="rr-small rr-weak" role="status">Listing them in {sourceName}…</p></template>
+            <template lwc:if={hasPickMatches}>
+                <div class="rr-chips" role="group" aria-label="Components to add">
+                    <template for:each={pickMatches} for:item="p">
+                        <button key={p.key} type="button" class="rr-chip" title={p.title} data-key={p.key} onclick={choosePick} disabled={disabled}>
+                            <lightning-icon icon-name={p.icon} size="xx-small" alternative-text=""></lightning-icon><span>{p.label}</span>
+                        </button>
+                    </template>
+                </div>
+            </template>
+            <template lwc:if={noPicks}><p class="rr-small rr-weak">Nothing matches.</p></template>
+            <template lwc:if={pickCount}><p class="rr-small rr-weak">{pickCount}</p></template>
             <template lwc:if={addError}><p class="rr-pa-error" role="alert">{addError}</p></template>
         </section>
 

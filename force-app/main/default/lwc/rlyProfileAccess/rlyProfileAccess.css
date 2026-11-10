@@ -35,4 +35,5 @@
 .rr-pa-add-kind { flex: 0 1 220px; }
 .rr-pa-add-name { flex: 1 1 220px; }
 .rr-pa-error { font-size: 12px; color: #8e030f; }
+.rr-pa-crumb { align-self: center; }
 .rr-pa-usage { display: flex; align-items: center; gap: 6px; }
