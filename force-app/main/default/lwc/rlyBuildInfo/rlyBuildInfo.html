@@ -837,4 +837,5 @@
             </template>
         </template>
     </div>
+    <template for:each={lockWaits} for:item="w"><c-rly-wait key={w.key} ms={w.ms} ondone={handleLockWaitDone}></c-rly-wait></template>
 </template>

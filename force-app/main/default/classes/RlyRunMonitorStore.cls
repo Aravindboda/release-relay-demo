@@ -9,7 +9,6 @@ public with sharing class RlyRunMonitorStore {
     /** @description Statuses of a run that is still going. */
     public static final Set<String> ACTIVE = new Set<String>{ 'Queued', 'In progress' };
 
-
     /**
      * @description A run by its key.
      * @param runKey the GitHub run id and attempt

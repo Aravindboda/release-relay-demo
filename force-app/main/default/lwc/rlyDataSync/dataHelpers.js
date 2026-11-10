@@ -21,7 +21,7 @@ export function countsText(counts) {
     let c;
     try {
         c = counts ? JSON.parse(counts) : null;
-    } catch (e) {
+    } catch {
         c = null;
     }
     if (!c) {
@@ -42,7 +42,7 @@ export function definitionOf(text) {
     try {
         const d = text ? JSON.parse(text) : null;
         return d && Array.isArray(d.objects) ? d : null;
-    } catch (e) {
+    } catch {
         return null;
     }
 }

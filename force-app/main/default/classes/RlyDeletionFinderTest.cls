@@ -203,7 +203,7 @@ private class RlyDeletionFinderTest {
             Test.stopTest();
             RLY_Release__c after = saved(rel.Id);
             System.assertEquals('Failed', after.Status__c, 'Ends');
-            System.assertEquals('The release has no components and no deletions.', after.Error_Message__c, 'Why');
+            System.assertEquals('The release has no components, no deletions and no profile access.', after.Error_Message__c, 'Why');
         }
     }
 

@@ -21,7 +21,7 @@ public with sharing class RlyRaiseRules {
      * @param req the request
      */
     public static void checkRequest(RlyRaiseService.RaiseRequest req) {
-        if (req == null || (isEmpty(req.items) && isEmpty(req.deletions) && !hasSteps(req))) {
+        if (req == null || !hasContent(req)) {
             throw new RlyReleaseException('Select at least one component.');
         }
         if (String.isBlank(req.title) || req.title.trim().length() > 200) {
@@ -40,11 +40,21 @@ public with sharing class RlyRaiseRules {
      * @return true for a manual-steps-only release
      */
     public static Boolean isManualOnly(RlyRaiseService.RaiseRequest req) {
-        return req != null && isEmpty(req.items) && isEmpty(req.deletions) && hasSteps(req);
+        return req != null && isEmpty(req.items) && isEmpty(req.deletions) && hasSteps(req) && !hasAccess(req);
     }
 
     private static Boolean hasSteps(RlyRaiseService.RaiseRequest req) {
         return req.manualSteps != null && !req.manualSteps.isEmpty();
+    }
+
+    // Components, deletions, manual steps or profile access.
+    private static Boolean hasContent(RlyRaiseService.RaiseRequest req) {
+        return !isEmpty(req.items) || !isEmpty(req.deletions) || hasSteps(req) || hasAccess(req);
+    }
+
+    // Profile access rows count as changes: a release can carry only those (build 58).
+    private static Boolean hasAccess(RlyRaiseService.RaiseRequest req) {
+        return RlyProfileAccessRules.rowCount(RlyProfileAccessRules.checked(req.profileAccess)) > 0;
     }
 
     /**

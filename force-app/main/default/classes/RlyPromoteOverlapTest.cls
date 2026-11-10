@@ -120,14 +120,7 @@ private class RlyPromoteOverlapTest {
         System.runAs(RlyTestData.admin()) {
             List<RLY_Release__c> rels = waitingInSit();
             Id promotionId = RlyPromoteController.promote(request(new List<RLY_Release__c>{ rels[1] }));
-            RLY_Release__c p = [SELECT Id, Name FROM RLY_Release__c WHERE Id = :promotionId];
-            update new RLY_Release__c(Id = promotionId, Status__c = 'Workflow running', Pending_Run__c = 'promote',
-                Source_Branch__c = 'promote/' + p.Name.toLowerCase(), Checks_Requested__c = System.now().addMinutes(-1));
-            RlyFlowScenario scenario = RlyFlowScenario.forRelease(p);
-            scenario.runMode = 'promote';
-            scenario.runStatus = 'completed';
-            scenario.runConclusion = 'failure';
-            scenario.prState = 'none';
+            RlyFlowScenario scenario = RlyFlowScenario.failedPromotion(promotionId);
             scenario.results.put('raise', RlyReleaseTestData.result('raise', '"status":"Failed","message":"prod has a change to '
                 + 'classes/Greeting.cls that sit doesn\'t have","conflicts":["classes/Greeting.cls"],'
                 + '"clash":[{"file":"classes/Greeting.cls","targetBlob":"t","stageBlob":"s"}]'));

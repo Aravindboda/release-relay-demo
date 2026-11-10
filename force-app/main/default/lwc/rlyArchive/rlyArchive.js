@@ -779,43 +779,45 @@ export default class RlyArchive extends NavigationMixin(LightningElement) {
             return;
         }
         this.reread();
-        for (let i = 0; i < MAX_PASSES; i++) {
-            const n = this.passes.length + 1;
-            this.passes = [...this.passes, { key: 'p' + n, label: 'Pass ' + n, text: 'Removing…', busy: true, pill: '', pillCls: '' }];
-            let res;
-            try {
-                // eslint-disable-next-line no-await-in-loop
-                res = await runPass({ runId: this.runId, days });
-            } catch (e) {
-                this.markPass(n, null, 'Failed');
-                // eslint-disable-next-line no-await-in-loop
-                await this.reread();
-                this.finish('failed', 'Failed', errorText(e));
-                return;
-            }
-            this.applyPass(n, res);
-            // eslint-disable-next-line no-await-in-loop
-            await this.reread();
-            if (res.done) {
-                const status = res.status || 'Succeeded';
-                const state = status === 'Failed' ? 'failed' : (status === 'Cancelled' ? 'stopped' : 'done');
-                this.finish(state, status, res.message);
-                return;
-            }
-            if (this.cancelAsked || this.leaving) {
-                try {
-                    // eslint-disable-next-line no-await-in-loop
-                    await cancelRun({ runId: this.runId });
-                } catch (e) {
-                    this.runMessage = errorText(e);
-                }
-                // eslint-disable-next-line no-await-in-loop
-                await this.reread();
-                this.finish('stopped', 'Cancelled', this.runMessage);
-                return;
-            }
+        await this.runPasses(0, days);
+    }
+
+    // One pass, then the next (build 57: no await inside a loop), until the run is done, cancelled or MAX_PASSES.
+    async runPasses(i, days) {
+        if (i >= MAX_PASSES) {
+            this.finish('stopped', 'Partial', 'Stopped after ' + MAX_PASSES + ' passes; the next run carries on.');
+            return;
         }
-        this.finish('stopped', 'Partial', 'Stopped after ' + MAX_PASSES + ' passes; the next run carries on.');
+        const n = this.passes.length + 1;
+        this.passes = [...this.passes, { key: 'p' + n, label: 'Pass ' + n, text: 'Removing…', busy: true, pill: '', pillCls: '' }];
+        let res;
+        try {
+            res = await runPass({ runId: this.runId, days });
+        } catch (e) {
+            this.markPass(n, null, 'Failed');
+            await this.reread();
+            this.finish('failed', 'Failed', errorText(e));
+            return;
+        }
+        this.applyPass(n, res);
+        await this.reread();
+        if (res.done) {
+            const status = res.status || 'Succeeded';
+            const state = status === 'Failed' ? 'failed' : (status === 'Cancelled' ? 'stopped' : 'done');
+            this.finish(state, status, res.message);
+            return;
+        }
+        if (this.cancelAsked || this.leaving) {
+            try {
+                await cancelRun({ runId: this.runId });
+            } catch (e) {
+                this.runMessage = errorText(e);
+            }
+            await this.reread();
+            this.finish('stopped', 'Cancelled', this.runMessage);
+            return;
+        }
+        await this.runPasses(i + 1, days);
     }
 
     applyPass(n, res) {

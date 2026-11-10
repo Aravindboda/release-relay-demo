@@ -2,6 +2,7 @@ import APP_NAME from '@salesforce/label/c.RLY_App_Name';
 import { LightningElement, wire } from 'lwc';
 import { NavigationMixin, CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { oneAfterAnother, GIT_PROVIDERS } from 'c/rlyShared';
 import getOrgs from '@salesforce/apex/RlyOrgController.getOrgs';
 import saveOrg from '@salesforce/apex/RlyOrgController.saveOrg';
 import checkOrg from '@salesforce/apex/RlyOrgController.checkOrg';
@@ -67,12 +68,7 @@ const STATUS_CLS = {
 const ROLE_ORDER = { Stage: 0, Hub: 1, Developer: 2, Back_Promote: 3 };
 const BACK_PROMOTE = 'Back_Promote';
 const SYNC_STATUS_CLS = { Deployed: 'rr-pill rr-pill-ok', Failed: 'rr-pill rr-pill-bad', Conflict: 'rr-pill rr-pill-wait', Running: 'rr-pill rr-pill-info' };
-const PROVIDERS = [
-    { label: 'GitHub', value: 'GitHub', how: 'Actions workflow', repo: 'owner/repository', pipeLabel: 'Workflow file', pipe: 'release-relay.yml', cred: 'RLY_Git_GitHub' },
-    { label: 'GitLab', value: 'GitLab', how: 'CI pipeline', repo: 'group/project', pipeLabel: 'CI file', pipe: '.gitlab-ci.yml', cred: 'RLY_Git_GitLab' },
-    { label: 'Bitbucket', value: 'Bitbucket', how: 'Custom pipeline', repo: 'workspace/repository', pipeLabel: 'Custom pipeline', pipe: 'release-relay', cred: 'RLY_Git_Bitbucket' },
-    { label: 'Azure DevOps', value: 'AzureDevOps', how: 'Azure Pipeline', repo: 'organization/project/repository', pipeLabel: 'Pipeline id', pipe: '12', cred: 'RLY_Git_AzureDevOps' }
-];
+const PROVIDERS = GIT_PROVIDERS;
 /** The org's own fields saveOrg takes (the consumer key is sent only when one is typed). */
 const ORG_FIELDS = ['Name', 'Role__c', 'Environment__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Certificate__c', 'Git_Environment__c', 'Branch__c'];
 /** A change to any of these (or a new consumer key) tests the sign-in again after Save. */
@@ -529,7 +525,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
 
     disconnectedCallback() {
         this.clearRetentionEdit();
-        this.retScrollTimers.forEach((t) => clearTimeout(t));
+        this.retScrollWaits = [];
     }
 
     renderedCallback() {
@@ -1675,13 +1671,11 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
         this.gitBusy = true;
         const made = [];
         try {
-            let next = 0;
-            while (next !== null && next !== undefined) {
-                // eslint-disable-next-line no-await-in-loop
+            await oneAfterAnother(async (next) => {
                 const r = await createBranchesPart({ fromIndex: next });
                 (r.created || []).forEach((b) => made.push(b));
-                next = r.nextIndex;
-            }
+                return { done: r.nextIndex === null || r.nextIndex === undefined, state: r.nextIndex };
+            }, 0);
             this.toast(made.length ? 'Created ' + made.join(', ') : 'Every route branch already exists.', 'success');
             await this.runGitCheck();
         } catch (e) {
@@ -3037,13 +3031,15 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     retPreview;
     retPreviewing = false;
     retNightlyError;
-    retTimer;
+    /** The wait before counting the typed days ({ key, ms, seq, days }), or null (build 57: c-rly-wait, no timers). */
+    retPreviewWait = null;
     retSeq = 0;
     /** Opened from the Archive tab's "Open Pipeline › Retention": scroll to the section once the page has loaded. */
     scrollToRetention = false;
     /** readRetention answered (or failed) at least once. */
     retentionRead = false;
-    retScrollTimers = [];
+    /** Waits before scrolling to Retention ({ key, ms }), build 57: c-rly-wait, no timers. */
+    retScrollWaits = [];
 
     /**
      * ?c__section=retention (Archive tab links) opens the Retention section and scrolls to it once the page data and
@@ -3074,15 +3070,28 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
         if (!this.showRetention) {
             return;
         }
-        this.retScrollTimers.forEach((t) => clearTimeout(t));
-        this.retScrollTimers = [300, 1200].map((ms) =>
-            // eslint-disable-next-line @lwc/lwc/no-async-operation
-            setTimeout(() => {
-                const sec = this.template.querySelector('[data-section="retention"]');
-                if (sec && sec.scrollIntoView) {
-                    sec.scrollIntoView({ behavior: ms === 300 ? 'smooth' : 'auto', block: 'start' });
-                }
-            }, ms));
+        const stamp = Date.now();
+        this.retScrollWaits = [300, 1200].map((ms) => ({ key: 'scroll-' + ms + '-' + stamp, ms }));
+    }
+
+    get waits() {
+        const list = this.retScrollWaits.map((w) => ({ ...w, kind: 'scroll' }));
+        return this.retPreviewWait ? list.concat([{ ...this.retPreviewWait, kind: 'preview' }]) : list;
+    }
+
+    handleWaitDone(event) {
+        const key = event.currentTarget.dataset.key;
+        const kind = event.currentTarget.dataset.kind;
+        if (kind === 'preview') {
+            this.runPreview(key);
+            return;
+        }
+        const w = this.retScrollWaits.find((x) => x.key === key);
+        this.retScrollWaits = this.retScrollWaits.filter((x) => x.key !== key);
+        const sec = this.template.querySelector('[data-section="retention"]');
+        if (w && sec && sec.scrollIntoView) {
+            sec.scrollIntoView({ behavior: w.ms === 300 ? 'smooth' : 'auto', block: 'start' });
+        }
     }
 
     loadRetention() {
@@ -3188,10 +3197,7 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
     get retentionDirty() { return this.isRetentionEditing && JSON.stringify(this.retForm) !== this.retSnapshot; }
 
     clearRetentionEdit() {
-        if (this.retTimer) {
-            clearTimeout(this.retTimer);
-            this.retTimer = undefined;
-        }
+        this.retPreviewWait = null;
         this.retSeq++;
         this.retPreview = undefined;
         this.retPreviewing = false;
@@ -3298,38 +3304,41 @@ export default class RlyPipeline extends NavigationMixin(LightningElement) {
 
     /** Counts what the typed days make eligible, a moment after typing stops (previewRetention); stale answers are dropped. */
     schedulePreview() {
-        if (this.retTimer) {
-            clearTimeout(this.retTimer);
-            this.retTimer = undefined;
-        }
+        this.retPreviewWait = null;
         const seq = ++this.retSeq;
         if (!this.retFormHasDays) {
             this.retPreview = undefined;
             this.retPreviewing = false;
             return;
         }
-        const days = this.retFormDays;
         this.retPreviewing = true;
-        // eslint-disable-next-line @lwc/lwc/no-async-operation
-        this.retTimer = setTimeout(() => {
-            this.retTimer = undefined;
-            previewRetention({ days })
-                .then((p) => {
-                    if (seq === this.retSeq) {
-                        this.retPreview = p;
-                    }
-                })
-                .catch(() => {
-                    if (seq === this.retSeq) {
-                        this.retPreview = undefined;
-                    }
-                })
-                .finally(() => {
-                    if (seq === this.retSeq) {
-                        this.retPreviewing = false;
-                    }
-                });
-        }, PREVIEW_WAIT);
+        this.retPreviewWait = { key: 'preview-' + seq, ms: PREVIEW_WAIT, seq, days: this.retFormDays };
+    }
+
+    // The typing paused long enough: count what the days make eligible; a newer wait or answer wins.
+    runPreview(key) {
+        const w = this.retPreviewWait;
+        if (!w || w.key !== key) {
+            return;
+        }
+        this.retPreviewWait = null;
+        const seq = w.seq;
+        previewRetention({ days: w.days })
+            .then((p) => {
+                if (seq === this.retSeq) {
+                    this.retPreview = p;
+                }
+            })
+            .catch(() => {
+                if (seq === this.retSeq) {
+                    this.retPreview = undefined;
+                }
+            })
+            .finally(() => {
+                if (seq === this.retSeq) {
+                    this.retPreviewing = false;
+                }
+            });
     }
 
     handleRetentionSave() {
