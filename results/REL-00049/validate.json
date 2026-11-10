@@ -4,12 +4,12 @@
  "status": "Passed",
  "changed": 4,
  "deleted": [],
- "mergedWith": "08ac0636d9f74476e7c115d299fec5c5b61acac8",
- "validatedTree": "9d00fdb863459cd06b849d46a83b6cb80fef6d64",
+ "mergedWith": "568022c61981348c163e52acfd5c356c7ba4f52a",
+ "validatedTree": "25f4e71cd4ad8791e5a9ac329bb8e0a42cf6d68d",
  "environment": "sit",
  "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0AfgL00000dKJeNSAW",
+ "deployId": "0AfgL00000dL8QjSAK",
  "testsRun": 1,
  "tests": [
   "LabelFormatterTest"
@@ -23,9 +23,9 @@
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42719969998",
- "finishedAt": "2026-11-09T23:23:16.385Z",
- "attempt": "07359670deb4e78a9c1c19b5951dc03c",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42728487791",
+ "finishedAt": "2026-11-10T00:28:18.104Z",
+ "attempt": "c0a803437075d592afe4289d37225b20",
  "excluded": [],
  "selfUpdate": false,
  "values": {
