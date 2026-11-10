@@ -92,11 +92,30 @@ public with sharing class RlyProfileAccessController {
     }
 
     /**
+     * @description The developer org's components of a kind, for Add access (picked, never typed).
+     * @param orgId the developer org
+     * @param section the kind (a profile section)
+     * @param objectName for field access: the object whose fields to list; else null
+     * @return the components
+     */
+    @AuraEnabled
+    public static List<RlyProfileAccessNames.Pick> names(Id orgId, String section, String objectName) {
+        try {
+            if (!RlyProfileAccessRules.VALUES_OF.containsKey(section)) {
+                throw new RlyReleaseException('Pick what kind of access it is.');
+            }
+            return RlyProfileAccessNames.find(RlyChangesController.source(orgId), section, objectName);
+        } catch (Exception e) {
+            throw RlyReleaseException.toAura(e, 'Couldn\'t list them: ');
+        }
+    }
+
+    /**
      * @description A release's profile access, for its page.
      * @param releaseId the release
      * @return its profiles and rows (empty when it has none)
      */
-    @AuraEnabled
+    @AuraEnabled(cacheable=true)
     public static List<RlyProfileAccessRules.ProfileRows> forRelease(Id releaseId) {
         try {
             return RlyProfileAccessRules.fromField(RlyReleaseStore.profileAccess(releaseId));
