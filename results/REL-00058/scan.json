@@ -1,0 +1,19 @@
+{
+ "request": "REL-00058",
+ "step": "scan",
+ "status": "Skipped",
+ "total": 0,
+ "blocking": 0,
+ "files": [],
+ "violations": [],
+ "message": "No code files in this pull request.",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42732608106",
+ "finishedAt": "2026-11-10T01:01:40.871Z",
+ "attempt": "0c622540c0aaee0305168cd7f5eeab80"
+}
