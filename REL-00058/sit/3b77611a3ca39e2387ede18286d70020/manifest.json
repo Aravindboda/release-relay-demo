@@ -1,0 +1,14 @@
+{
+ "request": "REL-00058",
+ "environment": "sit",
+ "takenAt": "2026-11-10T18:07:45.337Z",
+ "sha": "e834700688fae733cba5a1200270dbeb3f3ba26d",
+ "existing": [
+  "CustomLabels:CustomLabels"
+ ],
+ "added": [],
+ "deleted": [],
+ "unresolved": [
+  "CustomLabel:E2E_Label_DEV1"
+ ]
+}
