@@ -2,7 +2,7 @@ import APP_NAME from '@salesforce/label/c.RLY_App_Name';
 import { LightningElement, wire } from 'lwc';
 import { NavigationMixin, CurrentPageReference } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import { oneAfterAnother } from 'c/rlyShared';
+import { oneAfterAnother, GIT_PROVIDERS } from 'c/rlyShared';
 import getOrgs from '@salesforce/apex/RlyOrgController.getOrgs';
 import saveOrg from '@salesforce/apex/RlyOrgController.saveOrg';
 import checkOrg from '@salesforce/apex/RlyOrgController.checkOrg';
@@ -68,12 +68,7 @@ const STATUS_CLS = {
 const ROLE_ORDER = { Stage: 0, Hub: 1, Developer: 2, Back_Promote: 3 };
 const BACK_PROMOTE = 'Back_Promote';
 const SYNC_STATUS_CLS = { Deployed: 'rr-pill rr-pill-ok', Failed: 'rr-pill rr-pill-bad', Conflict: 'rr-pill rr-pill-wait', Running: 'rr-pill rr-pill-info' };
-const PROVIDERS = [
-    { label: 'GitHub', value: 'GitHub', how: 'Actions workflow', repo: 'owner/repository', pipeLabel: 'Workflow file', pipe: 'release-relay.yml', cred: 'RLY_Git_GitHub' },
-    { label: 'GitLab', value: 'GitLab', how: 'CI pipeline', repo: 'group/project', pipeLabel: 'CI file', pipe: '.gitlab-ci.yml', cred: 'RLY_Git_GitLab' },
-    { label: 'Bitbucket', value: 'Bitbucket', how: 'Custom pipeline', repo: 'workspace/repository', pipeLabel: 'Custom pipeline', pipe: 'release-relay', cred: 'RLY_Git_Bitbucket' },
-    { label: 'Azure DevOps', value: 'AzureDevOps', how: 'Azure Pipeline', repo: 'organization/project/repository', pipeLabel: 'Pipeline id', pipe: '12', cred: 'RLY_Git_AzureDevOps' }
-];
+const PROVIDERS = GIT_PROVIDERS;
 /** The org's own fields saveOrg takes (the consumer key is sent only when one is typed). */
 const ORG_FIELDS = ['Name', 'Role__c', 'Environment__c', 'My_Domain__c', 'Login_Type__c', 'Username__c', 'Certificate__c', 'Git_Environment__c', 'Branch__c'];
 /** A change to any of these (or a new consumer key) tests the sign-in again after Save. */

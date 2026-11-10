@@ -41,6 +41,24 @@ public with sharing class RlyFlowScenario {
     }
 
     /**
+     * @description A promotion whose promote run failed before opening a pull request: the release is set to wait for
+     * the run (Workflow running, pending promote) and the scenario answers with a finished, failed run and no PR.
+     * @param promotionId the promotion (inserted)
+     * @return the scenario (add the raise result, then build)
+     */
+    public static RlyFlowScenario failedPromotion(Id promotionId) {
+        RLY_Release__c p = [SELECT Id, Name FROM RLY_Release__c WHERE Id = :promotionId];
+        update new RLY_Release__c(Id = promotionId, Status__c = 'Workflow running', Pending_Run__c = 'promote',
+            Source_Branch__c = 'promote/' + p.Name.toLowerCase(), Checks_Requested__c = System.now().addMinutes(-1));
+        RlyFlowScenario scenario = forRelease(p);
+        scenario.runMode = 'promote';
+        scenario.runStatus = 'completed';
+        scenario.runConclusion = 'failure';
+        scenario.prState = 'none';
+        return scenario;
+    }
+
+    /**
      * @description The table of answers, in the order they're tried.
      * @return the mock
      */

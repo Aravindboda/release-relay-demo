@@ -5,7 +5,7 @@ import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import readBoard from '@salesforce/apex/RlyRunMonitorController.readBoard';
 import readOlder from '@salesforce/apex/RlyRunMonitorController.readOlder';
 import { searchTerm, matchesSearch } from 'c/rlyListSearch';
-import { errorText, sameDay, clock, shortDate, toDate, isGated } from 'c/rlyShared';
+import { errorText, sameDay, clock, shortDate, toDate, isGated, fitPageToWindow } from 'c/rlyShared';
 
 /** A run is queued or in progress: the board is read again every 10 s. */
 const FAST_SECONDS = 10;
@@ -209,16 +209,7 @@ export default class RlyPipelineMonitor extends NavigationMixin(LightningElement
 
     /** Sizes the page to the browser window: from its top edge to the bottom of the window, whatever the screen. */
     fitToWindow() {
-        const page = this.template.querySelector('.rr-page');
-        if (!page) {
-            return;
-        }
-        const top = page.getBoundingClientRect().top + (window.scrollY || 0);
-        const height = Math.max(PAGE_MIN_HEIGHT, Math.floor(window.innerHeight - top - PAGE_BOTTOM_GAP));
-        if (this.pageHeight !== height) {
-            this.pageHeight = height;
-            page.style.height = height + 'px';
-        }
+        this.pageHeight = fitPageToWindow(this.template.querySelector('.rr-page'), this.pageHeight, PAGE_MIN_HEIGHT, PAGE_BOTTOM_GAP);
     }
 
     readHubStatus() {

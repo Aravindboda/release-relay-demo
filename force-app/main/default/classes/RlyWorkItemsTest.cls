@@ -36,20 +36,11 @@ private class RlyWorkItemsTest {
 
     // A release into an org of the route (RlyReleaseTestData.route() already run), with its tickets.
     private static RLY_Release__c make(String status, String orgName, List<String> tickets) {
-        RLY_Release__c rel = new RLY_Release__c(Title__c = 'Region field', Status__c = status, Mode__c = 'Org changes',
-            Request_Type__c = 'Changes', Release_Type__c = 'Release', Source_Org__c = orgId('DEV1'), Target_Org__c = orgId(orgName),
-            Org_Label__c = 'DEV1', Target_Branch__c = orgName.toLowerCase(), Source_Environment__c = 'dev1',
-            Target_Environment__c = orgName.toLowerCase(), Source_Branch__c = 'feature/region', Test_Classes__c = 'AccountServiceTest',
-            Scan_Status__c = 'Passed', Validation_Status__c = 'Passed', Approval_Status__c = 'Pending', Deploy_Status__c = 'Pending',
-            Component_Count__c = 1);
-        insert rel;
-        rel = [SELECT Id, Name FROM RLY_Release__c WHERE Id = :rel.Id];
-        RlyWorkItems.attach(rel, tickets);
-        return rel;
+        return RlyReleaseTestData.withTickets(status, orgName, tickets);
     }
 
     private static Id orgId(String name) {
-        return [SELECT Id FROM RLY_Org__c WHERE Name = :name LIMIT 1].Id;
+        return RlyReleaseTestData.orgIdOf(name);
     }
 
     private static RlyWorkTypes.Message msg(String ticket, String moment, Map<String, Object> data) {

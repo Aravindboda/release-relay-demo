@@ -1,4 +1,5 @@
 import { LightningElement, api, wire } from 'lwc';
+import { HubGate } from 'c/rlyHubGate';
 import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import USER_ID from '@salesforce/user/Id';
@@ -7,9 +8,8 @@ import listReleasesFor from '@salesforce/apex/RlyReleasesController.listReleases
 import countReleases from '@salesforce/apex/RlyReleasesController.countReleases';
 import refreshRelease from '@salesforce/apex/RlyReleasesController.refreshRelease';
 import exportCsvPart from '@salesforce/apex/RlyEvidenceController.exportCsvPart';
-import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
-import { errorText, sameDay, isGated, clearSearchBox, oneAfterAnother } from 'c/rlyShared';
+import { errorText, sameDay, clearSearchBox, oneAfterAnother } from 'c/rlyShared';
 
 
 const APPROVAL = ['Ready for approval'];
@@ -204,7 +204,7 @@ function dueForCheck(rows, skipId) {
         .slice(0, PER_CYCLE);
 }
 
-export default class RlyReleaseTracker extends NavigationMixin(LightningElement) {
+export default class RlyReleaseTracker extends NavigationMixin(HubGate(LightningElement)) {
     /**
      * RlyHubGuard.getHubStatus: the org's mode (hub, setup, sandbox, copy). In a sandbox, a sandbox copy of the hub or a
      * production org not set up yet this tab shows only rlyOrgGate, and nothing else is loaded.
@@ -212,27 +212,6 @@ export default class RlyReleaseTracker extends NavigationMixin(LightningElement)
     hubStatus;
     /** The status has been read, or failed to read (then the tab works as on the hub: the server refuses actions anyway). */
     statusRead = false;
-    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
-    get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
-    get gated() { return isGated(this.hubStatus); }
-    get showPage() { return this.statusRead && !this.gated; }
-
-    /** Reads the hub status once, then loads the page only on the hub. */
-    readHubStatus() {
-        getHubStatus()
-            .then((status) => {
-                this.hubStatus = status;
-            })
-            .catch(() => {
-                this.hubStatus = undefined;
-            })
-            .finally(() => {
-                this.statusRead = true;
-                if (!this.gated) {
-                    this.loadPage();
-                }
-            });
-    }
 
     /** mine (Releases tab) or approvals (Approvals tab). */
     @api view = 'mine';
