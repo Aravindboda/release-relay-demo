@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Profile_Access__c</fullName>
+    <description>Hub (build 58): profile access the release sends, as JSON: [{profile, label, rows: [{section, key, values}]}]. Committed to the release branch as .relay-inbox/REL-x-access.json; the pipeline writes only these rows into each profile.</description>
+    <label>Profile Access</label>
+    <length>131072</length>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>
