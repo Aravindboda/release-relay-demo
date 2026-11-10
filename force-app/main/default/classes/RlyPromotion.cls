@@ -72,6 +72,7 @@ public with sharing class RlyPromotion {
         promotion.Component_Count__c = RlyCarried.addedCount(items);
         promotion.Deletion_Count__c = deletions.size();
         promotion.Deletions__c = deletions.isEmpty() ? null : String.join(deletions, ',').left(RlyDeletions.MAX_LENGTH);
+        promotion.Profile_Access_Count__c = RlyProfileAccessFile.carriedRows(carried); // their profile access travels in Git (build 58)
         if (RlyManualOnly.allManualOnly(carried)) {
             RlyManualOnly.mark(promotion); // nothing to cherry-pick: no promote run, its page's next read takes it to approval
         }
