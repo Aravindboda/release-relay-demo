@@ -13,15 +13,7 @@ private class RlyMigrationTest {
 
     @TestSetup
     static void setup() {
-        RlyTestData.assignPermissionSet('RLY_Admin');
-        System.runAs(RlyTestData.admin()) {
-            RlyReleaseTestData.route();
-            Test.setCreatedDate([SELECT Id FROM RLY_Git_Connection__c WHERE Provider__c = 'GitHub' LIMIT 1].Id, Datetime.now().addDays(-2));
-            insert new RLY_Git_Connection__c(Name = 'GitLab group/project', Provider__c = 'GitLab', Repository__c = 'group/project',
-                Named_Credential__c = 'RLY_GitLab', Pipeline__c = '.gitlab-ci.yml', Pipeline_Branch__c = 'main',
-                Source_Path__c = 'force-app/main/default', Status__c = 'Connected');
-            RlyReleaseStore.forgetGit();
-        }
+        RlyMigrationTestData.connections();
     }
 
     private static Id gitHubId() {
@@ -79,6 +71,26 @@ private class RlyMigrationTest {
         return e.getMessage();
     }
 
+    // A second migration while one is going: the refusal.
+    private static String startAgain() {
+        try {
+            RlyMigrationController.startMigration();
+        } catch (AuraHandledException e) {
+            return refusal(e);
+        }
+        return null;
+    }
+
+    // An unknown method: the refusal.
+    private static String chooseBogus(Id migrationId) {
+        try {
+            RlyMigrationController.chooseMethod(migrationId, 'bogus');
+        } catch (AuraHandledException e) {
+            return refusal(e);
+        }
+        return null;
+    }
+
     @IsTest
     static void startConfigureAndChoose() {
         System.runAs(RlyTestData.admin()) {
@@ -86,12 +98,7 @@ private class RlyMigrationTest {
                 .match('GET', '/repos/acme/release/branches?per_page=50').reply(200, '[{"name":"main"},{"name":"dev1"},{"name":"sit"},{"name":"prod"}]'));
             Test.startTest();
             RlyMigrationView.View started = RlyMigrationController.startMigration();
-            String again;
-            try {
-                RlyMigrationController.startMigration();
-            } catch (AuraHandledException e) {
-                again = refusal(e);
-            }
+            String again = startAgain();
             String sameProvider;
             try {
                 RlyMigrationController.saveTarget(started.id, '{"Provider__c":"GitHub","Repository__c":"a/b","Named_Credential__c":"X","Pipeline_Branch__c":"main"}');
@@ -101,12 +108,7 @@ private class RlyMigrationTest {
             RlyMigrationController.saveTarget(started.id, '{"Provider__c":"GitLab","Repository__c":"group/project","Named_Credential__c":"RLY_GitLab",'
                 + '"Pipeline__c":".gitlab-ci.yml","Pipeline_Branch__c":"main"}');
             RlyMigrationView.View chosen = RlyMigrationController.chooseMethod(started.id, RlyMigrationMethods.LIFT);
-            String bogus;
-            try {
-                RlyMigrationController.chooseMethod(started.id, 'bogus');
-            } catch (AuraHandledException e) {
-                bogus = refusal(e);
-            }
+            String bogus = chooseBogus(started.id);
             RlyMigrationOrgController.markItem(started.id, 'new.envs', RlyMigrationState.DONE);
             RlyMigrationOrgController.acceptDifferences(started.id, 'SIT has a hotfix in flight');
             RlyMigrationView.View moved = RlyMigrationOrgController.goToStep(started.id, 5);

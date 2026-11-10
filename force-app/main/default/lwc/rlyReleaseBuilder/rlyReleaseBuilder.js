@@ -1,5 +1,6 @@
 import APP_NAME from '@salesforce/label/c.RLY_App_Name';
 import { LightningElement, api, wire } from 'lwc';
+import { HubGate } from 'c/rlyHubGate';
 import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
 import getStart from '@salesforce/apex/RlyChangesController.getStart';
 import { highlightParts, searchTerm } from 'c/rlyListSearch';
@@ -16,10 +17,9 @@ import {
     PARALLEL, TEST_NAMES_PER_CALL, FLOW_NAMES_PER_CALL, KIND_FOLDER, KIND_FIELDS,
     listingParts, afterFailure, mergeChanges
 } from './changeParts';
-import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import getAppend from '@salesforce/apex/RlyAppendController.getAppend';
 import appendChanges from '@salesforce/apex/RlyAppendController.appendChanges';
-import { errorText, isGated, clearSearchBox, runPool } from 'c/rlyShared';
+import { errorText, clearSearchBox, runPool } from 'c/rlyShared';
 
 
 const PAGE = 200;
@@ -94,7 +94,7 @@ function readSyncPick() {
         window.sessionStorage.removeItem('rlySyncPick');
         const pick = raw ? JSON.parse(raw) : null;
         return pick && pick.orgId ? pick : undefined;
-    } catch (e) {
+    } catch {
         return undefined;
     }
 }
@@ -117,7 +117,7 @@ const ENVIRONMENTS = [
     { value: 'Full_Copy', label: 'Full Copy sandbox', hint: 'Copy of production · refresh every 29 days' }
 ];
 
-export default class RlyReleaseBuilder extends NavigationMixin(LightningElement) {
+export default class RlyReleaseBuilder extends NavigationMixin(HubGate(LightningElement)) {
     // ---------- append mode: add changes to an open release (RlyAppendController) ----------
 
     _appendTo;
@@ -134,6 +134,11 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         return this._appendTo;
     }
     set appendTo(value) {
+        this.useAppend(value);
+    }
+
+    // The release to add changes to, from a parent (appendTo) or the page state; loads it when it changed.
+    useAppend(value) {
         const changed = value !== this._appendTo;
         this._appendTo = value;
         if (changed && value && this.start) {
@@ -160,7 +165,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         const id = ref && ref.state ? ref.state.c__appendTo : undefined;
         if (id && id !== this._appendTo && id !== this.appendDoneFor) {
             this.appendFromState = true;
-            this.appendTo = id;
+            this.useAppend(id);
         } else if (!id && ref && this.appendFromState) {
             this.leaveAppend();
         }
@@ -252,27 +257,6 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     hubStatus;
     /** The status has been read, or failed to read (then the tab works as on the hub: the server refuses actions anyway). */
     statusRead = false;
-    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
-    get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
-    get gated() { return isGated(this.hubStatus); }
-    get showPage() { return this.statusRead && !this.gated; }
-
-    /** Reads the hub status once, then loads the page only on the hub. */
-    readHubStatus() {
-        getHubStatus()
-            .then((status) => {
-                this.hubStatus = status;
-            })
-            .catch(() => {
-                this.hubStatus = undefined;
-            })
-            .finally(() => {
-                this.statusRead = true;
-                if (!this.gated) {
-                    this.loadPage();
-                }
-            });
-    }
 
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
     get appName() { return APP_NAME; }
@@ -402,19 +386,19 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
 
     get isOrigin() { return this.step === 'origin'; }
     get isSource() { return this.step === 'source'; }
-    get originKicker() { return APP_NAME + ' hub · New release · step 1 of 5'; }
+    get originKicker() { return APP_NAME + ' hub · New release · step 1 of 6'; }
     /** The select step fits the screen: its lists scroll inside the card and the bar stays at the bottom. */
     get pageCls() { return 'rr-page slds-is-relative' + (this.isSelect ? ' rr-page-fit' : ''); }
-    get sourceKicker() { return APP_NAME + ' hub · New release · step 2 of 5'; }
+    get sourceKicker() { return APP_NAME + ' hub · New release · step 2 of 6'; }
     get isSelect() { return this.step === 'select'; }
     get isReview() { return this.step === 'review'; }
 
     get pathSteps() {
-        const order = ['origin', 'source', 'select', 'review', 'raise'];
-        const labels = { origin: 'Where', source: 'Org', select: 'Select', review: 'Review', raise: this.isAppend ? 'Add' : 'Raise' };
+        const order = ['origin', 'source', 'select', 'review', 'access', 'raise'];
+        const labels = { origin: 'Where', source: 'Org', select: 'Select', review: 'Review', access: 'Profile access', raise: this.isAppend ? 'Add' : 'Raise' };
         const at = order.indexOf(this.step);
-        // Append mode skips Where and Org: the release's own org and target.
-        const skipped = this.isAppend ? ['origin', 'source'] : [];
+        // Append mode skips Where and Org (the release's own org and target) and Profile access (it went with the raise).
+        const skipped = this.isAppend ? ['origin', 'source', 'access'] : [];
         return order.map((v, i) => ({
             key: v,
             label: skipped.includes(v) ? labels[v] : (i < at ? '✓ ' : i + 1 + ' ') + labels[v],
@@ -1284,12 +1268,12 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         return this.raising || this.hubCopy || content || !(this.title || '').trim()
             || (this.isHotfix && !(this.hotfixReason || '').trim());
     }
-    get reviewKicker() { return this.isAppend ? this.appendTitle + ' · Review' : 'New release · step 4 of 5 · Review'; }
+    get reviewKicker() { return this.isAppend ? this.appendTitle + ' · Review' : 'New release · step 4 of 6 · Review'; }
     get reviewTitle() { return this.isAppend ? this.appendSummary + ' · the checks run again' : 'Review before raising'; }
     get showRaiseFields() { return !this.isAppend; }
     get raisedTitle() { return this.isAppend ? this.appendTitle : 'New release'; }
     get footText() { return this.isAppend ? 'Commits the changes to ' + this.appendName + '\'s branch; its ' + this.crWord + ' updates and the checks run again.' : this.intoText; }
-    get submitLabel() { return this.isAppend ? this.appendLabel : this.raiseLabel; }
+    get submitLabel() { return this.isAppend ? this.appendLabel : 'Next: profile access'; }
 
     // ---------- the hotfix flag ----------
 
@@ -1437,9 +1421,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     }
     /** The columns: the source org, then the target and every later stop on the route. */
     get packageColumns() {
-        const stops = ((this.start && this.start.routeStops) || []).filter((o) => o.Role__c === 'Stage' || o.Role__c === 'Hub')
-            .map((o) => ({ name: o.Name, order: o.Role__c === 'Hub' ? Number.MAX_SAFE_INTEGER : Number(o.Stage_Order__c || 0) }))
-            .sort((a, b) => a.order - b.order).map((o) => o.name);
+        const stops = this.routeTargets;
         const at = stops.indexOf(this.compareTargetName);
         const later = at >= 0 ? stops.slice(at) : [this.compareTargetName];
         return [this.sourceName].concat(later.filter((n) => n !== this.sourceName));
@@ -1729,13 +1711,57 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         return t ? ' (' + t.Name + '\'s rule: ' + (labels[t.Approval_Rule__c] || t.Approval_Rule__c) + ')' : '';
     }
 
-    /** Review's main button: raise, or in append mode add to the release. */
+    /** Review's main button: in append mode add to the release; else on to Profile access (build 58). */
     submit() {
         if (this.isAppend) {
             this.addToRelease();
         } else {
-            this.raise();
+            this.goAccess();
         }
+    }
+
+    // ---------- step 5: profile access (build 58) ----------
+
+    /** c-rly-profile-access's state, kept while the steps change; profileAccess is what the raise sends. */
+    accessState;
+    profileAccess = [];
+
+    get isAccess() { return this.step === 'access'; }
+    get accessKicker() { return 'New release · step 5 of 6 · Profile access'; }
+    get accessComponents() { return this.manualOnly ? [] : this.addedItems.map((c) => ({ type: c.type, name: c.name })); }
+    get accessRowCount() { return (this.profileAccess || []).reduce((n, p) => n + p.rows.length, 0); }
+    get hasAccessRows() { return this.accessRowCount > 0; }
+    get accessSummary() {
+        const n = this.accessRowCount;
+        return n ? n + (n === 1 ? ' row' : ' rows') + ' in ' + this.profileAccess.length + (this.profileAccess.length === 1 ? ' profile' : ' profiles')
+            : 'Nothing set: skip to raise without profile changes';
+    }
+    get accessRaiseLabel() {
+        const n = this.accessRowCount;
+        return this.raising ? 'Raising…' : this.raiseLabel + ' with ' + n + (n === 1 ? ' access row' : ' access rows');
+    }
+
+    goAccess() {
+        this.raiseError = undefined;
+        this.step = 'access';
+    }
+
+    backToReview() {
+        this.raiseError = undefined;
+        this.step = 'review';
+    }
+
+    handleAccessChange(event) {
+        this.accessState = event.detail.state;
+        this.profileAccess = event.detail.profileAccess || [];
+    }
+
+    skipAndRaise() {
+        this.raise(false);
+    }
+
+    raiseWithAccess() {
+        this.raise(true);
     }
 
     /** Append mode: retrieves the picked changes and adds them to the release (the checks run again). */
@@ -1771,7 +1797,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         return { type: c.type, name: c.name, deleted: false, standard: !!c.standard, inactive: c.type === 'ApexTrigger' && this.inactive.has(c.name) };
     }
 
-    async raise() {
+    async raise(withAccess) {
         this.raising = true;
         this.raiseError = undefined;
         try {
@@ -1789,7 +1815,8 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
                 hotfixReason: this.isHotfix ? this.hotfixReason.trim() : null,
                 manualSteps: this.manualSteps,
                 flowChoices: only ? [] : this.flowChoices,
-                workItems: this.workItems
+                workItems: this.workItems,
+                profileAccess: withAccess ? this.profileAccess : []
             };
             this.raisedId = await raiseRelease({ requestJson: JSON.stringify(request) });
             this.step = 'raise';
@@ -1809,6 +1836,8 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         this.hotfixReason = '';
         this.manualSteps = [];
         this.manualOnly = false;
+        this.accessState = undefined;
+        this.profileAccess = [];
         this.flowPicks = {};
         this.flowInfo = {};
         this.raisedId = undefined;

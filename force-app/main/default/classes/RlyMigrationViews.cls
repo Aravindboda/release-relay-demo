@@ -172,9 +172,6 @@ public with sharing class RlyMigrationViews {
         return r;
     }
 
-
-
-
     private static List<RlyMigrationView.Event> events(RlyMigrationState state) {
         List<RlyMigrationView.Event> out = new List<RlyMigrationView.Event>();
         for (Integer i = state.events.size() - 1; i >= 0; i--) {

@@ -23,12 +23,11 @@ import finishMigration from '@salesforce/apex/RlyMigrationOrgController.finishMi
 import cancelMigration from '@salesforce/apex/RlyMigrationOrgController.cancelMigration';
 import describeTypes from '@salesforce/apex/RlyChangesController.describeTypes';
 import listChanges from '@salesforce/apex/RlyChangesController.listChanges';
-import startPipelinePart from '@salesforce/apex/RlyCompareController.startPipelinePart';
-import { listTypeChunks, partsOf, pillOf, shortSha, STEPS, PROVIDERS } from './migrationHelpers';
-import { errorText, partsToSend, withPart, partIn } from 'c/rlyShared';
+import { pillOf, shortSha, STEPS, PROVIDERS } from './migrationHelpers';
+import { PartSending, listTypeChunks, partsOf } from 'c/rlyPartSending';
+import { errorText } from 'c/rlyShared';
 
 /** Parts of a developer org sent at once. */
-const AT_ONCE = 2;
 /** A release opens on the Releases tab (build 54: the open releases and the ones the switch cancelled link to it). */
 const RELEASE_LINK = '/lightning/n/RLY_My_Releases?c__release=';
 /** Release statuses whose pipeline run is going (RlyStatusReader.OPEN_STATUSES), and the ones that failed. */
@@ -44,7 +43,7 @@ const FAILED_STATUSES = ['Checks failed', 'Deploy failed', 'Failed'];
  * N open releases and switch"), 8 Old setup checklist, then Finish → the Migration report (PDF). Done marks are toggle
  * chips. Running runs and checks are read again on a CSS-animation countdown (no timers).
  */
-export default class RlyRepoMigration extends LightningElement {
+export default class RlyRepoMigration extends PartSending(LightningElement) {
     view;
     error;
     busy = false;
@@ -411,68 +410,6 @@ export default class RlyRepoMigration extends LightningElement {
         }
     }
 
-    pumpParts() {
-        const s = this.sending;
-        if (!s || s.phase !== 'sending') {
-            return;
-        }
-        const next = partsToSend(s, AT_ONCE);
-        if (next.allReady) {
-            this.finishDeveloper();
-            return;
-        }
-        next.ids.forEach((id) => this.sendPart(id));
-    }
-
-    setPart(id, values) { this.sending = withPart(this.sending, id, values); }
-
-    partOf(id) { return partIn(this.sending, id); }
-
-    // A part of the send still running: a failed or finished send drops its parts, so late answers are ignored (build 52).
-    isLive(id) { return !!this.partOf(id); }
-
-    async sendPart(id) {
-        const p = this.partOf(id);
-        if (!p) {
-            return;
-        }
-        const orgId = this.sending.orgId;
-        this.setPart(id, { phase: 'running' });
-        try {
-            const retrieveId = await startPipelinePart({ sourceOrgId: orgId, keys: p.keys });
-            if (!this.isLive(id)) {
-                return;
-            }
-            this.setPart(id, { retrieveId });
-            await this.stagePart(id);
-        } catch (e) {
-            this.failSending(e, id);
-        }
-    }
-
-    async stagePart(id) {
-        const p = this.partOf(id);
-        if (!p) {
-            return;
-        }
-        const s = this.sending;
-        try {
-            const part = { compareId: s.syncId, n: p.n, retrieveId: p.retrieveId, sourceOrgId: s.orgId };
-            const st = await stageOrgPart({ migrationId: this.view.id, partJson: JSON.stringify(part) });
-            if (!this.isLive(id)) {
-                return;
-            }
-            if (!st.done) {
-                this.wait(id, 'part', 2);
-                return;
-            }
-            this.setPart(id, { phase: 'ready' });
-            this.pumpParts();
-        } catch (e) {
-            this.failSending(e, id);
-        }
-    }
-
     async finishDeveloper() {
         const s = this.sending;
         this.sending = { ...s, phase: 'starting' };
@@ -598,32 +535,16 @@ export default class RlyRepoMigration extends LightningElement {
     }
     get hasEvents() { return this.events.length > 0; }
 
-    // ---------- countdowns (CSS animation, no timers) ----------
+    // ---------- the part loop's hooks (c/rlyPartSending) ----------
 
-    wait(id, kind, seconds) {
-        const prior = this.waits[id];
-        this.waits = { ...this.waits, [id]: { kind, cycle: prior ? prior.cycle + 1 : 1, seconds } };
+    get partsAtOnce() { return 2; }
+
+    stageOnePart(part) {
+        return stageOrgPart({ migrationId: this.view.id, partJson: JSON.stringify(part) });
     }
 
-    get ticks() {
-        return Object.keys(this.waits).map((id) => {
-            const w = this.waits[id];
-            return { key: id + '-' + w.cycle, id, cls: 'rr-tick rr-tick-' + w.seconds };
-        });
-    }
-
-    handleTick(event) {
-        const id = event.currentTarget.dataset.id;
-        const w = this.waits[id];
-        if (!w) {
-            return;
-        }
-        const rest = { ...this.waits };
-        delete rest[id];
-        this.waits = rest;
-        if (w.kind === 'part') {
-            this.stagePart(id);
-        } else if (w.kind === 'run') {
+    onWaitDone(id, w) {
+        if (w.kind === 'run') {
             this.quiet(() => refreshRun({ migrationId: this.view.id }));
         } else {
             this.quiet(() => readOrgCheck({ migrationId: this.view.id, orgId: id.substring(4) }));

@@ -1277,4 +1277,5 @@
     <template lwc:else>
         <div class="rr-wait"><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></div>
     </template>
+    <template for:each={waits} for:item="w"><c-rly-wait key={w.key} ms={w.ms} data-key={w.key} data-kind={w.kind} ondone={handleWaitDone}></c-rly-wait></template>
 </template>

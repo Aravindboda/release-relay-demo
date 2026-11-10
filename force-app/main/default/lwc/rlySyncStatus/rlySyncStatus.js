@@ -15,18 +15,17 @@ import backPromoteAll from '@salesforce/apex/RlySyncController.backPromoteAll';
 import pushToOrg from '@salesforce/apex/RlySyncController.pushToOrg';
 import describeTypes from '@salesforce/apex/RlyChangesController.describeTypes';
 import listChanges from '@salesforce/apex/RlyChangesController.listChanges';
-import startPipelinePart from '@salesforce/apex/RlyCompareController.startPipelinePart';
 import stagePipelinePart from '@salesforce/apex/RlyCompareController.stagePipelinePart';
 import { searchTerm, matchesSearch, highlightParts } from 'c/rlyListSearch';
-import { listTypeChunks, partsOf, statusChip, pairKey, packageStatus, versionList, compareVersions } from './syncHelpers';
-import { errorText, isGated, partsToSend, withPart, partIn } from 'c/rlyShared';
+import { statusChip, pairKey, packageStatus, versionList, compareVersions } from './syncHelpers';
+import { PartSending, listTypeChunks, partsOf } from 'c/rlyPartSending';
+import { errorText, isGated, oneAfterAnother, fitPageToWindow } from 'c/rlyShared';
 
 const PAGE_MIN_HEIGHT = 520;
 const PAGE_BOTTOM_GAP = 24;
 const NEW_RELEASE_TAB = 'RLY_New_Release';
 const RELEASES_TAB = 'RLY_My_Releases';
 /** Parts sending at once (a developer org's check). */
-const AT_ONCE = 3;
 const VIEWS = [
     { value: 'org', label: 'Org vs branch' },
     { value: 'route', label: 'Down the route' },
@@ -51,7 +50,7 @@ function marked(text, q) {
  * pipeline; the page reads them again on a CSS-animation countdown (no timers). A developer org is listed and sent in
  * parts from the page first (no async Apex).
  */
-export default class RlySyncStatus extends NavigationMixin(LightningElement) {
+export default class RlySyncStatus extends NavigationMixin(PartSending(LightningElement)) {
     appName = APP_NAME;
     hubStatus;
     statusRead = false;
@@ -110,16 +109,7 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
 
     /** The page fills the window from its top edge down, whatever the screen. */
     fitToWindow() {
-        const page = this.template.querySelector('.rr-page');
-        if (!page) {
-            return;
-        }
-        const top = page.getBoundingClientRect().top + (window.scrollY || 0);
-        const height = Math.max(PAGE_MIN_HEIGHT, Math.floor(window.innerHeight - top - PAGE_BOTTOM_GAP));
-        if (this.pageHeight !== height) {
-            this.pageHeight = height;
-            page.style.height = height + 'px';
-        }
+        this.pageHeight = fitPageToWindow(this.template.querySelector('.rr-page'), this.pageHeight, PAGE_MIN_HEIGHT, PAGE_BOTTOM_GAP);
     }
 
     get gated() { return isGated(this.hubStatus); }
@@ -266,12 +256,16 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
             const t = await describeTypes({ orgId });
             const types = t.types || [];
             const keys = [];
-            for (const chunk of listTypeChunks(types)) {
-                // eslint-disable-next-line no-await-in-loop
-                const found = await listChanges({ orgId, types: chunk, sinceIso: null });
+            const chunks = listTypeChunks(types);
+            await oneAfterAnother(async (i) => {
+                if (i >= chunks.length) {
+                    return { done: true, state: i };
+                }
+                const found = await listChanges({ orgId, types: chunks[i], sinceIso: null });
                 (found || []).filter((c) => !c.deleted).forEach((c) => keys.push(c.key));
                 this.sending = { ...this.sending, listed: keys.length };
-            }
+                return { done: false, state: i + 1 };
+            }, 0);
             if (!keys.length) {
                 throw new Error('Nothing was listed in the org.');
             }
@@ -294,84 +288,6 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
         }
         const done = s.parts.filter((p) => p.phase === 'ready').length;
         return 'Sending part ' + Math.min(done + 1, s.parts.length) + ' of ' + s.parts.length;
-    }
-
-    pumpParts() {
-        const s = this.sending;
-        if (!s || s.phase !== 'sending') {
-            return;
-        }
-        const next = partsToSend(s, AT_ONCE);
-        if (next.allReady) {
-            this.finishDeveloper();
-            return;
-        }
-        next.ids.forEach((id) => this.sendPart(id));
-    }
-
-    setPart(id, values) { this.sending = withPart(this.sending, id, values); }
-
-    partOf(id) { return partIn(this.sending, id); }
-
-    // A part of the send still running: a failed or finished send drops its parts, so late answers are ignored (build 52).
-    isLive(id) { return !!this.partOf(id); }
-
-    async sendPart(id) {
-        const p = this.partOf(id);
-        if (!p) {
-            return;
-        }
-        const orgId = this.sending.orgId;
-        this.setPart(id, { phase: 'running' });
-        try {
-            const retrieveId = await startPipelinePart({ sourceOrgId: orgId, keys: p.keys });
-            if (!this.isLive(id)) {
-                return;
-            }
-            this.setPart(id, { retrieveId });
-            await this.stagePart(id);
-        } catch (e) {
-            this.failSending(e, id);
-        }
-    }
-
-    async stagePart(id) {
-        const p = this.partOf(id);
-        if (!p) {
-            return;
-        }
-        const s = this.sending;
-        try {
-            const st = await stagePipelinePart({ partJson: JSON.stringify({ compareId: s.syncId, n: p.n, retrieveId: p.retrieveId, sourceOrgId: s.orgId }) });
-            if (!this.isLive(id)) {
-                return;
-            }
-            if (!st.done) {
-                this.wait(id, 'part', 2);
-                return;
-            }
-            this.setPart(id, { phase: 'ready' });
-            this.pumpParts();
-        } catch (e) {
-            if (this.retryClash(e, id)) {
-                return;
-            }
-            this.failSending(e, id);
-        }
-    }
-
-    // D27 (build 57): parts are committed side by side, so the branch may move under one (HTTP 409) even after the
-    // server's own retries. The part is staged again a moment later (same retrieve), up to 5 times, instead of failing
-    // the whole check.
-    retryClash(e, id) {
-        const p = this.partOf(id);
-        const clash = /HTTP 409/.test(errorText(e));
-        if (!p || !clash || (p.clashes || 0) >= 5) {
-            return false;
-        }
-        this.setPart(id, { clashes: (p.clashes || 0) + 1 });
-        this.wait(id, 'part', 2);
-        return true;
     }
 
     async finishDeveloper() {
@@ -421,34 +337,14 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
         }
     }
 
-    // ---------- countdowns (CSS animation, no timers) ----------
+    // ---------- the part loop's hooks (c/rlyPartSending) ----------
 
-    wait(id, kind, seconds = 5) {
-        const prior = this.waits[id];
-        this.waits = { ...this.waits, [id]: { kind, cycle: prior ? prior.cycle + 1 : 1, seconds } };
+    stageOnePart(part) {
+        return stagePipelinePart({ partJson: JSON.stringify(part) });
     }
 
-    get ticks() {
-        return Object.keys(this.waits).map((id) => {
-            const w = this.waits[id];
-            return { key: id + '-' + w.cycle, id, cls: 'rr-tick rr-tick-' + w.seconds };
-        });
-    }
-
-    handleTick(event) {
-        const id = event.currentTarget.dataset.id;
-        const w = this.waits[id];
-        if (!w) {
-            return;
-        }
-        const rest = { ...this.waits };
-        delete rest[id];
-        this.waits = rest;
-        if (w.kind === 'part') {
-            this.stagePart(id);
-        } else {
-            this.refreshCheck(id);
-        }
+    onWaitDone(id) {
+        this.refreshCheck(id);
     }
 
     // ---------- the selected org's differences ----------

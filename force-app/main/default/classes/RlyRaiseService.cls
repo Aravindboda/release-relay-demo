@@ -49,6 +49,8 @@ public with sharing class RlyRaiseService {
         public List<RlyFlowChoices.FlowChoice> flowChoices;
         /** @description The release's tickets (Work items), for example PROJ-123. */
         public List<String> workItems;
+        /** @description Profile access to send (New Release, step Profile access): only these rows of each profile. */
+        public List<RlyProfileAccessRules.ProfileRows> profileAccess;
     }
 
     /**
@@ -69,6 +71,7 @@ public with sharing class RlyRaiseService {
         RlyTestRule.checkTests(added, byType, tests);
         List<RlyFlowChoices.FlowChoice> flowChoices = RlyFlowChoices.checked(req.flowChoices, flowNames(added));
         List<RLY_Manual_Step__c> steps = RlyManualStepRules.fromInputs(withFlowSteps(req.manualSteps, flowChoices));
+        List<RlyProfileAccessRules.ProfileRows> access = RlyProfileAccessRules.checked(req.profileAccess);
 
         String retrieveId = byType.isEmpty() ? null : RlyRaiseParts.startFirst(route.source, byType); // callout before any DML; a big release in parts
 
@@ -81,6 +84,8 @@ public with sharing class RlyRaiseService {
         rel.Deletions__c = deletions.isEmpty() ? null : String.join(deletions, ',');
         rel.Flow_Actions__c = RlyFlowChoices.toField(flowChoices);
         rel.Inactive_Triggers__c = RlyTestRule.inactiveField(added, null);
+        rel.Profile_Access__c = RlyProfileAccessRules.toField(access);
+        rel.Profile_Access_Count__c = RlyProfileAccessRules.rowCount(access);
         if (RlyRaiseRules.isManualOnly(req)) {
             RlyManualOnly.mark(rel); // no retrieve, branch or pipeline: its page's next read takes it to approval
         }
@@ -105,6 +110,7 @@ public with sharing class RlyRaiseService {
         Integer added = rel.Component_Count__c == null ? 0 : rel.Component_Count__c.intValue();
         return added + (added == 1 ? ' component' : ' components')
             + (deletions.isEmpty() ? '' : ', ' + deletions.size() + (deletions.size() == 1 ? ' deletion' : ' deletions'))
+            + RlyProfileAccessFile.logWords(rel)
             + (steps.isEmpty() ? '' : ', ' + stepText);
     }
 

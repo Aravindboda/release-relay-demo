@@ -114,6 +114,15 @@ public with sharing class RlyReleaseStore {
     }
 
     /**
+     * @description A release's profile access (Profile_Access__c), read only where it's needed: it can be long.
+     * @param releaseId the release
+     * @return the JSON, or null
+     */
+    public static String profileAccess(Id releaseId) {
+        return new SystemAccess().readProfileAccess(releaseId);
+    }
+
+    /**
      * @description A release's components.
      * @param releaseId the release
      * @return the items, by type and name
@@ -267,9 +276,19 @@ public with sharing class RlyReleaseStore {
                     Target_Org__r.Role__c, Target_Org__r.Hotfix_Two_Approvers__c, Target_Org__r.Branch__c, Source_Org__r.Git_Environment__c,
                     Deletions__c, Deletion_Count__c, Target_Org__r.Approval_Rule__c, Target_Org__r.Approval_Types__c, Target_Org__r.Code_Scan__c,
                     Flow_Actions__c, Flow_Results__c, Manual_Only__c, Append_State__c, Inactive_Triggers__c, Target_Org__r.Environment__c,
-                    Git_Connection__c, Validated_Head__c, Validated_Attempt__c
+                    Git_Connection__c, Validated_Head__c, Validated_Attempt__c, Profile_Access_Count__c
                 FROM RLY_Release__c WHERE Id = :releaseId WITH SYSTEM_MODE];
             return rows.isEmpty() ? null : rows[0];
+        }
+
+        /**
+         * @description See RlyReleaseStore.profileAccess.
+         * @param releaseId the release
+         * @return the JSON, or null
+         */
+        public String readProfileAccess(Id releaseId) {
+            List<RLY_Release__c> rows = [SELECT Profile_Access__c FROM RLY_Release__c WHERE Id = :releaseId WITH SYSTEM_MODE];
+            return rows.isEmpty() ? null : rows[0].Profile_Access__c;
         }
 
         /**

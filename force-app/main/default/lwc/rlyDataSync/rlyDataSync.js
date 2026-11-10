@@ -8,7 +8,7 @@ import runExported from '@salesforce/apex/RlyDataController.runExported';
 import readRun from '@salesforce/apex/RlyDataController.readRun';
 import loadRun from '@salesforce/apex/RlyDataController.loadRun';
 import { definitionOf, editorOf, statusPill, countsText, DIRECTIONS } from './dataHelpers';
-import { errorText } from 'c/rlyShared';
+import { errorText, oneAfterAnother } from 'c/rlyShared';
 
 /** Parts of a developer org's export sent at once (one object each). */
 const AT_ONCE = 2;
@@ -224,23 +224,24 @@ export default class RlyDataSync extends LightningElement {
         let sent = 0;
         let records = 0;
         this.exportState = 'Sending ' + total + ' objects’ records to Git…';
-        const worker = async () => {
-            while (next < total) {
-                const index = next;
-                next += 1;
-                let cursor = null;
-                let page = 1;
-                do {
-                    // eslint-disable-next-line no-await-in-loop
-                    const p = await exportPart({ partJson: JSON.stringify({ runId: s.runId, index, pageNo: page, cursor }) });
-                    records += p.count;
-                    cursor = p.nextCursor;
-                    page += 1;
-                } while (cursor);
-                sent += 1;
-                this.exportState = 'Sent ' + sent + ' of ' + total + ' objects (' + records + ' records)…';
+        // One object's pages, one after the other (each needs the cursor the last one returned).
+        const sendObject = (index) => oneAfterAnother(async ({ page, cursor }) => {
+            const p = await exportPart({ partJson: JSON.stringify({ runId: s.runId, index, pageNo: page, cursor }) });
+            records += p.count;
+            return { done: !p.nextCursor, state: { page: page + 1, cursor: p.nextCursor } };
+        }, { page: 1, cursor: null });
+        // A worker takes the next object until none is left.
+        const worker = () => oneAfterAnother(async () => {
+            if (next >= total) {
+                return { done: true, state: null };
             }
-        };
+            const index = next;
+            next += 1;
+            await sendObject(index);
+            sent += 1;
+            this.exportState = 'Sent ' + sent + ' of ' + total + ' objects (' + records + ' records)…';
+            return { done: false, state: null };
+        }, null);
         const workers = [];
         for (let i = 0; i < Math.min(AT_ONCE, total); i++) {
             workers.push(worker());
@@ -309,10 +310,13 @@ export default class RlyDataSync extends LightningElement {
     get ticks() { return this.ticking ? [{ key: 't' + this.tickCycle }] : []; }
     async handleTick() {
         const running = (this.data ? this.data.runs : []).filter((r) => r.status === 'Dry run' || r.status === 'Loading');
-        for (const r of running) {
-            // eslint-disable-next-line no-await-in-loop
-            await this.readOne(r.runId);
-        }
+        await oneAfterAnother(async (i) => {
+            if (i >= running.length) {
+                return { done: true, state: i };
+            }
+            await this.readOne(running[i].runId);
+            return { done: false, state: i + 1 };
+        }, 0);
         await this.refresh();
     }
 }

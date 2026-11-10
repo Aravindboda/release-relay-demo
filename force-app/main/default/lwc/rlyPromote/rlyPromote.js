@@ -1,11 +1,11 @@
 import APP_NAME from '@salesforce/label/c.RLY_App_Name';
 import { LightningElement } from 'lwc';
+import { HubGate } from 'c/rlyHubGate';
 import getPromote from '@salesforce/apex/RlyPromoteController.getPromote';
 import promote from '@salesforce/apex/RlyPromoteController.promote';
 import getSteps from '@salesforce/apex/RlyManualStepController.getSteps';
-import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
-import { errorText, plural, dateTime as when, isGated } from 'c/rlyShared';
+import { errorText, plural, dateTime as when } from 'c/rlyShared';
 
 
 /** A list shows its search box from this many rows (or while a search is typed). */
@@ -93,7 +93,7 @@ function overlapOf(ready, pickedIds) {
  * promoted, hotfixes first. Tick what goes to the next stop; a hotfix can go on its own. Promote raises one Promotion
  * release that runs the usual checks and approval into the next stop.
  */
-export default class RlyPromote extends LightningElement {
+export default class RlyPromote extends HubGate(LightningElement) {
     /**
      * RlyHubGuard.getHubStatus: the org's mode (hub, setup, sandbox, copy). In a sandbox, a sandbox copy of the hub or a
      * production org not set up yet this tab shows only rlyOrgGate, and nothing else is loaded.
@@ -101,27 +101,6 @@ export default class RlyPromote extends LightningElement {
     hubStatus;
     /** The status has been read, or failed to read (then the tab works as on the hub: the server refuses actions anyway). */
     statusRead = false;
-    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
-    get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
-    get gated() { return isGated(this.hubStatus); }
-    get showPage() { return this.statusRead && !this.gated; }
-
-    /** Reads the hub status once, then loads the page only on the hub. */
-    readHubStatus() {
-        getHubStatus()
-            .then((status) => {
-                this.hubStatus = status;
-            })
-            .catch(() => {
-                this.hubStatus = undefined;
-            })
-            .finally(() => {
-                this.statusRead = true;
-                if (!this.gated) {
-                    this.loadPage();
-                }
-            });
-    }
 
     board;
     loading = false;

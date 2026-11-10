@@ -1,5 +1,15 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 30
+// Release Relay pipeline files: version 32
+// Version 32 (hub build 58): profile access. A new hub raise (mode hub) may carry .relay-inbox/<REQUEST_ID>-access.json,
+//   {"profiles": [{profile, label, rows: [{section, key, values}]}]}: rows of profile files (fieldPermissions,
+//   objectPermissions, classAccesses, pageAccesses, tabVisibilities, recordTypeVisibilities, layoutAssignments,
+//   applicationVisibilities, customPermissions, customMetadataTypeAccesses, customSettingAccesses, userPermissions).
+//   Each row is written into SOURCE_PATH/profiles/<profile>.profile-meta.xml on the branch: an entry with the same key
+//   is updated (values not sent stay), else a new one goes in its sorted place; a missing file is made with only these
+//   rows. A raise may carry only this file (no zip, no deletions). raise.json: profileAccess {profiles, rows}.
+//   Validate / deploy / sync / back promote: a changed profile file that the base commit already had is deployed with
+//   only its entries that differ from the base (in the temporary deploy copy), so a deploy never sends the rest of a
+//   profile. A profile new on the branch goes as it is.
 // Version 29 (hub build 55): package-aware releases. A managed package's references belong to the orgs that have it.
 //   OPTIONS.packages = { known: [ns...], sourceMissing: [ns...], targetMissing: [ns...] } (namespaces; only those in
 //   known count; absent or empty = no change). A reference is a leaf's text that names ns__X (not ns__c and the other
@@ -282,7 +292,7 @@ function withSafeProject(cwd, fn) {
     let original = null;
     try {
         original = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
-    } catch (e) {
+    } catch {
         original = null;
     }
     let stripped = null;
@@ -301,7 +311,7 @@ function withSafeProject(cwd, fn) {
             if (found) {
                 stripped = JSON.stringify(project, null, 2) + '\n';
             }
-        } catch (e) {
+        } catch {
             stripped = null; // not JSON: the CLI refuses the project anyway
         }
     }
@@ -571,7 +581,7 @@ function writePrivateKey(keyFile) {
             run('openssl', ['pkcs12', '-in', p12, '-nocerts', '-nodes', '-passin', 'env:RELAY_PW', '-out', keyFile],
                 { env: childEnv, stdio: ['ignore', 'ignore', 'inherit'] });
             fs.chmodSync(keyFile, 0o600);
-        } catch (e) {
+        } catch {
             fail('Couldn\'t read the key from SF_JKS. Check SF_JKS_PASSWORD, and that SF_JKS_ALIAS is the certificate\'s Unique Name.');
         } finally {
             fs.rmSync(dir, { recursive: true, force: true });
@@ -710,7 +720,7 @@ const options = (() => {
     try {
         const o = JSON.parse(input('OPTIONS') || '{}');
         return o && typeof o === 'object' && !Array.isArray(o) ? o : {};
-    } catch (e) {
+    } catch {
         return {};
     }
 })();
@@ -787,7 +797,7 @@ async function runRequestedAt() {
             if (t) {
                 return Math.floor(t / 1000);
             }
-        } catch (e) {
+        } catch {
             // the job's own clock below
         }
         console.log('::warning::The run\'s start time couldn\'t be read (actions: read); the signature\'s age is checked against now.');
@@ -854,7 +864,7 @@ function readResultText(requestFolder, stem, text) {
     let parsed;
     try {
         parsed = JSON.parse(text);
-    } catch (e) {
+    } catch {
         return null;
     }
     const wrapped = parsed && typeof parsed === 'object' && typeof parsed.payload === 'string' && typeof parsed.sig === 'string'
@@ -868,7 +878,7 @@ function readResultText(requestFolder, stem, text) {
     }
     try {
         return wrapped ? JSON.parse(parsed.payload) : parsed;
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -980,7 +990,7 @@ function git(args, options) {
 function gitQuiet(args) {
     try {
         return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: CLI_BUFFER }).trim();
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -1077,7 +1087,7 @@ function writeResult(name, data) {
                 'commit', '-q', '-m', `${requestId} ${name}: ${result.status}`], { cwd: dir });
             git(['push', '-q', 'origin', `HEAD:refs/heads/${RESULTS_BRANCH}`], { cwd: dir });
             return;
-        } catch (e) {
+        } catch {
             console.log(`Saving the ${name} result failed (attempt ${attempt}); retrying.`);
         } finally {
             gitQuiet(['worktree', 'remove', '--force', dir]);
@@ -1090,7 +1100,7 @@ function writeResult(name, data) {
 function gitQuietIn(dir, args) {
     try {
         execFileSync('git', args, { cwd: dir, stdio: ['ignore', 'ignore', 'ignore'] });
-    } catch (e) {
+    } catch {
         // nothing to remove
     }
 }
@@ -1187,7 +1197,7 @@ function login(alias) {
 function apiVersion() {
     try {
         return JSON.parse(fs.readFileSync('sfdx-project.json', 'utf8')).sourceApiVersion || '65.0';
-    } catch (e) {
+    } catch {
         return '65.0';
     }
 }
@@ -1270,7 +1280,7 @@ function loadExcludes() {
             lines = lines.concat(text.split(/\r?\n/));
             excludeSource = "Release Relay's built-in list and " + EXCLUDE_FILE;
         }
-    } catch (e) {
+    } catch {
         // unreadable: the built-in list alone
     }
     excludeRules = [];
@@ -1374,7 +1384,7 @@ function applyForceIgnore() {
             } else {
                 fs.writeFileSync('.forceignore', forceIgnoreOriginal);
             }
-        } catch (e) {
+        } catch {
             // the job ends anyway
         }
     });
@@ -1575,7 +1585,7 @@ function readText(file) {
         }
         const text = buf.toString('utf8');
         return Buffer.from(text, 'utf8').equals(buf) ? text : null;
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -1627,7 +1637,7 @@ function makeDeployCopy() {
     process.on('exit', () => {
         try {
             fs.rmSync(dir, { recursive: true, force: true });
-        } catch (e) {
+        } catch {
             // the job ends anyway
         }
     });
@@ -1635,7 +1645,7 @@ function makeDeployCopy() {
     try {
         dirs = asList(JSON.parse(fs.readFileSync('sfdx-project.json', 'utf8')).packageDirectories)
             .map((p) => String((p && p.path) || '').replace(/\/+$/, '')).filter(Boolean);
-    } catch (e) {
+    } catch {
         dirs = [];
     }
     if (!dirs.some((d) => sourcePath() === d || sourcePath().startsWith(d + '/'))) {
@@ -1706,7 +1716,8 @@ function prepareDeployValues(plan, envName) {
     // Version 29: references to packages the target org lacks are stripped in the same copy (after the values are filled).
     const strip = packagesOption && packagesOption.targetMissing.length
         ? packageStripPlan(plan, deploymentFiles(plan.sources || []), new Map(edits.map((e) => [e.file, e.text]))) : null;
-    if (!edits.length && !strip) {
+    const profiles = profilesToTrim(plan); // version 32
+    if (!edits.length && !strip && !profiles.length) {
         return '';
     }
     const copy = makeDeployCopy();
@@ -1716,6 +1727,7 @@ function prepareDeployValues(plan, envName) {
     if (strip) {
         applyPackageStrip(strip, copy, plan);
     }
+    trimProfiles(profiles, copy, plan.profileBase);
     plan.cwd = copy;
     if (!edits.length) {
         return '';
@@ -1801,7 +1813,7 @@ const packagesOption = (() => {
         targetMissing: list(p.targetMissing).filter((n) => known.includes(n)) };
 })();
 /** The step result's "packages" (raise, validate, deploy, sync), or null without OPTIONS.packages. */
-let packagesResult = packagesOption ? { kept: {}, leftOut: {}, componentsLeftOut: [] } : null;
+const packagesResult = packagesOption ? { kept: {}, leftOut: {}, componentsLeftOut: [] } : null;
 
 /** A reference to one of these namespaces in a leaf's text (global: every namespace it names). */
 function packageRefRe(namespaces) {
@@ -2173,7 +2185,7 @@ function putBackText(refText, newText, re) {
 function blobText(ref, file) {
     try {
         return execFileSync('git', ['show', `${ref}:${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: CLI_BUFFER });
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -2549,7 +2561,11 @@ function gatesSummary(step, result) {
  * using the files as they are at head. Returns null when nothing deployable changed.
  */
 function buildDeployment(base, head) {
-    return buildFromFiles(changedFiles(base, head), base);
+    const plan = buildFromFiles(changedFiles(base, head), base);
+    if (plan) {
+        plan.profileBase = base; // version 32: changed profiles deploy only their changed entries
+    }
+    return plan;
 }
 
 /** The deployment for picked repo paths as the checked-out branch has them (a path it hasn't got is a deletion). */
@@ -2644,7 +2660,7 @@ function triggerIsInactive(name) {
     const meta = path.join(sourcePath(), 'triggers', `${name}.trigger-meta.xml`);
     try {
         return /<status>\s*Inactive\s*<\/status>/i.test(fs.readFileSync(meta, 'utf8'));
-    } catch (e) {
+    } catch {
         return false;
     }
 }
@@ -2740,7 +2756,7 @@ function runDeploy(args, testLevel, tests, cwd) {
     let out;
     try {
         out = JSON.parse(raw);
-    } catch (e) {
+    } catch {
         return { ok: false, message: 'The Salesforce CLI returned output that isn\'t JSON.', testLevel };
     }
     const r = out.result || {};
@@ -2831,7 +2847,7 @@ async function stepScan() {
     files.forEach((f) => args.push('--target', f));
     try {
         run('sf', args, { stdio: ['ignore', 'inherit', 'inherit'] });
-    } catch (e) {
+    } catch {
         if (!fs.existsSync(outFile)) {
             writeResult('scan', { status: 'Error', total: 0, blocking: 0, files, violations: [],
                 message: 'Code Analyzer didn\'t run. Open the workflow run for the log.', gate: scanGate,
@@ -2842,7 +2858,7 @@ async function stepScan() {
     let report;
     try {
         report = JSON.parse(fs.readFileSync(outFile, 'utf8'));
-    } catch (e) {
+    } catch {
         writeResult('scan', { status: 'Error', total: 0, blocking: 0, files, violations: [], message: 'The scan report couldn\'t be read.',
             gate: scanGate, gates: gatesResult(relayGates, relayGates.scan ? ['The scan report couldn\'t be read, so the scan gate couldn\'t be checked.'] : []) });
         return;
@@ -2898,7 +2914,7 @@ async function http(method, url, headers, body) {
     let json = null;
     try {
         json = text ? JSON.parse(text) : null;
-    } catch (e) {
+    } catch {
         json = null;
     }
     return { ok: res.ok, status: res.status, json, text };
@@ -3103,18 +3119,27 @@ const providers = {
             }
         },
         async mergeSha(pr) {
-            for (let i = 0; i < 20; i++) {
+            return tryAgain(20, 3000, async () => {
                 const res = await http('GET', `${this.base()}/pullrequests/${pr.id}?api-version=7.1`, this.headers());
                 const raw = res.json || {};
-                if (raw.status === 'completed' && raw.lastMergeCommit) {
-                    return raw.lastMergeCommit.commitId;
-                }
-                await new Promise((r) => setTimeout(r, 3000));
-            }
-            return '';
+                return raw.status === 'completed' && raw.lastMergeCommit ? raw.lastMergeCommit.commitId : '';
+            });
         }
     }
 };
+
+/**
+ * Calls `once` until it returns a non-empty answer, waiting `waitMs` between tries, at most `tries` times (version 31:
+ * one try after the other without an await inside a loop). The empty string when every try came back empty.
+ */
+async function tryAgain(tries, waitMs, once) {
+    const answer = await once();
+    if (answer || tries <= 1) {
+        return answer || '';
+    }
+    await new Promise((r) => setTimeout(r, waitMs));
+    return tryAgain(tries - 1, waitMs, once);
+}
 
 const provider = providers[PROVIDER] || providers.github;
 
@@ -3320,7 +3345,7 @@ function convertFromHub(mdapi, out, failWith = raiseFailed) {
         try {
             const parsed = JSON.parse(String(e.stdout || '{}'));
             detail = [parsed.name, parsed.message].concat(parsed.actions || []).filter(Boolean).join(' | ') || detail;
-        } catch (ignored) {
+        } catch {
             // not JSON: keep the raw output
         }
         failWith('Converting the files from the hub failed: ' + detail.replace(/\s+/g, ' ').trim().slice(0, 1500));
@@ -3450,6 +3475,217 @@ function removeMarker(markerFile) {
     }
 }
 
+// ---------- version 32: profile access ----------
+
+/** The profile file sections a hub raise can write, the child that names each entry and the values it can send. */
+const ACCESS_SECTIONS = {
+    fieldPermissions: { key: 'field', flags: ['editable', 'readable'] },
+    objectPermissions: { key: 'object', flags: ['allowCreate', 'allowDelete', 'allowEdit', 'allowRead', 'modifyAllRecords', 'viewAllRecords'] },
+    classAccesses: { key: 'apexClass', flags: ['enabled'] },
+    pageAccesses: { key: 'apexPage', flags: ['enabled'] },
+    tabVisibilities: { key: 'tab', choices: { visibility: ['DefaultOn', 'DefaultOff', 'Hidden'] } },
+    recordTypeVisibilities: { key: 'recordType', flags: ['default', 'visible'] },
+    layoutAssignments: { key: 'recordType', text: 'layout' },
+    applicationVisibilities: { key: 'application', flags: ['default', 'visible'] },
+    customPermissions: { key: 'name', flags: ['enabled'] },
+    customMetadataTypeAccesses: { key: 'name', flags: ['enabled'] },
+    customSettingAccesses: { key: 'name', flags: ['enabled'] },
+    userPermissions: { key: 'name', flags: ['enabled'] }
+};
+const ACCESS_NAME_RE = /^[A-Za-z][A-Za-z0-9_]{0,79}$/;
+const ACCESS_DOTTED_RE = /^[A-Za-z][A-Za-z0-9_]{0,79}\.[A-Za-z][A-Za-z0-9_]{0,79}$/;
+const ACCESS_TAB_RE = /^[A-Za-z][A-Za-z0-9_-]{0,79}$/;
+const ACCESS_LAYOUT_RE = /^[A-Za-z][A-Za-z0-9_]{0,79}-[^<>&"/\\]{1,170}$/;
+const PROFILE_NAME_RE = /^[^<>&"/\\:*?|]{1,80}$/;
+const PROFILE_SUFFIX = '.profile-meta.xml';
+const PROFILE_NS = 'http://soap.sforce.com/2006/04/metadata';
+
+/** Why a row can't be written, or ''. */
+function accessRowProblem(row) {
+    const s = ACCESS_SECTIONS[row && row.section];
+    if (!s) {
+        return `"${String(row && row.section).slice(0, 40)}" isn't a profile section this pipeline writes`;
+    }
+    const key = String(row.key || '');
+    const keyOk = ['fieldPermissions', 'recordTypeVisibilities'].includes(row.section) ? ACCESS_DOTTED_RE.test(key)
+        : row.section === 'layoutAssignments' ? ACCESS_NAME_RE.test(key.split('.')[0]) && (!key.includes('.') || ACCESS_DOTTED_RE.test(key))
+            : row.section === 'tabVisibilities' ? ACCESS_TAB_RE.test(key) : ACCESS_NAME_RE.test(key);
+    if (!keyOk) {
+        return `"${key.slice(0, 80)}" isn't a valid name for ${row.section}`;
+    }
+    const values = row.values && typeof row.values === 'object' ? row.values : {};
+    const bad = Object.entries(values).find(([name, v]) => !accessValueOk(s, row, name, String(v)));
+    return bad ? `"${String(bad[1]).slice(0, 80)}" isn't a valid ${bad[0]} for ${key}` : '';
+}
+
+function accessValueOk(s, row, name, v) {
+    if (s.flags) {
+        return s.flags.includes(name) && (v === 'true' || v === 'false');
+    }
+    if (s.choices) {
+        return Boolean(s.choices[name]) && s.choices[name].includes(v);
+    }
+    return name === s.text && ACCESS_LAYOUT_RE.test(v) && v.split('-')[0].toLowerCase() === String(row.key).split('.')[0].toLowerCase();
+}
+
+/** The XML text of an element's child, unescaped, or ''. */
+function childText(inner, name) {
+    const m = new RegExp(`<${name}>([^<]*)</${name}>`).exec(inner);
+    return m ? m[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&') : '';
+}
+
+function escapeXml(v) {
+    return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** The key that names a profile entry: its section's key child (a master layout: master:<object>), else its whole text. */
+function profileEntryKey(tag, inner) {
+    const s = ACCESS_SECTIONS[tag];
+    if (tag === 'layoutAssignments') {
+        const rt = childText(inner, 'recordType');
+        return rt ? rt.toLowerCase() : 'master:' + childText(inner, 'layout').split('-')[0].toLowerCase();
+    }
+    const k = s ? childText(inner, s.key) : '';
+    return k ? k.toLowerCase() : inner.replace(/\s+/g, ' ').trim();
+}
+
+/** A profile file read as its head, its top-level entries ({ tag, key, text, inner }) and its tail; null when it isn't one. */
+function parseProfile(text) {
+    const open = /<Profile\b[^>]*>/.exec(text);
+    const close = text.lastIndexOf('</Profile>');
+    if (!open || close < 0) {
+        return null;
+    }
+    const start = open.index + open[0].length;
+    const body = text.slice(start, close);
+    const entries = [];
+    const re = /[ \t]*<([A-Za-z][\w]*)>([\s\S]*?)<\/\1>[ \t]*\r?\n?/g;
+    let m = re.exec(body);
+    while (m) {
+        entries.push({ tag: m[1], key: profileEntryKey(m[1], m[2]), text: m[0], inner: m[2] });
+        m = re.exec(body);
+    }
+    const lead = /^\r?\n/.exec(body) ? '\n' : '';
+    return { head: text.slice(0, start) + lead, entries, tail: text.slice(close) };
+}
+
+function renderProfile(p) {
+    return p.head + p.entries.map((e) => (e.text.endsWith('\n') ? e.text : e.text + '\n')).join('') + p.tail;
+}
+
+/** One entry's text: its children in name order, each on its own line. */
+function renderEntry(tag, children, indent) {
+    const lines = Object.keys(children).sort().map((n) => `${indent}    <${n}>${escapeXml(children[n])}</${n}>`);
+    return `${indent}<${tag}>\n${lines.join('\n')}\n${indent}</${tag}>\n`;
+}
+
+/** Writes one row into a parsed profile: the entry with its key is updated (values not sent stay), else added in order. */
+function putProfileRow(p, row) {
+    const s = ACCESS_SECTIONS[row.section];
+    const lowered = String(row.key).toLowerCase();
+    const key = row.section === 'layoutAssignments' && !lowered.includes('.') ? 'master:' + lowered : lowered;
+    const at = p.entries.findIndex((e) => e.tag === row.section && e.key === key);
+    const indent = (p.entries.length && /^[ \t]*/.exec(p.entries[0].text)[0]) || '    ';
+    const children = {};
+    if (at >= 0) {
+        const re = /<([A-Za-z]\w*)>([^<]*)<\/\1>/g;
+        let m = re.exec(p.entries[at].inner);
+        while (m) {
+            children[m[1]] = childText(m[0], m[1]);
+            m = re.exec(p.entries[at].inner);
+        }
+    }
+    if (row.section !== 'layoutAssignments' || String(row.key).includes('.')) {
+        children[s.key] = row.key;
+    }
+    Object.entries(row.values || {}).forEach(([n, v]) => { children[n] = String(v); });
+    const text = renderEntry(row.section, children, indent);
+    const entry = { tag: row.section, key, text, inner: text };
+    if (at >= 0) {
+        p.entries[at] = entry;
+        return;
+    }
+    const before = p.entries.findIndex((e) => e.tag > row.section || (e.tag === row.section && e.key > key));
+    p.entries.splice(before < 0 ? p.entries.length : before, 0, entry);
+}
+
+/**
+ * Writes the hub's profile access (.relay-inbox/<REQUEST_ID>-access.json) into the branch's profile files. Returns
+ * { profiles, rows, lines } (lines: the pull request's list); a bad file or row fails the raise.
+ */
+function applyProfileAccess(accessFile, deleted) {
+    const none = { profiles: 0, rows: 0, lines: [] };
+    if (!fs.existsSync(accessFile)) {
+        return none;
+    }
+    let profiles;
+    try {
+        profiles = asList(JSON.parse(fs.readFileSync(accessFile, 'utf8')).profiles);
+    } catch (e) {
+        raiseFailed(`${accessFile} isn't valid JSON: ${String(e.message).slice(0, 200)}`, { deleted });
+    }
+    const out = { profiles: 0, rows: 0, lines: [] };
+    for (const prof of profiles) {
+        const name = String((prof && prof.profile) || '');
+        if (!PROFILE_NAME_RE.test(name) || name.includes('..')) {
+            raiseFailed(`"${name.slice(0, 80)}" isn't a profile name this pipeline writes.`, { deleted });
+        }
+        const rows = asList(prof.rows);
+        const bad = rows.map(accessRowProblem).find(Boolean);
+        if (bad) {
+            raiseFailed(`Profile ${name}: ${bad}.`, { deleted });
+        }
+        const file = path.join(sourcePath(), 'profiles', name + PROFILE_SUFFIX);
+        const text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8')
+            : `<?xml version="1.0" encoding="UTF-8"?>\n<Profile xmlns="${PROFILE_NS}">\n</Profile>\n`;
+        const parsed = parseProfile(text);
+        if (!parsed) {
+            raiseFailed(`${relToSource(file)} on ${branch} isn't a profile file Release Relay can write into.`, { deleted });
+        }
+        rows.forEach((r) => putProfileRow(parsed, r));
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, renderProfile(parsed));
+        out.profiles += 1;
+        out.rows += rows.length;
+        out.lines.push(`- **${prof.label || name}** (\`${name}\`): ` + rows.slice(0, 30).map((r) => `${r.section} \`${r.key}\``).join(', ')
+            + (rows.length > 30 ? `, and ${rows.length - 30} more` : ''));
+    }
+    summary(`**Profile access:** ${out.rows} row(s) written into ${out.profiles} profile file(s); the rest of each file is unchanged.`);
+    return out;
+}
+
+/** The changed profile files of a deployment that the base commit already had (only their changed entries deploy). */
+function profilesToTrim(plan) {
+    if (!plan.profileBase) {
+        return [];
+    }
+    return deploymentFiles(plan.sources || []).filter((f) => f.endsWith(PROFILE_SUFFIX) && !isExcluded(f, 'HEAD'))
+        .filter((f) => gitQuiet(['cat-file', '-e', `${plan.profileBase}:${f.split(path.sep).join('/')}`]) !== null);
+}
+
+/** In the deploy copy, each profile keeps only the entries that differ from the base (new or changed). */
+function trimProfiles(files, copy, base) {
+    let kept = 0;
+    let total = 0;
+    for (const f of files) {
+        const target = path.join(copy, f);
+        const now = parseProfile(readText(target) || '');
+        const before = parseProfile(gitQuiet(['show', `${base}:${f.split(path.sep).join('/')}`]) || '');
+        if (!now || !before) {
+            continue;
+        }
+        const old = new Map(before.entries.map((e) => [e.tag + '|' + e.key, e.inner.replace(/\s+/g, ' ').trim()]));
+        total += now.entries.length;
+        now.entries = now.entries.filter((e) => old.get(e.tag + '|' + e.key) !== e.inner.replace(/\s+/g, ' ').trim());
+        kept += now.entries.length;
+        fs.writeFileSync(target, renderProfile(now));
+    }
+    if (files.length) {
+        summary(`**Profiles:** ${files.length} profile(s) deploy only their changed entries (${kept} of ${total}); the rest of each `
+            + 'profile stays as it is in the org.');
+    }
+}
+
 // ---------- version 28: the hub's upload files never reach a target ----------
 
 const INBOX_DIR = '.relay-inbox';
@@ -3570,6 +3806,7 @@ async function raiseFromHub() {
     const components = parseList(input('COMPONENTS'), 'COMPONENTS');
     const zipFile = path.join('.relay-inbox', requestId + '.zip');
     const markerFile = path.join('.relay-inbox', requestId + '.deletions');
+    const accessFile = path.join('.relay-inbox', requestId + '-access.json'); // version 32
     if (!remoteBranchExists(branch)) {
         raiseFailed(`Branch ${branch} doesn't exist. Raise the release again from Release Relay.`);
     }
@@ -3582,8 +3819,8 @@ async function raiseFromHub() {
     // A big release comes in parts (version 22): .relay-inbox/<REQUEST_ID>-part-<k>.zip, unpacked in order.
     const zips = (fs.existsSync(zipFile) ? [zipFile] : []).concat(hubPartZips());
     const hasZip = zips.length > 0;
-    if (!hasZip && !deletions.length) {
-        raiseFailed(`${zipFile} isn't on ${branch} (nor a ${markerFile} listing deletions). Raise the release again from Release Relay.`);
+    if (!hasZip && !deletions.length && !fs.existsSync(accessFile)) {
+        raiseFailed(`${zipFile} isn't on ${branch} (nor a ${markerFile} listing deletions, nor ${accessFile}). Raise the release again from Release Relay.`);
     }
     const clash = addedAndDeleted(components, deletions);
     if (clash) {
@@ -3601,6 +3838,7 @@ async function raiseFromHub() {
         raiseFailed(tokens.error, { deleted });
     }
     putBackPackageReferences(copied); // version 29: the branch's references to packages this org lacks stay
+    const access = applyProfileAccess(accessFile, deleted); // version 32: only the rows picked in the hub
     const valuesTokenized = tokens.count;
     removeMarker(markerFile);
     removeStaleInbox(); // version 28
@@ -3608,8 +3846,8 @@ async function raiseFromHub() {
     if (git(['diff', '--cached', '--name-only', '--', sourcePath()]) === '') {
         raiseFailed(`${orgLabel()} already matches ${target} for these components. Nothing to commit.`, { deleted });
     }
-    const counts = [copied.length ? `${copied.length} files` : '', deletions.length ? `${deletions.length} deletion(s)` : '']
-        .filter(Boolean).join(', ');
+    const counts = [copied.length ? `${copied.length} files` : '', deletions.length ? `${deletions.length} deletion(s)` : '',
+        access.rows ? `${access.rows} profile access row(s)` : ''].filter(Boolean).join(', ');
     git(['commit', '-q', '-m', title, '-m', `Release Relay ${requestId} from ${orgLabel()} (${counts || 'no files'})`]);
     try {
         // Version 28: a rebuilt branch replaces the one the hub made, only if nobody pushed to it since.
@@ -3622,19 +3860,21 @@ async function raiseFromHub() {
     const sha = git(['rev-parse', 'HEAD']);
 
     const list = (items) => items.map((i) => `- ${i.type}: \`${i.name}\``).join('\n');
-    const requestType = deletions.length ? (components.length ? 'Changes and deletions' : 'Deletions') : 'Changes';
+    const requestType = deletions.length ? (components.length ? 'Changes and deletions' : 'Deletions')
+        : (components.length || !access.rows ? 'Changes' : 'Profile access');
     const body = [
         `Raised from the Release Relay hub (${orgLabel()}), release ${requestId}.`,
         `**Request type:** ${requestType}`,
         components.length ? `### Added or updated from ${orgLabel()}\n${list(components)}` : '',
         deletions.length ? `### Deleted from ${orgLabel()}\n${list(deletions)}\n\nTheir files are removed from this branch; `
             + `validating and deploying delete them from ${targetEnv ? `the ${targetEnv} org` : `${target}'s org`} too (destructiveChangesPost).` : '',
+        access.rows ? `### Profile access (only these entries of each profile)\n${access.lines.join('\n')}` : '',
         testsLine(),
         rebuilt ? `Starts where \`${target}\` and ${orgLabel()}'s branch meet (${rebuilt.base.slice(0, 7)}), so only the selected `
             + `components are in it${rebuilt.left.length ? `; ${rebuilt.left.length} other file(s) on ${orgLabel()}'s branch are left out` : ''}.` : '',
         'Every item was selected and reviewed in Release Relay. Approve it in Salesforce; Release Relay merges it.'
     ].filter(Boolean).join('\n\n');
-    await openAndRecord(body, { sha, deleted, valuesTokenized,
+    await openAndRecord(body, { sha, deleted, valuesTokenized, ...(access.rows ? { profileAccess: { profiles: access.profiles, rows: access.rows } } : {}),
         ...(rebuilt ? { startedFrom: rebuilt.base, leftOut: rebuilt.left.slice(0, 1000), leftOutCount: rebuilt.left.length } : {}) });
 }
 
@@ -3807,7 +4047,7 @@ async function raisePromotion() {
         args.push(sha);
         try {
             execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: CLI_BUFFER });
-        } catch (e) {
+        } catch {
             const files = conflictedFiles();
             gitQuiet(['cherry-pick', '--abort']);
             raiseFailed(`${sha.slice(0, 7)} doesn't apply cleanly on ${target}`
@@ -4135,14 +4375,14 @@ function resolveConflicts() {
     let resolutions;
     try {
         resolutions = JSON.parse(fs.readFileSync(inbox, 'utf8')).resolutions || [];
-    } catch (e) {
+    } catch {
         fail(`${inbox} isn't valid JSON.`);
     }
     git(['rm', '-q', '--', inbox]);
     git(['commit', '-q', '-m', `${requestId}: conflict choices received`]);
     try {
         run('git', ['merge', '--no-ff', '--no-commit', `refs/remotes/origin/${target}`], { stdio: ['ignore', 'pipe', 'pipe'] });
-    } catch (e) {
+    } catch {
         // conflicts expected: resolved below
     }
     if (conflictedFiles().length) {
@@ -4279,7 +4519,7 @@ async function stepMerge() {
         let head = '';
         try {
             head = String((await provider.head(pr)) || '');
-        } catch (e) {
+        } catch {
             head = '';
         }
         if (!head && !alreadyMerged) {
@@ -4308,17 +4548,14 @@ async function stepMerge() {
             process.exit(1);
         }
     }
-    let sha = '';
-    for (let i = 0; i < 5 && !SHA_RE.test(sha); i++) {
-        sha = String((await provider.mergeSha(pr)) || '');
-        if (sha && !SHA_RE.test(sha)) {
+    const sha = await tryAgain(5, 3000, async () => {
+        let found = String((await provider.mergeSha(pr)) || '');
+        if (found && !SHA_RE.test(found)) {
             fetchBranch(target);
-            sha = gitQuiet(['rev-parse', sha]) || sha; // a short hash from the provider
+            found = gitQuiet(['rev-parse', found]) || found; // a short hash from the provider
         }
-        if (!SHA_RE.test(sha)) {
-            await new Promise((r) => setTimeout(r, 3000));
-        }
-    }
+        return SHA_RE.test(found) ? found : '';
+    });
     if (!SHA_RE.test(sha)) {
         writeResult('merge', { status: 'Failed', pr: Number(pr.id), message: 'Merged, but the merge commit couldn\'t be read.' });
         process.exit(1);
@@ -4470,7 +4707,7 @@ function validationGuard(sha) {
 function manifestItems(file) {
     try {
         return file && fs.existsSync(file) ? parsePackageXml(fs.readFileSync(file, 'utf8')).map((i) => `${i.type}:${i.name}`) : [];
-    } catch (e) {
+    } catch {
         return [];
     }
 }
@@ -4487,7 +4724,7 @@ function validationInOrgProblem(deployId, plan) {
     } catch (e) {
         try {
             out = e.stdout ? JSON.parse(String(e.stdout)) : null;
-        } catch (ignore) {
+        } catch {
             out = null;
         }
     }
@@ -4530,7 +4767,7 @@ function validationResult() {
         fetchBranch(RESULTS_BRANCH);
         const raw = gitQuiet(['show', `refs/remotes/origin/${RESULTS_BRANCH}:results/${requestId}/validate.json`]);
         return raw ? readResultText(requestId, 'validate', raw) : null;
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -4542,7 +4779,7 @@ function targetIsSandbox() {
             '--target-org', 'target-org', '--json']));
         const rows = (out.result && out.result.records) || [];
         return rows.length ? rows[0].IsSandbox === true : null;
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -4646,7 +4883,7 @@ function pickedPaths() {
     const root = sourcePath().replace(/\/+$/, '') + '/';
     return options.paths.map((p) => {
         const f = String(p).trim();
-        if (!f.startsWith(root) || f.includes('..') || !/^[A-Za-z0-9 _.,@()+'%&$#~=\[\]/-]{1,400}$/.test(f)) {
+        if (!f.startsWith(root) || f.includes('..') || !/^[A-Za-z0-9 _.,@()+'%&$#~=[\]/-]{1,400}$/.test(f)) {
             fail(`Picked path "${f.slice(0, 120)}" isn't a file under ${root}.`);
         }
         return f;
@@ -5032,7 +5269,7 @@ function takeSnapshot(plan, sha) {
         let out;
         try {
             out = JSON.parse(raw);
-        } catch (e) {
+        } catch {
             throw new Error('The Salesforce CLI returned output that isn\'t JSON.');
         }
         const r = out.result || {};
@@ -5108,7 +5345,7 @@ function findSnapshot() {
             let takenAt = '';
             try {
                 takenAt = String(JSON.parse(gitQuiet(['show', `${tip}:${envDir}/${id}/manifest.json`]) || '{}').takenAt || '');
-            } catch (e) {
+            } catch {
                 takenAt = '';
             }
             return { id, takenAt };
@@ -5122,7 +5359,7 @@ function findSnapshot() {
     let snap;
     try {
         snap = JSON.parse(raw);
-    } catch (e) {
+    } catch {
         throw new Error(`${snapPath}/manifest.json on ${SNAPSHOT_BRANCH} isn't valid JSON.`);
     }
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-rollback-'));
@@ -5252,7 +5489,7 @@ async function stepNotify() {
         const out = run('sf', ['api', 'request', 'rest', '/services/apexrest/release-relay/v1/status', '--method', 'POST',
             '--body', JSON.stringify({ request: requestId }), '--target-org', 'relay-notify']);
         let json = null;
-        try { json = JSON.parse(out); } catch (ignore) { json = null; }
+        try { json = JSON.parse(out); } catch { json = null; }
         summary(`Salesforce updated ${requestId}: ${json && json.status ? json.status : 'done'}.`);
     } catch (e) {
         // The scheduled sync or an open release page picks the result up anyway.
@@ -5295,7 +5532,7 @@ function headBytes(file) {
     try {
         return execFileSync('git', ['show', `HEAD:${file.split(path.sep).join('/')}`],
             { stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024 });
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -5336,7 +5573,7 @@ function unpackComparePart(n, tmp) {
     let bytes;
     try {
         bytes = execFileSync('git', ['show', spec], { stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 512 * 1024 * 1024 });
-    } catch (e) {
+    } catch {
         compareFailed(`Part ${n} of the compare (${COMPARE_INBOX}/${requestId}/${n}.zip) couldn't be read from ${RESULTS_BRANCH}. Compare again from Release Relay.`);
     }
     const zip = path.join(tmp, `${n}.zip`);
@@ -5573,7 +5810,7 @@ function writeCompareResults(data, files, fileName = 'compare.json', stepName = 
                 'commit', '-q', '-m', `${resultsId()} ${stepName}: ${result.status}`], { cwd: dir });
             git(['push', '-q', 'origin', `HEAD:refs/heads/${RESULTS_BRANCH}`], { cwd: dir });
             return;
-        } catch (e) {
+        } catch {
             console.log(`Saving the ${stepName} result failed (attempt ${attempt}); retrying.`);
         } finally {
             gitQuiet(['worktree', 'remove', '--force', dir]);
@@ -5836,7 +6073,7 @@ function describedRules(alias) {
     try {
         out = JSON.parse(execFileSync('sf', ['org', 'list', 'metadata-types', '--target-org', alias, '--json'],
             { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 }));
-    } catch (e) {
+    } catch {
         return {};
     }
     const rules = {};
@@ -5855,7 +6092,7 @@ function plainCliText(raw) {
     try {
         const j = JSON.parse(text);
         text = (j.name ? j.name + ': ' : '') + (j.message || text);
-    } catch (e) {
+    } catch {
         text = text.replace(/›?\s*Warning: @salesforce\/cli update available[^\n]*\n?/g, '');
     }
     return text.replace(/\s+/g, ' ').trim();
@@ -5903,7 +6140,7 @@ function retrieveAll(alias, items, tmp) {
             }
         }
         let out = {};
-        try { out = JSON.parse(raw); } catch (e) { driftFailed('The Salesforce CLI returned output that isn\'t JSON.'); }
+        try { out = JSON.parse(raw); } catch { driftFailed('The Salesforce CLI returned output that isn\'t JSON.'); }
         const r = out.result || {};
         asList(r.fileProperties).forEach((p) => {
             if (p && p.type && p.fullName) {
@@ -5982,7 +6219,7 @@ function textAtRef(ref, file) {
     let buf;
     try {
         buf = execFileSync('git', ['show', `${ref}:${file}`], { stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024 });
-    } catch (e) {
+    } catch {
         return null;
     }
     return compareText(buf);
@@ -6182,7 +6419,7 @@ function sfJson(args) {
         let parsed = null;
         try {
             parsed = JSON.parse(out);
-        } catch (x) {
+        } catch {
             parsed = null;
         }
         throw new Error((parsed && (parsed.message || parsed.name)) || String(e.stderr || e.message).trim().slice(0, 500));
@@ -6239,7 +6476,7 @@ function saveDataFiles(files, removals, message) {
                 'commit', '-q', '--allow-empty', '-m', message], { cwd: dir });
             git(['push', '-q', 'origin', `HEAD:refs/heads/${RESULTS_BRANCH}`], { cwd: dir });
             return;
-        } catch (e) {
+        } catch {
             console.log(`Saving the data run's files failed (attempt ${attempt}); retrying.`);
         } finally {
             gitQuiet(['worktree', 'remove', '--force', dir]);
@@ -6487,7 +6724,7 @@ function activeTriggerObjects(alias) {
         "SELECT TableEnumOrId FROM ApexTrigger WHERE Status = 'Active'"]) {
         try {
             return new Set(sfRecords(alias, soql, true).map((r) => String((r.EntityDefinition && r.EntityDefinition.QualifiedApiName) || r.TableEnumOrId || '').toLowerCase()));
-        } catch (e) {
+        } catch {
             continue;
         }
     }
@@ -6741,7 +6978,7 @@ async function monitorGitLabApi(url, asText) {
             return null;
         }
         return asText ? res.text : res.json;
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -6798,7 +7035,7 @@ async function monitorApi(url) {
     try {
         const res = await http('GET', url, { Authorization: `Bearer ${env.GH_TOKEN}`, 'X-GitHub-Api-Version': '2022-11-28' });
         return res.ok ? res.json : null;
-    } catch (e) {
+    } catch {
         return null;
     }
 }
@@ -6808,7 +7045,7 @@ function monitorEndStatus() {
     let needs = {};
     try {
         needs = JSON.parse(input('NEEDS_JSON') || '{}') || {};
-    } catch (e) {
+    } catch {
         needs = {};
     }
     const results = Object.keys(MONITOR_JOBS).map((j) => needs[j] && needs[j].result).filter(Boolean);
@@ -6899,7 +7136,7 @@ async function stepMonitor() {
     const out = run('sf', ['api', 'request', 'rest', '/services/apexrest/rly/pipeline-run', '--method', 'POST',
         '--body', JSON.stringify(body), '--target-org', 'relay-hub']);
     let json = null;
-    try { json = JSON.parse(out); } catch (ignore) { json = null; }
+    try { json = JSON.parse(out); } catch { json = null; }
     if (json && json.ok === true) {
         console.log(`Pipeline Monitor: run ${gh.runId} (attempt ${gh.attempt}) is ${json.status} in the hub.`);
         (json.warnings || []).forEach((w) => monitorWarn(w));
@@ -6920,7 +7157,7 @@ async function stepMonitor() {
 /** A migration's id: MIG- and the hub's clock in milliseconds. */
 const MIGRATE_ID_RE = /^MIG-(\d{13})$/;
 /** An https repository address without credentials, query or fragment. */
-const MIGRATE_URL_RE = /^https:\/\/[A-Za-z0-9.-]+(:\d{2,5})?\/[A-Za-z0-9._~\/-]+$/;
+const MIGRATE_URL_RE = /^https:\/\/[A-Za-z0-9.-]+(:\d{2,5})?\/[A-Za-z0-9._~/-]+$/;
 /** The push user name each provider takes with a token (Basic authentication). */
 const MIGRATE_USERS = { github: 'x-access-token', gitlab: 'oauth2', bitbucket: 'x-token-auth', azure: 'release-relay' };
 /** Refs pushed in one git push; a failed batch is retried one ref at a time, so each failure is named. */
@@ -6943,7 +7180,7 @@ function migrateClean(text) {
             out = out.split(secret).join('•••');
         }
     }
-    return out.replace(/(https?:\/\/)[^\/\s@]+@/g, '$1').replace(/(authorization:\s*)(basic|bearer)\s+\S+/gi, '$1•••')
+    return out.replace(/(https?:\/\/)[^/\s@]+@/g, '$1').replace(/(authorization:\s*)(basic|bearer)\s+\S+/gi, '$1•••')
         .replace(/[\r\t]+/g, ' ').trim().slice(0, 600);
 }
 
@@ -6966,7 +7203,7 @@ function migrateTargetConfig() {
     const provider = String(options.targetProvider || '').toLowerCase();
     const user = input('RELAY_MIGRATE_USER') || MIGRATE_USERS[provider] || 'x-access-token';
     const basic = Buffer.from(`${user}:${input('RELAY_MIGRATE_TOKEN')}`).toString('base64');
-    const origin = migrateTargetUrl().replace(/^(https:\/\/[^\/]+\/).*$/, '$1');
+    const origin = migrateTargetUrl().replace(/^(https:\/\/[^/]+\/).*$/, '$1');
     return [[`http.${origin}.extraheader`, `Authorization: Basic ${basic}`]];
 }
 
@@ -7010,7 +7247,7 @@ function migrateSave(status, message, final, ready) {
     try {
         execFileSync(process.execPath, [__filename], { env: { ...process.env, STEP: 'migrate-progress', GITHUB_STEP_SUMMARY: '',
             RELAY_MIGRATE_PROGRESS: JSON.stringify(data) }, stdio: ['ignore', 'inherit', 'inherit'] });
-    } catch (e) {
+    } catch {
         console.log('::warning::The migration progress couldn\'t be saved; the copy goes on.');
     }
 }
@@ -7018,7 +7255,7 @@ function migrateSave(status, message, final, ready) {
 /** STEP=migrate-progress (internal): one progress save in a child process, so a failed save can't end the copy. */
 function stepMigrateProgress() {
     let data = {};
-    try { data = JSON.parse(input('RELAY_MIGRATE_PROGRESS') || '{}'); } catch (ignore) { data = {}; }
+    try { data = JSON.parse(input('RELAY_MIGRATE_PROGRESS') || '{}'); } catch { data = {}; }
     writeResult('migrate', data);
 }
 
@@ -7281,7 +7518,7 @@ async function stepScanSave() {
     let data = null;
     try {
         data = JSON.parse(fs.readFileSync(input('RELAY_SCAN_FILE') || path.join(WORK_DIR, 'scan-result.json'), 'utf8'));
-    } catch (e) {
+    } catch {
         data = null;
     }
     if (!data || typeof data !== 'object' || data.step !== 'scan' || data.request !== requestId) {
