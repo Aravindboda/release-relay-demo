@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/settings/Sandbox.settings-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SandboxSettings xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <disableSandboxExpirationEmails>false</disableSandboxExpirationEmails>\n</SandboxSettings>\n"}

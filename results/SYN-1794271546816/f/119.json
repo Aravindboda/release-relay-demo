@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/classes/RlyDemoDiscountTest.cls","left":null,"right":"@IsTest\nprivate class RlyDemoDiscountTest {\n    @IsTest\n    static void tenPercentOff() {\n        System.runAs(new User(Id = UserInfo.getUserId())) {\n            System.assertEquals(80, RlyDemoDiscount.apply(100), 'Expects 20% off, but the rule gives 10%');\n        }\n    }\n}"}

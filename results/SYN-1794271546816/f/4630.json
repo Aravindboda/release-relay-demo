@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/settings/RecommendationBuilder.settings-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<RecommendationBuilderSettings xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <enableErbEnabledPref>false</enableErbEnabledPref>\n    <enableErbStartedPref>false</enableErbStartedPref>\n</RecommendationBuilderSettings>\n"}
