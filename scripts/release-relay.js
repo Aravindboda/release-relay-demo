@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 29
+// Release Relay pipeline files: version 30
 // Version 29 (hub build 55): package-aware releases. A managed package's references belong to the orgs that have it.
 //   OPTIONS.packages = { known: [ns...], sourceMissing: [ns...], targetMissing: [ns...] } (namespaces; only those in
 //   known count; absent or empty = no change). A reference is a leaf's text that names ns__X (not ns__c and the other
@@ -5347,6 +5347,14 @@ function unpackComparePart(n, tmp) {
         execFileSync('unzip', ['-q', '-o', zip, '-d', mdapi], { stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) {
         compareFailed(`Part ${n} of the compare couldn't be unzipped: ${String(e.stderr || e.message).trim().slice(0, 500)}`);
+    }
+    // version 30: a part the org sent back empty (only package.xml: a ListView part, say) has nothing to convert,
+    // and the CLI stops with "No results to format"; it adds nothing to the compare.
+    const sent = fs.readdirSync(mdapi, { recursive: true }).filter((f) => path.basename(String(f)) !== 'package.xml'
+        && fs.statSync(path.join(mdapi, String(f))).isFile());
+    if (sent.length === 0) {
+        console.log(`Part ${n} came back empty from the org (only package.xml): skipped.`);
+        return [];
     }
     convertFromHub(mdapi, out, compareFailed);
     const converted = [path.join(out, 'force-app', 'main', 'default'), path.join(out, 'force-app')].find((p) => fs.existsSync(p));
