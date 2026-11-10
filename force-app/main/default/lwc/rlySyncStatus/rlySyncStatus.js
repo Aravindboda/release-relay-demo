@@ -353,8 +353,25 @@ export default class RlySyncStatus extends NavigationMixin(LightningElement) {
             this.setPart(id, { phase: 'ready' });
             this.pumpParts();
         } catch (e) {
+            if (this.retryClash(e, id)) {
+                return;
+            }
             this.failSending(e, id);
         }
+    }
+
+    // D27 (build 57): parts are committed side by side, so the branch may move under one (HTTP 409) even after the
+    // server's own retries. The part is staged again a moment later (same retrieve), up to 5 times, instead of failing
+    // the whole check.
+    retryClash(e, id) {
+        const p = this.partOf(id);
+        const clash = /HTTP 409/.test(errorText(e));
+        if (!p || !clash || (p.clashes || 0) >= 5) {
+            return false;
+        }
+        this.setPart(id, { clashes: (p.clashes || 0) + 1 });
+        this.wait(id, 'part', 2);
+        return true;
     }
 
     async finishDeveloper() {

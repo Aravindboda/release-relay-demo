@@ -53,10 +53,36 @@ public with sharing class RlyDeployReader {
     }
 
     private static void mergeFailed(RLY_Release__c rel, Map<String, Object> mergeResult) {
+        if (branchMoved(mergeResult)) {
+            backToChecks(rel, mergeResult);
+            return;
+        }
         rel.Status__c = 'Deploy failed';
         rel.Deploy_Status__c = 'Failed';
         rel.Deploy_Result__c = JSON.serialize(mergeResult).left(131072);
         rel.Error_Message__c = ('Merge failed: ' + String.valueOf(mergeResult.get('message'))).left(2000);
+    }
+
+    // D29 (build 57): the pipeline refused the merge because the release branch has commits the checks never saw.
+    private static Boolean branchMoved(Map<String, Object> mergeResult) {
+        Object head = mergeResult.get('head');
+        Object expected = mergeResult.get('expectHead');
+        return head != null && expected != null && String.valueOf(head) != String.valueOf(expected);
+    }
+
+    // Nothing was merged or deployed: the release goes back to Checks failed, where Check again is offered, and its
+    // approval is taken back, since the approver saw different code.
+    private static void backToChecks(RLY_Release__c rel, Map<String, Object> mergeResult) {
+        rel.Status__c = 'Checks failed';
+        rel.Deploy_Status__c = 'Pending';
+        rel.Approval_Status__c = 'Pending';
+        rel.Approved_By__c = null;
+        rel.Approved_On__c = null;
+        rel.Second_Approved_By__c = null;
+        rel.Second_Approved_On__c = null;
+        rel.Deploy_Result__c = JSON.serialize(mergeResult).left(131072);
+        rel.Error_Message__c = ('The release branch changed after it was approved (now at '
+            + String.valueOf(mergeResult.get('head')).left(7) + '). Nothing was merged or deployed: check again, then approve again.').left(2000);
     }
 
     private static void deployed(RLY_Release__c rel, Map<String, Object> deploy) {
