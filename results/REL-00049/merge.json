@@ -1,0 +1,12 @@
+{
+ "request": "REL-00049",
+ "step": "merge",
+ "status": "Failed",
+ "pr": 237,
+ "head": "10ee57ae444c8cc28f61cfbd24f34d4a13da7a99",
+ "expectHead": "d3fa02aab4fe6129cfaf96cb359259d5de1654f9",
+ "message": "The release branch changed after it was approved; run the checks again.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42728719265",
+ "finishedAt": "2026-11-10T00:29:53.333Z",
+ "attempt": "8e506836ad74f9f458c18c185e3f6a9b"
+}
