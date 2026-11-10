@@ -2,15 +2,15 @@
  "request": "REL-91079",
  "step": "validate",
  "status": "Passed",
- "changed": 23,
+ "changed": 49,
  "deleted": [],
  "mergedWith": "d7e369d2d3ca7b35f41797467cffb401e11b2c3f",
- "validatedTree": "1207215c503db57838fc8653bc40392845ff841d",
+ "validatedTree": "029e423d86569ef8e23bdd73fc4ae1599a4fb227",
  "environment": "prod",
  "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": "0Afg800000LKdvcCAD",
- "testsRun": 628,
+ "deployId": "0Afg800000LMIv4CAH",
+ "testsRun": 630,
  "tests": [
   "RlyAppendTest",
   "RlyApprovalRulesTest",
@@ -107,8 +107,8 @@
   "passed": true,
   "failures": []
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42735388247",
- "finishedAt": "2026-11-10T01:35:14.840Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42738485120",
+ "finishedAt": "2026-11-10T01:58:28.009Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
@@ -116,5 +116,5 @@
   "files": [],
   "hash": ""
  },
- "headSha": "a1c0c8f84f71aad02d6b6283cb6b8655aadbb239"
+ "headSha": "11b5fee12b88b4fcb67be1eb09b27246f6dcda6b"
 }
