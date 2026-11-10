@@ -407,6 +407,9 @@
                 <!-- work items (build 47 board, 4): the tickets with their trackers, Add tickets until deployed -->
                 <c-rly-release-tickets release-id={rel.Id} status={rel.Status__c} onchanged={refresh}></c-rly-release-tickets>
 
+                <!-- profile access (build 58): the rows the release sends, read only -->
+                <c-rly-profile-access-list release-id={releaseId}></c-rly-profile-access-list>
+
                 <!-- manual steps (board HubManualSteps, 2): per org checklist for the deployment team -->
                 <c-rly-manual-steps release-id={releaseId} release-name={rel.Name} status={rel.Status__c} disabled={hubCopy} org-links={orgLinks} onstepschange={handleStepsChange}></c-rly-manual-steps>
 

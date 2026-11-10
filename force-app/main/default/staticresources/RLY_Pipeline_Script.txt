@@ -1,5 +1,15 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 31
+// Release Relay pipeline files: version 32
+// Version 32 (hub build 58): profile access. A new hub raise (mode hub) may carry .relay-inbox/<REQUEST_ID>-access.json,
+//   {"profiles": [{profile, label, rows: [{section, key, values}]}]}: rows of profile files (fieldPermissions,
+//   objectPermissions, classAccesses, pageAccesses, tabVisibilities, recordTypeVisibilities, layoutAssignments,
+//   applicationVisibilities, customPermissions, customMetadataTypeAccesses, customSettingAccesses, userPermissions).
+//   Each row is written into SOURCE_PATH/profiles/<profile>.profile-meta.xml on the branch: an entry with the same key
+//   is updated (values not sent stay), else a new one goes in its sorted place; a missing file is made with only these
+//   rows. A raise may carry only this file (no zip, no deletions). raise.json: profileAccess {profiles, rows}.
+//   Validate / deploy / sync / back promote: a changed profile file that the base commit already had is deployed with
+//   only its entries that differ from the base (in the temporary deploy copy), so a deploy never sends the rest of a
+//   profile. A profile new on the branch goes as it is.
 // Version 29 (hub build 55): package-aware releases. A managed package's references belong to the orgs that have it.
 //   OPTIONS.packages = { known: [ns...], sourceMissing: [ns...], targetMissing: [ns...] } (namespaces; only those in
 //   known count; absent or empty = no change). A reference is a leaf's text that names ns__X (not ns__c and the other
@@ -1706,7 +1716,8 @@ function prepareDeployValues(plan, envName) {
     // Version 29: references to packages the target org lacks are stripped in the same copy (after the values are filled).
     const strip = packagesOption && packagesOption.targetMissing.length
         ? packageStripPlan(plan, deploymentFiles(plan.sources || []), new Map(edits.map((e) => [e.file, e.text]))) : null;
-    if (!edits.length && !strip) {
+    const profiles = profilesToTrim(plan); // version 32
+    if (!edits.length && !strip && !profiles.length) {
         return '';
     }
     const copy = makeDeployCopy();
@@ -1716,6 +1727,7 @@ function prepareDeployValues(plan, envName) {
     if (strip) {
         applyPackageStrip(strip, copy, plan);
     }
+    trimProfiles(profiles, copy, plan.profileBase);
     plan.cwd = copy;
     if (!edits.length) {
         return '';
@@ -2549,7 +2561,11 @@ function gatesSummary(step, result) {
  * using the files as they are at head. Returns null when nothing deployable changed.
  */
 function buildDeployment(base, head) {
-    return buildFromFiles(changedFiles(base, head), base);
+    const plan = buildFromFiles(changedFiles(base, head), base);
+    if (plan) {
+        plan.profileBase = base; // version 32: changed profiles deploy only their changed entries
+    }
+    return plan;
 }
 
 /** The deployment for picked repo paths as the checked-out branch has them (a path it hasn't got is a deletion). */
@@ -3459,6 +3475,217 @@ function removeMarker(markerFile) {
     }
 }
 
+// ---------- version 32: profile access ----------
+
+/** The profile file sections a hub raise can write, the child that names each entry and the values it can send. */
+const ACCESS_SECTIONS = {
+    fieldPermissions: { key: 'field', flags: ['editable', 'readable'] },
+    objectPermissions: { key: 'object', flags: ['allowCreate', 'allowDelete', 'allowEdit', 'allowRead', 'modifyAllRecords', 'viewAllRecords'] },
+    classAccesses: { key: 'apexClass', flags: ['enabled'] },
+    pageAccesses: { key: 'apexPage', flags: ['enabled'] },
+    tabVisibilities: { key: 'tab', choices: { visibility: ['DefaultOn', 'DefaultOff', 'Hidden'] } },
+    recordTypeVisibilities: { key: 'recordType', flags: ['default', 'visible'] },
+    layoutAssignments: { key: 'recordType', text: 'layout' },
+    applicationVisibilities: { key: 'application', flags: ['default', 'visible'] },
+    customPermissions: { key: 'name', flags: ['enabled'] },
+    customMetadataTypeAccesses: { key: 'name', flags: ['enabled'] },
+    customSettingAccesses: { key: 'name', flags: ['enabled'] },
+    userPermissions: { key: 'name', flags: ['enabled'] }
+};
+const ACCESS_NAME_RE = /^[A-Za-z][A-Za-z0-9_]{0,79}$/;
+const ACCESS_DOTTED_RE = /^[A-Za-z][A-Za-z0-9_]{0,79}\.[A-Za-z][A-Za-z0-9_]{0,79}$/;
+const ACCESS_TAB_RE = /^[A-Za-z][A-Za-z0-9_-]{0,79}$/;
+const ACCESS_LAYOUT_RE = /^[A-Za-z][A-Za-z0-9_]{0,79}-[^<>&"/\\]{1,170}$/;
+const PROFILE_NAME_RE = /^[^<>&"/\\:*?|]{1,80}$/;
+const PROFILE_SUFFIX = '.profile-meta.xml';
+const PROFILE_NS = 'http://soap.sforce.com/2006/04/metadata';
+
+/** Why a row can't be written, or ''. */
+function accessRowProblem(row) {
+    const s = ACCESS_SECTIONS[row && row.section];
+    if (!s) {
+        return `"${String(row && row.section).slice(0, 40)}" isn't a profile section this pipeline writes`;
+    }
+    const key = String(row.key || '');
+    const keyOk = ['fieldPermissions', 'recordTypeVisibilities'].includes(row.section) ? ACCESS_DOTTED_RE.test(key)
+        : row.section === 'layoutAssignments' ? ACCESS_NAME_RE.test(key.split('.')[0]) && (!key.includes('.') || ACCESS_DOTTED_RE.test(key))
+            : row.section === 'tabVisibilities' ? ACCESS_TAB_RE.test(key) : ACCESS_NAME_RE.test(key);
+    if (!keyOk) {
+        return `"${key.slice(0, 80)}" isn't a valid name for ${row.section}`;
+    }
+    const values = row.values && typeof row.values === 'object' ? row.values : {};
+    const bad = Object.entries(values).find(([name, v]) => !accessValueOk(s, row, name, String(v)));
+    return bad ? `"${String(bad[1]).slice(0, 80)}" isn't a valid ${bad[0]} for ${key}` : '';
+}
+
+function accessValueOk(s, row, name, v) {
+    if (s.flags) {
+        return s.flags.includes(name) && (v === 'true' || v === 'false');
+    }
+    if (s.choices) {
+        return Boolean(s.choices[name]) && s.choices[name].includes(v);
+    }
+    return name === s.text && ACCESS_LAYOUT_RE.test(v) && v.split('-')[0].toLowerCase() === String(row.key).split('.')[0].toLowerCase();
+}
+
+/** The XML text of an element's child, unescaped, or ''. */
+function childText(inner, name) {
+    const m = new RegExp(`<${name}>([^<]*)</${name}>`).exec(inner);
+    return m ? m[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&') : '';
+}
+
+function escapeXml(v) {
+    return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** The key that names a profile entry: its section's key child (a master layout: master:<object>), else its whole text. */
+function profileEntryKey(tag, inner) {
+    const s = ACCESS_SECTIONS[tag];
+    if (tag === 'layoutAssignments') {
+        const rt = childText(inner, 'recordType');
+        return rt ? rt.toLowerCase() : 'master:' + childText(inner, 'layout').split('-')[0].toLowerCase();
+    }
+    const k = s ? childText(inner, s.key) : '';
+    return k ? k.toLowerCase() : inner.replace(/\s+/g, ' ').trim();
+}
+
+/** A profile file read as its head, its top-level entries ({ tag, key, text, inner }) and its tail; null when it isn't one. */
+function parseProfile(text) {
+    const open = /<Profile\b[^>]*>/.exec(text);
+    const close = text.lastIndexOf('</Profile>');
+    if (!open || close < 0) {
+        return null;
+    }
+    const start = open.index + open[0].length;
+    const body = text.slice(start, close);
+    const entries = [];
+    const re = /[ \t]*<([A-Za-z][\w]*)>([\s\S]*?)<\/\1>[ \t]*\r?\n?/g;
+    let m = re.exec(body);
+    while (m) {
+        entries.push({ tag: m[1], key: profileEntryKey(m[1], m[2]), text: m[0], inner: m[2] });
+        m = re.exec(body);
+    }
+    const lead = /^\r?\n/.exec(body) ? '\n' : '';
+    return { head: text.slice(0, start) + lead, entries, tail: text.slice(close) };
+}
+
+function renderProfile(p) {
+    return p.head + p.entries.map((e) => (e.text.endsWith('\n') ? e.text : e.text + '\n')).join('') + p.tail;
+}
+
+/** One entry's text: its children in name order, each on its own line. */
+function renderEntry(tag, children, indent) {
+    const lines = Object.keys(children).sort().map((n) => `${indent}    <${n}>${escapeXml(children[n])}</${n}>`);
+    return `${indent}<${tag}>\n${lines.join('\n')}\n${indent}</${tag}>\n`;
+}
+
+/** Writes one row into a parsed profile: the entry with its key is updated (values not sent stay), else added in order. */
+function putProfileRow(p, row) {
+    const s = ACCESS_SECTIONS[row.section];
+    const lowered = String(row.key).toLowerCase();
+    const key = row.section === 'layoutAssignments' && !lowered.includes('.') ? 'master:' + lowered : lowered;
+    const at = p.entries.findIndex((e) => e.tag === row.section && e.key === key);
+    const indent = (p.entries.length && /^[ \t]*/.exec(p.entries[0].text)[0]) || '    ';
+    const children = {};
+    if (at >= 0) {
+        const re = /<([A-Za-z]\w*)>([^<]*)<\/\1>/g;
+        let m = re.exec(p.entries[at].inner);
+        while (m) {
+            children[m[1]] = childText(m[0], m[1]);
+            m = re.exec(p.entries[at].inner);
+        }
+    }
+    if (row.section !== 'layoutAssignments' || String(row.key).includes('.')) {
+        children[s.key] = row.key;
+    }
+    Object.entries(row.values || {}).forEach(([n, v]) => { children[n] = String(v); });
+    const text = renderEntry(row.section, children, indent);
+    const entry = { tag: row.section, key, text, inner: text };
+    if (at >= 0) {
+        p.entries[at] = entry;
+        return;
+    }
+    const before = p.entries.findIndex((e) => e.tag > row.section || (e.tag === row.section && e.key > key));
+    p.entries.splice(before < 0 ? p.entries.length : before, 0, entry);
+}
+
+/**
+ * Writes the hub's profile access (.relay-inbox/<REQUEST_ID>-access.json) into the branch's profile files. Returns
+ * { profiles, rows, lines } (lines: the pull request's list); a bad file or row fails the raise.
+ */
+function applyProfileAccess(accessFile, deleted) {
+    const none = { profiles: 0, rows: 0, lines: [] };
+    if (!fs.existsSync(accessFile)) {
+        return none;
+    }
+    let profiles;
+    try {
+        profiles = asList(JSON.parse(fs.readFileSync(accessFile, 'utf8')).profiles);
+    } catch (e) {
+        raiseFailed(`${accessFile} isn't valid JSON: ${String(e.message).slice(0, 200)}`, { deleted });
+    }
+    const out = { profiles: 0, rows: 0, lines: [] };
+    for (const prof of profiles) {
+        const name = String((prof && prof.profile) || '');
+        if (!PROFILE_NAME_RE.test(name) || name.includes('..')) {
+            raiseFailed(`"${name.slice(0, 80)}" isn't a profile name this pipeline writes.`, { deleted });
+        }
+        const rows = asList(prof.rows);
+        const bad = rows.map(accessRowProblem).find(Boolean);
+        if (bad) {
+            raiseFailed(`Profile ${name}: ${bad}.`, { deleted });
+        }
+        const file = path.join(sourcePath(), 'profiles', name + PROFILE_SUFFIX);
+        const text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8')
+            : `<?xml version="1.0" encoding="UTF-8"?>\n<Profile xmlns="${PROFILE_NS}">\n</Profile>\n`;
+        const parsed = parseProfile(text);
+        if (!parsed) {
+            raiseFailed(`${relToSource(file)} on ${branch} isn't a profile file Release Relay can write into.`, { deleted });
+        }
+        rows.forEach((r) => putProfileRow(parsed, r));
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, renderProfile(parsed));
+        out.profiles += 1;
+        out.rows += rows.length;
+        out.lines.push(`- **${prof.label || name}** (\`${name}\`): ` + rows.slice(0, 30).map((r) => `${r.section} \`${r.key}\``).join(', ')
+            + (rows.length > 30 ? `, and ${rows.length - 30} more` : ''));
+    }
+    summary(`**Profile access:** ${out.rows} row(s) written into ${out.profiles} profile file(s); the rest of each file is unchanged.`);
+    return out;
+}
+
+/** The changed profile files of a deployment that the base commit already had (only their changed entries deploy). */
+function profilesToTrim(plan) {
+    if (!plan.profileBase) {
+        return [];
+    }
+    return deploymentFiles(plan.sources || []).filter((f) => f.endsWith(PROFILE_SUFFIX) && !isExcluded(f, 'HEAD'))
+        .filter((f) => gitQuiet(['cat-file', '-e', `${plan.profileBase}:${f.split(path.sep).join('/')}`]) !== null);
+}
+
+/** In the deploy copy, each profile keeps only the entries that differ from the base (new or changed). */
+function trimProfiles(files, copy, base) {
+    let kept = 0;
+    let total = 0;
+    for (const f of files) {
+        const target = path.join(copy, f);
+        const now = parseProfile(readText(target) || '');
+        const before = parseProfile(gitQuiet(['show', `${base}:${f.split(path.sep).join('/')}`]) || '');
+        if (!now || !before) {
+            continue;
+        }
+        const old = new Map(before.entries.map((e) => [e.tag + '|' + e.key, e.inner.replace(/\s+/g, ' ').trim()]));
+        total += now.entries.length;
+        now.entries = now.entries.filter((e) => old.get(e.tag + '|' + e.key) !== e.inner.replace(/\s+/g, ' ').trim());
+        kept += now.entries.length;
+        fs.writeFileSync(target, renderProfile(now));
+    }
+    if (files.length) {
+        summary(`**Profiles:** ${files.length} profile(s) deploy only their changed entries (${kept} of ${total}); the rest of each `
+            + 'profile stays as it is in the org.');
+    }
+}
+
 // ---------- version 28: the hub's upload files never reach a target ----------
 
 const INBOX_DIR = '.relay-inbox';
@@ -3579,6 +3806,7 @@ async function raiseFromHub() {
     const components = parseList(input('COMPONENTS'), 'COMPONENTS');
     const zipFile = path.join('.relay-inbox', requestId + '.zip');
     const markerFile = path.join('.relay-inbox', requestId + '.deletions');
+    const accessFile = path.join('.relay-inbox', requestId + '-access.json'); // version 32
     if (!remoteBranchExists(branch)) {
         raiseFailed(`Branch ${branch} doesn't exist. Raise the release again from Release Relay.`);
     }
@@ -3591,8 +3819,8 @@ async function raiseFromHub() {
     // A big release comes in parts (version 22): .relay-inbox/<REQUEST_ID>-part-<k>.zip, unpacked in order.
     const zips = (fs.existsSync(zipFile) ? [zipFile] : []).concat(hubPartZips());
     const hasZip = zips.length > 0;
-    if (!hasZip && !deletions.length) {
-        raiseFailed(`${zipFile} isn't on ${branch} (nor a ${markerFile} listing deletions). Raise the release again from Release Relay.`);
+    if (!hasZip && !deletions.length && !fs.existsSync(accessFile)) {
+        raiseFailed(`${zipFile} isn't on ${branch} (nor a ${markerFile} listing deletions, nor ${accessFile}). Raise the release again from Release Relay.`);
     }
     const clash = addedAndDeleted(components, deletions);
     if (clash) {
@@ -3610,6 +3838,7 @@ async function raiseFromHub() {
         raiseFailed(tokens.error, { deleted });
     }
     putBackPackageReferences(copied); // version 29: the branch's references to packages this org lacks stay
+    const access = applyProfileAccess(accessFile, deleted); // version 32: only the rows picked in the hub
     const valuesTokenized = tokens.count;
     removeMarker(markerFile);
     removeStaleInbox(); // version 28
@@ -3617,8 +3846,8 @@ async function raiseFromHub() {
     if (git(['diff', '--cached', '--name-only', '--', sourcePath()]) === '') {
         raiseFailed(`${orgLabel()} already matches ${target} for these components. Nothing to commit.`, { deleted });
     }
-    const counts = [copied.length ? `${copied.length} files` : '', deletions.length ? `${deletions.length} deletion(s)` : '']
-        .filter(Boolean).join(', ');
+    const counts = [copied.length ? `${copied.length} files` : '', deletions.length ? `${deletions.length} deletion(s)` : '',
+        access.rows ? `${access.rows} profile access row(s)` : ''].filter(Boolean).join(', ');
     git(['commit', '-q', '-m', title, '-m', `Release Relay ${requestId} from ${orgLabel()} (${counts || 'no files'})`]);
     try {
         // Version 28: a rebuilt branch replaces the one the hub made, only if nobody pushed to it since.
@@ -3631,19 +3860,21 @@ async function raiseFromHub() {
     const sha = git(['rev-parse', 'HEAD']);
 
     const list = (items) => items.map((i) => `- ${i.type}: \`${i.name}\``).join('\n');
-    const requestType = deletions.length ? (components.length ? 'Changes and deletions' : 'Deletions') : 'Changes';
+    const requestType = deletions.length ? (components.length ? 'Changes and deletions' : 'Deletions')
+        : (components.length || !access.rows ? 'Changes' : 'Profile access');
     const body = [
         `Raised from the Release Relay hub (${orgLabel()}), release ${requestId}.`,
         `**Request type:** ${requestType}`,
         components.length ? `### Added or updated from ${orgLabel()}\n${list(components)}` : '',
         deletions.length ? `### Deleted from ${orgLabel()}\n${list(deletions)}\n\nTheir files are removed from this branch; `
             + `validating and deploying delete them from ${targetEnv ? `the ${targetEnv} org` : `${target}'s org`} too (destructiveChangesPost).` : '',
+        access.rows ? `### Profile access (only these entries of each profile)\n${access.lines.join('\n')}` : '',
         testsLine(),
         rebuilt ? `Starts where \`${target}\` and ${orgLabel()}'s branch meet (${rebuilt.base.slice(0, 7)}), so only the selected `
             + `components are in it${rebuilt.left.length ? `; ${rebuilt.left.length} other file(s) on ${orgLabel()}'s branch are left out` : ''}.` : '',
         'Every item was selected and reviewed in Release Relay. Approve it in Salesforce; Release Relay merges it.'
     ].filter(Boolean).join('\n\n');
-    await openAndRecord(body, { sha, deleted, valuesTokenized,
+    await openAndRecord(body, { sha, deleted, valuesTokenized, ...(access.rows ? { profileAccess: { profiles: access.profiles, rows: access.rows } } : {}),
         ...(rebuilt ? { startedFrom: rebuilt.base, leftOut: rebuilt.left.slice(0, 1000), leftOutCount: rebuilt.left.length } : {}) });
 }
 

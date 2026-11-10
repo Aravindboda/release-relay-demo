@@ -1,0 +1,120 @@
+<template>
+    <div class="rr-pa">
+        <!-- profiles -->
+        <section class="rr-pa-card" aria-label="Profiles">
+            <div class="rr-pa-top">
+                <p class="rr-h3 rr-grow">Profiles</p>
+                <span class="rr-small rr-weak">Optional: skip this step if the release changes no profile.</span>
+            </div>
+            <template lwc:if={profileError}><div class="rr-msg rr-msg-bad" role="alert">{profileError}</div></template>
+            <template lwc:if={hasPicked}>
+                <div class="rr-chips" role="group" aria-label="Picked profiles">
+                    <template for:each={pickedChips} for:item="p">
+                        <span key={p.profile} class="rr-pa-picked">
+                            <button type="button" class={p.cls} aria-pressed={p.pressed} data-profile={p.profile} onclick={showProfile}>
+                                <span>{p.label}</span><span class="rr-pa-count">{p.count}</span>
+                            </button>
+                            <button type="button" class="rr-pa-x" data-profile={p.profile} onclick={dropProfile} disabled={disabled}
+                                title="Remove this profile" aria-label="Remove this profile">
+                                <lightning-icon icon-name="utility:close" size="xx-small" alternative-text=""></lightning-icon>
+                            </button>
+                        </span>
+                    </template>
+                </div>
+            </template>
+            <lightning-input type="search" label="Search profiles" variant="label-hidden" placeholder="Search profiles"
+                value={search} onchange={handleSearch} disabled={disabled}></lightning-input>
+            <template lwc:if={profilesLoading}><p class="rr-small rr-weak">Listing the profiles…</p></template>
+            <div class="rr-chips" role="group" aria-label="Profiles to add">
+                <template for:each={matches} for:item="m">
+                    <button key={m.profile} type="button" class="rr-chip" data-profile={m.profile} onclick={pickProfile} disabled={atLimit}>
+                        <lightning-icon icon-name="utility:add" size="xx-small" alternative-text=""></lightning-icon><span>{m.label}</span>
+                    </button>
+                </template>
+            </div>
+            <template lwc:if={moreMatches}><p class="rr-small rr-weak">{moreMatches}</p></template>
+        </section>
+
+        <!-- the grid -->
+        <template lwc:if={hasPicked}>
+            <section class="rr-pa-card" aria-label={gridLabel}>
+                <div class="rr-pa-top">
+                    <p class="rr-h3 rr-grow">{activeLabel}</p>
+                    <span class="rr-small rr-weak">Grey: {sourceName} now · blue: will be sent · rows left blank aren't sent</span>
+                </div>
+                <template lwc:if={isReading}><p class="rr-small rr-weak" role="status">Reading the profiles' access…</p></template>
+                <template lwc:if={hasRows}>
+                    <table class="rr-pa-table">
+                        <caption class="slds-assistive-text">{gridLabel}</caption>
+                        <thead>
+                            <tr><th scope="col" class="rr-pa-c1">Component</th><th scope="col" class="rr-pa-c2">{targetHead}</th><th scope="col">Send</th></tr>
+                        </thead>
+                        <template for:each={sections} for:item="s">
+                            <tbody key={s.key}>
+                                <tr class="rr-pa-sec"><th scope="colgroup" colspan="3">{s.label}</th></tr>
+                                <template for:each={s.rows} for:item="r">
+                                    <tr key={r.id} class={r.rowCls}>
+                                        <th scope="row" class="rr-pa-name"><span class="rr-trunc rr-block" title={r.key}>{r.key}</span></th>
+                                        <td class="rr-small rr-weak">{r.targetText}</td>
+                                        <td>
+                                            <div class="rr-pa-send">
+                                                <template lwc:if={r.isText}>
+                                                    <lightning-input class="rr-pa-text" label="Layout" variant="label-hidden" value={r.textValue}
+                                                        placeholder={r.textHint} data-row={r.id} onchange={handleLayout} disabled={disabled}></lightning-input>
+                                                </template>
+                                                <template for:each={r.chips} for:item="c">
+                                                    <button key={c.key} type="button" class={c.cls} aria-pressed={c.pressed} data-row={r.id} data-value={c.key}
+                                                        onclick={handleChip} disabled={disabled}>{c.label}</button>
+                                                </template>
+                                                <template lwc:if={r.sent}>
+                                                    <button type="button" class="rr-pa-x" data-row={r.id} onclick={clearRow} disabled={disabled}
+                                                        title="Don't send this row" aria-label="Don't send this row">
+                                                        <lightning-icon icon-name="utility:undo" size="xx-small" alternative-text=""></lightning-icon>
+                                                    </button>
+                                                </template>
+                                                <template lwc:if={r.added}>
+                                                    <button type="button" class="rr-pa-x" data-row={r.id} onclick={removeAdded} disabled={disabled}
+                                                        title="Remove this row" aria-label="Remove this row">
+                                                        <lightning-icon icon-name="utility:delete" size="xx-small" alternative-text=""></lightning-icon>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </template>
+                    </table>
+                </template>
+                <template lwc:else><p class="rr-small rr-weak">{noRowsText}</p></template>
+                <div class="rr-pa-actions">
+                    <lightning-button label={copyLabel} icon-name="utility:copy" onclick={copySource} disabled={disabled}></lightning-button>
+                    <lightning-button label="Clear" onclick={clearProfile} disabled={disabled}></lightning-button>
+                </div>
+            </section>
+        </template>
+
+        <!-- add access -->
+        <section class="rr-pa-card" aria-label="Add access">
+            <p class="rr-h3">Add access</p>
+            <p class="rr-small rr-weak">For system permissions, custom settings, or a component already in the target.</p>
+            <div class="rr-pa-add">
+                <lightning-combobox class="rr-pa-add-kind" label="Kind" options={sectionOptions} value={addSection} placeholder="Pick a kind"
+                    onchange={handleAddSection} disabled={disabled}></lightning-combobox>
+                <lightning-input class="rr-pa-add-name" label="API name" value={addKey} placeholder="ApiEnabled" onchange={handleAddKey}
+                    disabled={disabled}></lightning-input>
+                <lightning-button label="Add" icon-name="utility:add" onclick={addRow} disabled={disabled}></lightning-button>
+            </div>
+            <template lwc:if={addError}><p class="rr-pa-error" role="alert">{addError}</p></template>
+        </section>
+
+        <template lwc:if={hasNotes}>
+            <div class="rr-msg rr-msg-warn" role="status">
+                <template for:each={noteList} for:item="n"><p key={n.key}>{n.text}</p></template>
+            </div>
+        </template>
+        <template for:each={usageLines} for:item="u">
+            <p key={u.key} class="rr-small rr-weak rr-pa-usage"><lightning-icon icon-name="utility:connected_apps" size="xx-small" alternative-text=""></lightning-icon> {u.text}</p>
+        </template>
+    </div>
+</template>
