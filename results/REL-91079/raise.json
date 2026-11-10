@@ -5,7 +5,7 @@
  "mode": "hub",
  "branch": "feature/rly-b57-hub",
  "target": "release-relay-hub",
- "sha": "a1c0c8f84f71aad02d6b6283cb6b8655aadbb239",
+ "sha": "11b5fee12b88b4fcb67be1eb09b27246f6dcda6b",
  "pr": 260,
  "url": "https://github.com/Aravindboda/release-relay-demo/pull/260",
  "commits": [],
@@ -14,6 +14,6 @@
  "valuesTokenized": 0,
  "appended": false,
  "message": "",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42735388247",
- "finishedAt": "2026-11-10T01:23:17.166Z"
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42738485120",
+ "finishedAt": "2026-11-10T01:49:53.380Z"
 }
