@@ -1,0 +1,38 @@
+@import 'c/rlySharedStyles';
+
+:host { display: block; }
+.rr-pa { display: flex; flex-direction: column; gap: 12px; }
+.rr-pa-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 4px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.rr-pa-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.rr-grow { flex: 1 1 auto; }
+.rr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rr-chip {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 12px; border-radius: 14px;
+    border: 1px solid #c9c9c9; background: #fff; color: #181818; font: inherit; font-size: 12px; cursor: pointer;
+}
+.rr-chip:hover { border-color: #0176d3; }
+.rr-chip:focus-visible, .rr-pa-x:focus-visible { outline: 2px solid #0176d3; outline-offset: 2px; }
+.rr-chip.rr-sel { background: #0176d3; border-color: #0176d3; color: #fff; }
+.rr-chip:disabled { cursor: default; opacity: 0.6; }
+.rr-pa-hint { color: #939393; border-style: dashed; }
+.rr-pa-hint-on { color: #5c5c5c; background: #f3f3f3; border-style: dashed; }
+.rr-pa-picked { display: inline-flex; align-items: center; gap: 2px; }
+.rr-pa-count { font-size: 11px; opacity: 0.8; }
+.rr-pa-x { border: none; background: transparent; padding: 4px; cursor: pointer; border-radius: 4px; line-height: 0; }
+.rr-pa-x:hover { background: #f3f3f3; }
+.rr-pa-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
+.rr-pa-table th, .rr-pa-table td { padding: 6px 8px; border-bottom: 1px solid #e5e5e5; text-align: left; vertical-align: middle; }
+.rr-pa-table thead th { font-size: 12px; color: #5c5c5c; font-weight: 700; }
+.rr-pa-c1 { width: 32%; }
+.rr-pa-c2 { width: 18%; }
+.rr-pa-sec th { background: #f3f3f3; font-size: 12px; color: #444; font-weight: 700; }
+.rr-pa-name { font-weight: 400; }
+.rr-pa-on .rr-pa-name { font-weight: 700; }
+.rr-pa-send { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.rr-pa-text { flex: 1 1 220px; }
+.rr-pa-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.rr-pa-add { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.rr-pa-add-kind { flex: 0 1 220px; }
+.rr-pa-add-name { flex: 1 1 220px; }
+.rr-pa-error { font-size: 12px; color: #8e030f; }
+.rr-pa-usage { display: flex; align-items: center; gap: 6px; }

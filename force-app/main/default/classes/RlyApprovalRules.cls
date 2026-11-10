@@ -116,9 +116,19 @@ public with sharing class RlyApprovalRules {
             }
         }
         c.deletes = c.deletes || (rel.Deletion_Count__c != null && rel.Deletion_Count__c > 0);
+        if (hasProfileAccess(rel)) {
+            c.metadataTypes.add('Profile'); // profile access rows (build 58) change profiles
+        }
         c.manualSteps = RlyManualStepGate.counts(rel).total() > 0;
         c.hotfix = RlyHotfix.isHotfix(rel);
         return c;
+    }
+
+    private static Boolean hasProfileAccess(RLY_Release__c rel) {
+        if (rel.isSet('Profile_Access_Count__c')) {
+            return rel.Profile_Access_Count__c != null && rel.Profile_Access_Count__c > 0;
+        }
+        return String.isNotBlank(RlyReleaseStore.profileAccess(rel.Id));
     }
 
     // The hub (production) always needs an approver, even if its record says Never.
