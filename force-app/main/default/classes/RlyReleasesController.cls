@@ -108,6 +108,8 @@ public with sharing class RlyReleasesController {
         @AuraEnabled public String prodAddonNote;
         /** @description Build 49: the current user may run its checks again (raiser, approver, deployment team, admin). */
         @AuraEnabled public Boolean canRerun;
+        /** @description Build 58.1: the current user may deploy it again (approved, deploy failed). */
+        @AuraEnabled public Boolean canDeployAgain;
         /** @description Build 54: the current user may cancel it now (open; the raiser or an admin). */
         @AuraEnabled public Boolean canCancel;
         /** @description Build 55: the current user may edit its files now (RlyFileEdit: open, no run going; the raiser or an admin). */
@@ -372,7 +374,12 @@ public with sharing class RlyReleasesController {
         }
     }
 
-    private static Detail detail(Id releaseId) {
+    /**
+     * @description A release's page data for the current user (also used by RlyDeployAgain).
+     * @param releaseId the release
+     * @return the page data
+     */
+    public static Detail detail(Id releaseId) {
         Detail d = new Detail();
         d.release = RlyReleaseStore.release(releaseId);
         if (d.release == null) {
@@ -396,6 +403,7 @@ public with sharing class RlyReleasesController {
         d.orgLinks = RlyOrgLinks.forRelease(d.release);
         d.prodAddonNote = RlyProdApproval.noteFor(d.release);
         d.canRerun = RlyReleaseAccess.mayRerunChecks(d.release);
+        d.canDeployAgain = RlyDeployAgain.mayDeployAgain(d.release);
         d.canCancel = RlyReleaseCancel.mayCancel(d.release);
         d.canEditFiles = RlyFileEdit.mayEdit(d.release);
         RlyRollbackView.fill(d);

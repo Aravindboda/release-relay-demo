@@ -28,6 +28,7 @@ const EVENT_LOOK = {
     Rejected: { label: 'Rejected', icon: 'utility:close', tone: 'R', approval: true },
     Deployed: { label: 'Deployed', icon: 'utility:check', tone: 'G', deploy: true },
     Deploy_Failed: { label: 'Deploy failed', icon: 'utility:close', tone: 'R', deploy: true, failure: true },
+    Deploy_Again: { label: 'Deploy started again', icon: 'utility:refresh', tone: 'B' },
     Manual_Step: { label: 'Manual step done', icon: 'utility:task', tone: 'A' },
     Flow_Activated: { label: 'Flow activated', failLabel: 'Flow activation failed', icon: 'utility:play', tone: 'G', check: true },
     Merged_Back: { label: 'Merged back', icon: 'utility:merge', tone: 'B' },

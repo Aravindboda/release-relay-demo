@@ -1666,13 +1666,13 @@ const USE_SECTIONS = [
                                     'The rows come from what you selected: field access (Read, Edit), object access (Create, Read, Edit, Delete, View all, Modify all), Apex classes and Visualforce pages (Enabled), tabs (Default on, Default off, Hidden), record types (Visible, Default) and their page layouts, apps, custom permissions and custom metadata types.',
                                     'Grey chips show the developer org\'s value now; the column next to them shows the target\'s (for example SIT). Press a chip to send that row: it turns blue and starts from the developer org\'s values. Edit needs Read, so turning one on turns on what it needs. ↶ stops sending a row.',
                                     '**Copy … values** sends every row as the developer org has it; **Clear** sends none for that profile.',
-                                    '**Add access** adds a row that isn\'t in the release: a system permission (for example ApiEnabled), a custom setting, or a component already in the target.',
+                                    '**Add access** adds a row that isn\'t in the release: pick the kind, then search and pick from the developer org (nothing is typed). A system permission (for example API Enabled), a custom setting, or a component already in the target. For field access pick the object first, then one of its fields that take field access.',
                                     'Under the page: what couldn\'t be read, and the calls this read made with each org\'s daily API use (for example "SIT: 3 calls for this read · 2,345 of 15,000 daily API calls used").',
                                     '**Skip and raise** raises without profile changes; **Raise … with n access rows** sends them.'
                                 ],
                                 check: 'The release page lists them under **Profile access**, and the pull request lists them per profile.',
                                 problems: [
-                                    ['"… isn\'t a valid name for field access."', 'Use Object.Field__c (and Object.RecordType for record types).'],
+                                    ['Two profiles with the same name', 'The chip shows the profile\'s file name after it, for example Authenticated Website (Authenticated Website%2E).'],
                                     ['A note "Couldn\'t read … in SIT"', 'That org didn\'t answer (for example its daily API calls ran out): the rows show "–". You can still set them and raise.'],
                                     ['The check fails on a profile row (for example "no such column" or a field missing in the target)', 'The field or class isn\'t in the target yet: add it to the release, or stop sending that row.']
                                 ]
@@ -2004,7 +2004,8 @@ const USE_SECTIONS = [
                                 check: 'The release shows Deploying, then Deployed (or Deploy failed with the reason).',
                                 problems: [
                                     ['Approve and deploy is grey', 'The checks are still running, or another action is in progress.'],
-                                    ['"Only approvers can do this (permission set Release Relay Approver)."', 'Ask an admin for the Release Relay Approver group.']
+                                    ['"Only approvers can do this (permission set Release Relay Approver)."', 'Ask an admin for the Release Relay Approver group.'],
+                                    ['Deploy failed for a reason that has passed (for example "REQUEST_LIMIT_EXCEEDED": the org used its daily API calls)', 'Press **Deploy again** at the bottom of the release (approvers, the deployment team and admins). It runs the same merge and deploy with the approved head; the approval stays and History shows "Deploy started again".']
                                 ]
                             },
                             {
@@ -3024,7 +3025,7 @@ const USE_SECTIONS = [
                             ['Waiting for the window', 'Approved, but the target org\'s release window is closed or it is frozen. The release says when it will deploy.', 'Wait; it deploys when the release is opened inside the window. Someone with the Release Window Bypass add-on can Deploy now anyway, with a reason.'],
                             ['Deploying', 'Merging the pull request and deploying.', 'Wait.'],
                             ['Deployed', 'In the target org; developer branches updated; flows set to Activate activated.', 'Nothing. Download evidence (PDF) if the change request needs it.'],
-                            ['Deploy failed', 'The merge or the deploy failed.', 'Read the reason; raise a new release.'],
+                            ['Deploy failed', 'The merge or the deploy failed.', 'Read the reason. If it has passed (for example the org was out of daily API calls), an approver or the deployment team presses Deploy again; otherwise raise a new release.'],
                             ['Rejected', 'An approver rejected it; the pull request was closed.', 'Read the comment; raise again.'],
                             ['Cancelled', 'The person who raised it or an admin withdrew it (Cancel release), or the hub moved to another Git provider; the pull request was closed with the reason.', 'Raise again if still needed.'],
                             ['Closed', 'The pull request was closed in the Git provider.', 'Raise again if still needed.'],

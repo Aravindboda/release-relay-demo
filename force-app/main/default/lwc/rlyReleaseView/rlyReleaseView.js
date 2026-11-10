@@ -7,6 +7,7 @@ import refreshRelease from '@salesforce/apex/RlyReleasesController.refreshReleas
 import checkRelease from '@salesforce/apex/RlyReleasesController.checkRelease';
 import bypassScan from '@salesforce/apex/RlyReleasesController.bypassScan';
 import checkAgain from '@salesforce/apex/RlyReleasesController.checkAgain';
+import deployAgain from '@salesforce/apex/RlyDeployAgain.deployAgain';
 import approve from '@salesforce/apex/RlyReleasesController.approve';
 import reject from '@salesforce/apex/RlyReleasesController.reject';
 import cancelRelease from '@salesforce/apex/RlyReleaseCancel.cancelFromPage';
@@ -110,6 +111,7 @@ const EVENT_LOOK = {
     Auto_Approved: { title: 'Approved automatically', icon: 'utility:settings' },
     Deployed: { title: 'Deployed', icon: 'utility:upload' },
     Deploy_Failed: { title: 'Deploy failed', icon: 'utility:error' },
+    Deploy_Again: { title: 'Deploy started again', icon: 'utility:refresh' },
     Manual_Step: { title: 'Manual step done', icon: 'utility:task' },
     Flow_Activated: { title: 'Flow activated', icon: 'utility:flow' },
     Merged_Back: { title: 'Merged back', icon: 'utility:merge' },
@@ -1695,7 +1697,14 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         }
         return '';
     }
-    get showFooter() { return this.showCheckAgain || this.showReject || this.showApprove || this.showCancel || this.showEditFiles || !!this.footNote; }
+    get showFooter() {
+        return this.showCheckAgain || this.showReject || this.showApprove || this.showCancel || this.showEditFiles || this.showDeployAgain || !!this.footNote;
+    }
+
+    // Build 58.1 (D32): an approved release whose deploy failed for a passing reason deploys again (same approved head).
+    get showDeployAgain() { return !!(this.detail && this.detail.canDeployAgain); }
+    get deployAgainHelp() { return 'Runs the same merge and deploy again with the approved head. Use it when the deploy failed for a reason that has passed, for example the org was out of API calls.'; }
+    doDeployAgain() { this.act(deployAgain, {}); }
 
     // ---------- Edit a file (build 55): the raiser or an admin edits what will be deployed; the checks run again ----------
 

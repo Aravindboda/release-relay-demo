@@ -55,6 +55,11 @@
                 <label>Deploy failed</label>
             </value>
             <value>
+                <fullName>Deploy_Again</fullName>
+                <default>false</default>
+                <label>Deploy started again</label>
+            </value>
+            <value>
                 <fullName>Manual_Step</fullName>
                 <default>false</default>
                 <label>Manual step</label>

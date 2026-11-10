@@ -79,21 +79,6 @@ export function rowsFor(components) {
     return [...out.values()];
 }
 
-/** Why a name can't be added under a section, or ''. */
-export function nameProblem(section, key) {
-    const s = sectionOf(section);
-    if (!s) {
-        return 'Pick what kind of access it is.';
-    }
-    const pattern = ['fieldPermissions', 'recordTypeVisibilities'].includes(section) ? DOTTED
-        : section === 'tabVisibilities' ? TAB : section === 'layoutAssignments' ? /^[A-Za-z][A-Za-z0-9_]{0,79}(\.[A-Za-z][A-Za-z0-9_]{0,79})?$/ : NAME;
-    if (pattern.test(key)) {
-        return '';
-    }
-    return ['fieldPermissions', 'recordTypeVisibilities'].includes(section)
-        ? 'Use Object.Name, for example Account.Region__c.' : 'Use the API name, for example Order__c or ApiEnabled.';
-}
-
 // Edit needs Read; Delete needs Edit; Modify all needs every other; turning one off turns off what needs it.
 const NEEDS = {
     fieldPermissions: { editable: ['readable'] },
