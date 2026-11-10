@@ -457,6 +457,9 @@
                         <template lwc:if={showApprove}>
                             <lightning-button variant="brand" label="Approve and deploy" onclick={doApprove} disabled={approveDisabled}></lightning-button>
                         </template>
+                        <template lwc:if={showDeployAgain}>
+                            <lightning-button variant="brand" label="Deploy again" title={deployAgainHelp} onclick={doDeployAgain} disabled={actBusy}></lightning-button>
+                        </template>
                     </div>
                 </template>
             </template>

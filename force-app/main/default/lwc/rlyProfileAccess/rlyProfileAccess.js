@@ -1,11 +1,13 @@
 import { LightningElement, api } from 'lwc';
 import listProfiles from '@salesforce/apex/RlyProfileAccessController.profiles';
 import readAccess from '@salesforce/apex/RlyProfileAccessController.readAccess';
+import listNames from '@salesforce/apex/RlyProfileAccessController.names';
 import { errorText } from 'c/rlyShared';
-import { SECTIONS, sectionOf, rowId, valueKey, rowsFor, nameProblem, switched, startValues, describe } from 'c/rlyAccessRows';
+import { SECTIONS, sectionOf, rowId, valueKey, rowsFor, switched, startValues, describe } from 'c/rlyAccessRows';
 
 const MAX_PROFILES = 20;
 const MATCHES_SHOWN = 12;
+const PICKS_SHOWN = 40;
 const ON = 'true';
 
 /**
@@ -43,8 +45,12 @@ export default class RlyProfileAccess extends LightningElement {
     targetName;
     reading = 0;
     addSection = '';
-    addKey = '';
+    addObject = '';
+    pickSearch = '';
+    picks = [];
+    picksLoading = false;
     addError = '';
+    pickCache = {};
     _state;
 
     connectedCallback() {
@@ -91,8 +97,20 @@ export default class RlyProfileAccess extends LightningElement {
 
     // ---------- profiles ----------
 
+    /** A label two profiles share shows with its file name: Authenticated Website (Authenticated Website%2E). */
+    get duplicateLabels() {
+        const seen = new Set();
+        const twice = new Set();
+        (this.allProfiles || []).forEach((p) => (seen.has(p.label) ? twice.add(p.label) : seen.add(p.label)));
+        return twice;
+    }
+
+    shownLabel(p) {
+        return this.duplicateLabels.has(p.label) ? p.label + ' (' + p.profile + ')' : p.label;
+    }
+
     get pickedChips() {
-        return this.picked.map((p) => ({ ...p, cls: 'rr-chip' + (p.profile === this.active ? ' rr-sel' : ''),
+        return this.picked.map((p) => ({ ...p, shown: this.shownLabel(p), cls: 'rr-chip' + (p.profile === this.active ? ' rr-sel' : ''),
             pressed: p.profile === this.active ? 'true' : 'false', count: this.countFor(p.profile) }));
     }
     get hasPicked() { return this.picked.length > 0; }
@@ -101,7 +119,7 @@ export default class RlyProfileAccess extends LightningElement {
         const term = this.search.trim().toLowerCase();
         const taken = new Set(this.picked.map((p) => p.profile));
         return (this.allProfiles || []).filter((p) => !taken.has(p.profile) && (!term || p.label.toLowerCase().includes(term)))
-            .slice(0, MATCHES_SHOWN);
+            .slice(0, MATCHES_SHOWN).map((p) => ({ ...p, shown: this.shownLabel(p) }));
     }
     get moreMatches() {
         const term = this.search.trim().toLowerCase();
@@ -311,35 +329,88 @@ export default class RlyProfileAccess extends LightningElement {
 
     get copyLabel() { return 'Copy ' + (this.sourceName || 'developer org') + ' values'; }
 
-    // ---------- add access ----------
+    // ---------- add access: picked from the developer org, never typed (build 58.1) ----------
 
     get sectionOptions() { return SECTIONS.map((s) => ({ label: s.label, value: s.section })); }
+    get hasKind() { return !!this.addSection; }
+    get pickPlaceholder() {
+        if (this.addSection === 'fieldPermissions' && !this.addObject) {
+            return 'Search objects, then pick a field';
+        }
+        return 'Search ' + (sectionOf(this.addSection) || { label: '' }).label.toLowerCase();
+    }
+    get inObject() { return this.addSection === 'fieldPermissions' && !!this.addObject; }
+    get objectCrumb() { return this.addObject + ' fields'; }
 
     handleAddSection(event) {
         this.addSection = event.detail.value;
+        this.addObject = '';
+        this.pickSearch = '';
         this.addError = '';
+        this.loadPicks();
     }
 
-    handleAddKey(event) {
-        this.addKey = (event.target.value || '').trim();
-        this.addError = '';
+    handlePickSearch(event) {
+        this.pickSearch = event.target.value || '';
     }
 
-    addRow() {
-        const problem = nameProblem(this.addSection, this.addKey);
-        if (problem) {
-            this.addError = problem;
+    async loadPicks() {
+        const cacheKey = this.addSection + '|' + this.addObject;
+        if (this.pickCache[cacheKey]) {
+            this.picks = this.pickCache[cacheKey];
             return;
         }
-        if (this.allRows.some((r) => rowId(r.section, r.key) === rowId(this.addSection, this.addKey))) {
-            this.addError = 'That row is already in the list.';
+        this.picks = [];
+        this.picksLoading = true;
+        try {
+            const found = await listNames({ orgId: this.orgId, section: this.addSection, objectName: this.addObject || null });
+            this.pickCache = { ...this.pickCache, [cacheKey]: found };
+            this.picks = found;
+        } catch (e) {
+            this.addError = errorText(e);
+        } finally {
+            this.picksLoading = false;
+        }
+    }
+
+    get pickMatches() {
+        const term = this.pickSearch.trim().toLowerCase();
+        const taken = new Set(this.allRows.map((r) => rowId(r.section, r.key)));
+        return (this.picks || [])
+            .filter((p) => p.opens || !taken.has(rowId(this.addSection, p.key)))
+            .filter((p) => !term || p.key.toLowerCase().includes(term) || p.label.toLowerCase().includes(term))
+            .slice(0, PICKS_SHOWN)
+            .map((p) => ({ ...p, title: p.label === p.key ? p.key : p.label + ' · ' + p.key, icon: p.opens ? 'utility:chevronright' : 'utility:add' }));
+    }
+    get hasPickMatches() { return this.pickMatches.length > 0; }
+    get pickCount() {
+        const n = (this.picks || []).length;
+        return n > PICKS_SHOWN ? 'Showing up to ' + PICKS_SHOWN + ' of ' + n + ': search to narrow.' : '';
+    }
+    get noPicks() { return this.hasKind && !this.picksLoading && !this.hasPickMatches; }
+
+    choosePick(event) {
+        const key = event.currentTarget.dataset.key;
+        const p = (this.picks || []).find((x) => x.key === key);
+        if (!p) {
             return;
         }
-        const row = { section: this.addSection, key: this.addKey };
+        if (p.opens) {
+            this.addObject = p.key;
+            this.pickSearch = '';
+            this.loadPicks();
+            return;
+        }
+        const row = { section: this.addSection, key: p.key };
         this.extraRows = [...this.extraRows, row];
-        this.addKey = '';
         this.emit();
         this.readFor(this.picked, [row]);
+    }
+
+    backToObjects() {
+        this.addObject = '';
+        this.pickSearch = '';
+        this.loadPicks();
     }
 
     // ---------- out ----------
