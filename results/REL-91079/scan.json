@@ -1,0 +1,82 @@
+{
+ "request": "REL-91079",
+ "step": "scan",
+ "status": "Passed",
+ "total": 3,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Moderate": 1,
+  "Info": 2
+ },
+ "files": [
+  "force-app/main/default/classes/RlyDeployReader.cls",
+  "force-app/main/default/classes/RlyDeployReaderTest.cls",
+  "force-app/main/default/lwc/rlyArchive/rlyArchive.js",
+  "force-app/main/default/lwc/rlyBuildInfo/rlyBuildInfo.html",
+  "force-app/main/default/lwc/rlyBuildInfo/rlyBuildInfo.js",
+  "force-app/main/default/lwc/rlyCredentialTile/rlyCredentialTile.js",
+  "force-app/main/default/lwc/rlyCredentials/rlyCredentials.js",
+  "force-app/main/default/lwc/rlyDataSync/dataHelpers.js",
+  "force-app/main/default/lwc/rlyDataSync/rlyDataSync.js",
+  "force-app/main/default/lwc/rlyMetrics/rlyMetrics.js",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.html",
+  "force-app/main/default/lwc/rlyPipeline/rlyPipeline.js",
+  "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+  "force-app/main/default/lwc/rlyReleaseChanges/rlyReleaseChanges.js",
+  "force-app/main/default/lwc/rlyReleaseGuide/guideContent.js",
+  "force-app/main/default/lwc/rlyReleaseTracker/rlyReleaseTracker.js",
+  "force-app/main/default/lwc/rlyRunSecurity/rlyRunSecurity.js",
+  "force-app/main/default/lwc/rlyShared/rlyShared.js",
+  "force-app/main/default/lwc/rlySlackApprovers/rlySlackApprovers.html",
+  "force-app/main/default/lwc/rlySlackApprovers/rlySlackApprovers.js",
+  "force-app/main/default/lwc/rlySyncStatus/rlySyncStatus.js",
+  "force-app/main/default/lwc/rlyWait/rlyWait.html",
+  "force-app/main/default/lwc/rlyWait/rlyWait.js",
+  "force-app/main/default/lwc/rlyWindowDeploy/rlyWindowDeploy.html",
+  "force-app/main/default/lwc/rlyWorkRoute/rlyWorkRoute.js"
+ ],
+ "violations": [
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "@lwc/lwc/no-api-reassignments",
+   "engine": "eslint",
+   "file": "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+   "line": 163,
+   "message": "Invalid reassignment of public property \"appendTo\"",
+   "url": "https://github.com/salesforce/eslint-plugin-lwc/blob/v3.5.0/docs/rules/no-api-reassignments.md"
+  },
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "DetectCopyPasteForJavascript",
+   "engine": "cpd",
+   "file": "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+   "line": 252,
+   "message": "Duplicate code detected for language 'javascript'. Found 2 code locations containing the same block of code consisting of 149 tokens across 24 lines.",
+   "url": "https://docs.pmd-code.org/latest/pmd_userdocs_cpd.html#refactoring-duplicates"
+  },
+  {
+   "severity": 5,
+   "severityLabel": "Info",
+   "rule": "DetectCopyPasteForJavascript",
+   "engine": "cpd",
+   "file": "force-app/main/default/lwc/rlyReleaseBuilder/rlyReleaseBuilder.js",
+   "line": 1440,
+   "message": "Duplicate code detected for language 'javascript'. Found 2 code locations containing the same block of code consisting of 106 tokens across 3 lines.",
+   "url": "https://docs.pmd-code.org/latest/pmd_userdocs_cpd.html#refactoring-duplicates"
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42735388247",
+ "finishedAt": "2026-11-10T01:24:15.955Z"
+}
