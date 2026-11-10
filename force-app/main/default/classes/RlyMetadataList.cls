@@ -73,6 +73,7 @@ public with sharing class RlyMetadataList {
         f.lastModifiedByName = valueOf(chunk, 'lastModifiedByName');
         f.manageableState = valueOf(chunk, 'manageableState');
         f.namespacePrefix = valueOf(chunk, 'namespacePrefix');
+        f.id = valueOf(chunk, 'id');
         String stamp = valueOf(chunk, 'lastModifiedDate');
         f.lastModifiedDate = String.isBlank(stamp) ? null : (Datetime) JSON.deserialize('"' + stamp + '"', Datetime.class);
         return f;

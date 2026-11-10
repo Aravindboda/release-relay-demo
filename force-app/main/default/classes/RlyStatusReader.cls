@@ -114,19 +114,20 @@ public with sharing class RlyStatusReader {
             // A big release, one part per check (RlyRaiseParts): the run starts once every part is on the branch.
             ensureBranch(git, branch, baseBranch(source, rel));
             if (RlyRaiseParts.advance(rel, git, branch)) {
+                RlyProfileAccessFile.commitWith(rel, git, null);
                 startRun(rel, git, branch);
             }
             return;
         }
         RlyGitFile file = String.isBlank(rel.Retrieve_Id__c) ? withoutRetrieve(rel, branch) : retrievedZip(rel, source, branch);
-        if (file == null) {
+        if (file == null && !RlyProfileAccessFile.carriesAlone(rel)) {
             if (String.isBlank(rel.Retrieve_Id__c)) {
-                fail(rel, 'The release has no components and no deletions.');
+                fail(rel, 'The release has no components, no deletions and no profile access.');
             }
             return;
         }
         ensureBranch(git, branch, baseBranch(source, rel));
-        git.putFile(file);
+        RlyProfileAccessFile.commitWith(rel, git, file); // the zip or marker, then the profile access (build 58)
         startRun(rel, git, branch);
     }
 
