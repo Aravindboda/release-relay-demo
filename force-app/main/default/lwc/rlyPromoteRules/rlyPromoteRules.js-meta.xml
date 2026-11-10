@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>63.0</apiVersion>
+    <isExposed>false</isExposed>
+    <masterLabel>Release Relay: How promoting works</masterLabel>
+    <description>The promotion rules (hotfix first, goes too, must add, stays) as the Promote tab's side panel and the Guide's drawings.</description>
+</LightningComponentBundle>

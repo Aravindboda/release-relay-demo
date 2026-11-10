@@ -1,0 +1,19 @@
+@import 'c/rlySharedStyles';
+
+.rr-tk { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; font-size: 12.5px; background: #fff; border: 1px solid #e5e5e5; border-radius: 4px; box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05); }
+.rr-tk-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rr-tk-list { list-style: none; margin: 0; padding: 0; border: 1px solid #e5e5e5; border-radius: 4px; }
+.rr-tk-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid #f1f1f1; flex-wrap: wrap; }
+.rr-tk-row:last-child { border-bottom: 0; }
+.rr-tk-id { min-width: 110px; }
+.rr-tk-tracker { min-width: 120px; }
+.rr-tk-add { display: flex; flex-direction: column; gap: 6px; background: #fafaf9; border: 1px solid #e5e5e5; border-radius: 4px; padding: 8px 10px; }
+.rr-tk-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.rr-grow { flex: 1 1 auto; min-width: 0; }
+.rr-weak { color: #5c5c5c; }
+.rr-a { color: #0b5cab; text-decoration: none; }
+.rr-a:hover { text-decoration: underline; }
+.rr-a:focus-visible { outline: 2px solid #0176d3; outline-offset: 2px; }
+.rr-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 10px; white-space: nowrap; }
+.rr-pill-bad { background: #feded8; color: #ba0517; }
+.rr-pill-none { background: #f3f3f3; color: #5c5c5c; }

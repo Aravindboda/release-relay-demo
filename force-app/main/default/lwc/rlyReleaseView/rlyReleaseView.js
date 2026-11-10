@@ -1,0 +1,1774 @@
+import APP_NAME from '@salesforce/label/c.RLY_App_Name';
+import { LightningElement, api } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import saveEvidence from '@salesforce/apex/RlyEvidenceController.saveEvidence';
+import refreshRelease from '@salesforce/apex/RlyReleasesController.refreshRelease';
+import checkRelease from '@salesforce/apex/RlyReleasesController.checkRelease';
+import bypassScan from '@salesforce/apex/RlyReleasesController.bypassScan';
+import checkAgain from '@salesforce/apex/RlyReleasesController.checkAgain';
+import approve from '@salesforce/apex/RlyReleasesController.approve';
+import reject from '@salesforce/apex/RlyReleasesController.reject';
+import cancelRelease from '@salesforce/apex/RlyReleaseCancel.cancelFromPage';
+import resolveConflicts from '@salesforce/apex/RlyReleasesController.resolveConflicts';
+import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
+import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
+import { errorText, dateTime as when, isGated } from 'c/rlyShared';
+
+/** A list shows its search box from this many rows (or while a search is typed). */
+const SEARCH_FROM = 7;
+
+/** Something is running (raise, checks, deploy, rollback, sync): the page checks again every 30 s. */
+const FAST_SECONDS = 30;
+/** Waiting for a person (approval, failed checks, manual steps): every 2 minutes. A finished release isn't checked. */
+const SLOW_SECONDS = 120;
+/** Statuses that wait for a person: an approver, or the developer after failed checks or conflicts. */
+const WAITING = ['Ready for approval', 'Checks failed', 'PR open', 'Approved', 'Merging', 'Merged'];
+const RESOLVING = 'Resolving conflicts';
+const GOOD = ['Deployed', 'Ready for approval'];
+const BAD = ['Checks failed', 'Deploy failed', 'Failed', 'Rejected'];
+const RUNNING = ['Retrieving', 'Workflow running', 'Validating', 'Deploying'];
+/** Types retrieved in a part of their own (RlyRaiseParts.HEAVY). */
+const HEAVY_TYPES = ['StaticResource', 'ContentAsset', 'Document', 'Profile', 'ExperienceBundle', 'SiteDotCom', 'NetworkBranding',
+    'Territory2Model', 'CustomObjectTranslation', 'Translations'];
+const ENDED_BADLY = ['Failed', 'Deploy failed'];
+
+/** Deploying, but the deploy waits for manual steps before it, or a release of only manual steps waits for them. */
+function waitsForSteps(d) {
+    return Number(d.manualBeforeOpen) > 0 || (d.release.Manual_Only__c === true && Number(d.manualOpen) > 0);
+}
+
+/**
+ * Seconds until the next check: FAST_SECONDS while something runs, SLOW_SECONDS while the release waits for a person,
+ * 0 when it is finished (Deployed with no manual steps open, Rejected, Failed, Rolled back...): "Check now" still reads it.
+ * @param {object} d RlyReleasesController.Detail
+ * @returns {number} seconds, or 0 to stop checking
+ */
+function pollSeconds(d) {
+    if (!d || !d.release) {
+        return 0;
+    }
+    if (d.rollbackState && d.rollbackState.status === 'Running') {
+        return FAST_SECONDS;
+    }
+    if (d.running) {
+        return waitsForSteps(d) ? SLOW_SECONDS : FAST_SECONDS;
+    }
+    return WAITING.includes(d.release.Status__c) || Number(d.manualOpen) > 0 ? SLOW_SECONDS : 0;
+}
+
+const SYNC_STATE = {
+    Synced: { label: 'Updated', cls: 'rr-pill rr-pill-ok' },
+    Conflict: { label: 'Not updated', cls: 'rr-pill rr-pill-wait' },
+    Missing: { label: 'Not found', cls: 'rr-pill rr-pill-wait' }
+};
+const SEVERITY_CLS = { Critical: 'rr-pill rr-pill-bad', High: 'rr-pill rr-pill-bad', Moderate: 'rr-pill rr-pill-wait', Low: 'rr-pill rr-pill-none', Info: 'rr-pill rr-pill-none' };
+const SEVERITY_ORDER = ['Critical', 'High', 'Moderate', 'Low', 'Info'];
+const STEP_PILL = {
+    Done: 'rr-pill rr-pill-ok rr-sp',
+    Running: 'rr-pill rr-pill-info rr-sp',
+    Failed: 'rr-pill rr-pill-bad rr-sp',
+    Warn: 'rr-pill rr-pill-wait rr-sp',
+    Waiting: 'rr-pill rr-pill-none rr-sp'
+};
+const STEP_DOT = {
+    Done: 'rr-dot rr-dot-done',
+    Running: 'rr-dot rr-dot-running',
+    Failed: 'rr-dot rr-dot-failed',
+    Warn: 'rr-dot rr-dot-warn',
+    Waiting: 'rr-dot'
+};
+const TYPE_LABEL = { Promotion: 'Promotion', Back_Promote: 'Back promote' };
+/** A release with only manual steps (RLY_Release__c.Manual_Only__c): no Git or pipeline steps. */
+const MANUAL_ONLY = 'Manual steps only';
+const NOT_NEEDED = 'Not needed: manual steps only';
+const NO_GIT_PATH = ['pr', 'checks'];
+const RELEASES_TAB = 'RLY_My_Releases';
+/** New Release: opened in append mode (state c__appendTo) to add changes to an open release. */
+const BUILDER_TAB = 'RLY_New_Release';
+const BRANCH_OK = 'Synced';
+/** Build 55: {"ns1": 3, "ns2": 2} as { total: 5, names: "ns1 3, ns2 2" } ({ total: 3, names: "ns1" } for one); null when empty. */
+function countText(counts) {
+    if (!counts || typeof counts !== 'object') {
+        return null;
+    }
+    const names = Object.keys(counts).filter((k) => Number(counts[k]) > 0).sort();
+    const total = names.reduce((n, k) => n + Number(counts[k]), 0);
+    if (!total) {
+        return null;
+    }
+    return { total, names: names.length === 1 ? names[0] : names.map((k) => k + ' ' + counts[k]).join(', ') };
+}
+/** RLY_Release_Event__c.Event_Type__c: the History card's title and icon per event (board HubApprovalFlowsEvidence 3). */
+const EVENT_LOOK = {
+    Raised: { title: 'Raised', icon: 'utility:add' },
+    Pull_Request: { title: 'Pull request opened', icon: 'utility:merge' },
+    Scan: { title: 'Code scan', icon: 'utility:check' },
+    Validation: { title: 'Check-only deploy', icon: 'utility:check' },
+    Approved: { title: 'Approved', icon: 'utility:approval' },
+    Rejected: { title: 'Rejected', icon: 'utility:close' },
+    Auto_Approved: { title: 'Approved automatically', icon: 'utility:settings' },
+    Deployed: { title: 'Deployed', icon: 'utility:upload' },
+    Deploy_Failed: { title: 'Deploy failed', icon: 'utility:error' },
+    Manual_Step: { title: 'Manual step done', icon: 'utility:task' },
+    Flow_Activated: { title: 'Flow activated', icon: 'utility:flow' },
+    Merged_Back: { title: 'Merged back', icon: 'utility:merge' },
+    Promoted: { title: 'Promoted', icon: 'utility:forward' },
+    Back_Promoted: { title: 'Back promoted', icon: 'utility:back' },
+    Comment: { title: 'Comment', icon: 'utility:comments' },
+    Rolled_Back: { title: 'Rolled back', icon: 'utility:undo' },
+    Rollback_Failed: { title: 'Rollback failed', icon: 'utility:error' },
+    File_Attached: { title: 'Attached', icon: 'utility:attach' },
+    File_Removed: { title: 'Removed', icon: 'utility:delete' },
+    Proof_Added: { title: 'Proof added', icon: 'utility:upload' },
+    File_Downloaded: { title: 'Downloaded', icon: 'utility:download' },
+    Window_Held: { title: 'Waiting for the window', icon: 'utility:clock' },
+    Window_Override: { title: 'Deployed outside the window', icon: 'utility:warning' },
+    Changes_Added: { title: 'Changes added', icon: 'utility:add' },
+    Cancelled: { title: 'Cancelled', icon: 'utility:ban' },
+    Package_References: { title: 'Package references', icon: 'utility:package' },
+    File_Edited: { title: 'File edited', icon: 'utility:edit' },
+    Conflicts_Resolved: { title: 'Conflicts resolved', icon: 'utility:merge' }
+};
+/** File events on manual steps (build 34): the History card's Files chip shows only these. */
+const FILE_EVENTS = ['File_Attached', 'File_Removed', 'Proof_Added', 'File_Downloaded'];
+/** History dot colour per event type (anything else is blue): green done, red failed, amber rolled back or waiting. */
+const EVENT_TONE = {
+    Deployed: 'ok', Approved: 'ok', Auto_Approved: 'ok', Manual_Step: 'ok', Merged_Back: 'ok', Back_Promoted: 'ok',
+    Scan: 'ok', Validation: 'ok', Flow_Activated: 'ok', Proof_Added: 'ok',
+    Rejected: 'bad', Deploy_Failed: 'bad', Rollback_Failed: 'bad',
+    Rolled_Back: 'wait', Window_Held: 'wait', Window_Override: 'wait', Package_References: 'wait'
+};
+/** Types whose title names the org: "Deployed to <org>", "Approved for <org>"… */
+const EVENT_ORG_WORD = {
+    Approved: ' for ', Rejected: ' for ', Deployed: ' to ', Deploy_Failed: ' in ', Validation: ' in ', Manual_Step: ' in ',
+    Flow_Activated: ' in ', Auto_Approved: ' for ', Rolled_Back: ' in ', Rollback_Failed: ' in ', Proof_Added: ' in ', File_Downloaded: ' in ',
+    Window_Held: ' for ', Window_Override: ' to ', Package_References: ' in '
+};
+/** RLY_Release__c.Rollback_Status__c (RlyRollbackState): the header pill's tone per rollback state (board HubRollbackValuesGates 2). */
+const ROLLBACK_PILL = { Running: 'rr-pill rr-pill-info', Rolled_Back: 'rr-pill rr-pill-wait', Failed: 'rr-pill rr-pill-bad' };
+const ROLLED_BACK = 'Rolled_Back';
+const ROLLBACK_RUNNING = 'Running';
+/** Where .relay/gates.json failures come from when a result doesn't name the file. */
+const GATES_FILE = '.relay/gates.json';
+/** Events whose outcome (passed / failed) is in their detail line. */
+const CHECK_EVENTS = ['Scan', 'Validation', 'Flow_Activated'];
+
+/**
+ * D18: a check's line says whether it failed. A line that says "Passed" (for example
+ * "Code scan Passed: 2 findings, 0 blocking") or "Skipped" never reads as failed, even though it holds "blocking".
+ */
+function checkFailed(detail) {
+    const d = detail || '';
+    if (/\b(passed|skipped)\b/i.test(d)) {
+        return false;
+    }
+    return /fail|error|block/i.test(d);
+}
+/** RLY_Release__c.Flow_Actions__c / FlowChoice.choice → the Review step's label. */
+const FLOW_CHOICE_LABEL = { Activate: 'Activate in each org', Inactive: 'Leave inactive: add a manual step to activate' };
+const FLOW_ACTIVATED = 'Activated';
+const FLOW_ALREADY = 'Already active';
+const FLOW_FAILED = 'Failed';
+const PATH = [
+    { key: 'raised', label: 'Raised' },
+    { key: 'pr', label: '' },
+    { key: 'checks', label: 'Checks' },
+    { key: 'approval', label: 'Approval' },
+    { key: 'deploy', label: 'Deploy' }
+];
+
+function parse(json) {
+    if (!json) {
+        return null;
+    }
+    try {
+        return JSON.parse(json);
+    } catch {
+        return null;
+    }
+}
+
+function pillCls(status) {
+    if (status === RESOLVING) {
+        return 'rr-pill rr-pill-info';
+    }
+    if (GOOD.includes(status) || status === 'Passed' || status === 'Approved' || status === 'Merged') {
+        return 'rr-pill rr-pill-ok';
+    }
+    if (BAD.includes(status) || status === 'Failed' || status === 'Error') {
+        return 'rr-pill rr-pill-bad';
+    }
+    if (RUNNING.includes(status) || status === 'Deploying' || status === 'Bypassed') {
+        return 'rr-pill rr-pill-wait';
+    }
+    return 'rr-pill rr-pill-none';
+}
+
+/** The Git provider, from Detail.gitProvider when the server sends it, else from the pull request's web address. */
+function providerOf(detail, url) {
+    if (detail && detail.gitProvider) {
+        return detail.gitProvider;
+    }
+    const u = (url || '').toLowerCase();
+    if (u.includes('github')) {
+        return 'GitHub';
+    }
+    if (u.includes('gitlab')) {
+        return 'GitLab';
+    }
+    if (u.includes('bitbucket')) {
+        return 'Bitbucket';
+    }
+    if (u.includes('dev.azure.com') || u.includes('visualstudio.com')) {
+        return 'Azure DevOps';
+    }
+    return null;
+}
+
+/** A metadata type for people: ApexClass → Apex Class, and Apex test class for the release's tests. */
+function typeLabel(type, isTest) {
+    if (type === 'ApexClass' && isTest) {
+        return 'Apex test class';
+    }
+    return (type || '').replace(/([a-z])([A-Z])/g, '$1 $2');
+}
+
+function dayOf(value) {
+    return value ? new Date(value).toDateString() : '';
+}
+
+function timeOnly(value) {
+    return value ? new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+}
+
+/** The history dot's tone: red failed, amber rolled back or waiting (a conflict, a second approver), green done, blue other. */
+function eventTone(e, failed) {
+    const tone = failed ? 'bad' : EVENT_TONE[e.eventType] || 'info';
+    if (tone === 'ok' && /waiting|conflict/i.test(e.detail || '')) {
+        return 'wait';
+    }
+    return tone;
+}
+
+/** Where the release is on the path: the index of the current stop, and whether that stop failed. */
+function pathPosition(r) {
+    const s = r.Status__c;
+    if (s === 'Deployed') {
+        return { index: PATH.length, failed: false };
+    }
+    if (s === 'Deploying' || s === 'Deploy failed') {
+        return { index: 4, failed: s === 'Deploy failed' };
+    }
+    if (s === 'Ready for approval' || s === 'Rejected') {
+        return { index: 3, failed: s === 'Rejected' };
+    }
+    if (s === 'Validating' || s === 'Checks failed') {
+        return { index: 2, failed: s === 'Checks failed' };
+    }
+    if (r.PR_Number__c) {
+        return { index: 2, failed: s === 'Failed' };
+    }
+    if (s === 'Workflow running' || (s === 'Failed' && r.Source_Branch__c)) {
+        return { index: 1, failed: s === 'Failed' };
+    }
+    return { index: 0, failed: s === 'Failed' };
+}
+
+export default class RlyReleaseView extends NavigationMixin(LightningElement) {
+    _releaseId;
+    detail;
+    error;
+    loading = false;
+    busy = false;
+    cycle = 0;
+    nextAt;
+    /** Seconds of the current countdown (FAST_SECONDS or SLOW_SECONDS). */
+    pollFor = FAST_SECONDS;
+    /** The tab was hidden when a check was due: it checks as soon as the tab is visible again. */
+    paused = false;
+    /** The visibilitychange listener, kept so it can be removed. */
+    visibilityHandler;
+    checking = false;
+    comment = '';
+    reason = '';
+    /** Build 54: the Cancel release dialog is open, and the reason typed in it. */
+    cancelOpen = false;
+    cancelReason = '';
+
+    /**
+     * RlyHubGuard.getHubStatus: the org's mode. The tab around this view shows the gate or the banner; here the actions
+     * are disabled outside the hub, and in a sandbox, a copy or an org not set up yet only the gate shows (nothing loads).
+     */
+    hubStatus;
+    /** The status has been read, or failed to read (then the view works as on the hub). */
+    statusRead = false;
+    get gated() { return isGated(this.hubStatus); }
+    get showPage() { return this.statusRead && !this.gated; }
+
+    /** The app's name, from Custom Label RLY_App_Name. */
+    get appName() { return APP_NAME; }
+    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
+    /** Busy, or a sandbox copy of the hub: the release's actions are disabled. */
+    get actBusy() { return this.busy || this.hubCopy; }
+
+    @api
+    get releaseId() {
+        return this._releaseId;
+    }
+    set releaseId(value) {
+        this._releaseId = value;
+        this.detail = undefined;
+        this.lastRollback = undefined;
+        this.detailsTab = 'components';
+        this.changesOpened = false;
+        this.changesCount = null;
+        if (value && this.statusRead && !this.gated) {
+            this.load();
+        }
+    }
+
+    connectedCallback() {
+        this.visibilityHandler = () => this.handleVisibility();
+        document.addEventListener('visibilitychange', this.visibilityHandler);
+        this.readHubStatus();
+    }
+
+    disconnectedCallback() {
+        this.stop();
+        document.removeEventListener('visibilitychange', this.visibilityHandler);
+    }
+
+    /** Hidden tab: no checks (the countdown stops). Visible again: checks straight away, then counts down as before. */
+    handleVisibility() {
+        if (document.hidden) {
+            if (this.nextAt) {
+                this.stop();
+                this.paused = true;
+            }
+        } else if (this.paused) {
+            this.paused = false;
+            this.load();
+        }
+    }
+
+    /** Reads the hub status once, then loads the release only on the hub. A failed read disables nothing. */
+    readHubStatus() {
+        getHubStatus()
+            .then((status) => {
+                this.hubStatus = status;
+            })
+            .catch(() => {
+                this.hubStatus = undefined;
+            })
+            .finally(() => {
+                this.statusRead = true;
+                if (!this.gated && this._releaseId) {
+                    this.load();
+                }
+            });
+    }
+
+    /** Stops the countdown: the bar is removed, so its animation can't end and trigger a check. */
+    stop() {
+        this.nextAt = undefined;
+    }
+
+    /**
+     * Starts the next countdown. The bar is a CSS animation of 30 s or 120 s (no JavaScript timers);
+     * when it ends, handleCountdownEnd checks the status again.
+     * @param {number} seconds FAST_SECONDS or SLOW_SECONDS
+     */
+    startCountdown(seconds) {
+        this.cycle += 1;
+        this.pollFor = seconds;
+        this.nextAt = new Date(Date.now() + seconds * 1000);
+    }
+
+    /** Counts down to the next check as the release needs it (pollSeconds); while the tab is hidden it waits instead. */
+    schedule() {
+        const seconds = pollSeconds(this.detail);
+        if (!seconds) {
+            this.stop();
+        } else if (document.hidden) {
+            this.stop();
+            this.paused = true;
+        } else {
+            this.startCountdown(seconds);
+        }
+    }
+
+    handleCountdownEnd() {
+        if (!this.nextAt) {
+            return;
+        }
+        if (document.hidden) {
+            this.stop();
+            this.paused = true;
+        } else {
+            this.load();
+        }
+    }
+
+    /**
+     * Reads the release's latest status (which moves it along, or gives the read another viewer made in the last 20 s),
+     * then counts down to the next check: every 30 s while it runs, every 2 minutes while it waits for a person.
+     * @param {Function} [reader] the Apex read: refreshRelease (20 s shared window), or checkRelease for Check now (5 s)
+     */
+    async load(reader = refreshRelease) {
+        this.stop();
+        this.paused = false;
+        if (!this._releaseId) {
+            return;
+        }
+        this.loading = !this.detail;
+        this.checking = true;
+        try {
+            this.detail = await reader({ releaseId: this._releaseId });
+            this.error = undefined;
+        } catch (e) {
+            this.error = errorText(e);
+        } finally {
+            this.loading = false;
+            this.checking = false;
+        }
+        this.schedule();
+        this.dispatchEvent(new CustomEvent('changed', { detail: this.detail ? this.detail.release.Status__c : null }));
+        this.tellRollback();
+    }
+
+    /** The rollback state moved (started, rolled back, failed): the list around this view reads its rows again. */
+    tellRollback() {
+        const state = this.detail && this.detail.rollbackState ? this.detail.rollbackState.status || '' : '';
+        if (this.lastRollback !== undefined && state !== this.lastRollback) {
+            this.dispatchEvent(new CustomEvent('rollbackchanged', { detail: state }));
+        }
+        this.lastRollback = state;
+    }
+
+    /** Check now: reads again unless someone read the release in the last 5 s. */
+    refresh() {
+        this.load(checkRelease);
+    }
+
+    /** A manual step was added or ticked: read the release again (header pill, notice, a deploy the last step started). */
+    handleStepsChange() {
+        this.load();
+    }
+
+    // ---------- header ----------
+
+    get rel() { return this.detail ? this.detail.release : {}; }
+    get releaseType() { return (this.detail && this.detail.releaseType) || 'Release'; }
+    /** Promotion or Back promote for those release types; nothing for an ordinary release. */
+    get typeLabel() { return TYPE_LABEL[this.releaseType] || ''; }
+    get eyebrow() { return (this.typeLabel || 'Release') + ' · ' + (this.rel.Name || ''); }
+    get isHotfix() { return !!(this.detail && this.detail.isHotfix); }
+    /** Manual steps only: no retrieve, Git branch, pull request, pipeline run, scan or validation. */
+    get manualOnly() { return this.rel.Manual_Only__c === true; }
+    get manualOnlyLabel() { return MANUAL_ONLY; }
+    get notNeededText() { return NOT_NEEDED; }
+    /** The route's branch, left out for a release with only manual steps. */
+    get routeBranch() { return this.manualOnly ? '' : this.rel.Target_Branch__c; }
+    /** Header pill: Detail.manualOpen, the manual steps still open for this release. */
+    get manualOpenText() {
+        const n = Number(this.detail && this.detail.manualOpen) || 0;
+        return n ? n + (n === 1 ? ' manual step open' : ' manual steps open') : '';
+    }
+    get hotfixReason() { return this.isHotfix ? (this.detail.hotfixReason || '') : ''; }
+    /** The header pill: Detail.phase (for example Resolving conflicts), else the status. */
+    get phase() { return (this.detail && this.detail.phase) || this.rel.Status__c; }
+    get phaseCls() { return pillCls(this.phase); }
+    /** The header and Status pill: the latest rollback ("Rolled back in PROD") when there is one, else the phase. */
+    get headPill() { return this.rollback.label || this.phase; }
+    get headPillCls() { return this.rollback.label ? (ROLLBACK_PILL[this.rollback.status] || 'rr-pill rr-pill-none') : this.phaseCls; }
+    get resolving() { return this.phase === RESOLVING; }
+    get provider() { return providerOf(this.detail, this.rel.PR_URL__c); }
+    /** Pull request, merge request (GitLab) or the neutral change request when the provider isn't known. */
+    get crLabel() {
+        const p = this.provider;
+        if (p === 'GitLab') {
+            return 'Merge request';
+        }
+        return p ? 'Pull request' : 'Change request';
+    }
+    get crWord() { return this.crLabel.toLowerCase(); }
+    get prLabel() { return this.rel.PR_Number__c ? this.crLabel + ' #' + this.rel.PR_Number__c : this.crLabel; }
+    get running() { return !!(this.detail && this.detail.running); }
+
+    get pathSteps() {
+        const pos = pathPosition(this.rel);
+        const skip = this.manualOnly ? NO_GIT_PATH : [];
+        return PATH.map((p, i) => {
+            let state = 'todo';
+            if (i < pos.index) {
+                state = 'done';
+            } else if (i === pos.index) {
+                state = pos.failed ? 'lost' : 'current';
+            }
+            const rolledBack = p.key === 'deploy' && this.rollback.status === ROLLED_BACK;
+            return {
+                ...p,
+                label: rolledBack ? 'Rolled back' : (p.key === 'pr' ? this.crLabel : p.label),
+                cls: 'rr-path-item rr-path-' + (rolledBack ? 'rb' : state),
+                current: i === pos.index ? 'step' : null,
+                stateText: { done: 'Done', lost: 'Failed', current: 'Current', todo: 'Not yet' }[state]
+            };
+        }).filter((p) => !skip.includes(p.key));
+    }
+
+    // ---------- highlights ----------
+
+    get raisedBy() { return this.rel.CreatedBy ? this.rel.CreatedBy.Name : ''; }
+    get raisedOn() { return when(this.rel.CreatedDate); }
+    get testsText() {
+        const tests = this.detail && Array.isArray(this.detail.tests) ? this.detail.tests : [];
+        if (tests.length) {
+            return tests.join(', ');
+        }
+        return this.localTestsInProduction ? 'None: production runs the local tests (RunLocalTests), sandboxes none' : 'None (no Apex)';
+    }
+    /** No tests of its own, but deleted Apex or inactive triggers: production runs the local tests (Salesforce requires it). */
+    get localTestsInProduction() {
+        return this.switchesOff.length > 0 || this.deletions.some((d) => d.rawType === 'ApexClass' || d.rawType === 'ApexTrigger');
+    }
+    /** The triggers the release deploys switched off (RLY_Release__c.Inactive_Triggers__c). */
+    get switchesOff() {
+        return String(this.rel.Inactive_Triggers__c || '').split(',').map((n) => n.trim()).filter(Boolean);
+    }
+    get hasSwitchesOff() { return this.switchesOff.length > 0; }
+    get switchesOffText() { return this.switchesOff.join(', '); }
+    get switchesOffHint() { return 'Inactive triggers: deployed switched off, no coverage needed. Switch one on by raising it active.'; }
+    /** Where releases into the target org are approved, as Detail.approvedIn gives it (for example "Salesforce or Slack"). */
+    get approvedInText() { return (this.detail && this.detail.approvedIn) || 'Salesforce'; }
+    /** False when this release can't be approved in Salesforce (its target org approves from the Slack card). */
+    get approveHere() { return !(this.detail && this.detail.approveHere === false); }
+
+    // ---------- progress ----------
+
+    get syncedText() {
+        if (this.checking) {
+            return 'Checking now…';
+        }
+        const last = this.rel.Last_Synced__c
+            ? 'Last checked ' + new Date(this.rel.Last_Synced__c).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })
+            : '';
+        if (this.counting) {
+            return last ? last + ' · next check in' : 'Next check in';
+        }
+        return last;
+    }
+    get counting() { return !!this.nextAt && !this.checking; }
+    /** The countdown bar: 30 s, or 120 s while the release waits for a person. */
+    get meterCls() { return this.pollFor === SLOW_SECONDS ? 'rr-meter-fill rr-meter-slow' : 'rr-meter-fill'; }
+    /** One key per countdown, so a fresh bar (and a fresh animation) is drawn each time. */
+    get cycles() { return [{ key: 'c' + this.cycle }]; }
+
+    // While a new check runs (Check again, Add changes), the previous findings and errors are hidden; History keeps them (build 52).
+    get scan() { return this.rel.Scan_Status__c === 'Pending' ? {} : parse(this.rel.Scan_Result__c) || {}; }
+    get validation() { return this.rel.Validation_Status__c === 'Pending' ? {} : parse(this.rel.Validation_Result__c) || {}; }
+    get deploy() { return parse(this.rel.Deploy_Result__c) || {}; }
+    get targetName() { return this.detail ? this.detail.targetName : ''; }
+
+    get steps() {
+        if (this.manualOnly) {
+            return this.manualOnlySteps().map((st, i) => this.decorate(st, i));
+        }
+        const r = this.rel;
+        const s = r.Status__c;
+        const collected = !['Retrieving'].includes(s) && !(s === 'Failed' && !r.Source_Branch__c);
+        const steps = [this.collectStep(collected), this.prStep(collected)];
+        if (this.resolving) {
+            steps.push({
+                key: 'conflicts', title: 'Conflicts', state: 'Running', label: 'Resolving',
+                text: 'Your choices' + this.conflictCountText + ' were committed. The pipeline is merging ' + (r.Target_Branch__c || 'the target') + ' and checking again…'
+            });
+            steps.push({ key: 'checks', title: 'Code scan and validation in ' + this.targetName, state: 'Waiting', text: 'Run again after the merge' });
+        } else {
+            steps.push({ key: 'scan', title: 'Code scan', state: this.checkState(r.Scan_Status__c, this.scan), text: this.scanText });
+            const val = this.validation;
+            steps.push({
+                key: 'validate', title: 'Validation in ' + this.targetName, state: this.checkState(r.Validation_Status__c, val),
+                text: this.validationText, conflict: val.status === 'Conflict'
+            });
+        }
+        const leftOut = this.componentsLeftOutStep();
+        if (leftOut) {
+            steps.push(leftOut);
+        }
+        steps.push(this.approvalStep());
+        steps.push(this.deployStep());
+        this.backMergeSteps().forEach((st) => steps.push(st));
+        const rollbackStep = this.rollbackStep();
+        if (rollbackStep) {
+            steps.push(rollbackStep);
+        }
+        const backPromote = this.backPromoteStep();
+        if (backPromote) {
+            steps.push(backPromote);
+        }
+        return steps.map((st, i) => this.decorate(st, i));
+    }
+
+    /** Manual steps only: one "Not needed" line for the Git and pipeline steps, the approval, then the manual steps as the deploy. */
+    manualOnlySteps() {
+        const steps = [
+            { key: 'nogit', title: 'Retrieve, Git branch, ' + this.crWord + ', code scan and validation', state: 'Done', badge: '–', label: 'Not needed', pill: STEP_PILL.Waiting, text: NOT_NEEDED },
+            this.approvalStep(),
+            this.manualDeployStep()
+        ];
+        const backPromote = this.backPromoteStep();
+        if (backPromote) {
+            steps.push(backPromote);
+        }
+        return steps;
+    }
+
+    manualDeployStep() {
+        const s = this.rel.Status__c;
+        const open = Number(this.detail && this.detail.manualOpen) || 0;
+        let state = 'Waiting';
+        let text = (this.detail && this.detail.manualSummary) || '';
+        if (s === 'Deployed') {
+            state = 'Done';
+            text = 'Every manual step in ' + this.targetName + ' is done';
+        } else if (s === 'Deploying') {
+            state = 'Running';
+            text = 'The deployment team checks off ' + open + (open === 1 ? ' manual step' : ' manual steps') + ' in ' + this.targetName
+                + ' (Manual steps below). It is deployed when all of them are done.';
+        }
+        return { key: 'deploy', title: 'Manual steps in ' + this.targetName, state, text, sync: [], hasSync: false };
+    }
+
+    decorate(st, i) {
+        let label = st.label;
+        if (!label) {
+            label = this.stateLabel(st);
+        }
+        let badge = String(i + 1);
+        if (st.state === 'Done') {
+            badge = '✓';
+        } else if (st.state === 'Failed' || st.state === 'Warn') {
+            badge = '!';
+        } else if (st.state === 'Running') {
+            badge = '⟳';
+        }
+        if (st.badge) {
+            badge = st.badge;
+        }
+        return {
+            ...st,
+            badge,
+            dotCls: STEP_DOT[st.state] || STEP_DOT.Waiting,
+            stateLabel: label,
+            pillCls: st.pill || (st.conflict ? STEP_PILL.Warn : (STEP_PILL[st.state] || STEP_PILL.Waiting))
+        };
+    }
+
+    stateLabel(st) {
+        if (st.conflict) {
+            return 'Conflict';
+        }
+        if (st.state === 'Running') {
+            return 'In progress';
+        }
+        if (st.state === 'Waiting') {
+            return '';
+        }
+        if (st.state === 'Warn') {
+            return st.key === 'scan' && this.rel.Scan_Status__c === 'Bypassed' ? 'Bypassed' : 'Passed with findings';
+        }
+        return st.state;
+    }
+
+    collectStep(collected) {
+        const s = this.rel.Status__c;
+        let state = 'Failed';
+        if (s === 'Retrieving') {
+            state = 'Running';
+        } else if (collected) {
+            state = 'Done';
+        }
+        return {
+            key: 'collect', title: 'Collected from ' + (this.detail ? this.detail.sourceName : ''), state,
+            text: s === 'Retrieving' ? this.retrievingText : (this.rel.Component_Count__c || 0) + ' components' + this.deletionsTail
+        };
+    }
+
+    /** A big release is retrieved in parts (RlyRaiseParts: Retrieve_Id__c "k:id"; heavy types alone, the rest 25 a part). */
+    get retrievingText() {
+        const m = /^(\d+):/.exec(this.rel.Retrieve_Id__c || '');
+        if (!m) {
+            return 'Retrieving the components with the Metadata API…';
+        }
+        const raw = (this.detail && this.detail.items ? this.detail.items : []).filter((i) => i.Is_Deletion__c !== true);
+        const heavy = raw.filter((i) => HEAVY_TYPES.includes(i.Metadata_Type__c)).length;
+        const total = heavy + Math.ceil((raw.length - heavy) / 25);
+        return 'Retrieving part ' + m[1] + ' of ' + Math.max(total, Number(m[1])) + ' and sending each to Git (a big release goes in parts)…';
+    }
+
+    get deletionsTail() {
+        const d = this.deletions.length;
+        return d ? ' · ' + d + (d === 1 ? ' deletion' : ' deletions') : '';
+    }
+
+    prStep(collected) {
+        const r = this.rel;
+        const s = r.Status__c;
+        let state = 'Waiting';
+        let text = '';
+        if (r.PR_Number__c) {
+            state = 'Done';
+            text = '#' + r.PR_Number__c + ': ' + r.Source_Branch__c + ' → ' + r.Target_Branch__c;
+        } else if (s === 'Workflow running') {
+            state = 'Running';
+            text = 'The pipeline is converting the files and opening the ' + this.crWord + '…';
+        } else if (collected && s === 'Failed') {
+            state = 'Failed';
+        }
+        return { key: 'pr', title: this.crLabel, state, text };
+    }
+
+    get conflictCountText() {
+        const n = Array.isArray(this.validation.conflicts) ? this.validation.conflicts.length : 0;
+        return n ? ' for ' + n + ' file' + (n === 1 ? '' : 's') : '';
+    }
+
+    get scanText() {
+        const r = this.rel;
+        const scan = this.scan;
+        if (r.Scan_Status__c === 'Bypassed') {
+            return 'Bypassed by ' + (r.Scan_Bypassed_By__r ? r.Scan_Bypassed_By__r.Name : '') + ': ' + r.Scan_Bypass_Reason__c;
+        }
+        if (r.Scan_Status__c === 'Not configured') {
+            // The target org's own choice (RlyScanRule: Off) names the org; following the connection's switch, the repository.
+            const choice = r.Target_Org__r ? r.Target_Org__r.Code_Scan__c : null;
+            return choice === 'Off' ? 'Code scan is off for ' + this.targetName + '.' : 'Code scan is off for this repository.';
+        }
+        if (r.Scan_Status__c === 'Pending') {
+            return r.PR_Number__c ? 'Salesforce Code Analyzer is running…' : '';
+        }
+        if (scan.message && !scan.total) {
+            return scan.message;
+        }
+        const gate = scan.gate && scan.gate.failAtPriority ? ' · gate: fails at priority ' + scan.gate.failAtPriority + ' or higher' : '';
+        if (scan.gate && scan.gate.findings) {
+            return scan.gate.findings + ' scan finding' + (scan.gate.findings === 1 ? '' : 's') + ' at priority ' + scan.gate.failAtPriority + ' or higher' + gate;
+        }
+        if (scan.total) {
+            return scan.total + ' finding' + (scan.total === 1 ? '' : 's') + ', ' + (scan.blocking || 0) + ' at '
+                + (scan.thresholdLabel || 'High') + ' or above' + (scan.blocking ? ' (blocking)' : ': below the bar, so they don\'t block') + gate;
+        }
+        return r.Scan_Status__c === 'Passed' ? 'No findings.' : '';
+    }
+
+    get validationText() {
+        const r = this.rel;
+        const val = this.validation;
+        if (r.Validation_Status__c === 'Pending') {
+            return r.PR_Number__c ? 'Check-only deploy to ' + this.targetName + ' with ' + this.testLevelText + '…' : '';
+        }
+        if (r.Validation_Status__c === 'Not configured') {
+            return 'The target has no Git environment: Git only.';
+        }
+        if (!val.status) {
+            return '';
+        }
+        return (val.status === 'Passed' ? 'Check-only deploy passed' : val.message || val.status)
+            + (val.testLevel ? ' · ' + val.testLevel + (val.testsRun ? ', ' + val.testsRun + ' tests run' : '') : '')
+            + (val.mergedWith ? ' · merged with ' + r.Target_Branch__c + ' at ' + String(val.mergedWith).substring(0, 7) : '')
+            + this.valuesText(val) + this.packagesText(val.raisePackages, val.packages);
+    }
+
+    /**
+     * Build 55: what the pipeline did with package references (result packages): " · 3 package references kept (ns1)
+     * · left out in <org>: 2 references to package ns2 (not installed) · 1 whole component". Git keeps the full files.
+     */
+    packagesText(raised, deployed) {
+        const parts = [];
+        const kept = countText(raised && raised.kept);
+        if (kept) {
+            parts.push(kept.total + (kept.total === 1 ? ' package reference' : ' package references') + ' kept (' + kept.names + ')');
+        }
+        const left = countText(deployed && deployed.leftOut);
+        const comps = deployed && Array.isArray(deployed.componentsLeftOut) ? deployed.componentsLeftOut.length : 0;
+        if (left || comps) {
+            const what = [];
+            if (left) {
+                what.push(left.total + (left.total === 1 ? ' reference' : ' references') + ' to package ' + left.names + ' (not installed)');
+            }
+            if (comps) {
+                what.push(comps + (comps === 1 ? ' whole component' : ' whole components'));
+            }
+            parts.push('left out in ' + this.targetName + ': ' + what.join(', ') + ' · Git keeps the full files');
+        }
+        return parts.length ? ' · ' + parts.join(' · ') : '';
+    }
+
+    /** Build 55: the whole components of a package the target org lacks, from the validation or the deploy. */
+    componentsLeftOutStep() {
+        const fromDeploy = this.deploy.packages && Array.isArray(this.deploy.packages.componentsLeftOut) ? this.deploy.packages.componentsLeftOut : [];
+        const val = this.validation;
+        const fromCheck = val.packages && Array.isArray(val.packages.componentsLeftOut) ? val.packages.componentsLeftOut : [];
+        const list = fromDeploy.length ? fromDeploy : fromCheck;
+        if (!list.length) {
+            return null;
+        }
+        const named = list.slice(0, 5).map((k) => String(k).replace(/^[^:]*:/, '')).join(', ') + (list.length > 5 ? ' and ' + (list.length - 5) + ' more' : '');
+        return {
+            key: 'pkgleft', title: list.length === 1 ? 'Whole component left out' : list.length + ' whole components left out', state: 'Warn',
+            badge: '!', label: this.targetName, pill: STEP_PILL.Warn,
+            text: named + (list.length === 1 ? ' belongs' : ' belong') + ' to a package ' + this.targetName + ' doesn\'t have: not deployed to ' + this.targetName + '.'
+        };
+    }
+
+    /** Per-org values (.relay/values.json) the pipeline put in for the target: " · 2 per-org values filled in". */
+    valuesText(result) {
+        const n = result && result.values ? Number(result.values.replaced) || 0 : 0;
+        return n ? ' · ' + n + (n === 1 ? ' per-org value' : ' per-org values') + ' filled in' : '';
+    }
+
+    /** Approved, waiting for the target's release window (build 39): admins get Deploy now anyway. */
+    get waitsForWindow() { return !!this.rel && this.rel.Status__c === 'Waiting for window'; }
+
+    handleWindowDeployed() {
+        this.load();
+    }
+
+    approvalStep() {
+        const r = this.rel;
+        const s = r.Status__c;
+        let state = 'Waiting';
+        let text = '';
+        if (s === 'Ready for approval' && this.needsSecondApprover) {
+            // The first of two approvals: the release keeps waiting for someone else.
+            state = 'Running';
+            text = 'Approved by ' + this.firstApprover + '. Waiting for a second approver.';
+        } else if (r.Approval_Status__c === 'Approved' && r.Approved_Via__c === 'Rule') {
+            // The target org's approval rule said no approval was needed (RlyApprovalRules).
+            return { key: 'approval', title: 'Approval', state: 'Done', label: 'Approved automatically', pill: STEP_PILL.Running, text: when(r.Approved_On__c), ...this.reasonLine };
+        } else if (r.Approval_Status__c === 'Approved' || r.Approval_Status__c === 'Rejected') {
+            state = r.Approval_Status__c === 'Approved' ? 'Done' : 'Failed';
+            text = r.Approval_Status__c + ' by ' + (r.Approved_By__r ? r.Approved_By__r.Name : '') + this.secondApproverText + ', ' + when(r.Approved_On__c)
+                + (r.Approved_Via__c ? ' in ' + r.Approved_Via__c : '') + (r.Approval_Comment__c ? ': ' + r.Approval_Comment__c : '');
+        } else if (s === 'Ready for approval') {
+            state = 'Running';
+            text = this.approveHere ? 'Waiting for an approver.' : 'Waiting for approval in ' + this.approvedInText + '.';
+        }
+        return { key: 'approval', title: 'Approval', state, text, ...this.reasonLine };
+    }
+
+    /** Detail.approvalReason under the Approval step: "Needs approval: contains a Flow and a Profile", "Approved automatically: …". */
+    get approvalReason() { return (this.detail && this.detail.approvalReason) || ''; }
+    get reasonLine() {
+        const reason = this.approvalReason;
+        if (!reason) {
+            return { reason: '' };
+        }
+        const auto = this.rel.Approved_Via__c === 'Rule' || /^Approved automatically/i.test(reason);
+        return { reason, reasonCls: 'rr-msg rr-step-reason ' + (auto ? 'rr-msg-ok' : 'rr-msg-info') };
+    }
+
+    deployStep() {
+        const r = this.rel;
+        const s = r.Status__c;
+        const dep = this.deploy;
+        let state = 'Waiting';
+        let text = '';
+        if (s === 'Deployed') {
+            state = 'Done';
+            text = 'Deployed' + (r.Merge_Commit__c ? ' · merge ' + r.Merge_Commit__c.substring(0, 7) : '') + (dep.testsRun ? ' · ' + dep.testsRun + ' tests run' : '')
+                + this.packagesText(null, dep.packages);
+        } else if (s === 'Deploying') {
+            state = 'Running';
+            text = 'Merging the ' + this.crWord + ' and deploying…';
+        } else if (s === 'Deploy failed') {
+            state = 'Failed';
+            text = r.Error_Message__c || dep.message || 'Failed';
+        }
+        if (s === 'Deployed' && this.secondApprover) {
+            text += ' · 2 approvers';
+        }
+        // After a deploy to the hub the branches merged back are their own steps (backMergeSteps).
+        const sync = this.backMerge.length ? [] : this.syncRows;
+        return { key: 'deploy', title: 'Merge and deploy to ' + this.targetName, state, text, sync, hasSync: sync.length > 0, syncLabel: 'Developer branches' };
+    }
+
+    checkState(status, result) {
+        if (status === 'Passed') {
+            return result && result.total ? 'Warn' : 'Done';
+        }
+        if (status === 'Skipped' || status === 'Not configured') {
+            return 'Done';
+        }
+        if (status === 'Bypassed') {
+            return 'Warn';
+        }
+        if (status === 'Failed' || status === 'Error') {
+            return 'Failed';
+        }
+        return this.rel.PR_Number__c ? 'Running' : 'Waiting';
+    }
+
+    get testLevelText() {
+        const t = this.rel.Test_Classes__c;
+        if (t) {
+            return 'RunSpecifiedTests (' + t.split(',').join(', ') + ')';
+        }
+        return this.localTestsInProduction ? 'no tests of its own (RunLocalTests in production, NoTestRun in sandboxes)' : 'NoTestRun';
+    }
+
+    // ---------- details ----------
+
+    get scanLabel() { return this.rel.Scan_Status__c || 'Pending'; }
+    get scanPillCls() { return pillCls(this.scanLabel); }
+    /** Findings by severity, for example "2 Low". */
+    get scanSummary() {
+        const counts = {};
+        (this.scan.violations || []).forEach((v) => {
+            const sev = v.severityLabel || 'Info';
+            counts[sev] = (counts[sev] || 0) + 1;
+        });
+        return SEVERITY_ORDER.filter((s) => counts[s]).map((s) => counts[s] + ' ' + s).join(', ');
+    }
+    get validationLabel() {
+        if (this.resolving) {
+            return 'Pending';
+        }
+        return this.validation.status === 'Conflict' ? 'Conflict' : (this.rel.Validation_Status__c || 'Pending');
+    }
+    get validationPillCls() { return this.validationLabel === 'Conflict' ? 'rr-pill rr-pill-wait' : pillCls(this.validationLabel); }
+
+    /**
+     * The components the release deploys. Its deletions are items too (Is_Deletion__c), but they are listed once, each
+     * with its own name, under "Deleted from …" (from Detail.deletions); a promotion's component that a later carried
+     * release deletes is listed there only (build 53, D16: deletions also showed here, without the Delete marker).
+     */
+    get items() {
+        const tests = this.detail && Array.isArray(this.detail.tests) ? this.detail.tests : [];
+        const deleted = new Set(this.deletions.map((d) => d.rawType + ':' + d.name));
+        return (this.detail && this.detail.items ? this.detail.items : [])
+            .filter((i) => i.Is_Deletion__c !== true && !deleted.has(i.Metadata_Type__c + ':' + i.Component_Name__c))
+            .map((i, n) => ({
+                key: i.Id || 'i' + n, dtKey: (i.Id || 'i' + n) + 't', type: typeLabel(i.Metadata_Type__c, tests.includes(i.Component_Name__c)), name: i.Component_Name__c
+            }));
+    }
+    // ---------- search in the long lists (build 27): components, history ----------
+
+    /** Search text of the Components list (normalised). */
+    compSearch = '';
+    /** Search text of the History list (normalised). */
+    historySearch = '';
+    /** History chip: all events, or only the file events (Attached, Removed, Proof added, Downloaded). */
+    historyKind = 'all';
+
+    /** Components and deletions shown after the search, with the matches marked. */
+    get shownItems() {
+        const q = this.compSearch;
+        return this.items.filter((i) => matchesSearch([i.type, i.name], q))
+            .map((i) => ({ ...i, nameParts: highlightParts(i.name, q) }));
+    }
+    get shownDeletions() {
+        const q = this.compSearch;
+        return this.deletions.filter((d) => matchesSearch([d.type, d.name], q))
+            .map((d) => ({ ...d, nameParts: highlightParts(d.name, q) }));
+    }
+    get compTotal() { return this.items.length + this.deletions.length; }
+    get compShown() { return this.shownItems.length + this.shownDeletions.length; }
+    get showCompSearch() { return this.compTotal >= SEARCH_FROM || !!this.compSearch; }
+    get hasShownItems() { return this.shownItems.length > 0; }
+    get hasShownDeletions() { return this.shownDeletions.length > 0; }
+    get compNoMatch() { return !!this.compSearch && this.compShown === 0; }
+    get compNoMatchText() { return 'No components match \u2018' + this.compSearch + '\u2019.'; }
+
+    handleCompSearch(event) {
+        this.compSearch = searchTerm(event.detail && event.detail.value);
+    }
+
+    clearCompSearch() {
+        this.clearBox('comp');
+        this.compSearch = '';
+    }
+
+    /** History after the search; the arrows join only the events shown. */
+    get shownEvents() {
+        const q = this.historySearch;
+        const filesOnly = this.historyKind === 'files';
+        const list = this.events.filter((e) => (!filesOnly || e.isFile) && matchesSearch([e.title, e.who, e.detail, e.refLink, e.refText], q));
+        return list.map((e, i) => ({ ...e, hasArrow: i < list.length - 1, titleParts: highlightParts(e.title, q) }));
+    }
+    get showHistorySearch() { return this.events.length >= SEARCH_FROM || !!this.historySearch || this.hasFileEvents; }
+    get fileEventCount() { return this.events.filter((e) => e.isFile).length; }
+    get hasFileEvents() { return this.fileEventCount > 0; }
+    /** All n | Files n chips (board HubStepFiles 5), shown when the release has file events. */
+    get historyChips() {
+        return [
+            { value: 'all', label: 'All', count: String(this.events.length) },
+            { value: 'files', label: 'Files', count: String(this.fileEventCount) }
+        ].map((c) => ({
+            ...c,
+            pressed: c.value === this.historyKind ? 'true' : 'false',
+            cls: 'rr-hchip' + (c.value === this.historyKind ? ' rr-hchip-on' : '')
+        }));
+    }
+
+    pickHistoryKind(event) {
+        this.historyKind = event.currentTarget.dataset.value;
+    }
+    get historyNoMatch() { return !!this.historySearch && this.shownEvents.length === 0; }
+    get historyNoMatchText() { return 'No events match \u2018' + this.historySearch + '\u2019.'; }
+
+    handleHistorySearch(event) {
+        this.historySearch = searchTerm(event.detail && event.detail.value);
+    }
+
+    clearHistorySearch() {
+        this.clearBox('history');
+        this.historySearch = '';
+    }
+
+    /** Empties one of the page's search boxes (data-list on the box). */
+    clearBox(name) {
+        const box = [...this.template.querySelectorAll('c-rly-search-box')].find((b) => b.dataset.list === name);
+        if (box) {
+            box.clear();
+        }
+    }
+
+    get itemCount() {
+        const d = this.deletions.length;
+        return String(this.items.length) + (d ? ' · ' + d + (d === 1 ? ' deletion' : ' deletions') : '');
+    }
+
+    // ---------- Components | Changes (board HubCompare, 4) ----------
+
+    detailsTab = 'components';
+    changesOpened = false;
+    changesCount = null;
+
+    /** Releases and promotions with a pull request get the Changes tab. */
+    get hasPullRequest() { return !!(this.rel && this.rel.PR_Number__c); }
+    get onChanges() { return this.hasPullRequest && this.detailsTab === 'changes'; }
+    get componentsTabCls() { return this.onChanges ? 'rr-tab' : 'rr-tab rr-tab-on'; }
+    get changesTabCls() { return this.onChanges ? 'rr-tab rr-tab-on' : 'rr-tab'; }
+    get componentsSelected() { return String(!this.onChanges); }
+    get changesSelected() { return String(this.onChanges); }
+    get componentsPaneCls() { return this.onChanges ? 'slds-hide' : ''; }
+    get changesPaneCls() { return this.onChanges ? '' : 'slds-hide'; }
+    get componentsPaneRole() { return this.hasPullRequest ? 'tabpanel' : null; }
+    get changesCountText() { return this.changesCount === null ? null : String(this.changesCount); }
+
+    showComponents() {
+        this.detailsTab = 'components';
+    }
+
+    showChanges() {
+        this.detailsTab = 'changes';
+        this.changesOpened = true;
+    }
+
+    handleChangesLoaded(event) {
+        const n = event.detail ? event.detail.count : null;
+        this.changesCount = typeof n === 'number' ? n : null;
+    }
+
+    /** What the release removes from the target branch and org: Detail.deletions, as Type:Name. */
+    get deletions() {
+        const list = this.detail && Array.isArray(this.detail.deletions) ? this.detail.deletions : [];
+        return list.map((d, i) => {
+            const at = String(d).indexOf(':');
+            const type = at > 0 ? String(d).slice(0, at) : '';
+            return { key: 'd' + i, dtKey: 'd' + i + 't', rawType: type, type: type ? typeLabel(type, false) : '', name: at > 0 ? String(d).slice(at + 1) : String(d) };
+        });
+    }
+    get hasDeletions() { return this.deletions.length > 0; }
+    get deletesLabel() { return 'Deleted from ' + (this.targetName || 'the target'); }
+
+    // ---------- results ----------
+
+    /**
+     * Findings with their priority (PMD 1 = most serious, the pipeline's severity). With a scan gate (scan.json gate,
+     * .relay/gates.json) the findings that broke it get a red pill and the rest grey; without one, by severity.
+     */
+    get violations() {
+        const gate = this.scan.gate && Number(this.scan.gate.failAtPriority);
+        return (this.scan.violations || []).slice(0, 100).map((v, i) => {
+            const priority = Number(v.severity) || '';
+            let sevCls = SEVERITY_CLS[v.severityLabel] || 'rr-pill rr-pill-none';
+            if (gate) {
+                sevCls = priority && priority <= gate ? 'rr-pill rr-pill-bad' : 'rr-pill rr-pill-none';
+            }
+            return {
+                key: 'v' + i, ...v, priority: priority || v.severityLabel || '', sevCls: sevCls + ' rr-prio',
+                where: (v.file || '').split('/').pop() + (v.line ? ':' + v.line : '')
+            };
+        });
+    }
+
+    /** gates.failures of scan.json and validate.json (.relay/gates.json), shown as they are. */
+    get gateFailures() {
+        const out = [];
+        [this.scan, this.validation].forEach((r, n) => {
+            const g = r && r.gates;
+            if (g && g.passed === false && Array.isArray(g.failures)) {
+                g.failures.forEach((f, i) => out.push({ key: 'g' + n + '-' + i, text: String(f), file: g.file }));
+            }
+        });
+        return out;
+    }
+    get hasGateFailures() { return this.gateFailures.length > 0; }
+    get gatesFile() {
+        const named = this.gateFailures.find((g) => g.file);
+        return named ? named.file : GATES_FILE;
+    }
+    get hasViolations() { return this.violations.length > 0; }
+
+    get problems() {
+        const out = [];
+        [['Validation', this.validation], ['Deploy', this.deploy], ['Rollback', this.rollbackResult]].forEach(([label, r]) => {
+            (r.componentErrors || []).forEach((c, i) => out.push({ key: label + 'c' + i, label, what: c.type + ' ' + c.name + (c.line ? ':' + c.line : ''), message: c.problem }));
+            (r.testFailures || []).forEach((t, i) => out.push({ key: label + 't' + i, label, what: t.name + '.' + t.method, message: t.message }));
+            (r.coverageWarnings || []).forEach((w, i) => out.push({ key: label + 'w' + i, label, what: w.name || 'Coverage', message: w.message }));
+        });
+        return out;
+    }
+    get hasProblems() { return this.problems.length > 0; }
+
+    /**
+     * The files a promotion clashed on (raise.json conflicts, kept as Validation_Result__c raiseConflicts): the next
+     * stop has a change to them that the stage doesn't. Listed under the message; no conflict editor.
+     */
+    get raiseConflicts() {
+        const files = this.validation.raiseConflicts;
+        return Array.isArray(files) ? files.map((f, i) => ({ key: 'rc' + i, path: typeof f === 'string' ? f : (f && f.file) || String(f) })) : [];
+    }
+    get hasRaiseConflicts() { return this.raiseConflicts.length > 0; }
+
+    // ---------- add changes to an open release ----------
+
+    /** An add the pipeline hasn't confirmed yet (Append_State__c pending or confirming, build 52): its components are listed but not on the branch yet. */
+    get addingNote() {
+        const st = parse(this.rel && this.rel.Append_State__c);
+        if (!st || !(st.pending || st.confirming)) {
+            return '';
+        }
+        const n = (st.components || []).length + (st.deletions || []).length;
+        return n ? 'Adding ' + n + (n === 1 ? ' change' : ' changes') + ' from ' + (st.fromOrg || 'the developer org')
+            + ': they count once the pipeline confirms the add.' : '';
+    }
+
+    /** Detail.canAppend: a normal release, Checks failed or Ready for approval, not approved, nothing running, raiser or admin. */
+    get canAppend() { return !!(this.detail && this.detail.canAppend) && !this.running; }
+    get appendLabel() { return 'Add changes from ' + ((this.detail && this.detail.sourceName) || 'the developer org'); }
+
+    /** Opens New Release in append mode for this release (it starts at Select, with the release's components locked). */
+    openAppend() {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__navItemPage',
+            attributes: { apiName: BUILDER_TAB },
+            state: { c__appendTo: this._releaseId }
+        });
+    }
+
+    /** Error_Message__c whatever the status (for example a rejected release whose pull request couldn't be closed). */
+    get errorBanner() {
+        return this.rel.Error_Message__c || null;
+    }
+    get errorBannerCls() {
+        return 'rr-msg rr-note ' + (ENDED_BADLY.includes(this.rel.Status__c) ? 'rr-msg-bad' : 'rr-msg-warn');
+    }
+
+    /** How each developer branch was updated from the target after the merge (merge.json sync). */
+    get syncRows() {
+        const target = this.rel.Target_Branch__c || 'the target';
+        return (Array.isArray(this.deploy.sync) ? this.deploy.sync : []).map((b, i) => {
+            const state = SYNC_STATE[b.status] || { label: b.status || 'Unknown', cls: 'rr-pill rr-pill-none' };
+            const text = b.status === 'Synced'
+                ? b.branch + ' updated from ' + target
+                : b.branch + ' couldn\'t be updated from ' + target + (b.message ? ': ' + b.message : '')
+                    + '. Merge it by hand so that ' + b.branch + ' starts from the latest ' + target + '.';
+            return { key: 'sync' + i, label: state.label, cls: state.cls, text };
+        });
+    }
+
+    // ---------- after a deploy to the hub: merged back down, back promote ----------
+
+    /** Detail.backMerge: how each branch was updated from the hub's branch after the deploy (stage branches, then developer branches). */
+    get backMerge() {
+        return this.detail && Array.isArray(this.detail.backMerge) ? this.detail.backMerge : [];
+    }
+
+    /**
+     * "Merged back to <stage branches>" and "Merged back to developer branches", each Done or "n to review" with a line per branch.
+     * A branch's kind (Stage or Developer), when the server sends it, splits the list; without it the branches are one step.
+     */
+    backMergeSteps() {
+        const list = this.backMerge;
+        if (!list.length) {
+            return [];
+        }
+        const hasKind = list.some((b) => b.kind);
+        if (!hasKind) {
+            return [this.mergeBackStep('mb-all', 'Merged back to ' + list.map((b) => b.branch).join(', '), list)];
+        }
+        const stages = list.filter((b) => b.kind === 'Stage');
+        const devs = list.filter((b) => b.kind !== 'Stage');
+        const out = [];
+        if (stages.length) {
+            out.push(this.mergeBackStep('mb-stages', 'Merged back to ' + stages.map((b) => b.branch).join(', '), stages));
+        }
+        if (devs.length) {
+            out.push(this.mergeBackStep('mb-devs', 'Merged back to developer branches', devs));
+        }
+        return out;
+    }
+
+    mergeBackStep(key, title, branches) {
+        const open = branches.filter((b) => b.status !== BRANCH_OK);
+        const lines = branches.map((b, i) => {
+            const ok = b.status === BRANCH_OK;
+            let text = b.branch + ' updated from ' + (this.rel.Target_Branch__c || 'the target');
+            if (!ok) {
+                text = b.branch + (b.status === 'Missing' ? ': branch not found' : ': conflicts with work in progress')
+                    + (b.message ? ' (' + b.message + ')' : '') + '. Merge it by hand so it starts from the latest ' + (this.rel.Target_Branch__c || 'target') + '.';
+            }
+            const state = SYNC_STATE[b.status] || { label: b.status || 'Unknown', cls: 'rr-pill rr-pill-none' };
+            return { key: key + i, label: ok ? '✓' : state.label, cls: ok ? 'rr-pill rr-pill-ok' : state.cls, text };
+        });
+        return {
+            key, title, state: 'Done', badge: '✓',
+            label: open.length ? open.length + ' to review' : 'Done',
+            pill: open.length ? STEP_PILL.Warn : STEP_PILL.Done,
+            text: '', sync: lines, hasSync: true, syncLabel: title
+        };
+    }
+
+    /** Detail.backPromote: Off, or what happened per back promote org (for example "Sent to an org: Deployed"). */
+    backPromoteStep() {
+        const value = this.detail && this.detail.backPromote;
+        if (!value || this.rel.Status__c !== 'Deployed') {
+            return null;
+        }
+        if (value === 'Off') {
+            return { key: 'bp', title: 'Back promote', state: 'Waiting', badge: '→', label: 'Off', pill: STEP_PILL.Waiting, text: 'Not set up on the Pipeline tab' };
+        }
+        let state = 'Waiting';
+        let label = 'Waiting';
+        if (/Failed/.test(value)) {
+            state = 'Failed';
+            label = 'Failed';
+        } else if (/Conflict/.test(value)) {
+            state = 'Warn';
+            label = 'To review';
+        } else if (/Running|Deploying/.test(value)) {
+            state = 'Running';
+            label = 'In progress';
+        } else if (/Deployed|Nothing to deploy/.test(value)) {
+            state = 'Done';
+            label = 'Done';
+        }
+        return { key: 'bp', title: 'Back promote', state, label, badge: state === 'Waiting' ? '→' : '', text: value };
+    }
+
+    // ---------- promotions, second approver ----------
+
+    get carried() {
+        const list = this.detail && Array.isArray(this.detail.carried) ? this.detail.carried : [];
+        return list.map((c) => ({ key: 'c' + c.id, id: c.id, name: c.name, title: c.title, isHotfix: c.isHotfix === true, manualOnly: c.manualOnly === true, href: this.releaseHref(c.id) }));
+    }
+    get hasCarried() { return this.releaseType === 'Promotion' && this.carried.length > 0; }
+    get promotedIn() {
+        const d = this.detail;
+        return d && d.promotedInId ? { id: d.promotedInId, name: d.promotedInName || 'the promotion', href: this.releaseHref(d.promotedInId) } : null;
+    }
+
+    releaseHref(releaseId) {
+        return '/lightning/n/' + RELEASES_TAB + '?c__release=' + releaseId;
+    }
+
+    /** Opens another release (a carried one, or the promotion) on the Releases tab. */
+    openRelease(event) {
+        event.preventDefault();
+        this[NavigationMixin.Navigate]({
+            type: 'standard__navItemPage',
+            attributes: { apiName: RELEASES_TAB },
+            state: { c__release: event.currentTarget.dataset.id }
+        });
+    }
+
+    get needsSecondApprover() { return !!(this.detail && this.detail.needsSecondApprover); }
+    get firstApprover() { return (this.detail && this.detail.firstApprover) || 'the first approver'; }
+    get secondApprover() { return this.rel.Second_Approved_By__r ? this.rel.Second_Approved_By__r.Name : ''; }
+    get secondApproverText() { return this.secondApprover ? ' and ' + this.secondApprover : ''; }
+    /** Shown above the timeline unless the server's notice already says it. */
+    get secondApproverNotice() {
+        if (!this.needsSecondApprover || this.rel.Status__c !== 'Ready for approval') {
+            return '';
+        }
+        const notice = (this.detail.notice || '').toLowerCase();
+        if (notice.includes('second approver')) {
+            return '';
+        }
+        return 'Approved by ' + this.firstApprover + '. Waiting for a second approver: someone else, not the person who raised it.';
+    }
+
+    // ---------- conflicts ----------
+
+    get hasConflicts() {
+        return !this.resolving && this.rel.Status__c === 'Checks failed' && this.validation.status === 'Conflict'
+            && Array.isArray(this.validation.conflicts) && this.validation.conflicts.length > 0;
+    }
+    get canResolve() { return !!(this.detail && this.detail.canResolve && this.rel.PR_Number__c) && !this.hubCopy; }
+
+    handleResolve(event) {
+        this.act(resolveConflicts, { resolutionsJson: JSON.stringify({ resolutions: event.detail.resolutions }) });
+    }
+
+    // ---------- flows (Detail.flows: one FlowResult per org and flow, from Flow_Results__c) ----------
+
+    /** The After deploy choice per flow, from RLY_Release__c.Flow_Actions__c ([{name, choice}]). */
+    get flowActions() {
+        const list = parse(this.rel.Flow_Actions__c);
+        const out = {};
+        (Array.isArray(list) ? list : []).forEach((f) => {
+            if (f && f.name) {
+                out[f.name] = f.choice;
+            }
+        });
+        return out;
+    }
+    get flowResults() { return this.detail && Array.isArray(this.detail.flows) ? this.detail.flows : []; }
+
+    /** One row per flow: its choice and "SIT v9 active · PROD failed: …" (board HubApprovalFlowsEvidence 3). */
+    get flowRows() {
+        const actions = this.flowActions;
+        const byFlow = new Map();
+        Object.keys(actions).forEach((name) => byFlow.set(name, []));
+        this.flowResults.forEach((r) => {
+            const name = r.flow || r.name;
+            if (!byFlow.has(name)) {
+                byFlow.set(name, []);
+            }
+            byFlow.get(name).push(r);
+        });
+        return [...byFlow.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([name, results]) => {
+            const choice = actions[name] || (results[0] && results[0].choice) || 'Keep';
+            const parts = results.map((r, i) => {
+                const failed = r.status === FLOW_FAILED;
+                let text = r.org + (r.version ? ' v' + r.version : '') + ' ';
+                if (failed) {
+                    text = r.org + ' failed' + (r.message ? ': “' + r.message + '”' : '');
+                } else if (r.status === FLOW_ACTIVATED || r.status === FLOW_ALREADY) {
+                    text += 'active';
+                } else {
+                    text += String(r.status || '').toLowerCase() + (r.message ? ' (' + r.message + ')' : '');
+                }
+                return { key: name + i, text, cls: failed ? 'rr-flow-bad' : '', sep: i > 0 };
+            });
+            return {
+                key: name, name,
+                choiceText: FLOW_CHOICE_LABEL[choice] || 'Keep as in ' + ((this.detail && this.detail.sourceName) || 'the developer org'),
+                parts,
+                waiting: !parts.length,
+                waitText: choice === 'Activate' ? 'Activated after each deploy.' : 'Deployed as it is in ' + ((this.detail && this.detail.sourceName) || 'the developer org') + '.'
+            };
+        });
+    }
+    get hasFlows() { return this.flowRows.length > 0; }
+    /**
+     * While flows are left to activate after a deploy (RlyFlowBatch: a batch per check): "Activating flows: 8 of 30" —
+     * the Activate flows with a result for the target org, out of all of them.
+     */
+    get flowProgress() {
+        if (!this.detail || this.rel.Status__c !== 'Deployed') {
+            return '';
+        }
+        const actions = this.flowActions;
+        const chosen = Object.keys(actions).filter((n) => actions[n] === 'Activate');
+        const target = this.detail.targetName;
+        const done = new Set(this.flowResults.filter((r) => r.org === target).map((r) => r.flow || r.name));
+        const left = chosen.filter((n) => !done.has(n)).length;
+        return left > 0 ? 'Activating flows: ' + (chosen.length - left) + ' of ' + chosen.length : '';
+    }
+    get flowActivatedText() {
+        const n = this.flowResults.filter((r) => r.status === FLOW_ACTIVATED).length;
+        return n ? n + ' activated' : '';
+    }
+    get flowFailedText() {
+        const n = this.flowResults.filter((r) => r.status === FLOW_FAILED).length;
+        return n ? n + ' failed' : '';
+    }
+
+    // ---------- history (Detail.events, newest first: a vertical path reading "this happened after that") ----------
+
+    get events() {
+        const list = this.detail && Array.isArray(this.detail.events) ? [...this.detail.events] : [];
+        list.sort((a, b) => new Date(b.occurredOn || 0) - new Date(a.occurredOn || 0));
+        let lastDay = '';
+        return list.map((e, i) => {
+            // Adds saved before build 52 were Raised events: they read "Changes added" too.
+            const look = (e.eventType === 'Raised' && /^Added /.test(e.detail || '') ? EVENT_LOOK.Changes_Added : EVENT_LOOK[e.eventType]) || EVENT_LOOK.Comment;
+            const day = dayOf(e.occurredOn);
+            const whenText = day === lastDay ? timeOnly(e.occurredOn) : when(e.occurredOn);
+            lastDay = day;
+            const orgWord = EVENT_ORG_WORD[e.eventType];
+            const failed = (CHECK_EVENTS.includes(e.eventType) && checkFailed(e.detail))
+                || (e.eventType === 'Changes_Added' && /^Not added/.test(e.detail || ''));
+            const ref = e.reference || '';
+            return {
+                key: e.id || 'e' + i,
+                isFile: FILE_EVENTS.includes(e.eventType),
+                title: e.title || this.eventTitle(e, look, failed) + (orgWord && e.orgName ? orgWord + e.orgName : ''),
+                icon: look.icon,
+                cls: 'rr-vt-dot rr-vt-' + eventTone(e, failed),
+                hasArrow: i < list.length - 1,
+                who: [e.actorName, e.via].filter(Boolean).join(' · '),
+                whenText,
+                detail: e.detail || '',
+                refLink: /^https?:\/\//i.test(ref) ? ref : '',
+                refText: /^https?:\/\//i.test(ref) ? '' : ref
+            };
+        });
+    }
+    // ---------- Open org (admins and the deployment team; the hub is never listed) ----------
+
+    /** RlyOrgLinks.OrgLink rows: the route's orgs with their login address (My Domain + "/"), empty for everyone else. */
+    get orgLinks() {
+        const links = this.detail && Array.isArray(this.detail.orgLinks) ? this.detail.orgLinks : [];
+        return links.filter((l) => l && l.loginUrl).map((l) => ({
+            ...l,
+            menuLabel: 'Log in to ' + l.name,
+            menuTitle: l.environment ? l.name + ' · ' + l.environment : l.name
+        }));
+    }
+    get hasOrgLinks() { return this.orgLinks.length > 0; }
+    /** Opens the chosen org's login page (or single sign-on) in a new window; no sign-in details, only its address. */
+    openOrg(event) {
+        const link = this.orgLinks.find((l) => l.orgId === event.detail.value);
+        if (link) {
+            window.open(link.loginUrl, '_blank', 'noopener,noreferrer');
+        }
+    }
+
+    /** "Code scan passed", "Check-only deploy failed", "Flow activation failed": the event's line says which. */
+    eventTitle(e, look, failed) {
+        if (e.eventType === 'Flow_Activated') {
+            return failed ? 'Flow activation failed' : look.title;
+        }
+        if (CHECK_EVENTS.includes(e.eventType)) {
+            if (!failed && e.eventType === 'Scan' && /\bskipped\b/i.test(e.detail || '')) {
+                return look.title + ' skipped';
+            }
+            if (!failed && e.eventType === 'Scan' && /\b[1-9]\d* findings?\b/i.test(e.detail || '')) {
+                return look.title + ' passed with findings';
+            }
+            return look.title + (failed ? ' failed' : ' passed');
+        }
+        return look.title;
+    }
+    get hasEvents() { return this.events.length > 0; }
+    get eventCountText() { const n = this.events.length; return n + (n === 1 ? ' event' : ' events'); }
+
+    // ---------- evidence: PDF in the release's Files, plain-text summary ----------
+
+    evidenceBusy = false;
+    showSummary = false;
+    get evidenceLabel() { return this.evidenceBusy ? 'Saving evidence…' : 'Download evidence (PDF)'; }
+
+    /** RlyEvidenceController.saveEvidence: saves the PDF to the release's Files and returns its download address. */
+    async downloadEvidence() {
+        this.evidenceBusy = true;
+        try {
+            const res = await saveEvidence({ releaseId: this._releaseId });
+            if (res && res.downloadUrl) {
+                this[NavigationMixin.Navigate]({ type: 'standard__webPage', attributes: { url: res.downloadUrl } });
+            }
+            this.toast('Evidence saved to the release\'s Files' + (res && res.title ? ': ' + res.title + '.pdf' : '.'), 'success');
+        } catch (e) {
+            this.toast(errorText(e), 'error');
+        } finally {
+            this.evidenceBusy = false;
+        }
+    }
+
+    get summaryLabel() { return this.showSummary ? 'Hide summary' : 'Copy summary'; }
+
+    /** A plain-text block for a change request. */
+    get summaryText() {
+        const r = this.rel;
+        const d = this.detail || {};
+        const lines = [(r.Name || '') + ' ' + (r.Title__c || '')];
+        lines.push('Route: ' + d.sourceName + ' → ' + d.targetName + ' · raised by ' + this.raisedBy + ', ' + this.raisedOn);
+        if (this.isHotfix) {
+            lines.push('Hotfix: ' + this.hotfixReason);
+        }
+        if (this.manualOnly) {
+            lines.push(MANUAL_ONLY + ': no components; Git branch, ' + this.crWord + ', scan and validation not needed');
+        } else {
+            lines.push('Components: ' + this.items.length + this.componentBreakdown);
+            if (this.hasDeletions) {
+                lines.push('Deletes: ' + this.deletions.map((x) => x.name).join(', '));
+            }
+            if (this.hasSwitchesOff) {
+                lines.push('Switches off: ' + this.switchesOffText);
+            }
+            lines.push('Scan: ' + this.scanLabel.toLowerCase() + (this.scanSummary ? ', ' + this.scanSummary : '') + ' · Tests: ' + this.testsText);
+            lines.push('Validation: ' + this.validationLabel.toLowerCase() + (this.validation.testsRun ? ', ' + this.validation.testsRun + ' tests run' : ''));
+        }
+        lines.push('Approval: ' + this.approvalSummary);
+        lines.push('Status: ' + this.phase + (r.Merge_Commit__c ? ' · merge ' + r.Merge_Commit__c.substring(0, 7) : ''));
+        if (this.rollback.label) {
+            lines.push('Rollback: ' + this.rollback.label + ' by ' + (this.rollback.byName || '') + ', ' + when(this.rollback.rolledBackOn)
+                + (this.rollback.reason ? ': ' + this.rollback.reason : ''));
+        }
+        this.flowRows.forEach((f) => lines.push('Flow ' + f.name + ': ' + (f.parts.length ? f.parts.map((p) => p.text).join(' · ') : f.choiceText)));
+        if (d.manualSummary) {
+            lines.push('Manual steps: ' + d.manualSummary);
+        }
+        if (r.PR_URL__c) {
+            lines.push(this.crLabel + ': ' + r.PR_URL__c);
+        }
+        return lines.join('\n');
+    }
+
+    get componentBreakdown() {
+        const counts = {};
+        this.items.forEach((i) => {
+            counts[i.type] = (counts[i.type] || 0) + 1;
+        });
+        const parts = Object.keys(counts).sort().map((t) => counts[t] + ' ' + t);
+        return parts.length ? ' (' + parts.join(', ') + ')' : '';
+    }
+
+    get approvalSummary() {
+        const r = this.rel;
+        if (r.Approved_Via__c === 'Rule') {
+            const reason = this.approvalReason.replace(/^Approved automatically:?\s*/i, '');
+            return 'approved automatically (rule)' + (reason ? ': ' + reason : '');
+        }
+        if (r.Approval_Status__c === 'Approved' || r.Approval_Status__c === 'Rejected') {
+            return r.Approval_Status__c.toLowerCase() + ' by ' + (r.Approved_By__r ? r.Approved_By__r.Name : '') + this.secondApproverText + ', '
+                + when(r.Approved_On__c) + (r.Approved_Via__c ? ' (' + r.Approved_Via__c + ')' : '') + (r.Approval_Comment__c ? ': ' + r.Approval_Comment__c : '');
+        }
+        return this.approvalReason || 'not yet';
+    }
+
+    /** Copies the summary and shows it, so it can be selected by hand where the browser blocks the clipboard. */
+    copySummary() {
+        if (this.showSummary) {
+            this.showSummary = false;
+            return;
+        }
+        this.showSummary = true;
+        const clip = typeof navigator !== 'undefined' ? navigator.clipboard : null;
+        if (!clip || !clip.writeText) {
+            this.toast('Select the summary below and copy it.', 'info');
+            return;
+        }
+        clip.writeText(this.summaryText)
+            .then(() => this.toast('Summary copied', 'success'))
+            .catch(() => this.toast('Select the summary below and copy it.', 'info'));
+    }
+
+    get lowerLeft() { return this.hasFlows || this.showSummary; }
+    get lowerCls() { return this.lowerLeft ? 'rr-cols rr-cols-even' : 'rr-one'; }
+    get showLower() { return this.lowerLeft || this.hasEvents; }
+
+    toast(message, variant) {
+        this.dispatchEvent(new ShowToastEvent({ title: (this.rel.Name || 'Release'), message, variant }));
+    }
+
+    // ---------- roll back (board HubRollbackValuesGates, panels 1 and 2) ----------
+
+    rollbackOpen = false;
+    /** The rollback state the page last read (undefined before the first read). */
+    lastRollback;
+
+    /** Detail.rollbackState (RlyRollbackView.View): the latest rollback and whether this user may roll back. */
+    get rollback() { return (this.detail && this.detail.rollbackState) || {}; }
+    get rollbackResult() { return parse(this.rollback.resultJson) || {}; }
+    /** Release Relay admins and the deployment team, on the hub, for a deployed release; hidden for everyone else. */
+    get showRollback() { return this.rollback.canRollBack === true && !this.hubCopy; }
+    get rollbackDisabled() { return this.rollback.busy === true || this.busy; }
+    get rollbackTitle() { return this.rollbackDisabled ? 'A deploy or rollback is running' : 'Put an org back the way it was before this release'; }
+
+    openRollback() {
+        this.rollbackOpen = true;
+    }
+
+    closeRollback() {
+        this.rollbackOpen = false;
+    }
+
+    /** The dialog started the rollback: read the release again, which follows the rollback until it ends. */
+    rollbackStarted(event) {
+        this.rollbackOpen = false;
+        this.toast('Rolling back in ' + ((event.detail && event.detail.orgName) || 'the org') + '. Git is not changed.', 'success');
+        this.load();
+    }
+
+    /** "PROD was rolled back on 1 Nov 14:20 by Ana. The prod branch in Git still has this release's changes: …" */
+    get rolledBackNotice() {
+        const rb = this.rollback;
+        if (rb.status !== ROLLED_BACK) {
+            return '';
+        }
+        const branch = this.rollbackResult.branch || '';
+        return rb.orgName + ' was rolled back on ' + when(rb.rolledBackOn) + (rb.byName ? ' by ' + rb.byName : '') + '. The '
+            + (branch ? branch + ' branch' : 'branch') + ' in Git still has this release\'s changes: raise a release to fix the branch.';
+    }
+
+    /** The Roll back <org> step: running, done (restored, removed) or failed (the errors are under Deployment errors). */
+    rollbackStep() {
+        const rb = this.rollback;
+        if (!rb.status) {
+            return null;
+        }
+        const res = this.rollbackResult;
+        const tests = Array.isArray(res.tests) ? res.tests.length : 0;
+        let state = 'Running';
+        let label = 'Running';
+        let text = 'Started ' + timeOnly(rb.rolledBackOn) + (rb.byName ? ' by ' + rb.byName : '') + ' · deploying the snapshot'
+            + (tests ? ', running ' + tests + (tests === 1 ? ' test' : ' tests') : '');
+        if (rb.status === ROLLED_BACK) {
+            state = 'Done';
+            label = 'Done';
+            text = when(rb.rolledBackOn) + ' · restored ' + (res.restored || 0) + ', removed ' + (res.removed || 0)
+                + (res.deployId ? ' · ' + res.deployId : '') + (res.testsRun ? ' · ' + res.testsRun + ' tests run' : '');
+        } else if (rb.status !== ROLLBACK_RUNNING) {
+            state = 'Failed';
+            label = 'Failed';
+            text = res.message || 'The rollback failed. The org is unchanged.';
+        }
+        return {
+            key: 'rollback', title: 'Roll back ' + (rb.orgName || ''), state, label, badge: state === 'Running' ? '↺' : '',
+            text, reason: rb.reason ? '“' + rb.reason + '”' : '', reasonCls: 'rr-small rr-weak', link: res.runUrl || '', linkLabel: 'Pipeline run'
+        };
+    }
+
+    // ---------- actions ----------
+
+    get isApprover() { return !!(this.detail && this.detail.isApprover); }
+    get canApprove() { return this.isApprover && this.approveHere && this.rel.Status__c === 'Ready for approval' && !this.prodAddonNote; }
+    /** Build 49: production needs the Production Approver add-on and this approver hasn't got it. */
+    get prodAddonNote() { return (this.detail && this.detail.prodAddonNote) || ''; }
+    /** Ready for approval, but approved from the Slack card rather than here. */
+    get approvedElsewhere() { return !this.approveHere && this.rel.Status__c === 'Ready for approval'; }
+    get canReject() { return this.isApprover && (this.rel.Status__c === 'Ready for approval' || this.rel.Status__c === 'Checks failed'); }
+    get canBypass() {
+        return this.isApprover && this.rel.Status__c === 'Checks failed'
+            && (this.rel.Scan_Status__c === 'Failed' || this.rel.Scan_Status__c === 'Error');
+    }
+    get canCheckAgain() {
+        return ['Checks failed', 'Ready for approval'].includes(this.rel.Status__c) && !!this.rel.PR_Number__c
+            && !(this.detail && this.detail.canRerun === false);
+    }
+    get validationBlocks() { return ['Failed', 'Error'].includes(this.rel.Validation_Status__c); }
+    get showDecision() { return !this.running && (this.canBypass || this.canReject); }
+
+    /** While the checks run the bar shows the actions disabled; after that, the ones this user can take. */
+    get waitingForChecks() { return this.running && ['Retrieving', 'Workflow running', 'Validating'].includes(this.rel.Status__c); }
+    get showCheckAgain() { return (this.waitingForChecks && !(this.detail && this.detail.canRerun === false)) || this.canCheckAgain; }
+    get showReject() { return (this.waitingForChecks && this.isApprover) || this.canReject; }
+    get showApprove() { return (this.waitingForChecks && this.isApprover && this.approveHere) || this.canApprove; }
+    get checkAgainDisabled() { return this.actBusy || !this.canCheckAgain; }
+    get rejectDisabled() { return this.actBusy || !this.canReject; }
+    get approveDisabled() { return this.actBusy || !this.canApprove; }
+    get needsApproverNote() {
+        return !this.isApprover && ['Ready for approval', 'Checks failed'].includes(this.rel.Status__c);
+    }
+    get footNote() {
+        if (this.waitingForChecks) {
+            return 'Actions show when the checks finish.';
+        }
+        if (this.approvedElsewhere) {
+            return 'Approved from the Slack card.';
+        }
+        if (this.prodAddonNote) {
+            return this.prodAddonNote;
+        }
+        if (this.needsApproverNote) {
+            return 'An approver approves or rejects it on the Approvals tab.';
+        }
+        if (this.needsSecondApprover && this.rel.Status__c === 'Ready for approval') {
+            return 'A hotfix into ' + this.targetName + ' needs 2 approvers. The person who raised it can\'t approve it.';
+        }
+        return '';
+    }
+    get showFooter() { return this.showCheckAgain || this.showReject || this.showApprove || this.showCancel || this.showEditFiles || !!this.footNote; }
+
+    // ---------- Edit a file (build 55): the raiser or an admin edits what will be deployed; the checks run again ----------
+
+    editOpen = false;
+    get showEditFiles() { return !!(this.detail && this.detail.canEditFiles) && !this.editOpen; }
+    get editHelp() { return 'Open any file of this release: the source org, the target branch and what will be deployed. Saving commits it to the release branch and runs the checks again.'; }
+    openEditFiles() { this.editOpen = true; }
+    closeEditFiles() { this.editOpen = false; }
+    fileSaved(event) {
+        this.editOpen = false;
+        if (event && event.detail) {
+            this.detail = event.detail;
+        }
+        this.load();
+    }
+
+    // ---------- Cancel release (build 54): the raiser or an admin withdraws an open release; Reject is an approver's ----------
+
+    get showCancel() { return !!(this.detail && this.detail.canCancel) && !this.cancelOpen; }
+    get cancelHelp() { return 'Withdraw this release (you raised it, or you are an admin). Reject is for an approver turning it down.'; }
+    get cancelTitle() { return 'Cancel ' + (this.rel.Name || 'this release') + '?'; }
+    get cancelButtonLabel() { return 'Cancel ' + (this.rel.Name || 'the release'); }
+    get cancelRunWarning() {
+        const s = this.rel.Status__c;
+        if (s === 'Deploying') {
+            return 'A pipeline run is going: it may still deploy. Cancelling doesn\'t stop it; check the run.';
+        }
+        return this.running ? 'A pipeline run is going: cancelling doesn\'t stop it.' : '';
+    }
+    get cancelWhat() {
+        const pr = this.rel.PR_Number__c && !this.rel.Merge_Commit__c
+            ? ' Its pull request #' + this.rel.PR_Number__c + ' gets your reason as a comment and is closed.' : '';
+        return 'It becomes Cancelled with your reason, in History and on its Slack card.' + pr + ' This can\'t be undone: raise it again if needed.';
+    }
+    get cancelDisabled() { return this.actBusy || !(this.cancelReason || '').trim(); }
+    openCancel() {
+        this.cancelReason = '';
+        this.cancelOpen = true;
+    }
+    closeCancel() { this.cancelOpen = false; }
+    handleCancelReason(event) { this.cancelReason = event.target.value; }
+    async doCancel() {
+        await this.act(cancelRelease, { reason: this.cancelReason });
+        if (!this.error) {
+            this.cancelOpen = false;
+        }
+    }
+
+    handleComment(event) { this.comment = event.target.value; }
+    handleReason(event) { this.reason = event.target.value; }
+
+    async act(fn, args) {
+        this.busy = true;
+        this.error = undefined;
+        try {
+            this.detail = await fn({ releaseId: this._releaseId, ...args });
+            this.comment = '';
+            this.reason = '';
+            if (this.detail.running) {
+                this.load();
+            } else {
+                this.schedule();
+            }
+            this.dispatchEvent(new CustomEvent('changed', { detail: this.detail.release.Status__c }));
+        } catch (e) {
+            this.error = errorText(e);
+        } finally {
+            this.busy = false;
+        }
+    }
+
+    doApprove() { this.act(approve, { comment: this.comment }); }
+    doReject() { this.act(reject, { comment: this.comment }); }
+    doBypass() { this.act(bypassScan, { reason: this.reason }); }
+    doCheckAgain() { this.act(checkAgain, {}); }
+}

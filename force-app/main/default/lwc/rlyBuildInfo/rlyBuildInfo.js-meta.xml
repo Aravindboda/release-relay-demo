@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>63.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Release Relay: What's built</masterLabel>
+    <description>What's built as a technical document: numbered contents, overview counts (live), architecture, data model with field tables, security and access, Apex by area, components and tabs, pipeline files, limits, tests to run, manual set-up and build history.</description>
+    <targets>
+        <target>lightning__Tab</target>
+    </targets>
+</LightningComponentBundle>

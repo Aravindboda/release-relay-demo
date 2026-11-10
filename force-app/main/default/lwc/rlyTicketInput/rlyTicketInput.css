@@ -1,0 +1,11 @@
+.rr-ti { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
+.rr-ti-label { font-size: 12px; color: #444; }
+.rr-ti-box { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border: 1px solid #c9c9c9; border-radius: 4px; padding: 4px 6px; background: #fff; min-height: 34px; }
+.rr-ti-box:focus-within { border-color: #0176d3; box-shadow: 0 0 0 1px #0176d3; }
+.rr-ti-chip { display: inline-flex; align-items: center; gap: 4px; background: #eef4ff; color: #014486; border-radius: 12px; padding: 2px 4px 2px 10px; font-size: 12px; font-weight: 600; }
+.rr-ti-x { border: 0; background: none; cursor: pointer; color: #014486; font-size: 14px; line-height: 1; padding: 0 4px; }
+.rr-ti-input { flex: 1 1 140px; border: 0; outline: 0; font: inherit; font-size: 13px; min-width: 120px; padding: 4px; }
+.rr-ti-input::placeholder { color: #939393; }
+.rr-ti-bad { font-size: 12px; color: #8e030f; margin: 0; }
+.rr-ti-help { font-size: 12px; color: #5c5c5c; margin: 0; }
+.rr-ti-tracker { font-size: 10.5px; font-weight: 600; color: #5c5c5c; background: #fff; border-radius: 8px; padding: 0 6px; }

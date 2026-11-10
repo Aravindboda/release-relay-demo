@@ -1,0 +1,25 @@
+<template>
+    <div class="rr-wrap">
+        <template lwc:if={label}><p class="rr-label">{label}</p></template>
+        <template lwc:if={isMulti}>
+            <div class="rr-chips" role="group" aria-label={label}>
+                <template for:each={items} for:item="o">
+                    <button key={o.value} type="button" class={o.cls} aria-pressed={o.pressed} data-value={o.value} onclick={handleClick} disabled={o.off}>
+                        <template lwc:if={o.selected}><lightning-icon icon-name="utility:check" size="x-small" variant="inverse" alternative-text="" class="rr-chip-icon"></lightning-icon></template>
+                        <span>{o.label}</span>
+                    </button>
+                </template>
+            </div>
+        </template>
+        <template lwc:else>
+            <div class="rr-rcards" role="radiogroup" aria-label={label}>
+                <template for:each={items} for:item="o">
+                    <button key={o.value} type="button" role="radio" class={o.cls} aria-checked={o.pressed} data-value={o.value} onclick={handleClick} disabled={o.off}>
+                        <span class="rr-rcard-title"><span class="rr-dot" aria-hidden="true"></span><span>{o.label}</span></span>
+                        <template lwc:if={o.help}><span class={o.helpCls}>{o.help}</span></template>
+                    </button>
+                </template>
+            </div>
+        </template>
+    </div>
+</template>

@@ -1,0 +1,230 @@
+<template>
+    <!-- design board: Pipeline Monitor v2 (fits the screen, each section scrolls on its own) -->
+    <template lwc:if={statusRead}>
+        <c-rly-org-gate status={hubStatus}></c-rly-org-gate>
+        <template lwc:if={showPage}>
+            <div class="rr-page">
+                <div class={mainCls}>
+                    <template lwc:if={showSpinner}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+
+                    <!-- header -->
+                    <section class="rr-card rr-head">
+                        <span class="rr-head-icon"><lightning-icon icon-name="utility:pulse" size="x-small" variant="inverse" alternative-text=""></lightning-icon></span>
+                        <div class="rr-head-text">
+                            <p class="rr-kicker">{appName}</p>
+                            <h1 class="rr-title">Pipeline Monitor</h1>
+                        </div>
+                        <template lwc:if={hasRepos}>
+                            <lightning-combobox class="rr-repo" label="Git repository" variant="label-hidden" value={repository} options={repoOptions}
+                                disabled={repoDisabled} onchange={handleRepo} placeholder="Pick a repository"></lightning-combobox>
+                        </template>
+                        <span class="rr-cd" role="status">
+                            <span class={liveCls} aria-hidden="true"></span>{updatedText}
+                            <template for:each={cycles} for:item="c">
+                                <span key={c.key} class={tickCls} aria-hidden="true" onanimationiteration={handleTick} onanimationend={handleTickEnd}></span>
+                            </template>
+                        </span>
+                        <lightning-button label="Refresh" icon-name="utility:refresh" onclick={refresh} disabled={refreshing}></lightning-button>
+                        <span class="rr-meter" aria-hidden="true">
+                            <template for:each={cycles} for:item="c">
+                                <span key={c.key} class={meterCls}></span>
+                            </template>
+                        </span>
+                    </section>
+
+                    <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+
+                    <!-- tiles -->
+                    <div class="rr-tiles">
+                        <div class="rr-card rr-tile rr-tile-run">
+                            <span class="rr-tile-n">{tiles.running}<template lwc:if={showRunSpin}><span class="rr-spin" aria-hidden="true"></span></template></span>
+                            <span class="rr-tile-l">Running now</span>
+                        </div>
+                        <div class="rr-card rr-tile rr-tile-br">
+                            <span class="rr-tile-n">{tiles.branches}</span>
+                            <span class="rr-tile-l">Branches in progress</span>
+                        </div>
+                        <div class="rr-card rr-tile rr-tile-ok">
+                            <span class="rr-tile-n">{tiles.succeededToday}</span>
+                            <span class="rr-tile-l">Succeeded today</span>
+                        </div>
+                        <button type="button" class={failedTileCls} onclick={showFailed} title="Show the failed runs">
+                            <span class="rr-tile-n">{tiles.failedToday}</span>
+                            <span class="rr-tile-l">{failedTileHint}</span>
+                        </button>
+                    </div>
+
+                    <!-- route and active branches -->
+                    <div class="rr-row2">
+                        <section class="rr-card rr-sec" aria-label="Route">
+                            <div class="rr-ct">
+                                <h2 class="rr-h">Route</h2>
+                                <span class="rr-c">{laneCountText}</span>
+                                <c-rly-search-box class="rr-search" label="Search the route" placeholder="Search org, branch, release, person"
+                                    onsearch={handleRouteSearch}></c-rly-search-box>
+                            </div>
+                            <div class="rr-body">
+                                <template lwc:if={hasLanes}>
+                                    <template for:each={laneGroups} for:item="g">
+                                        <div key={g.key} class="rr-group-wrap">
+                                            <div class="rr-group">{g.label}</div>
+                                            <template for:each={g.lanes} for:item="l">
+                                                <div key={l.key} class="rr-lane">
+                                                    <div class="rr-ln"><span class="rr-ln-name">{l.name}</span><small>{l.roleText}</small></div>
+                                                    <div class={l.chipCls} role="button" tabindex="0" title={l.title} data-id={l.runId} onclick={selectRun} onkeydown={selectRunKey}>
+                                                        <span class={l.badgeCls}>{l.badge}</span>
+                                                        <template lwc:if={l.hasRun}><span class="rr-mono rr-trunc">{l.branch}</span></template>
+                                                        <span class="rr-m">{l.meta}</span>
+                                                        <template lwc:if={l.hasRun}>
+                                                            <span class="rr-segs" aria-hidden="true">
+                                                                <template for:each={l.segments} for:item="s"><i key={s.key} class={s.cls}></i></template>
+                                                            </span>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </template>
+                                <template lwc:else><p class="rr-empty">{laneEmpty}</p></template>
+                            </div>
+                            <div class="rr-foot"><span>Grouped as on the Pipeline tab</span><span>Each org's latest run</span></div>
+                        </section>
+
+                        <section class="rr-card rr-sec" aria-label="Active branches">
+                            <div class="rr-ct">
+                                <h2 class="rr-h">Active branches</h2>
+                                <span class="rr-c">{branchCountText}</span>
+                                <c-rly-search-box class="rr-search" label="Search branches" placeholder="Search branch or PR"
+                                    onsearch={handleBranchSearch}></c-rly-search-box>
+                            </div>
+                            <div class="rr-body">
+                                <template lwc:if={hasBranches}>
+                                    <template for:each={branchRows} for:item="b">
+                                        <div key={b.key} class={b.rowCls} role="button" tabindex="0" data-id={b.runId} onclick={selectRun} onkeydown={selectRunKey}>
+                                            <i class={b.dotCls} title={b.stateText}></i>
+                                            <div class="rr-brl-text"><div class="rr-mono rr-trunc">{b.branch}</div><div class="rr-m rr-trunc">{b.meta}</div></div>
+                                            <span class={b.badgeCls}>{b.badge}</span>
+                                        </div>
+                                    </template>
+                                </template>
+                                <template lwc:else><p class="rr-empty">{branchEmpty}</p></template>
+                            </div>
+                            <div class="rr-foot"><span>Running and failed first</span><span>From releases and pipeline runs</span></div>
+                        </section>
+                    </div>
+
+                    <!-- runs -->
+                    <section class="rr-card rr-sec rr-runs" aria-label="Runs">
+                        <div class="rr-ct">
+                            <h2 class="rr-h">Runs</h2>
+                            <span class="rr-c">{runCountText}</span>
+                            <div class="rr-pills" role="group" aria-label="Show runs">
+                                <template for:each={filterPills} for:item="f">
+                                    <button key={f.value} type="button" class={f.cls} aria-pressed={f.pressed} data-value={f.value} onclick={handleFilter}>{f.label}</button>
+                                </template>
+                            </div>
+                            <c-rly-search-box class="rr-search" label="Search runs" placeholder="Search branch, release, org, person"
+                                onsearch={handleRunSearch}></c-rly-search-box>
+                        </div>
+                        <div class="rr-body">
+                            <table class="rr-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Status</th>
+                                        <th scope="col">Workflow step</th>
+                                        <th scope="col">Branch</th>
+                                        <th scope="col">Target org</th>
+                                        <th scope="col">Release</th>
+                                        <th scope="col">Started</th>
+                                        <th scope="col">Duration</th>
+                                        <th scope="col">Triggered by</th>
+                                        <th scope="col"><span class="slds-assistive-text">GitHub</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={runRows} for:item="r">
+                                        <tr key={r.key} class={r.rowCls} data-id={r.id} onclick={selectRun}>
+                                            <td><span class={r.badgeCls}>{r.badge}</span></td>
+                                            <td>
+                                                <button type="button" class="rr-rowbtn" title="Open the run details">{r.step}</button>
+                                            </td>
+                                            <td class="rr-mono">{r.branch}</td>
+                                            <td>{r.targetOrg}</td>
+                                            <td>
+                                                <template lwc:if={r.hasRelease}>
+                                                    <button type="button" class="rr-link" data-id={r.releaseId} onclick={openRelease}>{r.releaseName}</button>
+                                                </template>
+                                                <template lwc:else><span class="rr-weak">{r.releaseName}</span></template>
+                                            </td>
+                                            <td>{r.startedText}</td>
+                                            <td>{r.durationText}</td>
+                                            <td>{r.actor}</td>
+                                            <td>
+                                                <template lwc:if={r.runUrl}>
+                                                    <a class="rr-a" href={r.runUrl} target="_blank" rel="noopener noreferrer" onclick={stopClick}>View in GitHub ↗</a>
+                                                </template>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <template lwc:if={showRunEmpty}><p class="rr-empty">{runEmpty}</p></template>
+                        </div>
+                        <div class="rr-foot">
+                            <span>Running first, then newest</span>
+                            <template lwc:if={hasMore}>
+                                <button type="button" class="rr-link" onclick={loadOlder} disabled={loadingOlder}>{olderLabel}</button>
+                            </template>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- run details -->
+                <template lwc:if={showDetails}>
+                    <aside class="rr-card rr-side" aria-label="Run details">
+                        <div class="rr-ct">
+                            <h2 class="rr-h">Run details</h2>
+                            <span class="rr-grow"></span>
+                            <lightning-button-icon icon-name="utility:close" variant="bare" alternative-text="Close run details" title="Close" onclick={closeDetails}></lightning-button-icon>
+                        </div>
+                        <div class="rr-body">
+                            <dl class="rr-kv">
+                                <dt>Status</dt><dd class={detail.statusCls}>{detail.statusLabel}</dd>
+                                <dt>Release</dt>
+                                <dd>
+                                    <template lwc:if={detail.hasRelease}>
+                                        <button type="button" class="rr-link rr-wrap" data-id={detail.releaseId} onclick={openRelease}>{detail.release}</button>
+                                    </template>
+                                    <template lwc:else>{detail.release}</template>
+                                </dd>
+                                <dt>Step</dt><dd>{detail.step}</dd>
+                                <dt>Branch</dt><dd class="rr-mono rr-break">{detail.branch}</dd>
+                                <dt>Started</dt><dd>{detail.startedText}</dd>
+                                <dt>Triggered by</dt><dd>{detail.actor}</dd>
+                                <dt>Run</dt><dd>{detail.runText}</dd>
+                            </dl>
+                            <template lwc:if={detail.hasSteps}>
+                                <ul class="rr-steps">
+                                    <template for:each={detail.steps} for:item="s">
+                                        <li key={s.key} class="rr-st"><span class={s.iconCls} aria-hidden="true">{s.mark}</span><span class={s.nameCls}>{s.name}</span><span class="rr-m">{s.meta}</span></li>
+                                    </template>
+                                </ul>
+                            </template>
+                            <template lwc:else><p class="rr-empty rr-empty-tight">{detail.noStepsText}</p></template>
+                            <template lwc:if={detail.failure}><pre class="rr-err">{detail.failure}</pre></template>
+                            <div class="rr-links">
+                                <template lwc:if={detail.hasRelease}>
+                                    <button type="button" class="rr-link" data-id={detail.releaseId} onclick={openRelease}>{detail.openReleaseLabel}</button>
+                                </template>
+                                <template lwc:if={detail.runUrl}>
+                                    <a class="rr-a" href={detail.runUrl} target="_blank" rel="noopener noreferrer">Open the run log in GitHub ↗</a>
+                                </template>
+                            </div>
+                        </div>
+                    </aside>
+                </template>
+            </div>
+        </template>
+    </template>
+</template>

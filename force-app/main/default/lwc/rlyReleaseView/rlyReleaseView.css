@@ -1,0 +1,206 @@
+@import 'c/rlySharedStyles';
+
+:host {
+    display: block;
+    --rr-blue: #0176d3;
+    --rr-ink: #181818;
+    --rr-muted: #5c5c5c;
+    --rr-line: #e5e5e5;
+}
+
+.rr-page { display: flex; flex-direction: column; gap: 12px; color: var(--rr-ink); min-height: 160px; }
+.rr-card { background: #fff; border: 1px solid var(--rr-line); border-radius: 4px; box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05); min-width: 0; }
+.rr-hd { padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.rr-hd-line { border-bottom: 1px solid var(--rr-line); }
+.rr-hd-top { border-top: 1px solid var(--rr-line); }
+.rr-icon {
+    width: 32px; height: 32px; border-radius: 4px; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+}
+.rr-icon-release { background: #06a59a; }
+.rr-head-text { flex: 1 1 320px; min-width: 0; }
+.rr-kicker { margin: 0; font-size: 12px; color: var(--rr-muted); }
+.rr-title { margin: 0; font-size: 18px; font-weight: 700; }
+.rr-grow { flex: 1; }
+.rr-arrow { color: var(--rr-blue); margin: 0 6px; }
+.rr-break { overflow-wrap: anywhere; }
+
+/* path: one segment per stop */
+.rr-path { display: flex; list-style: none; margin: 0 16px 12px; padding: 0; border-radius: 16px; overflow: hidden; }
+.rr-path-item { flex: 1; min-width: 0; text-align: center; font-size: 12px; padding: 8px 6px; background: #f3f3f3; color: #444; border-right: 2px solid #fff; overflow-wrap: anywhere; }
+.rr-path-done { background: #2e844a; color: #fff; }
+.rr-path-current { background: #0b5cab; color: #fff; font-weight: 700; }
+.rr-path-lost { background: #ba0517; color: #fff; font-weight: 700; }
+
+/* highlights */
+.rr-hl { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); border-top: 1px solid var(--rr-line); }
+.rr-hl > div { padding: 10px 16px; border-right: 1px solid var(--rr-line); min-width: 0; }
+.rr-hl > div:last-child { border-right: 0; }
+.rr-hl p { margin: 0; font-size: 16px; }
+.rr-hl .rr-kicker { font-size: 12px; }
+
+/* two columns, one on narrow screens */
+.rr-cols { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; align-items: stretch; }
+@media (max-width: 900px) { .rr-cols { grid-template-columns: minmax(0, 1fr); } }
+
+.rr-pill {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px;
+    font-size: 11px; font-weight: 700; white-space: nowrap; vertical-align: middle;
+}
+
+.rr-msg { padding: 8px 12px; border-radius: 4px; font-size: 12px; line-height: 1.45; white-space: pre-line; }
+.rr-note { margin: 10px 16px 0; }
+.rr-notice { margin: 8px 16px 14px; }
+.rr-mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.rr-col { display: flex; flex-direction: column; gap: 6px; }
+.rr-pad-all { padding: 12px 16px; }
+.rr-line-top { border-top: 1px solid var(--rr-line); }
+.rr-label { margin: 0 0 6px; font-size: 12px; color: var(--rr-muted); }
+
+/* timeline */
+.rr-steps { list-style: none; margin: 0; padding: 0; }
+.rr-step { display: flex; gap: 10px; padding: 10px 16px; border-top: 1px solid #f3f3f3; }
+.rr-step-body { min-width: 0; }
+.rr-step-body p { margin: 0; font-size: 13px; }
+.rr-step-body p.rr-small { font-size: 13px; overflow-wrap: anywhere; }
+.rr-dot {
+    width: 22px; height: 22px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; background: #f3f3f3; color: #747474;
+}
+.rr-dot-done { background: #2e844a; color: #fff; }
+.rr-dot-running { background: #0b5cab; color: #fff; }
+.rr-dot-failed { background: #ba0517; color: #fff; }
+.rr-dot-warn { background: #dd7a01; color: #fff; }
+.rr-sync-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rr-carried { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+
+/* countdown */
+.rr-meter { display: inline-block; width: 200px; max-width: 30vw; height: 4px; border-radius: 2px; background: #e5e5e5; overflow: hidden; }
+.rr-meter-fill { display: block; height: 100%; width: 100%; background: var(--rr-blue); transform-origin: left center; animation: rr-countdown 30s linear forwards; }
+.rr-meter-fill.rr-meter-slow { animation-duration: 120s; }
+@keyframes rr-countdown { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* results */
+.rr-problems { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.rr-problems span { overflow-wrap: anywhere; }
+.rr-decide { border-top: 1px solid var(--rr-line); background: #fafaf9; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+/* details */
+.rr-dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 12px; font-size: 13px; padding: 12px 16px; }
+.rr-dl dt { color: var(--rr-muted); }
+.rr-dl dd { margin: 0; min-width: 0; }
+
+/* sticky action bar */
+.rr-foot {
+    position: sticky; bottom: 0; z-index: 1; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px;
+    justify-content: flex-end; align-items: center;
+}
+
+/* deletions (board HubDeletions) */
+.rr-del { color: #8e030f; }
+.rr-dl dt.rr-del { color: #8e030f; font-weight: 700; }
+.rr-deletes { color: #8e030f; }
+.rr-del-head { margin: 0; padding: 8px 16px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #8e030f; border-top: 1px solid var(--rr-line); }
+.rr-del-items dd { color: #8e030f; }
+
+/* build 15 (board HubApprovalFlowsEvidence 3): approval reason, flows, copy summary, history */
+.rr-msg-ok { background: #ebf7e6; color: #194e31; }
+.rr-step-body p.rr-step-reason { margin-top: 6px; font-size: 12px; }
+.rr-stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.rr-cols-even { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: start; }
+@media (max-width: 900px) { .rr-cols-even { grid-template-columns: minmax(0, 1fr); } }
+.rr-one { display: block; }
+.rr-flows { list-style: none; margin: 0; padding: 4px 16px 8px; }
+.rr-flow { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-top: 1px solid #f3f3f3; font-size: 13px; }
+.rr-flow:first-child { border-top: 0; }
+.rr-flow p { margin: 0; }
+.rr-flow-bad { color: #ba0517; }
+.rr-pre {
+    margin: 0; background: #fafaf9; border: 1px solid var(--rr-line); border-radius: 4px; padding: 8px 10px;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--rr-ink);
+}
+.rr-tlb { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rr-tlb p { margin: 0; }
+.rr-tl-l1 { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; font-size: 13px; }
+.rr-tl-when { margin-left: auto; font-size: 12px; color: var(--rr-muted); white-space: nowrap; }
+
+/* a release with only manual steps: the note under Components */
+.rr-pad-x { padding: 4px 16px 12px; }
+
+/* build 20 (board HubRollbackValuesGates): rollback note, path, history colour; quality gates box; priority pills */
+.rr-rb-note { margin: 0 16px 12px; }
+.rr-path-rb { background: #dd7a01; color: #fff; font-weight: 700; }
+.rr-gates { background: #fef1ee; border: 1px solid #f9c5bb; border-radius: 4px; padding: 10px 12px; color: #8e030f; font-size: 13px; }
+.rr-gates-title { margin: 0 0 4px; font-weight: 700; }
+.rr-gates-list { margin: 0; padding-left: 18px; list-style: disc; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.rr-prio { min-width: 22px; justify-content: center; }
+.rr-clash-list { margin: 4px 0 0 16px; padding: 0; list-style: disc; }
+
+/* build 22: History as a vertical path, newest first: a dot per event (green done, red failed, amber rolled back or
+   waiting, blue other), a line joining the dots and a chevron on the line pointing from the newer event to the older */
+.rr-vt { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rr-vt-item { display: flex; gap: 10px; position: relative; padding-bottom: 22px; }
+.rr-vt-item::before { content: ""; position: absolute; left: 11px; top: 24px; bottom: 0; width: 2px; background: #c9c9c9; }
+.rr-vt-item:last-child { padding-bottom: 0; }
+.rr-vt-item:last-child::before { display: none; }
+.rr-vt-dot { width: 24px; height: 24px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center; position: relative; z-index: 1; box-shadow: 0 0 0 3px #fff; }
+.rr-vt-ok { background: #2e844a; }
+.rr-vt-bad { background: #ba0517; }
+.rr-vt-wait { background: #dd7a01; }
+.rr-vt-info { background: #0176d3; }
+.rr-vt-arrow {
+    position: absolute; left: 4px; bottom: 2px; width: 16px; height: 16px; z-index: 1; display: inline-flex; align-items: center; justify-content: center;
+    background: #fff; border-radius: 50%; --slds-c-icon-color-foreground-default: #747474;
+}
+
+/* Components | Changes tabs in the Details card (board HubCompare, 4) */
+.rr-tabs { display: flex; gap: 2px; border-top: 1px solid var(--rr-line); border-bottom: 1px solid var(--rr-line); padding: 0 16px; margin-top: 8px; }
+.rr-tab {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 0; border-bottom: 3px solid transparent;
+    background: transparent; font: inherit; font-size: 13px; color: var(--rr-ink); white-space: nowrap; cursor: pointer;
+}
+.rr-tab:hover, .rr-tab:focus { color: #0b5cab; }
+.rr-tab-on { border-bottom-color: #0176d3; font-weight: 700; }
+.rr-tab-c {
+    font-style: normal; display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 9px;
+    background: #f3f3f3; color: #444; font-size: 11px; font-weight: 700;
+}
+.rr-tab-on .rr-tab-c { background: #0176d3; color: #fff; }
+
+/* ---- long lists (build 27, same in every bundle): search toolbar, fixed columns, pinned header, scroll inside ---- */
+.rr-scroll { max-height: 26rem; overflow: auto; }
+.rr-ft th, .rr-ft td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rr-ft .rr-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rr-ft td.rr-nomatch { white-space: normal; text-align: center; color: #5c5c5c; padding: 16px; }
+.rr-ft mark, .rr-scroll mark { background: #fef1cd; color: inherit; padding: 0; border-radius: 2px; }
+.rr-linkbtn { border: 0; background: none; padding: 0; font: inherit; color: #0b5cab; text-decoration: underline; cursor: pointer; }
+.rr-linkbtn:focus-visible { outline: 2px solid #0176d3; outline-offset: 2px; }
+@media (max-width: 900px) { .rr-ft { min-width: var(--rr-ft-min, 640px); } }
+@media (max-width: 600px) { .rr-scroll { max-height: 60vh; } }
+.rr-ctable { font-size: 13px; }
+.rr-ctable th { font-size: 12px; color: #444; font-weight: 700; text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--rr-line); }
+.rr-ctable td { padding: 6px 8px; border-bottom: 1px solid #f3f3f3; }
+.rr-ctable th:first-child, .rr-ctable td:first-child { padding-left: 16px; }
+.rr-del-items td { color: #8e030f; }
+.rr-w-type { width: 170px; }
+.rr-w-prio { width: 80px; }
+.rr-w-rule { width: 170px; }
+.rr-w-where { width: 180px; }
+.rr-scroll-vt { max-height: 32rem; padding-top: 2px; }
+.rr-problems.rr-scroll { max-height: 18rem; }
+.rr-nomatch-p { margin: 0; padding: 16px; text-align: center; font-size: 13px; color: var(--rr-muted); }
+
+/* build 34: History chips All | Files (board HubStepFiles 5) */
+.rr-hchips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.rr-hchip {
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 14px;
+    border: 1px solid #c9c9c9; background: #fff; color: #181818; font: inherit; font-size: 12px; cursor: pointer;
+}
+.rr-hchip:focus-visible { outline: 2px solid #0176d3; outline-offset: 2px; }
+.rr-hchip-on { background: #0176d3; border-color: #0176d3; color: #fff; font-weight: 700; }
+.rr-hchip-n { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: rgba(0, 0, 0, 0.08); font-size: 11px; }
+.rr-hchip-on .rr-hchip-n { background: rgba(255, 255, 255, 0.25); }
+
+/* Cancel release dialog (build 54) */
+.rr-cancel { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.rr-cancel-foot { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }

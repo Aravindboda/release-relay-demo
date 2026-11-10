@@ -1,0 +1,17 @@
+<template>
+    <div class="rr-ti">
+        <span class="rr-ti-label">{labelText}</span>
+        <div class="rr-ti-box">
+            <template for:each={chips} for:item="c">
+                <span key={c.key} class="rr-ti-chip">{c.label}
+                    <template lwc:if={c.tracker}><span class="rr-ti-tracker">{c.tracker}</span></template>
+                    <button type="button" class="rr-ti-x" data-key={c.key} onclick={remove} disabled={disabled} aria-label="Remove">&times;</button>
+                </span>
+            </template>
+            <input class="rr-ti-input" aria-label={labelText} type="text" value={text} placeholder={hint} maxlength="200" disabled={disabled}
+                onchange={handleText} oninput={handleText} onkeydown={handleKey} onblur={add} />
+        </div>
+        <template lwc:if={problem}><p class="rr-ti-bad" role="alert">{problem}</p></template>
+        <p class="rr-ti-help">{help}</p>
+    </div>
+</template>

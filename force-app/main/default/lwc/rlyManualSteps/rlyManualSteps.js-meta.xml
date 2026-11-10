@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>63.0</apiVersion>
+    <isExposed>false</isExposed>
+    <masterLabel>Release Relay: Manual Steps</masterLabel>
+    <description>A release's manual steps: added in order, then checked off per org by the deployment team.</description>
+</LightningComponentBundle>

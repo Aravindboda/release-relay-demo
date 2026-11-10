@@ -1,0 +1,19 @@
+<template>
+    <template lwc:if={canDeploy}>
+        <div class="rr-wd">
+            <template lwc:if={asking}>
+                <lightning-textarea label="Why can't it wait for the window?" value={reason} max-length="500" onchange={handleReason}
+                    placeholder="For example: Production incident INC0042, approved by the change board"></lightning-textarea>
+                <div class="rr-wd-actions">
+                    <lightning-button label="Cancel" onclick={cancel} disabled={busy}></lightning-button>
+                    <lightning-button variant="destructive" label="Deploy now" onclick={send} disabled={cantSend}></lightning-button>
+                </div>
+                <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+            </template>
+            <template lwc:else>
+                <lightning-button label="Deploy now anyway" icon-name="utility:warning" onclick={ask}></lightning-button>
+                <span class="rr-kicker">Release Window Bypass add-on only. The reason goes into History, the evidence PDF and the Slack card.</span>
+            </template>
+        </div>
+    </template>
+</template>

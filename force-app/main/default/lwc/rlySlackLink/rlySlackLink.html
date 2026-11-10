@@ -1,0 +1,57 @@
+<template>
+    <div class="rr-page">
+        <section class="rr-card">
+            <div class="rr-head">
+                <h1 class="rr-title rr-grow">Link your Slack account</h1>
+                <span class="rr-pill rr-pill-info">From Slack</span>
+            </div>
+            <div class="rr-body">
+                <template lwc:if={loading}><lightning-spinner alternative-text="Loading" size="small"></lightning-spinner></template>
+                <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+
+                <template lwc:if={isReady}>
+                    <p class="rr-q">{question}</p>
+                    <div class="rr-pair">
+                        <div class="rr-acct">
+                            <p class="rr-kicker">Slack</p>
+                            <strong>{slackName}</strong>
+                            <span class="rr-small">{slackEmail}</span>
+                            <span class="rr-mono">{memberId}</span>
+                        </div>
+                        <span class="rr-arrow" aria-hidden="true">→</span>
+                        <div class="rr-acct">
+                            <p class="rr-kicker">Salesforce (you)</p>
+                            <strong>{meLine}</strong>
+                            <span class="rr-small">{meLogin}</span>
+                            <span class={matchCls}>{matchNote}</span>
+                        </div>
+                    </div>
+                    <template lwc:if={replacesText}><div class="rr-msg rr-msg-wait" role="status">{replacesText}</div></template>
+                    <p class="rr-hint">After linking, Approve and Reject in Slack count as you. An admin can see and remove the link.</p>
+                </template>
+
+                <template lwc:if={isLinked}>
+                    <div class="rr-msg rr-msg-ok" role="status">
+                        <strong>✓ {linkedText}</strong>
+                        <template lwc:if={hasRelease}> <button type="button" class="rr-linkbtn" onclick={openRelease}>Open the release</button> to approve here instead.</template>
+                    </div>
+                </template>
+
+                <template lwc:if={isCancelled}>
+                    <div class="rr-msg rr-msg-info" role="status">Nothing was linked. If this isn't your Slack account, close this tab; the link works only for 15 minutes.</div>
+                </template>
+
+                <template lwc:if={isRefused}>
+                    <div class="rr-msg rr-msg-bad" role="alert">{refusedText}</div>
+                </template>
+            </div>
+            <template lwc:if={isReady}>
+                <div class="rr-foot">
+                    <span class="rr-hint rr-grow">{expiresText}</span>
+                    <lightning-button label="Not me" onclick={handleNotMe} disabled={saving}></lightning-button>
+                    <lightning-button variant="brand" label={linkLabel} onclick={handleLink} disabled={saving}></lightning-button>
+                </div>
+            </template>
+        </section>
+    </div>
+</template>

@@ -1,0 +1,5 @@
+:host {
+    display: block;
+    /* Room under the last card so the page never ends flush with the window edge. */
+    padding-bottom: 1.5rem;
+}

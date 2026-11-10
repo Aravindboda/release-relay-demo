@@ -1,0 +1,250 @@
+/**
+ * @description Pipeline tab, Slack connection card (admins): whether Slack is on and which events post, the Slack app's
+ * connection (auth.test through the Named Credential RLY_Slack; the bot token stays in the External Credential), the
+ * signing secret for Approve and Reject from Slack (encrypted; only a masked hint goes to the browser), the Site URL
+ * to give Slack, how approvers are matched to Slack (Slack_Match_By__c) and how many are linked; the approver list itself
+ * is on the Approvers window (RlySlackApprovers). Callouts come before any save.
+ * The bot token can be saved from the card (saveBotToken, through RlyBotToken into the External Credential); it is
+ * never stored in a record, returned or logged: only its last four characters are kept for the hint.
+ */
+public with sharing class RlySlackController {
+
+    private static final String ADMINS_ONLY = 'Changing Slack needs the ' + System.Label.RLY_App_Name + ' Admin permission set.';
+
+    @TestVisible
+    private static RlyBotToken tokenStore = new RlyBotToken();
+
+    /** @description What the Slack card shows. Never the signing secret, webhook URL or token. */
+    public class SlackSettings {
+        /** @description The current user is an admin (the card is shown only to admins). */
+        @AuraEnabled public Boolean isAdmin = false;
+        /** @description Slack is on. */
+        @AuraEnabled public Boolean enabled = false;
+        /** @description The selected events. */
+        @AuraEnabled public List<String> events = new List<String>();
+        /** @description Every event that can be selected. */
+        @AuraEnabled public List<String> allEvents = RlySlack.EVENTS;
+        /** @description The Slack app answers through the Named Credential. */
+        @AuraEnabled public Boolean connected = false;
+        /** @description The Slack workspace, when connected. */
+        @AuraEnabled public String workspace;
+        /** @description Connected, Not set up, or Error: the reason. */
+        @AuraEnabled public String status = 'Not set up';
+        /** @description Saved (ends ••••xxxx), or null when no signing secret is saved. */
+        @AuraEnabled public String signingSecretHint;
+        /** @description Saved (ends ••••xxxx), Saved in Setup, or null when no bot token is known. Never the token. */
+        @AuraEnabled public String botTokenHint;
+        /** @description The Interactivity Request URL to give Slack, or null when no Site is set up. */
+        @AuraEnabled public String actionsUrl;
+        /** @description Approvers linked to a Slack member ID. */
+        @AuraEnabled public Integer approversLinked = 0;
+        /** @description Every approver. */
+        @AuraEnabled public Integer approversTotal = 0;
+        /** @description How approvers are matched to Slack and what needs attention (the Slack connection line). */
+        @AuraEnabled public ApproverInfo approverInfo = new ApproverInfo();
+        /** @description When the last message was sent. */
+        @AuraEnabled public Datetime lastSent;
+        /** @description What happened to it. */
+        @AuraEnabled public String lastResult;
+    }
+
+    /** @description The approver part of the Slack connection line. */
+    public class ApproverInfo {
+        /** @description Approvers needing attention (not linked, or changed in Slack). */
+        @AuraEnabled public Integer attention = 0;
+        /** @description How approvers are matched to Slack: SSO, Email or Manual. */
+        @AuraEnabled public String matchBy = RlySlackDirectory.BY_SSO;
+        /** @description Needed scopes the bot token lacked at the last scope check. */
+        @AuraEnabled public List<String> missingScopes = new List<String>();
+    }
+
+    /** @description What the card saves. */
+    public class SlackInput {
+        /** @description Slack on or off. */
+        public Boolean enabled;
+        /** @description The selected events. */
+        public List<String> events;
+        /** @description A new signing secret, or blank to keep the saved one. */
+        public String signingSecret;
+        /** @description How approvers are matched: SSO, Email or Manual; blank keeps the saved one. */
+        public String matchBy;
+    }
+
+    /**
+     * @description The Slack settings and connection for the card (empty for users who aren't admins).
+     * @return the settings
+     */
+    @AuraEnabled
+    public static SlackSettings getSlack() {
+        if (!RlyOrgController.isAdmin()) {
+            return new SlackSettings();
+        }
+        return fill(connection());
+    }
+
+    /**
+     * @description Saves the Slack settings. A blank signing secret keeps the saved one. Turning Slack on with no event
+     * selected selects all six.
+     * @param settingsJson a SlackInput as JSON
+     * @return the settings as saved
+     */
+    @AuraEnabled
+    public static SlackSettings saveSlack(String settingsJson) {
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
+        SlackInput input = readInput(settingsJson);
+        RLY_Notification__c saved = RlySlack.settings();
+        RLY_Notification__c row = new RLY_Notification__c(Id = saved == null ? null : saved.Id, Name = RlySlack.CHANNEL,
+            Channel__c = RlySlack.CHANNEL, Enabled__c = input.enabled == true, Events__c = RlySlackRules.events(input.events));
+        if (row.Enabled__c && row.Events__c == null && (saved == null || !saved.Enabled__c)) {
+            row.Events__c = String.join(RlySlack.EVENTS, ';');
+        }
+        String secret = RlySlackRules.signingSecret(input.signingSecret);
+        if (secret != null) {
+            row.Signing_Secret__c = secret;
+        }
+        if (String.isNotBlank(input.matchBy)) {
+            row.Slack_Match_By__c = RlySlackRules.matchBy(input.matchBy);
+        }
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.SLACK); // build 50: Recent changes to settings
+        SlackSettings out = connection();
+        RlySlack.saveSettings(row);
+        RlySlackTeam.remember(); // build 48: the workspace, after the callout
+        RlySettingsLog.compare(was);
+        return fill(out);
+    }
+
+    /**
+     * @description Checks the Slack app's connection (auth.test).
+     * @return the settings, with the workspace and status
+     */
+    @AuraEnabled
+    public static SlackSettings testSlack() {
+        RlyHubGuard.requireHub();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
+        SlackSettings out = connection();
+        RlySlackTeam.remember(); // build 48: the workspace, after the callout
+        return fill(out);
+    }
+
+    /**
+     * @description Posts a test message to a channel and records the result.
+     * @param channel #channel-name or a channel ID (invite the app to it first)
+     * @return the settings, with the result
+     */
+    @AuraEnabled
+    public static SlackSettings sendSlackTest(String channel) {
+        RlyHubGuard.requireHub();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
+        RLY_Notification__c s = RlySlack.settings();
+        if (s == null) {
+            throw RlyReleaseException.toAura('Save the Slack settings first.');
+        }
+        if (!RlySlackRules.isChannel(channel)) {
+            throw RlyReleaseException.toAura('Type a channel such as #channel-name, or a channel ID.');
+        }
+        SlackSettings out = connection();
+        String result;
+        try {
+            RlySlackApi.call('chat.postMessage', new Map<String, Object>{ 'channel' => channel.trim(),
+                'text' => System.Label.RLY_App_Name + ' test message from ' + URL.getOrgDomainUrl().toExternalForm() });
+            result = 'Sent: test message to ' + channel.trim();
+        } catch (Exception e) {
+            result = 'Failed: test message to ' + channel.trim() + ': ' + e.getMessage();
+        }
+        RlySlack.record(s.Id, result);
+        RlySlack.saveResults();
+        return fill(out);
+    }
+
+    /**
+     * @description Links an approver to their Slack member ID (admins only; Linked by Admin). Blank clears it. Kept for
+     * older pages: the Approvers window uses RlySlackApprovers.setMember.
+     * @param userId the user
+     * @param memberId the Slack member ID (U…), or blank
+     * @return the settings
+     */
+    @AuraEnabled
+    public static SlackSettings saveSlackMember(Id userId, String memberId) {
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
+        if (userId == null) {
+            throw RlyReleaseException.toAura('Pick a user.');
+        }
+        String value = RlySlackRules.memberId(memberId);
+        SlackSettings out = connection();
+        RlySlackFix.link(userId, value);
+        return fill(out);
+    }
+
+    /**
+     * @description Saves the Slack bot token into the External Credential RLY_Slack (principal Bot, parameter Token)
+     * and keeps its last four characters for the hint (admins only). The token is never returned, stored in a record or
+     * logged. No callout may follow a credential save in the same transaction, so the connection isn't tested here:
+     * the page calls testSlack next.
+     * @param token the Bot User OAuth Token (xoxb-…)
+     * @return the settings, with the masked hint
+     */
+    @AuraEnabled
+    public static SlackSettings saveBotToken(String token) {
+        RlyHubGuard.requireHub();
+        RlyReleaseAccess.requireAdmin(ADMINS_ONLY);
+        String value = RlyBotToken.checked(token);
+        tokenStore.store(value);
+        RLY_Notification__c saved = RlySlack.settings();
+        RLY_Notification__c row = saved == null
+            ? new RLY_Notification__c(Name = RlySlack.CHANNEL, Channel__c = RlySlack.CHANNEL, Enabled__c = false)
+            : new RLY_Notification__c(Id = saved.Id);
+        row.Bot_Token_Hint__c = value.right(4);
+        RlySettingsLog.Snapshot was = RlySettingsLog.read(RlySettingsLog.SLACK); // build 50: Recent changes to settings
+        RlySlack.saveSettings(row);
+        RlySettingsLog.compare(was);
+        SlackSettings out = new SlackSettings();
+        out.isAdmin = true;
+        out.status = 'Bot token saved. Test the connection.';
+        return fill(out);
+    }
+
+    // auth.test: a callout, so it comes before the saves.
+    private static SlackSettings connection() {
+        SlackSettings out = new SlackSettings();
+        out.isAdmin = true;
+        try {
+            Map<String, Object> r = RlySlackApi.call('auth.test', new Map<String, Object>());
+            out.connected = true;
+            out.workspace = r.get('team') == null ? null : String.valueOf(r.get('team'));
+            RlySlackTeam.noteFrom(r);
+            out.status = RlyBotToken.CONNECTED;
+        } catch (Exception e) {
+            out.status = RlySlackApi.isNotSetUp(e) ? 'Not set up' : ('Error: ' + e.getMessage()).left(255);
+        }
+        return out;
+    }
+
+    private static SlackSettings fill(SlackSettings out) {
+        RLY_Notification__c s = RlySlack.settings();
+        if (s != null) {
+            out.enabled = s.Enabled__c;
+            out.events = new List<String>(RlySlack.selected(s));
+            out.signingSecretHint = String.isBlank(s.Signing_Secret__c) ? null : 'Saved (ends ••••' + s.Signing_Secret__c.right(4) + ')';
+            out.lastSent = s.Last_Sent__c;
+            out.lastResult = s.Last_Result__c;
+            out.approverInfo.matchBy = String.isBlank(s.Slack_Match_By__c) ? RlySlackDirectory.BY_SSO : s.Slack_Match_By__c;
+            out.approverInfo.missingScopes = RlySlackPeople.missing(RlySlackPeople.parseScopes(s.Slack_Scopes__c));
+        }
+        out.botTokenHint = RlyBotToken.hint(s == null ? null : s.Bot_Token_Hint__c, out.status);
+        out.actionsUrl = RlySlackDirectory.actionsUrl();
+        Map<String, Integer> counts = RlySlackApproverRows.counts();
+        out.approversLinked = counts.get('linked');
+        out.approverInfo.attention = counts.get('attention');
+        out.approversTotal = counts.get('total');
+        return out;
+    }
+
+    private static SlackInput readInput(String settingsJson) {
+        try {
+            SlackInput input = (SlackInput) JSON.deserialize(settingsJson, SlackInput.class);
+            return input == null ? new SlackInput() : input;
+        } catch (Exception e) {
+            throw RlyReleaseException.toAura('The Slack settings couldn\'t be read.');
+        }
+    }
+}

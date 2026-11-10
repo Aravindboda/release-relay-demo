@@ -1,0 +1,94 @@
+<template>
+    <!-- design board "Package-aware releases" e: edit any file of an open release -->
+    <section role="dialog" tabindex="-1" aria-modal="true" aria-label={title} class="slds-modal slds-fade-in-open slds-modal_large rr-fe" onkeydown={handleKeydown}>
+        <div class="slds-modal__container rr-fe-box">
+            <div class="slds-modal__header rr-fe-head">
+                <h2 class="slds-modal__title">{title}</h2>
+                <button type="button" class="rr-fe-x" aria-label="Close" title="Close" onclick={close}>×</button>
+            </div>
+            <div class="slds-modal__content rr-fe-body">
+                <template lwc:if={error}><div class="rr-msg rr-msg-bad" role="alert">{error}</div></template>
+                <template lwc:if={whyNot}><div class="rr-msg rr-msg-info" role="status">{whyNot}</div></template>
+                <div class="rr-fe-main">
+                    <nav class="rr-fe-list" aria-label="Files in this release">
+                        <template for:each={items} for:item="i">
+                            <button key={i.key} type="button" class={i.cls} aria-current={i.current} data-key={i.key} onclick={handleItem} disabled={i.disabled}>{i.label}</button>
+                        </template>
+                    </nav>
+                    <div class="rr-fe-file">
+                        <template lwc:if={loading}><p class="rr-small rr-weak" role="status">Reading the branches…</p></template>
+                        <template lwc:if={file}>
+                            <div class="rr-fe-bar">
+                                <strong class="rr-fe-path" title={file.path}>{file.path}</strong>
+                                <span class="rr-pill rr-pill-none">{statusText}</span>
+                                <span class="rr-grow"></span>
+                                <span class="rr-segs" role="group" aria-label="View">
+                                    <button type="button" class={sideCls} aria-pressed={sidePressed} onclick={showSide}>Side by side</button>
+                                    <button type="button" class={diffCls} aria-pressed={diffPressed} onclick={showDiff}>Only differences</button>
+                                </span>
+                            </div>
+                            <template lwc:if={hasTabs}>
+                                <div class="rr-fe-tabs" role="group" aria-label="Files of this component">
+                                    <template for:each={fileTabs} for:item="t">
+                                        <button key={t.key} type="button" class={t.cls} aria-pressed={t.pressed} data-path={t.path} onclick={handleTab}>{t.label}</button>
+                                    </template>
+                                </div>
+                            </template>
+                            <template lwc:if={fileReason}><div class="rr-msg rr-msg-wait" role="status">{fileReason}</div></template>
+                            <template lwc:if={isSide}>
+                                <div class="rr-fe-cols">
+                                    <div class="rr-fe-col">
+                                        <p class="rr-fe-colhead">{orgHeading}</p>
+                                        <template lwc:if={orgNote}><p class="rr-small rr-weak rr-fe-note">{orgNote}</p></template>
+                                        <span class="rr-fe-ticks" aria-hidden="true">
+                                            <template for:each={ticks} for:item="t"><span key={t.key} class="rr-fe-tick" onanimationend={handleTick}></span></template>
+                                        </span>
+                                        <div class="rr-fe-code">
+                                            <template for:each={orgLines} for:item="l"><div key={l.key} class={l.cls}><span class="rr-ln-n">{l.n}</span><span class="rr-ln-t">{l.text}</span></div></template>
+                                        </div>
+                                    </div>
+                                    <div class="rr-fe-col">
+                                        <p class="rr-fe-colhead">{targetHeading}</p>
+                                        <template lwc:if={targetNote}><p class="rr-small rr-weak rr-fe-note">{targetNote}</p></template>
+                                        <div class="rr-fe-code">
+                                            <template for:each={targetLines} for:item="l"><div key={l.key} class={l.cls}><span class="rr-ln-n">{l.n}</span><span class="rr-ln-t">{l.text}</span></div></template>
+                                        </div>
+                                    </div>
+                                    <div class="rr-fe-col">
+                                        <div class="rr-fe-colbar">
+                                            <p class="rr-fe-colhead rr-grow">{deployHeading}</p>
+                                            <template lwc:if={canEdit}><button type="button" class="rr-linkbtn" onclick={toggleEdit}>{editLabel}</button></template>
+                                        </div>
+                                        <template lwc:if={editing}>
+                                            <textarea class="rr-fe-text" aria-label={deployHeading} spellcheck="false" value={draft} oninput={handleDraft}></textarea>
+                                        </template>
+                                        <template lwc:else>
+                                            <div class="rr-fe-code">
+                                                <template for:each={deployLines} for:item="l">
+                                                    <div key={l.key} class={l.cls}><span class="rr-ln-n">{l.n}</span><span class="rr-ln-t">{l.text}</span><template lwc:if={l.tag}><span class="rr-ln-tag">{l.tag}</span></template></div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                            <template lwc:else>
+                                <c-rly-diff-view title={diffTitle} left-label={targetHeading} right-label={deployHeading} left={diffLeft} right={draft}></c-rly-diff-view>
+                            </template>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            <div class="slds-modal__footer rr-fe-foot">
+                <div class="rr-grow rr-fe-notes">
+                    <template for:each={packageNote} for:item="n"><p key={n.key} class="rr-small">{n.text}</p></template>
+                    <p class="rr-small rr-weak">Saving commits the file to the release branch, records "Edited by" you in History and runs the checks again.</p>
+                </div>
+                <lightning-button label="Discard" onclick={discard} disabled={cantSave}></lightning-button>
+                <lightning-button variant="brand" label={saveLabel} onclick={save} disabled={cantSave}></lightning-button>
+                <lightning-button label="Close" onclick={close} disabled={saving}></lightning-button>
+            </div>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+</template>

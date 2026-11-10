@@ -1,0 +1,16 @@
+<template>
+    <div class="rr-sb" role="search">
+        <div class="rr-sb-box">
+            <lightning-icon icon-name="utility:search" size="x-small" alternative-text="" class="rr-sb-icon"></lightning-icon>
+            <input type="text" class="rr-sb-input" aria-label={label} placeholder={placeholder} autocomplete="off" oninput={handleInput} onkeydown={handleKeydown} />
+            <template lwc:if={hasTerm}>
+                <button type="button" class="rr-sb-clear" title={clearLabel} aria-label={clearLabel} onclick={handleClear}>
+                    <lightning-icon icon-name="utility:close" size="xx-small" alternative-text=""></lightning-icon>
+                </button>
+            </template>
+        </div>
+        <template lwc:if={hasCount}>
+            <span class="rr-sb-count" aria-live="polite" title={countLabel}><b>{shownText}</b><template lwc:if={isFiltered}><span class="rr-sb-of">of {totalText}</span></template></span>
+        </template>
+    </div>
+</template>

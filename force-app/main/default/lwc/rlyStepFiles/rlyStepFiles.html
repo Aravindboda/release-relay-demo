@@ -1,0 +1,46 @@
+<template>
+    <!-- board HubStepFiles 1-4: step files and proof per org; 6: narrow (icon buttons, no who column) -->
+    <div class={wrapCls} role="group" aria-label={groupLabel}>
+        <template lwc:if={showHead}>
+        <div class="rr-sf-hd">
+            <template lwc:if={label}><span class="rr-sf-label">{label}</span></template>
+            <template lwc:if={showCount}><span class="rr-pill rr-pill-none">{count}</span></template>
+            <template lwc:if={locked}><span class="rr-pill rr-pill-lock" title={lockText} tabindex="0" aria-label={lockAria}>🔒 Locked: approved files</span></template>
+            <template lwc:if={showEmpty}><span class="rr-hint">{emptyText}</span></template>
+        </div>
+        </template>
+        <template lwc:if={hasFiles}>
+            <ul class="rr-sf-list">
+                <template for:each={rows} for:item="f">
+                    <li key={f.key} class="rr-sf-row">
+                        <span class={f.badgeCls} aria-hidden="true">{f.badge}</span>
+                        <span class="rr-sf-name" title={f.title}>{f.title}</span>
+                        <span class="rr-sf-size">{f.sizeText}</span>
+                        <span class="rr-sf-who" title={f.whoTitle}>{f.createdBy}</span>
+                        <span class="rr-sf-act">
+                            <template lwc:if={f.previewable}>
+                                <lightning-button class="rr-wide" label="Preview" title={f.previewLabel} data-id={f.documentId} onclick={preview}></lightning-button>
+                                <lightning-button-icon class="rr-narrow" icon-name="utility:preview" variant="border-filled" alternative-text={f.previewLabel}
+                                    title={f.previewLabel} data-id={f.documentId} onclick={preview}></lightning-button-icon>
+                            </template>
+                            <lightning-button class="rr-wide" label="Download" title={f.downloadLabel} data-id={f.documentId} onclick={download}></lightning-button>
+                            <lightning-button-icon class="rr-narrow" icon-name="utility:download" variant="border-filled" alternative-text={f.downloadLabel}
+                                title={f.downloadLabel} data-id={f.documentId} onclick={download}></lightning-button-icon>
+                            <template lwc:if={f.canRemove}>
+                                <lightning-button-icon icon-name="utility:close" variant="border-filled" alternative-text={f.removeLabel} title={f.removeLabel}
+                                    data-id={f.documentId} onclick={remove} disabled={disabled}></lightning-button-icon>
+                            </template>
+                        </span>
+                    </li>
+                </template>
+            </ul>
+        </template>
+        <template lwc:if={showUpload}>
+            <div class="rr-sf-up">
+                <lightning-file-upload label={uploadLabel} name="rlyStepFile" record-id={recordId} multiple onuploadfinished={handleUpload}
+                    disabled={disabled}></lightning-file-upload>
+                <p class="rr-hint">{uploadHint}</p>
+            </div>
+        </template>
+    </div>
+</template>
