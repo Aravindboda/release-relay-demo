@@ -17,7 +17,6 @@ public with sharing class RlyComparePipeline {
     /** @description Asked of a connection that isn't GitHub. */
     public static final String GITHUB_ONLY = 'Compare in the pipeline needs the GitHub pipeline files (version 22 or later).';
 
-
     /** @description One part: the retrieve the page started and where its zip goes. */
     public class Part {
         /** @description The compare's id, CMP- and 13 digits. */

@@ -11,15 +11,7 @@ private class RlyMigrationPartsTest {
 
     @TestSetup
     static void setup() {
-        RlyTestData.assignPermissionSet('RLY_Admin');
-        System.runAs(RlyTestData.admin()) {
-            RlyReleaseTestData.route();
-            Test.setCreatedDate([SELECT Id FROM RLY_Git_Connection__c WHERE Provider__c = 'GitHub' LIMIT 1].Id, Datetime.now().addDays(-2));
-            insert new RLY_Git_Connection__c(Name = 'GitLab group/project', Provider__c = 'GitLab', Repository__c = 'group/project',
-                Named_Credential__c = 'RLY_GitLab', Pipeline__c = '.gitlab-ci.yml', Pipeline_Branch__c = 'main',
-                Source_Path__c = 'force-app/main/default', Status__c = 'Connected');
-            RlyReleaseStore.forgetGit();
-        }
+        RlyMigrationTestData.connections();
     }
 
     private static Id gitHubId() {
@@ -36,10 +28,7 @@ private class RlyMigrationPartsTest {
 
     // A release from DEV1 into SIT at a status (not inserted).
     private static RLY_Release__c release(String status) {
-        return new RLY_Release__c(Title__c = 'Region field', Status__c = status, Mode__c = 'Org changes', Request_Type__c = 'Changes',
-            Source_Org__c = orgId('DEV1'), Target_Org__c = orgId('SIT'), Org_Label__c = 'DEV1', Target_Branch__c = 'sit',
-            Source_Environment__c = 'dev1', Target_Environment__c = 'sit', Scan_Status__c = 'Pending', Validation_Status__c = 'Pending',
-            Approval_Status__c = 'Pending', Deploy_Status__c = 'Pending', Component_Count__c = 1);
+        return RlyMigrationTestData.release(status);
     }
 
     private static String refusal(Exception e) {
@@ -87,36 +76,31 @@ private class RlyMigrationPartsTest {
         }
     }
 
+    // GitHub, GitLab, Bitbucket and Azure DevOps connections (not saved).
+    private static Map<String, RLY_Git_Connection__c> connections() {
+        return new Map<String, RLY_Git_Connection__c>{
+            'gh' => new RLY_Git_Connection__c(Provider__c = 'GitHub', Repository__c = 'acme/release', Named_Credential__c = 'RLY_GitHub',
+                Pipeline__c = 'release-relay.yml', Pipeline_Branch__c = 'main'),
+            'bb' => new RLY_Git_Connection__c(Provider__c = 'Bitbucket', Repository__c = 'team/repo', Named_Credential__c = 'RLY_Bitbucket',
+                Pipeline_Branch__c = 'main'),
+            'az' => new RLY_Git_Connection__c(Provider__c = 'AzureDevOps', Repository__c = 'org/proj/repo',
+                Named_Credential__c = 'RLY_AzureDevOps', Pipeline__c = '12', Pipeline_Branch__c = 'main'),
+            'gl' => new RLY_Git_Connection__c(Provider__c = 'GitLab', Repository__c = 'group/project', Named_Credential__c = 'RLY_GitLab',
+                Pipeline__c = '.gitlab-ci.yml', Pipeline_Branch__c = 'main')
+        };
+    }
+
     @IsTest
-    static void methodsChecklistsAndSecretsPerProvider() {
+    static void methodsPerProvider() {
         System.runAs(RlyTestData.admin()) {
-            RLY_Git_Connection__c gh = new RLY_Git_Connection__c(Provider__c = 'GitHub', Repository__c = 'acme/release', Named_Credential__c = 'RLY_GitHub',
-                Pipeline__c = 'release-relay.yml', Pipeline_Branch__c = 'main');
-            RLY_Git_Connection__c bb = new RLY_Git_Connection__c(Provider__c = 'Bitbucket', Repository__c = 'team/repo', Named_Credential__c = 'RLY_Bitbucket',
-                Pipeline_Branch__c = 'main');
-            RLY_Git_Connection__c az = new RLY_Git_Connection__c(Provider__c = 'AzureDevOps', Repository__c = 'org/proj/repo',
-                Named_Credential__c = 'RLY_AzureDevOps', Pipeline__c = '12', Pipeline_Branch__c = 'main');
-            RLY_Git_Connection__c gl = new RLY_Git_Connection__c(Provider__c = 'GitLab', Repository__c = 'group/project', Named_Credential__c = 'RLY_GitLab',
-                Pipeline__c = '.gitlab-ci.yml', Pipeline_Branch__c = 'main');
+            Map<String, RLY_Git_Connection__c> c = connections();
             Test.startTest();
-            List<RlyMigrationMethods.Method> toGitLab = RlyMigrationMethods.forPair(gh, gl, 0);
-            List<RlyMigrationMethods.Method> toAzureFull = RlyMigrationMethods.forPair(gh, az, 3);
-            List<RlyMigrationMethods.Method> fromBitbucket = RlyMigrationMethods.forPair(bb, gl, null);
-            List<RlyMigrationMethods.Method> toGitHub = RlyMigrationMethods.forPair(gl, gh, null);
-            List<RlyMigrationMethods.Method> toBitbucket = RlyMigrationMethods.forPair(az, bb, null);
-            List<RlyMigrationMethods.Method> noTarget = RlyMigrationMethods.forPair(gh, null, null);
-            RlyMigrationChecklist.NewSetup n = new RlyMigrationChecklist.NewSetup();
-            n.environments = new List<String>{ 'dev1', 'sit', 'prod' };
-            n.prodBranch = 'prod';
-            Integer items = 0;
-            for (RLY_Git_Connection__c c : new List<RLY_Git_Connection__c>{ gh, gl, bb, az }) {
-                n.target = c;
-                items += RlyMigrationChecklist.newSetup(n, new RlyMigrationState()).size();
-                items += RlyMigrationChecklist.oldSetup(c, new RlyMigrationState()).size();
-            }
-            String tokenText = RlyMigrationChecklist.tokenHint(gh, gl);
-            String optional = RlyMigrationSecrets.optionalNames('GitLab', 'x: $SF_USERNAME $RELAY_MONITOR ${CI_PIPELINE_ID} $MODE vars.SCAN_RULES');
-            List<RlyMigrationSecrets.Row> rows = RlyMigrationSecrets.rows('GitLab', n.environments);
+            List<RlyMigrationMethods.Method> toGitLab = RlyMigrationMethods.forPair(c.get('gh'), c.get('gl'), 0);
+            List<RlyMigrationMethods.Method> toAzureFull = RlyMigrationMethods.forPair(c.get('gh'), c.get('az'), 3);
+            List<RlyMigrationMethods.Method> fromBitbucket = RlyMigrationMethods.forPair(c.get('bb'), c.get('gl'), null);
+            List<RlyMigrationMethods.Method> toGitHub = RlyMigrationMethods.forPair(c.get('gl'), c.get('gh'), null);
+            List<RlyMigrationMethods.Method> toBitbucket = RlyMigrationMethods.forPair(c.get('az'), c.get('bb'), null);
+            List<RlyMigrationMethods.Method> noTarget = RlyMigrationMethods.forPair(c.get('gh'), null, null);
             Test.stopTest();
             System.assert(toGitLab[0].possible && toGitLab[1].possible && toGitLab[2].possible, 'GitHub → empty GitLab: all three');
             System.assertEquals(4, toGitLab[1].clicks.size(), 'GitLab\'s GitHub importer clicks');
@@ -128,6 +112,39 @@ private class RlyMigrationPartsTest {
             System.assertEquals('The new provider\'s own importer', noTarget[1].label, 'No provider named before the connection is saved');
             System.assert(!noTarget[1].summary.contains('has no importer'), 'No "has no importer": ' + noTarget[1].summary);
             System.assert(noTarget[1].cons.startsWith('Done by hand in the new provider;'), 'No empty provider name: ' + noTarget[1].cons);
+        }
+    }
+
+    @IsTest
+    static void checklistsAndSecretsPerProvider() {
+        System.runAs(RlyTestData.admin()) {
+            Map<String, RLY_Git_Connection__c> c = connections();
+            RlyMigrationChecklist.NewSetup n = new RlyMigrationChecklist.NewSetup();
+            n.environments = new List<String>{ 'dev1', 'sit', 'prod' };
+            n.prodBranch = 'prod';
+            Integer items = 0;
+            Test.startTest();
+            for (RLY_Git_Connection__c conn : c.values()) {
+                n.target = conn;
+                items += RlyMigrationChecklist.newSetup(n, new RlyMigrationState()).size();
+                items += RlyMigrationChecklist.oldSetup(conn, new RlyMigrationState()).size();
+            }
+            String tokenText = RlyMigrationChecklist.tokenHint(c.get('gh'), c.get('gl'));
+            String optional = RlyMigrationSecrets.optionalNames('GitLab', 'x: $SF_USERNAME $RELAY_MONITOR ${CI_PIPELINE_ID} $MODE vars.SCAN_RULES');
+            List<RlyMigrationSecrets.Row> rows = RlyMigrationSecrets.rows('GitLab', n.environments);
+            Test.stopTest();
+            System.assert(items > 30, 'Checklists for every provider: ' + items);
+            System.assert(tokenText.contains('write_repository'), tokenText);
+            System.assertEquals('RELAY_MONITOR, SCAN_RULES', optional, 'Only names someone enters');
+            System.assertEquals(4, rows.size(), 'One row per environment and one for all');
+            System.assert(rows[3].names.contains('RELAY_TOKEN'), 'GitLab pushes with RELAY_TOKEN');
+            System.assertEquals('RLY_Pipeline_Azure', RlyMigrationSecrets.resourceOf('AzureDevOps'), 'Azure\'s pipeline file');
+        }
+    }
+
+    @IsTest
+    static void branchNamesAreShortened() {
+        System.runAs(RlyTestData.admin()) {
             RlyMigrationRepo.Refs refs = new RlyMigrationRepo.Refs();
             refs.branches = new List<String>{ 'a', 'b', 'c', 'd', 'e', 'f', 'g' };
             refs.more = true;
@@ -135,12 +152,6 @@ private class RlyMigrationPartsTest {
             refs.branches = new List<String>{ 'a', 'b' };
             refs.more = false;
             System.assertEquals('a, b', refs.someNames(), 'All when few');
-            System.assert(items > 30, 'Checklists for every provider: ' + items);
-            System.assert(tokenText.contains('write_repository'), tokenText);
-            System.assertEquals('RELAY_MONITOR, SCAN_RULES', optional, 'Only names someone enters');
-            System.assertEquals(4, rows.size(), 'One row per environment and one for all');
-            System.assert(rows[3].names.contains('RELAY_TOKEN'), 'GitLab pushes with RELAY_TOKEN');
-            System.assertEquals('RLY_Pipeline_Azure', RlyMigrationSecrets.resourceOf('AzureDevOps'), 'Azure\'s pipeline file');
         }
     }
 

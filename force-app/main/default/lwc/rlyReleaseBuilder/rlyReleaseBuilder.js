@@ -1,5 +1,6 @@
 import APP_NAME from '@salesforce/label/c.RLY_App_Name';
 import { LightningElement, api, wire } from 'lwc';
+import { HubGate } from 'c/rlyHubGate';
 import { CurrentPageReference, NavigationMixin } from 'lightning/navigation';
 import getStart from '@salesforce/apex/RlyChangesController.getStart';
 import { highlightParts, searchTerm } from 'c/rlyListSearch';
@@ -16,10 +17,9 @@ import {
     PARALLEL, TEST_NAMES_PER_CALL, FLOW_NAMES_PER_CALL, KIND_FOLDER, KIND_FIELDS,
     listingParts, afterFailure, mergeChanges
 } from './changeParts';
-import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import getAppend from '@salesforce/apex/RlyAppendController.getAppend';
 import appendChanges from '@salesforce/apex/RlyAppendController.appendChanges';
-import { errorText, isGated, clearSearchBox, runPool } from 'c/rlyShared';
+import { errorText, clearSearchBox, runPool } from 'c/rlyShared';
 
 
 const PAGE = 200;
@@ -94,7 +94,7 @@ function readSyncPick() {
         window.sessionStorage.removeItem('rlySyncPick');
         const pick = raw ? JSON.parse(raw) : null;
         return pick && pick.orgId ? pick : undefined;
-    } catch (e) {
+    } catch {
         return undefined;
     }
 }
@@ -117,7 +117,7 @@ const ENVIRONMENTS = [
     { value: 'Full_Copy', label: 'Full Copy sandbox', hint: 'Copy of production · refresh every 29 days' }
 ];
 
-export default class RlyReleaseBuilder extends NavigationMixin(LightningElement) {
+export default class RlyReleaseBuilder extends NavigationMixin(HubGate(LightningElement)) {
     // ---------- append mode: add changes to an open release (RlyAppendController) ----------
 
     _appendTo;
@@ -134,6 +134,11 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         return this._appendTo;
     }
     set appendTo(value) {
+        this.useAppend(value);
+    }
+
+    // The release to add changes to, from a parent (appendTo) or the page state; loads it when it changed.
+    useAppend(value) {
         const changed = value !== this._appendTo;
         this._appendTo = value;
         if (changed && value && this.start) {
@@ -160,7 +165,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
         const id = ref && ref.state ? ref.state.c__appendTo : undefined;
         if (id && id !== this._appendTo && id !== this.appendDoneFor) {
             this.appendFromState = true;
-            this.appendTo = id;
+            this.useAppend(id);
         } else if (!id && ref && this.appendFromState) {
             this.leaveAppend();
         }
@@ -252,27 +257,6 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     hubStatus;
     /** The status has been read, or failed to read (then the tab works as on the hub: the server refuses actions anyway). */
     statusRead = false;
-    get hubCopy() { return !!(this.hubStatus && this.hubStatus.isHubCopy); }
-    get hubCopyMessage() { return this.hubCopy ? this.hubStatus.message : ''; }
-    get gated() { return isGated(this.hubStatus); }
-    get showPage() { return this.statusRead && !this.gated; }
-
-    /** Reads the hub status once, then loads the page only on the hub. */
-    readHubStatus() {
-        getHubStatus()
-            .then((status) => {
-                this.hubStatus = status;
-            })
-            .catch(() => {
-                this.hubStatus = undefined;
-            })
-            .finally(() => {
-                this.statusRead = true;
-                if (!this.gated) {
-                    this.loadPage();
-                }
-            });
-    }
 
     /** The app's name, from Custom Label RLY_App_Name, so each owner can rename it. */
     get appName() { return APP_NAME; }
@@ -1437,9 +1421,7 @@ export default class RlyReleaseBuilder extends NavigationMixin(LightningElement)
     }
     /** The columns: the source org, then the target and every later stop on the route. */
     get packageColumns() {
-        const stops = ((this.start && this.start.routeStops) || []).filter((o) => o.Role__c === 'Stage' || o.Role__c === 'Hub')
-            .map((o) => ({ name: o.Name, order: o.Role__c === 'Hub' ? Number.MAX_SAFE_INTEGER : Number(o.Stage_Order__c || 0) }))
-            .sort((a, b) => a.order - b.order).map((o) => o.name);
+        const stops = this.routeTargets;
         const at = stops.indexOf(this.compareTargetName);
         const later = at >= 0 ? stops.slice(at) : [this.compareTargetName];
         return [this.sourceName].concat(later.filter((n) => n !== this.sourceName));

@@ -3,7 +3,7 @@ import options from '@salesforce/apex/RlyMetricsController.options';
 import metrics from '@salesforce/apex/RlyMetricsController.metrics';
 import checkReasons from '@salesforce/apex/RlyMetricsController.checkReasons';
 import { CHART, barsOf, csvOf, formatValue, hbarsOf, mergeBars, trendOf } from './metricsHelpers';
-import { errorText } from 'c/rlyShared';
+import { errorText, oneAfterAnother } from 'c/rlyShared';
 
 const PERIOD_LABELS = { 30: '30 days', 90: '90 days', 180: '6 months', 365: '12 months' };
 const ALL = '';
@@ -117,23 +117,26 @@ export default class RlyMetrics extends LightningElement {
     /** "Why checks fail": ten releases a call, joined here; a newer load stops this one. */
     async readReasons(id, ids) {
         this.reasonsTotal = ids.length;
-        for (let i = 0; i < ids.length; i += REASONS_PER_CALL) {
+        await oneAfterAnother(async (i) => {
+            if (i >= ids.length) {
+                return { done: true, state: i };
+            }
             try {
-                // eslint-disable-next-line no-await-in-loop
                 const part = await checkReasons({ releaseIds: ids.slice(i, i + REASONS_PER_CALL) });
                 if (id !== this.loadId) {
-                    return;
+                    return { done: true, state: i };
                 }
                 this.reasons = mergeBars(this.reasons, part.reasons);
                 this.files = mergeBars(this.files, part.files);
                 this.reasonsRead = Math.min(ids.length, i + REASONS_PER_CALL);
+                return { done: false, state: i + REASONS_PER_CALL };
             } catch (e) {
                 if (id === this.loadId) {
                     this.reasonsError = errorText(e);
                 }
-                return;
+                return { done: true, state: i };
             }
-        }
+        }, 0);
     }
 
     // ---------- tiles and charts ----------

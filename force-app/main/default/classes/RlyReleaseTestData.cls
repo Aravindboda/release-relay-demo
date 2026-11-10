@@ -188,4 +188,33 @@ public with sharing class RlyReleaseTestData {
         i.standard = false;
         return i;
     }
+
+    /**
+     * @description A release from DEV1 into an org of the route (route() already run), inserted, with its tickets attached.
+     * @param status the status
+     * @param orgName the target org's name
+     * @param tickets the work item keys
+     * @return the release with its Name
+     */
+    public static RLY_Release__c withTickets(String status, String orgName, List<String> tickets) {
+        RLY_Release__c rel = new RLY_Release__c(Title__c = 'Region field', Status__c = status, Mode__c = 'Org changes',
+            Request_Type__c = 'Changes', Release_Type__c = 'Release', Source_Org__c = orgIdOf('DEV1'), Target_Org__c = orgIdOf(orgName),
+            Org_Label__c = 'DEV1', Target_Branch__c = orgName.toLowerCase(), Source_Environment__c = 'dev1',
+            Target_Environment__c = orgName.toLowerCase(), Source_Branch__c = 'feature/region', Test_Classes__c = 'AccountServiceTest',
+            Scan_Status__c = 'Passed', Validation_Status__c = 'Passed', Approval_Status__c = 'Pending', Deploy_Status__c = 'Pending',
+            Component_Count__c = 1);
+        insert rel;
+        rel = [SELECT Id, Name FROM RLY_Release__c WHERE Id = :rel.Id];
+        RlyWorkItems.attach(rel, tickets);
+        return rel;
+    }
+
+    /**
+     * @description An org's Id by name.
+     * @param name the org's name
+     * @return the Id
+     */
+    public static Id orgIdOf(String name) {
+        return [SELECT Id FROM RLY_Org__c WHERE Name = :name LIMIT 1].Id;
+    }
 }
