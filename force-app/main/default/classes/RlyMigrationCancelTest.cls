@@ -12,15 +12,7 @@ private class RlyMigrationCancelTest {
 
     @TestSetup
     static void setup() {
-        RlyTestData.assignPermissionSet('RLY_Admin');
-        System.runAs(RlyTestData.admin()) {
-            RlyReleaseTestData.route();
-            Test.setCreatedDate([SELECT Id FROM RLY_Git_Connection__c WHERE Provider__c = 'GitHub' LIMIT 1].Id, Datetime.now().addDays(-2));
-            insert new RLY_Git_Connection__c(Name = 'GitLab group/project', Provider__c = 'GitLab', Repository__c = 'group/project',
-                Named_Credential__c = 'RLY_GitLab', Pipeline__c = '.gitlab-ci.yml', Pipeline_Branch__c = 'main',
-                Source_Path__c = 'force-app/main/default', Status__c = 'Connected');
-            RlyReleaseStore.forgetGit();
-        }
+        RlyMigrationTestData.connections();
     }
 
     private static Id gitHubId() {
@@ -37,11 +29,11 @@ private class RlyMigrationCancelTest {
 
     // An open release from DEV1 into SIT on the GitHub connection (not inserted).
     private static RLY_Release__c release(String status, Integer prNumber) {
-        return new RLY_Release__c(Title__c = 'Region field', Status__c = status, Mode__c = 'Org changes', Request_Type__c = 'Changes',
-            Source_Org__c = orgId('DEV1'), Target_Org__c = orgId('SIT'), Org_Label__c = 'DEV1', Target_Branch__c = 'sit',
-            Source_Environment__c = 'dev1', Target_Environment__c = 'sit', Scan_Status__c = 'Pending', Validation_Status__c = 'Pending',
-            Approval_Status__c = 'Pending', Deploy_Status__c = 'Pending', Component_Count__c = 1, Git_Connection__c = gitHubId(),
-            PR_Number__c = prNumber, PR_URL__c = prNumber == null ? null : 'https://github.com/acme/release/pull/' + prNumber);
+        RLY_Release__c rel = RlyMigrationTestData.release(status);
+        rel.Git_Connection__c = gitHubId();
+        rel.PR_Number__c = prNumber;
+        rel.PR_URL__c = prNumber == null ? null : 'https://github.com/acme/release/pull/' + prNumber;
+        return rel;
     }
 
     private static Map<String, Object> ref(String name, String sha) {

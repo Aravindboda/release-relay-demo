@@ -1,4 +1,6 @@
-# Release Relay pipeline files: version 29
+# Release Relay pipeline files: version 31
+# Version 31 (hub build 57): no workflow change; the script is lint-clean (no unused variables, no await inside loops).
+# Version 30 (hub build 57): no workflow change; the script skips an Org vs branch part the org sent back empty.
 # Version 29 (hub build 55), as in the GitHub workflow: no job change, the script moves with it (package-aware releases:
 # references to a managed package an org lacks are put back on a raise from it and stripped from the deploy copy for it;
 # raise.json, validate.json, deploy.json and sync.json carry "packages").

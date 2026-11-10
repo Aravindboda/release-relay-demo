@@ -138,14 +138,7 @@ public with sharing class RlySyncResult {
         if (f == null) {
             throw new RlyReleaseException('That file isn\'t on the results branch any more: check again.');
         }
-        RlyCompareFiles.FileDiff d = new RlyCompareFiles.FileDiff();
-        d.n = n;
-        d.path = RlySyncParse.text(f.get('path'));
-        d.left = RlySyncParse.text(f.get('left'));
-        d.right = RlySyncParse.text(f.get('right'));
-        d.patch = RlySyncParse.text(f.get('patch'));
-        d.status = d.patch != null ? RlyCompareFiles.CHANGED : RlyCompareParts.statusOf(d.left, d.right);
-        return d;
+        return RlyFilePage.diffOf(f, n);
     }
 
     /**

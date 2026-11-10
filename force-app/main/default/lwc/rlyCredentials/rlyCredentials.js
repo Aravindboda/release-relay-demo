@@ -20,7 +20,7 @@ function when(value, withTime) {
     try {
         const opts = withTime ? { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' } : { day: 'numeric', month: 'short', year: 'numeric' };
         return new Intl.DateTimeFormat(undefined, opts).format(new Date(value));
-    } catch (e) {
+    } catch {
         return String(value);
     }
 }

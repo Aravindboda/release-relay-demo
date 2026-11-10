@@ -235,7 +235,7 @@ export function decodeName(name) {
     }
     try {
         return decodeURIComponent(name.replace(/\+/g, '%2B'));
-    } catch (e) {
+    } catch {
         return name;
     }
 }
@@ -325,4 +325,44 @@ export function withPart(sending, id, values) {
  */
 export function partIn(sending, id) {
     return sending && sending.parts ? sending.parts.find((p) => p.id === id) : undefined;
+}
+
+/**
+ * Runs async steps one after the other until a step says it is done (build 57: sequential server calls without an
+ * await inside a loop). Each step gets the state the last one returned.
+ * @param {Function} step async (state) => ({ done, state })
+ * @param {*} state the first step's state
+ * @returns {Promise<*>} the last step's state
+ */
+export async function oneAfterAnother(step, state) {
+    const r = await step(state);
+    return r.done ? r.state : oneAfterAnother(step, r.state);
+}
+
+/** The Git providers a connection can use, with their hints (build 57: shared by the Pipeline tab and the setup wizard). */
+export const GIT_PROVIDERS = [
+    { label: 'GitHub', value: 'GitHub', how: 'Actions workflow', repo: 'owner/repository', pipeLabel: 'Workflow file', pipe: 'release-relay.yml', cred: 'RLY_Git_GitHub' },
+    { label: 'GitLab', value: 'GitLab', how: 'CI pipeline', repo: 'group/project', pipeLabel: 'CI file', pipe: '.gitlab-ci.yml', cred: 'RLY_Git_GitLab' },
+    { label: 'Bitbucket', value: 'Bitbucket', how: 'Custom pipeline', repo: 'workspace/repository', pipeLabel: 'Custom pipeline', pipe: 'release-relay', cred: 'RLY_Git_Bitbucket' },
+    { label: 'Azure DevOps', value: 'AzureDevOps', how: 'Azure Pipeline', repo: 'organization/project/repository', pipeLabel: 'Pipeline id', pipe: '12', cred: 'RLY_Git_AzureDevOps' }
+];
+
+/**
+ * Sizes a page to the browser window, from its top edge down (build 57: shared by Pipeline Monitor and Sync status).
+ * @param {HTMLElement} page the page element, or null before it is drawn
+ * @param {number} current the height set last
+ * @param {number} minHeight the smallest height
+ * @param {number} bottomGap the space kept under the page
+ * @returns {number} the height now set
+ */
+export function fitPageToWindow(page, current, minHeight, bottomGap) {
+    if (!page) {
+        return current;
+    }
+    const top = page.getBoundingClientRect().top + (window.scrollY || 0);
+    const height = Math.max(minHeight, Math.floor(window.innerHeight - top - bottomGap));
+    if (current !== height) {
+        page.style.height = height + 'px';
+    }
+    return height;
 }

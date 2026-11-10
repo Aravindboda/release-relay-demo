@@ -15,7 +15,7 @@ function when(value) {
     }
     try {
         return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
-    } catch (e) {
+    } catch {
         return String(value);
     }
 }

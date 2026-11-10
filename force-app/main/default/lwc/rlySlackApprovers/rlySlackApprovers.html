@@ -279,4 +279,5 @@
         </section>
         <div class="slds-backdrop slds-backdrop_open rr-addbd" role="presentation"></div>
     </template>
+    <template for:each={waitList} for:item="w"><c-rly-wait key={w.key} ms={w.ms} data-key={w.key} ondone={handleWaitDone}></c-rly-wait></template>
 </template>

@@ -94,16 +94,25 @@ export default class RlyReleaseChanges extends LightningElement {
     /** Reads the next pages one after another; a page that fails offers Try again. */
     async readMore() {
         this.moreError = undefined;
-        while (this.data && this.data.available && this.data.nextPage && !this.moreError) {
-            this.more = true;
-            try {
-                const next = await filesPage({ releaseId: this.releaseId, pageNo: this.data.nextPage });
-                this.data = { ...this.data, files: this.data.files.concat(next.files || []), nextPage: next.nextPage };
-            } catch (e) {
-                this.moreError = errorText(e);
-            }
+        await this.readNextPage();
+    }
+
+    // One page, then the next (each needs the page number the last one returned).
+    async readNextPage() {
+        if (!this.data || !this.data.available || !this.data.nextPage) {
+            this.more = false;
+            return;
         }
-        this.more = false;
+        this.more = true;
+        try {
+            const next = await filesPage({ releaseId: this.releaseId, pageNo: this.data.nextPage });
+            this.data = { ...this.data, files: this.data.files.concat(next.files || []), nextPage: next.nextPage };
+        } catch (e) {
+            this.moreError = errorText(e);
+            this.more = false;
+            return;
+        }
+        await this.readNextPage();
     }
 
     get moreText() {
