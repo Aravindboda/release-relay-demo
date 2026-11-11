@@ -28,14 +28,14 @@ public with sharing class RlyFileEditPaths {
     public static List<String> pathsFor(String key) {
         String typeName = key.substringBefore(':');
         String name = key.substringAfter(':');
+        if (OBJECT_FILES.containsKey(typeName) && name.contains('.')) { // first: custom fields are compared too (build 60)
+            return new List<String>{ OBJECT_FILES.get(typeName).replace('{0}', name.substringBefore('.')).replace('{1}', name.substringAfter('.')) };
+        }
         if (RlyCompareFiles.isSupported(typeName)) {
             return RlyCompareFiles.pathsOf(key);
         }
         if (OTHER_FILES.containsKey(typeName)) {
             return new List<String>{ OTHER_FILES.get(typeName).replace('{0}', name) };
-        }
-        if (OBJECT_FILES.containsKey(typeName) && name.contains('.')) {
-            return new List<String>{ OBJECT_FILES.get(typeName).replace('{0}', name.substringBefore('.')).replace('{1}', name.substringAfter('.')) };
         }
         return new List<String>();
     }

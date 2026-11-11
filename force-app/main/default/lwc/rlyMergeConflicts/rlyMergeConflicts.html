@@ -86,6 +86,12 @@
                                         <lightning-button label="Next file" icon-name="utility:chevronright" icon-position="right" onclick={nextFile}></lightning-button>
                                     </template>
                                 </div>
+                                <template lwc:if={isBoth}>
+                                    <div class="rr-both" role="group" aria-label={bothLabel}>
+                                        <p class="rr-small rr-strong rr-both-head">{bothLabel}</p>
+                                        <pre class="rr-both-text">{bothPreview}</pre>
+                                    </div>
+                                </template>
                                 <template lwc:if={isEditing}>
                                     <lightning-textarea class="rr-edit" label={editLabel} value={editText} onchange={handleEdit}></lightning-textarea>
                                     <template lwc:if={editError}><p class="rr-small rr-bad" role="alert">{editError}</p></template>
@@ -95,7 +101,7 @@
                     </div>
                 </div>
                 <div class="slds-modal__footer rr-modal-foot">
-                    <span class="rr-small rr-weak rr-grow">Every file needs a choice. An edited file must not keep the &lt;&lt;&lt;&lt;&lt;&lt;&lt; or &gt;&gt;&gt;&gt;&gt;&gt;&gt; markers.</span>
+                    <span class="rr-small rr-weak rr-grow">Every file needs a choice. An edited file must not keep the &lt;&lt;&lt;&lt;&lt;&lt;&lt; or &gt;&gt;&gt;&gt;&gt;&gt;&gt; markers. Both is offered for metadata files when each side added whole items (a value, a layout field, a permission, a label); when both changed the same item, only Mine, {target}'s or Edit.</span>
                     <lightning-button label="Close" onclick={closeReview}></lightning-button>
                     <template lwc:if={canResolve}>
                         <lightning-button variant="brand" label={resolveLabel} onclick={handleResolve} disabled={cantResolve}></lightning-button>
