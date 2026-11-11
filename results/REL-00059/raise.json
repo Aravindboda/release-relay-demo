@@ -1,0 +1,32 @@
+{
+ "request": "REL-00059",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "promote",
+ "branch": "promote/rel-00059",
+ "target": "prod",
+ "sha": "b9a642401009dcbc453bd01d317f439c8e3f211b",
+ "pr": 272,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/272",
+ "commits": [
+  "39b4c53d4a158e99ced03ddcfb3d1cd6ab2888e6",
+  "08ac0636d9f74476e7c115d299fec5c5b61acac8",
+  "568022c61981348c163e52acfd5c356c7ba4f52a",
+  "e834700688fae733cba5a1200270dbeb3f3ba26d"
+ ],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "appended": false,
+ "message": "",
+ "files": 1,
+ "fromStage": "sit",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42939265306",
+ "finishedAt": "2026-11-11T01:29:14.319Z",
+ "attempt": "37740ce675e57a97b3e28171ee4e9f47",
+ "packages": {
+  "kept": {},
+  "leftOut": {},
+  "componentsLeftOut": []
+ }
+}
