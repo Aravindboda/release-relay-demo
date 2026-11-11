@@ -1,0 +1,19 @@
+{
+ "request": "REL-91100",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rly-b60h-hub",
+ "target": "release-relay-hub",
+ "sha": "150b08f2848d6fecff080fc7f88659f2a977f2e9",
+ "pr": 283,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/283",
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "appended": false,
+ "message": "",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/43087896357",
+ "finishedAt": "2026-11-11T19:31:20.820Z"
+}
