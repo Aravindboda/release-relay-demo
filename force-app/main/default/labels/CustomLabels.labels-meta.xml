@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">
+    <labels>
+        <fullName>E2E_Label_DEV1</fullName>
+        <language>en_US</language>
+        <protected>true</protected>
+        <shortDescription>E2E Label DEV1</shortDescription>
+        <value>Hotfix from DEV1 (E16)</value>
+    </labels>
+</CustomLabels>
