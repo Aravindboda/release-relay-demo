@@ -1,0 +1,296 @@
+{
+ "request": "REL-91100",
+ "step": "validate",
+ "status": "Failed",
+ "changed": 55,
+ "deleted": [],
+ "mergedWith": "dbed3b6f015a399252f5af76b192d02ecbb2096a",
+ "validatedTree": "1f3e800aca4e289f527b919e78f05cbb6cc5f67e",
+ "environment": "prod",
+ "ok": false,
+ "testLevel": "RunSpecifiedTests",
+ "deployId": "0Afg800000LcPZBCA3",
+ "testsRun": 0,
+ "tests": [
+  "RlyAppendTest",
+  "RlyApprovalRulesTest",
+  "RlyApprovalRunsTest",
+  "RlyApprovalServiceTest",
+  "RlyArchiveRestTest",
+  "RlyArchiveRunsTest",
+  "RlyArchiveTest",
+  "RlyBackPromoteTest",
+  "RlyBranchDeleteTest",
+  "RlyBuildInfoTest",
+  "RlyBuildLockTest",
+  "RlyChangePartsTest",
+  "RlyChangesControllerTest",
+  "RlyCheckReaderTest",
+  "RlyComparePipelineTest",
+  "RlyCompareTest",
+  "RlyConflictServiceTest",
+  "RlyConsumerKeyTest",
+  "RlyCredentialTest",
+  "RlyDataRouteTest",
+  "RlyDataTest",
+  "RlyDeletionFinderTest",
+  "RlyDeployAgainTest",
+  "RlyDeployReaderTest",
+  "RlyEvidenceTest",
+  "RlyFileEditTest",
+  "RlyFlowActivationTest",
+  "RlyFlowBatchTest",
+  "RlyGitAdviceTest",
+  "RlyGitLabTest",
+  "RlyGitProvidersTest",
+  "RlyHomeControllerTest",
+  "RlyHotfixTest",
+  "RlyHubGuardTest",
+  "RlyManualOnlyTest",
+  "RlyManualStepGateTest",
+  "RlyManualStepsTest",
+  "RlyMetricsTest",
+  "RlyMigrationCancelTest",
+  "RlyMigrationPartsTest",
+  "RlyMigrationTest",
+  "RlyOrgControllerTest",
+  "RlyOrgLinksTest",
+  "RlyOrgPackagesTest",
+  "RlyOrgSessionTest",
+  "RlyPackageResultsTest",
+  "RlyPipelineFilesTest",
+  "RlyPipelineSummaryTest",
+  "RlyProdApprovalTest",
+  "RlyProfileAccessNamesTest",
+  "RlyProfileAccessTest",
+  "RlyPromoteOverlapTest",
+  "RlyPromoteTest",
+  "RlyPullRequestCloseTest",
+  "RlyPullRequestFilesTest",
+  "RlyRaisePartsTest",
+  "RlyRaiseServiceTest",
+  "RlyRelayUpdateTest",
+  "RlyReleaseCancelTest",
+  "RlyReleaseSizeTest",
+  "RlyReleaseWindowTest",
+  "RlyReleasesFilterTest",
+  "RlyRepoSecurityTest",
+  "RlyRepoSettingsTest",
+  "RlyRolesTest",
+  "RlyRollbackTest",
+  "RlyRouteControllerTest",
+  "RlyRunMonitorControllerTest",
+  "RlyRunMonitorRestTest",
+  "RlyRunSigningTest",
+  "RlyRunTitlesTest",
+  "RlyScanRuleTest",
+  "RlySecurityFixesTest",
+  "RlySetupStatusTest",
+  "RlySharedReadTest",
+  "RlySlackActionsTest",
+  "RlySlackApproversTest",
+  "RlySlackCardTest",
+  "RlySlackDueTest",
+  "RlySlackLinkTest",
+  "RlySlackSiteCheckTest",
+  "RlySlackTest",
+  "RlyStatusReaderTest",
+  "RlyStepFilesTest",
+  "RlySyncTest",
+  "RlyTwoApproversTest",
+  "RlyWindowGateTest",
+  "RlyWorkItemsTest",
+  "RlyWorkTrackersTest",
+  "RlyKeepRulesTest",
+  "RlyOrgDriftTest",
+  "RlyCompareFieldsTest"
+ ],
+ "coverageWarnings": [],
+ "componentErrors": [
+  {
+   "type": "ApexClass",
+   "name": "RlyAppendService",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyCompareRun : Dependent class is invalid and needs recompilation:\n Class RlyCompareZip : Dependent class is invalid and needs recompilation:\n Class RlyCompareParts : Dependent class is invalid and needs recompilation:\n Clas",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRuns",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyApprover : Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyC",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalRunsTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyCompareRun : Dependent class is invalid and needs recompilation:\n Class RlyCompareZip : Dependent class is invalid and needs recompilation:\n Class RlyCompareParts : Dependent class is invalid and needs recompilation:\n Class RlyCompareFields : Identifier name is reserved: inner",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalService",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyCompareRun : Dependent class is invalid and needs recompilation:\n Class RlyCompareZip : Dependent class is invalid and needs recompilation:\n Class RlyCompareParts : Dependent class is invalid and needs recompilation:\n Clas",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprovalServiceTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyCompareRun : Dependent class is invalid and needs recompilation:\n Class RlyCompareZip : Dependent class is invalid and needs recompilation:\n Class RlyCompareParts : Dependent class is invalid and needs recompilation:\n Class RlyCompareFields : Identifier name is reserved: inner",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyApprover",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyCompareRun : Dependent class is invalid and needs recompilation:\n Class Rl",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyBackPromoteTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyCompareRun : Dependent class is invalid and needs recompilation:\n Class RlyCompareZip : Dependent class is invalid and needs recompilation:\n Class RlyCompareParts : Dependent class is invalid and needs recompilation:\n Class RlyCompareFields : Identifier name is reserved: inner",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyCheckReader",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyStatusReader : Dependent class is invalid and needs recompilation:\n Class RlyAutoApproval : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRules : Dependent class is invalid and needs recompilation:\n Class RlyHotfix : Dependent class is invalid and needs recompilation:\n Class RlyRaiseService : Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessFile : Dependent class is invalid and needs recompilation:\n Class RlyAppendRun : Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyWindowGate : Dependent class is invalid and needs recompilation:\n Class Rly",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyCompareFields",
+   "problem": "Identifier name is reserved: inner",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyCompareFields",
+   "problem": "Identifier name is reserved: inner",
+   "line": 64
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyCompareFieldsTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyCompareFields : Identifier name is reserved: inner",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyCompareParts",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyCompareFields : Identifier name is reserved: inner",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyCompareZip",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyCompareParts : Dependent class is invalid and needs recompilation:\n Class RlyCompareFields : Identifier name is reserved: inner",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyConflictService",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHistory : Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyCompareRun : Dependent class is invalid and needs recompilation:\n Class RlyCompareZip : Dependent class is invalid and needs recompilation:\n Class RlyCompareParts : Dependent class is invalid and needs recompilation:\n Clas",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyHotfixTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyCompareRun : Dependent class is invalid and needs recompilation:\n Class RlyCompareZip : Dependent class is invalid and needs recompilation:\n Class RlyCompareParts : Dependent class is invalid and needs recompilation:\n Class RlyCompareFields : Identifier name is reserved: inner",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyKeepFile",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleaseStore : Dependent class is invalid and needs recompilation:\n Class RlyReleaseQuery : Dependent class is invalid and needs recompilation:\n Class RlyRollbackState : Dependent class is invalid and needs recompilation:\n Class RlySlackMessage : Dependent class is invalid and needs recompilation:\n Class RlyCheckReader : Dependent class is invalid and needs recompilation:\n Class RlyStatusReader : Dependent class is invalid and needs recompilation:\n Class RlyAutoApproval : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRules : Dependent class is invalid and needs recompilation:\n Class RlyHotfix : Dependent class is invalid and needs recompilation:\n Class Rly",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyKeepResults",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyPipelineRun : Dependent class is invalid and needs recompilation:\n Class RlyPromotion : Dependent class is invalid and needs recompilation:\n Class RlyReleaseLog : Dependent class is invalid and needs recompilation:\n Class RlyManualSteps : Dependent class is invalid and needs recompilation:\n Class RlyStepFiles : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyReleaseStore : Dependent class is invalid and needs recompilation:\n Class RlyReleaseQuery : Dependent class is invalid and needs recompilation:\n Class RlyRollbackState : Dependent class is invalid and needs recompilation:\n Class RlySla",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyKeepRulesTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyKeepFile : Dependent class is invalid and needs recompilation:\n Class RlyReleaseStore : Dependent class is invalid and needs recompilation:\n Class RlyReleaseQuery : Dependent class is invalid and needs recompilation:\n Class RlyRollbackState : Dependent class is invalid and needs recompilation:\n Class RlySlackMessage : Dependent class is invalid and needs recompilation:\n Class RlyCheckReader : Dependent class is invalid and needs recompilation:\n Class RlyStatusReader : Dependent class is invalid and needs recompilation:\n Class RlyAutoApproval : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRules : Dependent class is invalid and needs recompilation:\n Class R",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyManualOnlyTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyCompareRun : Dependent class is invalid and needs recompilation:\n Class RlyCompareZip : Dependent class is invalid and needs recompilation:\n Class RlyCompareParts : Dependent class is invalid and needs recompilation:\n Class RlyCompareFields : Identifier name is reserved: inner",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyManualStepGateTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyCompareRun : Dependent class is invalid and needs recompilation:\n Class RlyCompareZip : Dependent class is invalid and needs recompilation:\n Class RlyCompareParts : Dependent class is invalid and needs recompilation:\n Class RlyCompareFields : Identifier name is reserved: inner",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyOrgDrift",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleaseLog : Dependent class is invalid and needs recompilation:\n Class RlyManualSteps : Dependent class is invalid and needs recompilation:\n Class RlyStepFiles : Dependent class is invalid and needs recompilation:\n Class RlyOrgController : Dependent class is invalid and needs recompilation:\n Class RlyReleaseStore : Dependent class is invalid and needs recompilation:\n Class RlyReleaseQuery : Dependent class is invalid and needs recompilation:\n Class RlyRollbackState : Dependent class is invalid and needs recompilation:\n Class RlySlackMessage : Dependent class is invalid and needs recompilation:\n Class RlyCheckReader : Dependent class is invalid and needs recompilation:\n Class Rly",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyOrgDriftTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyCompareRun : Dependent class is invalid and needs recompilation:\n Class RlyCompareZip : Dependent class is invalid and needs recompilation:\n Class RlyCompareParts : Dependent class is invalid and needs recompilation:\n Class RlyCompareFields : Identifier name is reserved: inner",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyProfileAccessFile",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyAppendRun : Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyWindowGate : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyApprover : Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySlackCard : Dependent class is invalid and needs recompilation:\n Class RlyReleaseHist",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyPromoteTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyCompareRun : Dependent class is invalid and needs recompilation:\n Class RlyCompareZip : Dependent class is invalid and needs recompilation:\n Class RlyCompareParts : Dependent class is invalid and needs recompilation:\n Class RlyCompareFields : Identifier name is reserved: inner",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyRaiseService",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyProfileAccessFile : Dependent class is invalid and needs recompilation:\n Class RlyAppendRun : Dependent class is invalid and needs recompilation:\n Class RlyReleasePhase : Dependent class is invalid and needs recompilation:\n Class RlyWindowGate : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRuns : Dependent class is invalid and needs recompilation:\n Class RlyApprover : Dependent class is invalid and needs recompilation:\n Class RlySlack : Dependent class is invalid and needs recompilation:\n Class RlySlackCardSync : Dependent class is invalid and needs recompilation:\n Class RlySlackCardState : Dependent class is invalid and needs recompilation:\n Class RlySla",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyReleaseStore",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleaseQuery : Dependent class is invalid and needs recompilation:\n Class RlyRollbackState : Dependent class is invalid and needs recompilation:\n Class RlySlackMessage : Dependent class is invalid and needs recompilation:\n Class RlyCheckReader : Dependent class is invalid and needs recompilation:\n Class RlyStatusReader : Dependent class is invalid and needs recompilation:\n Class RlyAutoApproval : Dependent class is invalid and needs recompilation:\n Class RlyApprovalRules : Dependent class is invalid and needs recompilation:\n Class RlyHotfix : Dependent class is invalid and needs recompilation:\n Class RlyRaiseService : Dependent class is invalid and needs recompilation:\n Class Rly",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyReleasesController",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyCompareRun : Dependent class is invalid and needs recompilation:\n Class RlyCompareZip : Dependent class is invalid and needs recompilation:\n Class RlyCompareParts : Dependent class is invalid and needs recompilation:\n Class RlyCompareFields : Identifier name is reserved: inner",
+   "line": 49
+  },
+  {
+   "type": "ApexClass",
+   "name": "RlyWindowGateTest",
+   "problem": "Dependent class is invalid and needs recompilation:\n Class RlyReleasesController : Dependent class is invalid and needs recompilation:\n Class RlyFileEdit : Dependent class is invalid and needs recompilation:\n Class RlyCompareBranch : Dependent class is invalid and needs recompilation:\n Class RlyCompareRun : Dependent class is invalid and needs recompilation:\n Class RlyCompareZip : Dependent class is invalid and needs recompilation:\n Class RlyCompareParts : Dependent class is invalid and needs recompilation:\n Class RlyCompareFields : Identifier name is reserved: inner",
+   "line": 49
+  }
+ ],
+ "testFailures": [],
+ "message": "28 component error(s)",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/43087896357",
+ "finishedAt": "2026-11-11T19:32:23.000Z",
+ "excluded": [],
+ "selfUpdate": true,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "headSha": "150b08f2848d6fecff080fc7f88659f2a977f2e9"
+}
