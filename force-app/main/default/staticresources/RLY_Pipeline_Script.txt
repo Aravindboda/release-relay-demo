@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 32
+// Release Relay pipeline files: version 33
 // Version 32 (hub build 58): profile access. A new hub raise (mode hub) may carry .relay-inbox/<REQUEST_ID>-access.json,
 //   {"profiles": [{profile, label, rows: [{section, key, values}]}]}: rows of profile files (fieldPermissions,
 //   objectPermissions, classAccesses, pageAccesses, tabVisibilities, recordTypeVisibilities, layoutAssignments,
@@ -1390,6 +1390,38 @@ function applyForceIgnore() {
     });
 }
 
+// Version 33 (build 59, D37): many projects list profiles in .forceignore, so the CLI dropped a release's profile files
+// (profile access rows, a field's access) and still reported success. The release's own profile files are re-included
+// for the run (one "!path" line each, restored on exit); every other profile stays ignored.
+function unignoreProfiles(sources) {
+    const profiles = sources.filter((f) => f.endsWith(PROFILE_SUFFIX)).map((f) => f.split(path.sep).join('/'));
+    if (!profiles.length || !fs.existsSync('.forceignore')) {
+        return;
+    }
+    const text = fs.readFileSync('.forceignore', 'utf8');
+    if (!/profile/i.test(text)) {
+        return;
+    }
+    if (forceIgnoreOriginal === undefined) {
+        forceIgnoreOriginal = text;
+        process.on('exit', () => {
+            try {
+                fs.writeFileSync('.forceignore', forceIgnoreOriginal);
+            } catch {
+                // the job ends anyway
+            }
+        });
+    }
+    const current = fs.readFileSync('.forceignore', 'utf8');
+    const lines = profiles.map((f) => '!' + f).filter((l) => !current.split(/\r?\n/).includes(l));
+    if (!lines.length) {
+        return;
+    }
+    fs.writeFileSync('.forceignore', current.replace(/\n?$/, '\n') + '# Release Relay: this release\'s profiles deploy (this run only)\n'
+        + lines.join('\n') + '\n');
+    summary(`**Profiles:** .forceignore lists profiles, so this release's ${profiles.length} profile file(s) are re-included for this run.`);
+}
+
 /** A sentence for result messages when files were left out, or ''. */
 /** Why a release whose every changed file is on the exclude list deploys nothing: it fails instead of passing. */
 function nothingLeftMessage() {
@@ -2632,6 +2664,7 @@ function buildFromFiles(all, base) {
     applyForceIgnore();
     const pkg = path.join(WORK_DIR, 'package.xml');
     const existing = [...sourceDirs].filter((d) => fs.existsSync(d));
+    unignoreProfiles(existing); // version 33
     if (existing.length) {
         const args = ['project', 'generate', 'manifest', '--name', 'package', '--output-dir', WORK_DIR];
         existing.forEach((d) => args.push('--source-dir', d));
