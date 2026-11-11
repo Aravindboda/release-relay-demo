@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>Account-Account Layout</members>
+        <name>Layout</name>
+    </types>
+    <types>
+        <members>E2E_XML_Perms</members>
+        <name>PermissionSet</name>
+    </types>
+    <version>65.0</version>
+</Package>

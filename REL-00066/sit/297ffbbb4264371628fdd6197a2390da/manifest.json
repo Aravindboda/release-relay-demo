@@ -1,0 +1,13 @@
+{
+ "request": "REL-00066",
+ "environment": "sit",
+ "takenAt": "2026-11-11T03:10:54.410Z",
+ "sha": "0c3a1c4fd206a35ba8fa964dac147dd94466eb79",
+ "existing": [
+  "Layout:Account-Account Layout",
+  "PermissionSet:E2E_XML_Perms"
+ ],
+ "added": [],
+ "deleted": [],
+ "unresolved": []
+}
