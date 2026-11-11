@@ -1,0 +1,33 @@
+{
+ "request": "REL-00065",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rel-00065",
+ "target": "sit",
+ "sha": "881ac3428ed165ebe72f1621d97285e90b57224d",
+ "pr": 278,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/278",
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "appended": false,
+ "message": "",
+ "startedFrom": "876abbc18b7fac4d5fd1107d15f70510ced47360",
+ "leftOut": [
+  "force-app/main/default/classes/E2EProbe.cls",
+  "force-app/main/default/classes/E2EProbe.cls-meta.xml",
+  "force-app/main/default/classes/E2EProbeTest.cls",
+  "force-app/main/default/classes/E2EProbeTest.cls-meta.xml"
+ ],
+ "leftOutCount": 4,
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42949638537",
+ "finishedAt": "2026-11-11T02:59:08.002Z",
+ "attempt": "4279419453d574b328e235d4ce1a3515",
+ "packages": {
+  "kept": {},
+  "leftOut": {},
+  "componentsLeftOut": []
+ }
+}
