@@ -1,6 +1,6 @@
 import APP_NAME from '@salesforce/label/c.RLY_App_Name';
-import { LightningElement } from 'lwc';
-import { NavigationMixin } from 'lightning/navigation';
+import { LightningElement, wire } from 'lwc';
+import { NavigationMixin, CurrentPageReference } from 'lightning/navigation';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import readBoard from '@salesforce/apex/RlySyncController.board';
 import startOrgCheck from '@salesforce/apex/RlySyncController.startOrgCheck';
@@ -84,6 +84,49 @@ export default class RlySyncStatus extends NavigationMixin(PartSending(Lightning
     sending;
     pageHeight;
 
+    /** Build 60 (D38): opened from a release at an org (c__org) with components picked (c__pick) or one opened (c__open). */
+    wanted;
+
+    @wire(CurrentPageReference)
+    readPageRef(ref) {
+        const st = (ref && ref.state) || {};
+        if (st.c__org) {
+            this.wanted = {
+                orgId: st.c__org,
+                picks: String(st.c__pick || '').split(',').map((k) => k.trim()).filter((k) => k),
+                open: st.c__open || undefined
+            };
+            this.applyWanted();
+        }
+    }
+
+    /** Selects the org asked for once the board has it, then picks or opens its components. */
+    applyWanted() {
+        const w = this.wanted;
+        if (!w || !this.board || !(this.board.orgs || []).some((o) => o.orgId === w.orgId)) {
+            return;
+        }
+        this.wanted = undefined;
+        this.view = 'org';
+        this.selectOrg(w.orgId);
+        this.picks = new Set(w.picks);
+        this.filter = 'all';
+        if (w.open) {
+            this.openKey = w.open;
+            this.openPath = undefined;
+            this.openWhenListed();
+        }
+    }
+
+    /** A component asked for by c__open: its first file once the org's list is read. */
+    openWhenListed() {
+        const c = this.openComponentRow;
+        if (c && !this.openPath && c.files && c.files.length) {
+            this.openPath = c.files[0].path;
+            this.loadOpenFile();
+        }
+    }
+
     connectedCallback() {
         this.resizeHandler = () => this.fitToWindow();
         window.addEventListener('resize', this.resizeHandler);
@@ -136,6 +179,9 @@ export default class RlySyncStatus extends NavigationMixin(PartSending(Lightning
                     }
                 }
                 this.checks = checks;
+                if (this.wanted) {
+                    this.applyWanted();
+                }
                 if (!this.selectedOrgId && b.orgs && b.orgs.length) {
                     this.selectOrg(b.orgs[0].orgId);
                 }
@@ -323,6 +369,9 @@ export default class RlySyncStatus extends NavigationMixin(PartSending(Lightning
             const read = await readCheck({ syncId });
             const v = { ...read, listAsked: true };
             this.checks = { ...this.checks, [syncId]: v };
+            if (this.openKey && !this.openPath) {
+                this.openWhenListed();
+            }
             if (v.status === 'Running') {
                 this.wait(syncId, 'check');
             } else if (this.board) {
