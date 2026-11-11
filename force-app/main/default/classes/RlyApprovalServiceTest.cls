@@ -23,7 +23,7 @@ private class RlyApprovalServiceTest {
             RlyHttpMock mock = new RlyFlowScenario().build();
             Test.setMock(HttpCalloutMock.class, mock);
             Test.startTest();
-            RlyReleasesController.Detail d = RlyReleasesController.approve(rel.Id, 'Looks good');
+            RlyReleasesController.Detail d = RlyReleasesController.approve(rel.Id, 'Looks good', null);
             Test.stopTest();
             RLY_Release__c saved = RlyReleaseTestData.reload(rel.Id);
             String dispatched = mock.bodyFor('/dispatches');
@@ -48,7 +48,7 @@ private class RlyApprovalServiceTest {
             RlyHttpMock mock = new RlyFlowScenario().build();
             Test.setMock(HttpCalloutMock.class, mock);
             Test.startTest();
-            RlyReleasesController.approve(rel.Id, null);
+            RlyReleasesController.approve(rel.Id, null, null);
             Test.stopTest();
             System.assert(!RlyReleaseTestData.dispatchedOptions(mock).containsKey('syncBranches'), 'Only a merge into the first stage syncs');
         }
@@ -133,7 +133,7 @@ private class RlyApprovalServiceTest {
         System.runAs(RlyTestData.admin()) {
             RLY_Release__c rel = RlyReleaseTestData.release('Validating', 'hub');
             Integer refused = 0;
-            try { RlyReleasesController.approve(rel.Id, null); } catch (AuraHandledException e) { refused++; }
+            try { RlyReleasesController.approve(rel.Id, null, null); } catch (AuraHandledException e) { refused++; }
             try { RlyReleasesController.checkAgain(rel.Id); } catch (AuraHandledException e) { refused++; }
             try { RlyReleasesController.bypassScan(rel.Id, 'A long enough reason'); } catch (AuraHandledException e) { refused++; }
             try { RlyReleasesController.getRelease(null); } catch (AuraHandledException e) { refused++; }

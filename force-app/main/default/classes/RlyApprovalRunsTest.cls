@@ -28,7 +28,7 @@ private class RlyApprovalRunsTest {
                 .match('GET', '/repos/acme/release/branches/sit').reply(200, '{"commit":{"sha":"new222"}}');
             Test.setMock(HttpCalloutMock.class, mock);
             Test.startTest();
-            RlyReleasesController.Detail d = RlyReleasesController.approve(rel.Id, 'Ship it');
+            RlyReleasesController.Detail d = RlyReleasesController.approve(rel.Id, 'Ship it', null);
             Test.stopTest();
             RLY_Release__c saved = RlyReleaseTestData.reload(rel.Id);
             System.assertEquals('Validating', saved.Status__c, 'Checks again, no merge');
@@ -49,7 +49,7 @@ private class RlyApprovalRunsTest {
                 .match('GET', '/repos/acme/release/branches/sit').reply(200, '{"commit":{"sha":"same333"}}');
             Test.setMock(HttpCalloutMock.class, mock);
             Test.startTest();
-            RlyReleasesController.Detail d = RlyReleasesController.approve(rel.Id, null);
+            RlyReleasesController.Detail d = RlyReleasesController.approve(rel.Id, null, null);
             Test.stopTest();
             RLY_Release__c saved = RlyReleaseTestData.reload(rel.Id);
             System.assertEquals('Deploying', saved.Status__c, 'Merging');

@@ -330,12 +330,13 @@ public with sharing class RlyReleasesController {
      * @description Approves the release: merge and deploy.
      * @param releaseId the release
      * @param comment the approver's comment
+     * @param confirmed what the approver ticked: orgDrift, the target org's own changes will be replaced (build 60)
      * @return the release
      */
     @AuraEnabled
-    public static Detail approve(Id releaseId, String comment) {
+    public static Detail approve(Id releaseId, String comment, List<String> confirmed) {
         try {
-            RlyApprovalService.approveRelease(releaseId, comment);
+            RlyApprovalService.approveRelease(releaseId, comment, confirmed == null ? new Set<String>() : new Set<String>(confirmed));
             return detail(releaseId);
         } catch (Exception e) {
             throw RlyReleaseException.toAura(e);

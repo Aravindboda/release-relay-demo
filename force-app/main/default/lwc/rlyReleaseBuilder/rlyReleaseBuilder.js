@@ -1272,7 +1272,37 @@ export default class RlyReleaseBuilder extends NavigationMixin(HubGate(Lightning
     get reviewTitle() { return this.isAppend ? this.appendSummary + ' · the checks run again' : 'Review before raising'; }
     get showRaiseFields() { return !this.isAppend; }
     get raisedTitle() { return this.isAppend ? this.appendTitle : 'New release'; }
-    get footText() { return this.isAppend ? 'Commits the changes to ' + this.appendName + '\'s branch; its ' + this.crWord + ' updates and the checks run again.' : this.intoText; }
+    get footText() {
+        if (this.isAppend) {
+            return 'Commits the changes to ' + this.appendName + '\'s branch; its ' + this.crWord + ' updates and the checks run again.';
+        }
+        return this.intoText + this.keepFootText;
+    }
+
+    // ---------- lines the branch has and the developer org lacks (build 60, D40) ----------
+
+    /** c-rly-keep-lines's state, kept while the steps change; removeOnPurpose is what the raise sends. */
+    keepState;
+    removeOnPurpose = [];
+    keepCounts = { kept: 0, removed: 0 };
+
+    get showKeepLines() { return !this.isAppend && !this.manualOnly && this.hasAdded; }
+    /** The components Review reads lines of (the panel reads again only when the list itself changes). */
+    get keepItems() { return this.addedItems.map((c) => ({ type: c.type, name: c.name })); }
+    get keepFootText() {
+        const { kept, removed } = this.keepCounts;
+        if (!this.showKeepLines || (!kept && !removed)) {
+            return '';
+        }
+        return ' · keeps ' + kept + (kept === 1 ? ' line' : ' lines') + (removed ? ', removes ' + removed + ' on purpose' : '');
+    }
+
+    handleKeepChange(event) {
+        const d = event.detail || {};
+        this.keepState = d.state;
+        this.removeOnPurpose = Array.isArray(d.removeOnPurpose) ? d.removeOnPurpose : [];
+        this.keepCounts = { kept: d.kept || 0, removed: d.removed || 0 };
+    }
     get submitLabel() { return this.isAppend ? this.appendLabel : 'Next: profile access'; }
 
     // ---------- the hotfix flag ----------
@@ -1816,7 +1846,8 @@ export default class RlyReleaseBuilder extends NavigationMixin(HubGate(Lightning
                 manualSteps: this.manualSteps,
                 flowChoices: only ? [] : this.flowChoices,
                 workItems: this.workItems,
-                profileAccess: withAccess ? this.profileAccess : []
+                profileAccess: withAccess ? this.profileAccess : [],
+                removeOnPurpose: only ? [] : this.removeOnPurpose
             };
             this.raisedId = await raiseRelease({ requestJson: JSON.stringify(request) });
             this.step = 'raise';
@@ -1838,6 +1869,9 @@ export default class RlyReleaseBuilder extends NavigationMixin(HubGate(Lightning
         this.manualOnly = false;
         this.accessState = undefined;
         this.profileAccess = [];
+        this.keepState = undefined;
+        this.removeOnPurpose = [];
+        this.keepCounts = { kept: 0, removed: 0 };
         this.flowPicks = {};
         this.flowInfo = {};
         this.raisedId = undefined;

@@ -77,7 +77,7 @@ public with sharing class RlyCompareParts {
             c.reason = RlyCompareFiles.reasonFor(typeName);
             return c;
         }
-        List<String> paths = RlyCompareFiles.pathsOf(key);
+        List<String> paths = typeName == 'CustomField' ? RlyCompareFields.pathsOf(key) : RlyCompareFiles.pathsOf(key); // build 60
         for (String p : paths == null ? branch.filesUnder(RlyCompareFiles.bundleFolder(key)) : paths) {
             RlyCompareFiles.FileDiff f = new RlyCompareFiles.FileDiff();
             f.path = p;

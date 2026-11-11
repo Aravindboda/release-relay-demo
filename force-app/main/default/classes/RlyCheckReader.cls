@@ -89,6 +89,7 @@ public with sharing class RlyCheckReader {
             // A conflict with the target fails the validation (the picklist has no Conflict value); the page shows the files.
             rel.Validation_Status__c = RlyConflictResult.isConflict(val) ? 'Failed' : String.valueOf(val.get('status'));
             RlyPackageResults.onValidation(rel, git, val); // build 55: package references kept and left out, in History
+            RlyKeepResults.onValidation(rel, git, val); // build 60: lines kept or taken out (D40), the target's own changes (D38)
             rel.Validation_Result__c = RlyConflictResult.fit(val);
             RlyRunKeyStore.pinValidation(rel, val); // build 48: Validated_Head__c and Validated_Attempt__c
         }

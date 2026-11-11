@@ -47,6 +47,7 @@ public with sharing class RlyConflictService {
         rel.Checks_Requested__c = System.now();
         rel.Scan_Status__c = RlyScanRule.statusFor(conn, RlyScanRule.targetOf(rel));
         rel.Validation_Status__c = 'Pending';
+        rel.Org_Drift__c = null; // build 60: the next check says again what the target org has changed
         rel.Scan_Bypassed_By__c = null;
         rel.Scan_Bypass_Reason__c = null;
         rel.Error_Message__c = null;
