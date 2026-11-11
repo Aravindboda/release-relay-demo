@@ -1,0 +1,40 @@
+{
+ "request": "REL-00066",
+ "step": "validate",
+ "status": "Passed",
+ "changed": 2,
+ "deleted": [],
+ "mergedWith": "3952cbb7d42ddddbe2af959dccdd1e47fc6dcf04",
+ "validatedTree": "cf688e1b72c4ad8883c5a922a7d3070dd4327301",
+ "environment": "sit",
+ "ok": true,
+ "testLevel": "NoTestRun",
+ "deployId": "0AfgL00000dTaZVSA0",
+ "testsRun": 0,
+ "tests": [],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42950459235",
+ "finishedAt": "2026-11-11T03:06:51.167Z",
+ "attempt": "6dfa966b175e261f38816733beb89e21",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "packages": {
+  "kept": {},
+  "leftOut": {},
+  "componentsLeftOut": []
+ },
+ "headSha": "71660533a99cd54f75c679cb55cbb455ffebbdb0"
+}
