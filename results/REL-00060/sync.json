@@ -1,0 +1,28 @@
+{
+ "request": "REL-00060",
+ "step": "sync",
+ "status": "Conflict",
+ "sha": "11985f85cb25a0b04cc4e2a432668756f70368d0",
+ "deployId": null,
+ "testsRun": 0,
+ "conflicts": [
+  "force-app/main/default/classes/RlyDemoGreeting.cls",
+  "force-app/main/default/classes/RlyDemoGreetingTest.cls"
+ ],
+ "message": "2 file(s) in sit conflict with prod. Nothing was deployed or pushed. Bring prod into sit by hand (keep prod's lines), then sync again.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42940974512",
+ "finishedAt": "2026-11-11T01:43:23.419Z",
+ "attempt": "e9c6b5e92955a437eeeb26cdeaf20906",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "packages": {
+  "kept": {},
+  "leftOut": {},
+  "componentsLeftOut": []
+ }
+}
