@@ -79,6 +79,7 @@ public with sharing class RlyApprovalRuns {
         rel.Error_Message__c = null;
         rel.Validated_Head__c = null; // build 48: the new check pins the head (and its attempt) again
         rel.Validated_Attempt__c = null;
+        rel.Org_Drift__c = null; // build 60: the new check says again what the target org has changed
     }
 
     /**

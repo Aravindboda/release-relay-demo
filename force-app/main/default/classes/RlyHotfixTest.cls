@@ -155,7 +155,7 @@ private class RlyHotfixTest {
             RlyHttpMock mock = new RlyFlowScenario().build();
             Test.setMock(HttpCalloutMock.class, mock);
             Test.startTest();
-            RlyReleasesController.approve(rel.Id, 'Urgent');
+            RlyReleasesController.approve(rel.Id, 'Urgent', null);
             Test.stopTest();
             System.assertEquals(new List<Object>{ 'dev1', 'dev2' }, RlyReleaseTestData.dispatchedOptions(mock).get('syncBranches'),
                 'Into the first stage: every developer branch, no stage branch first');

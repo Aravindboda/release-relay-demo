@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Remove_On_Purpose__c</fullName>
+    <description>Hub (build 60, D40): lines the developer chose to take out on Review, as JSON [{component, item}]. Every other line the target branch has and the developer org lacks is kept. Committed to the release branch as .relay-inbox/REL-x-keep.json.</description>
+    <label>Remove On Purpose</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

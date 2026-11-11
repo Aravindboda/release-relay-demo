@@ -1,4 +1,5 @@
 import { LightningElement, api } from 'lwc';
+import { keepBoth, typeOfPath } from 'c/rlyXmlItems';
 
 const MARKERS = ['<<<<<<<', '>>>>>>>'];
 
@@ -95,6 +96,9 @@ export default class RlyMergeConflicts extends LightningElement {
         if (choice === 'mine') {
             return 'Keep mine';
         }
+        if (choice === 'both') {
+            return 'Kept both';
+        }
         return choice === 'theirs' ? 'Keep ' + this.target + '\'s' : 'Edited';
     }
 
@@ -180,9 +184,26 @@ export default class RlyMergeConflicts extends LightningElement {
         return this.current ? this.choices[this.current.file] : undefined;
     }
 
+    /**
+     * Build 60 (D39): both sides' items in one file, for a metadata file whose two copies differ only by whole items
+     * (a picklist value, a layout field, a permission, a label each side added); null when Both isn't offered.
+     */
+    get bothText() {
+        const c = this.current;
+        if (!c || c.truncated) {
+            return null;
+        }
+        return keepBoth(typeOfPath(c.file), c.theirs, c.mine);
+    }
+    get isBoth() { return !!(this.currentChoice && this.currentChoice.choice === 'both'); }
+    get bothPreview() { return this.isBoth ? this.currentChoice.content : ''; }
+    get bothLabel() { return 'Result (Keep both): ' + this.target + '\'s items, then yours'; }
+
     get choiceButtons() {
         const chosen = this.currentChoice ? this.currentChoice.choice : null;
+        const both = this.bothText ? [{ value: 'both', label: 'Both: ' + this.target + '\'s, then mine', disabled: false }] : [];
         return [
+            ...both,
             { value: 'mine', label: 'Keep mine', disabled: false },
             { value: 'theirs', label: 'Keep ' + this.target + '\'s', disabled: false },
             { value: 'edit', label: 'Edit', disabled: this.truncated }
@@ -199,7 +220,12 @@ export default class RlyMergeConflicts extends LightningElement {
         const choice = event.currentTarget.dataset.value;
         const file = this.current.file;
         const previous = this.choices[file];
-        const content = choice === 'edit' ? (previous && previous.content) || this.current.merged || '' : undefined;
+        let content;
+        if (choice === 'edit') {
+            content = (previous && previous.content) || this.current.merged || '';
+        } else if (choice === 'both') {
+            content = this.bothText;
+        }
         this.choices = { ...this.choices, [file]: { choice, content } };
     }
 
@@ -227,7 +253,8 @@ export default class RlyMergeConflicts extends LightningElement {
     handleResolve() {
         const resolutions = this.conflicts.map((c) => {
             const chosen = this.choices[c.file];
-            return chosen.choice === 'edit' ? { file: c.file, choice: 'edit', content: chosen.content } : { file: c.file, choice: chosen.choice };
+            // Keep both goes up as an edit: the merged text (build 60, D39).
+            return chosen.choice === 'edit' || chosen.choice === 'both' ? { file: c.file, choice: 'edit', content: chosen.content } : { file: c.file, choice: chosen.choice };
         });
         this.isOpen = false;
         this.dispatchEvent(new CustomEvent('resolve', { detail: { resolutions } }));
