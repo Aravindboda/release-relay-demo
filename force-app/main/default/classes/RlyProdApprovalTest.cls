@@ -54,4 +54,28 @@ private class RlyProdApprovalTest {
             System.assert(refused != null && refused.contains('waiting for the window'), 'Passes the add-on check: ' + refused);
         }
     }
+
+    @IsTest
+    static void raiserCantApproveOwnProductionRelease() {
+        System.runAs(RlyTestData.admin()) {
+            String me = UserInfo.getUserId();
+            RlyProdApproval.save(RlyProdApproval.STATE_ON);
+            RLY_Release__c own = (RLY_Release__c) JSON.deserialize('{"attributes":{"type":"RLY_Release__c"},"CreatedById":"' + me
+                + '","Status__c":"Ready for approval","Target_Org__r":{"attributes":{"type":"RLY_Org__c"},"Role__c":"Hub"}}', RLY_Release__c.class);
+            System.assert(RlyOwnRelease.isOwnProduction(own, me), 'The raiser of a production release');
+            System.assertEquals(RlyOwnRelease.OWN_NOTE, RlyProdApproval.noteFor(own), 'The page tells the raiser');
+            String refused;
+            try {
+                RlyProdApproval.require(own, RlyApprover.currentUser(null));
+            } catch (RlyReleaseException e) {
+                refused = e.getMessage();
+            }
+            System.assertEquals(RlyOwnRelease.OWN_NOTE, refused, 'Refused for the raiser');
+            RLY_Release__c sit = (RLY_Release__c) JSON.deserialize('{"attributes":{"type":"RLY_Release__c"},"CreatedById":"' + me
+                + '","Status__c":"Ready for approval","Target_Org__r":{"attributes":{"type":"RLY_Org__c"},"Role__c":"Stage"}}', RLY_Release__c.class);
+            System.assert(!RlyOwnRelease.isOwnProduction(sit, me), 'Other orgs keep self-approval');
+            RlyProdApproval.save('Off');
+            System.assert(!RlyOwnRelease.isOwnProduction(own, me), 'Off: production approval isn\'t governed');
+        }
+    }
 }

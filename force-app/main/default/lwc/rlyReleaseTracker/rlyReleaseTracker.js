@@ -7,6 +7,7 @@ import listReleases from '@salesforce/apex/RlyReleasesController.listReleases';
 import listReleasesFor from '@salesforce/apex/RlyReleasesController.listReleasesFor';
 import countReleases from '@salesforce/apex/RlyReleasesController.countReleases';
 import refreshRelease from '@salesforce/apex/RlyReleasesController.refreshRelease';
+import canRaise from '@salesforce/apex/RlyReleasesController.canRaise';
 import exportCsvPart from '@salesforce/apex/RlyEvidenceController.exportCsvPart';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
 import { errorText, sameDay, clearSearchBox, oneAfterAnother } from 'c/rlyShared';
@@ -253,6 +254,13 @@ export default class RlyReleaseTracker extends NavigationMixin(HubGate(Lightning
             this.pageFilter = pageFilter;
             this.applyPageFilter(pageFilter);
         }
+    }
+
+    /** The user may raise releases (developers and admins): only they see New release (build 59, D34). */
+    mayRaise = false;
+    @wire(canRaise)
+    readCanRaise({ data }) {
+        this.mayRaise = data === true;
     }
 
     /** The c__filter last applied, so the same link doesn't reset a chip picked since. */
@@ -534,7 +542,7 @@ export default class RlyReleaseTracker extends NavigationMixin(HubGate(Lightning
         return this.isApprovals ? 'utility:approval' : 'utility:list';
     }
     get showNewRelease() {
-        return !this.isApprovals;
+        return !this.isApprovals && this.mayRaise;
     }
 
     newRelease() {
