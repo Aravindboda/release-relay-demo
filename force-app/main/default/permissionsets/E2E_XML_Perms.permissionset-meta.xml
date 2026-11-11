@@ -21,11 +21,6 @@
         <field>Account.NumberofLocations__c</field>
         <readable>true</readable>
     </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Account.SLA__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
     <hasActivationRequired>false</hasActivationRequired>
     <label>E2E XML Perms</label>
     <objectPermissions>
