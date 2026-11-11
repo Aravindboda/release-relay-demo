@@ -1,8 +1,9 @@
-import { LightningElement } from 'lwc';
+import { LightningElement, wire } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import readHome from '@salesforce/apex/RlyHomeController.read';
 import upcomingFreezes from '@salesforce/apex/RlyWindowController.upcomingFreezes';
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
+import canRaise from '@salesforce/apex/RlyReleasesController.canRaise';
 import { searchTerm, matchesSearch, highlightParts } from 'c/rlyListSearch';
 import { errorText, plural, sameDay, clock, shortDate, isGated } from 'c/rlyShared';
 
@@ -173,6 +174,13 @@ function chartScale(maxValue) {
  * The two lists search and filter in the browser (rlySearchBox, c/rlyListSearch) inside fixed-height scrolling cards.
  */
 export default class RlyHome extends NavigationMixin(LightningElement) {
+    /** The user may raise releases (developers and admins): only they see New release (build 59, D34). */
+    mayRaise = false;
+    @wire(canRaise)
+    readCanRaise({ data }) {
+        this.mayRaise = data === true;
+    }
+
     /** RlyHubGuard.getHubStatus: outside the hub this tab shows only rlyOrgGate. */
     hubStatus;
     statusRead = false;
