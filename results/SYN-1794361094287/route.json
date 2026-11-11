@@ -1,0 +1,57 @@
+{
+ "request": "SYN-1794361094287",
+ "step": "routediff",
+ "status": "Succeeded",
+ "message": "",
+ "checkedAt": "2026-11-11T01:38:29.709Z",
+ "pairs": [
+  {
+   "higher": "prod",
+   "lower": "sit",
+   "count": 2,
+   "components": [
+    {
+     "key": "ApexClass:RlyDemoGreeting",
+     "type": "ApexClass",
+     "status": "different",
+     "lowerChangedToo": true,
+     "files": [
+      {
+       "path": "force-app/main/default/classes/RlyDemoGreeting.cls",
+       "status": "changed",
+       "lowerChangedToo": true,
+       "n": 1,
+       "kind": "text"
+      }
+     ],
+     "cameFrom": "REL-00024"
+    },
+    {
+     "key": "ApexClass:RlyDemoGreetingTest",
+     "type": "ApexClass",
+     "status": "different",
+     "lowerChangedToo": true,
+     "files": [
+      {
+       "path": "force-app/main/default/classes/RlyDemoGreetingTest.cls",
+       "status": "changed",
+       "lowerChangedToo": true,
+       "n": 2,
+       "kind": "text"
+      }
+     ],
+     "cameFrom": "REL-00024"
+    }
+   ]
+  },
+  {
+   "higher": "sit",
+   "lower": "dev1",
+   "count": 0,
+   "components": []
+  }
+ ],
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42940392211",
+ "finishedAt": "2026-11-11T01:38:29.710Z",
+ "attempt": "d1707b77a9bc0473c788c9e3d824e287"
+}

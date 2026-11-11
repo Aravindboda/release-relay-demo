@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/email/unfiled$public/SupportSelfServiceNewLoginandPassword.email","left":null,"right":"Dear {!Contact.FirstName}, \n\nYour GenWatt Self-Service login and password information is below. \n\nThank you.\n\nGenWatt Customer Support"}

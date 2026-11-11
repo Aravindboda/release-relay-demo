@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/email/unfiled$public/SUPPORTSelfServiceResetPasswordSAMPLE.email","left":null,"right":"Dear {!Contact.FirstName},\n\nThank you for contacting customer support.  Your new Self-Service portal password can be found below.\n\nThank you,\n\n{!User_Name}\n{!Organization.Name} Customer Support"}

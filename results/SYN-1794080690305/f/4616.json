@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/email/unfiled$public/SupportEscalatedCaseReassignment.email","left":null,"right":"The following case has been escalated to you since it is nearing its SLA time limit and is still open.\n\nCompany: {!Account.Name}\nService Level: {!Account_Service_Level}\nProduct: {!Case.Product__c}\nCase #: {!Case.CaseNumber}\nCase Subject: {!Case.Subject}"}

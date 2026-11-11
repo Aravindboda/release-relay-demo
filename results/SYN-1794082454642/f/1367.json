@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/objects/ContactPointOttSvc/fields/IsUndeliverable.field-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>IsUndeliverable</fullName>\n</CustomField>\n"}

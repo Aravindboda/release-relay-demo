@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/settings/LiveAgent.settings-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<LiveAgentSettings xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <enableLiveAgent>false</enableLiveAgent>\n</LiveAgentSettings>\n"}

@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/triggers/RlyContentVersion.trigger","left":null,"right":"trigger RlyContentVersion on ContentVersion (before insert) {\n    RlyStepFileGuard.onVersions(Trigger.new);\n}"}

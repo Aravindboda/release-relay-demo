@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/objects/DataAction/fields/ActionStatus.field-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>ActionStatus</fullName>\n    <trackHistory>false</trackHistory>\n</CustomField>\n"}

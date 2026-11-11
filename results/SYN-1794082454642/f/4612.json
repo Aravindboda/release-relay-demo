@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/email/unfiled$public/SupportCaseResponse.email","left":null,"right":"Dear {!Contact.FirstName},\n\n{!Case.Solution_Description}\n\nThank you,\n\n{!User.Name}\n{!Organization.Name}\n\nYour comment:\n\n{!Case.Description}"}

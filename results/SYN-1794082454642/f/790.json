@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/objects/Asset/fields/TotalLifecycleAmount.field-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>TotalLifecycleAmount</fullName>\n    <trackHistory>false</trackHistory>\n</CustomField>\n"}

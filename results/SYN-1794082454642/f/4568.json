@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/email/unfiled$public/MarketingProductInquiryResponse.email","left":null,"right":"Dear {!Lead.Name},\n\nThank you for your inquiry about GenWatt's products.\n\nA representative will contact you shortly.\n\nThanks,\nThe GenWatt Team"}

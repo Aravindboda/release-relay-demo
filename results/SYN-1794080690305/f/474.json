@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/pages/AnswersHome.page","left":null,"right":"<apex:page action=\"{!URLFOR('/answers/answersHome.apexp')}\"/>"}

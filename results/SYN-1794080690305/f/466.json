@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/components/SiteFooter.component-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ApexComponent xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <apiVersion>68.0</apiVersion>\n    <description>Default Lightning Platform site footer component</description>\n    <label>SiteFooter</label>\n</ApexComponent>\n"}

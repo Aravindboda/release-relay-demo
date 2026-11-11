@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/settings/LiveMessage.settings-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<LiveMessageSettings xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <enableLiveMessage>false</enableLiveMessage>\n</LiveMessageSettings>\n"}

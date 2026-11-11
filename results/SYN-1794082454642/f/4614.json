@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/email/unfiled$public/SupportEscalatedCaseNotification.email","left":null,"right":"The following case has been escalated to the Escalated Queue. \n\nCompany: {!Account.Name} \nService Level: {!Account_Service_Level} \nProduct: {!Case.Product__c} \nCase #: {!Case.CaseNumber} \nCase Subject: {!Case.Subject}"}

@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/components/SiteFooter.component","left":null,"right":"<apex:component id=\"footerComponent\">\n  <c:SitePoweredBy />\n</apex:component>"}

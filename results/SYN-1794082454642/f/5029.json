@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/settings/MailMerge.settings-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<MailMergeSettings xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <enableExtendedMailMerge>false</enableExtendedMailMerge>\n    <saveMailMergeDocsAsSalesforceDocs>false</saveMailMergeDocsAsSalesforceDocs>\n</MailMergeSettings>\n"}

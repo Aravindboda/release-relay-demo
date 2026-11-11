@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/settings/Blockchain.settings-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<BlockchainSettings xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <enableBcp>false</enableBcp>\n    <enableEtpNft>false</enableEtpNft>\n</BlockchainSettings>\n"}

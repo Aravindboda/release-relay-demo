@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/objects/SfdcPartnerSbscrOfferItem/fields/LineItemTotal.field-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>LineItemTotal</fullName>\n    <trackHistory>false</trackHistory>\n</CustomField>\n"}

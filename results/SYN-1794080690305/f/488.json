@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/pages/IdeasHome.page","left":null,"right":"<apex:page action=\"{!URLFOR('/ideas/ideaList.apexp')}\"/>"}

@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/objects/Contact/listViews/MyContacts.listView-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListView xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>MyContacts</fullName>\n    <filterScope>Mine</filterScope>\n    <label>My Contacts</label>\n</ListView>\n"}

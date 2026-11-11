@@ -1,1 +1,0 @@
-{"path":"force-app/main/default/email/unfiled$public/SUPPORTSelfServiceNewCommentNotificationSAMPLE.email","left":null,"right":"Your case # {!Case.CaseNumber}: {!Case.Subject} has been updated.  Please click on the link below\nto view this case on the Self-Service portal.\n<insert the link to your Self-Service portal login page here>\n\n{!Organization.Name} Customer Support"}
