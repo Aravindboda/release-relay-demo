@@ -52,8 +52,8 @@ public with sharing class RlyProfileAccessFile {
     }
 
     /**
-     * @description Commits the release's files on its branch: the zip or marker (when any), then its profile access
-     * (a new release's only: an add to an open release carries none).
+     * @description Commits the release's files on its branch: the zip or marker (when any), then its profile access and
+     * the lines it takes out on purpose (a new release's only: an add to an open release carries neither).
      * @param rel the release
      * @param git the Git connection
      * @param first the zip or marker, or null
@@ -62,9 +62,17 @@ public with sharing class RlyProfileAccessFile {
         if (first != null) {
             git.putFile(first);
         }
-        RlyGitFile access = RlyAppendRun.isPending(rel) ? null : fileFor(rel, RlyPipelineRun.branchName(rel));
+        if (RlyAppendRun.isPending(rel)) {
+            return;
+        }
+        String branch = RlyPipelineRun.branchName(rel);
+        RlyGitFile access = fileFor(rel, branch);
         if (access != null) {
             git.putFile(access);
+        }
+        RlyGitFile keep = RlyKeepFile.fileFor(rel, branch); // build 60: lines taken out on purpose (D40)
+        if (keep != null) {
+            git.putFile(keep);
         }
     }
 

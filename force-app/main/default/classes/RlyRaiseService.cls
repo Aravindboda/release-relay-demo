@@ -51,6 +51,8 @@ public with sharing class RlyRaiseService {
         public List<String> workItems;
         /** @description Profile access to send (New Release, step Profile access): only these rows of each profile. */
         public List<RlyProfileAccessRules.ProfileRows> profileAccess;
+        /** @description Lines the target branch has that the developer takes out on purpose (Review, build 60). */
+        public List<RlyKeepRules.KeepItem> removeOnPurpose;
     }
 
     /**
@@ -72,6 +74,7 @@ public with sharing class RlyRaiseService {
         List<RlyFlowChoices.FlowChoice> flowChoices = RlyFlowChoices.checked(req.flowChoices, flowNames(added));
         List<RLY_Manual_Step__c> steps = RlyManualStepRules.fromInputs(withFlowSteps(req.manualSteps, flowChoices));
         List<RlyProfileAccessRules.ProfileRows> access = RlyProfileAccessRules.checked(req.profileAccess);
+        List<RlyKeepRules.KeepItem> removals = RlyKeepRules.checked(req.removeOnPurpose, keysOf(added));
 
         String retrieveId = byType.isEmpty() ? null : RlyRaiseParts.startFirst(route.source, byType); // callout before any DML; a big release in parts
 
@@ -84,8 +87,7 @@ public with sharing class RlyRaiseService {
         rel.Deletions__c = deletions.isEmpty() ? null : String.join(deletions, ',');
         rel.Flow_Actions__c = RlyFlowChoices.toField(flowChoices);
         rel.Inactive_Triggers__c = RlyTestRule.inactiveField(added, null);
-        rel.Profile_Access__c = RlyProfileAccessRules.toField(access);
-        rel.Profile_Access_Count__c = RlyProfileAccessRules.rowCount(access);
+        withLines(rel, access, removals);
         if (RlyRaiseRules.isManualOnly(req)) {
             RlyManualOnly.mark(rel); // no retrieve, branch or pipeline: its page's next read takes it to approval
         }
@@ -112,6 +114,22 @@ public with sharing class RlyRaiseService {
             + (deletions.isEmpty() ? '' : ', ' + deletions.size() + (deletions.size() == 1 ? ' deletion' : ' deletions'))
             + RlyProfileAccessFile.logWords(rel)
             + (steps.isEmpty() ? '' : ', ' + stepText);
+    }
+
+    // Profile access to send and the lines taken out on purpose (build 58, build 60).
+    private static void withLines(RLY_Release__c rel, List<RlyProfileAccessRules.ProfileRows> access, List<RlyKeepRules.KeepItem> removals) {
+        rel.Profile_Access__c = RlyProfileAccessRules.toField(access);
+        rel.Profile_Access_Count__c = RlyProfileAccessRules.rowCount(access);
+        rel.Remove_On_Purpose__c = RlyKeepRules.toField(removals);
+    }
+
+    // The components the release brings, Type:Name.
+    private static Set<String> keysOf(List<Item> added) {
+        Set<String> out = new Set<String>();
+        for (Item i : added) {
+            out.add(i.type + ':' + i.name);
+        }
+        return out;
     }
 
     // The selected flows' API names.

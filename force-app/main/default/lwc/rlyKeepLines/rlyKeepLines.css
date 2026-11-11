@@ -1,0 +1,18 @@
+:host { display: block; }
+.rr-hint { margin: 0; font-size: 12px; color: #747474; line-height: 1.45; }
+.rr-keep { display: flex; flex-direction: column; gap: 10px; }
+.rr-keep-warn { display: flex; gap: 12px; align-items: flex-start; background: #fef1cd; border-radius: 4px; padding: 12px 14px; color: #5e3600; }
+.rr-keep-icon { flex-shrink: 0; margin-top: 1px; color: #8c4b02; }
+.rr-keep-text { display: flex; flex-direction: column; gap: 4px; }
+.rr-keep-title { margin: 0; font-weight: 700; font-size: 14px; }
+.rr-keep-explain { margin: 0; font-size: 13px; line-height: 1.45; }
+.rr-keep-scroll { overflow-x: auto; }
+.rr-keep-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rr-keep-table th { text-align: left; padding: 8px; font-size: 12px; font-weight: 700; color: #5c5c5c; text-transform: uppercase; letter-spacing: .02em; border-bottom: 1px solid #e5e5e5; }
+.rr-keep-table td { padding: 6px 8px; border-bottom: 1px solid #f3f3f3; vertical-align: middle; }
+.rr-keep-from { color: #5c5c5c; }
+.rr-tog-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.rr-tog { font: inherit; font-size: 12px; border: 1px solid #c9c9c9; background: #fff; color: #444; border-radius: 14px; padding: 4px 10px; min-height: 28px; cursor: pointer; }
+.rr-tog-keep { background: #2e844a; border-color: #2e844a; color: #fff; }
+.rr-tog-remove { background: #ba0517; border-color: #ba0517; color: #fff; }
+.rr-tog:disabled { cursor: default; opacity: .6; }

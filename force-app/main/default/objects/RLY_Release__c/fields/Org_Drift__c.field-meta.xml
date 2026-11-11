@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Org_Drift__c</fullName>
+    <description>Hub (build 60, D38): changes the target org has that its branch doesn&apos;t, for the release&apos;s components, from the latest check (validate.json orgDrift) as JSON [{component, items}]. While set, approving needs the approver to confirm they&apos;ll be replaced.</description>
+    <label>Org Drift</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

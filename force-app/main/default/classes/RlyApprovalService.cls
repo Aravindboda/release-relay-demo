@@ -11,6 +11,9 @@
  */
 public with sharing class RlyApprovalService {
 
+    /** @description Build 60 (D38): the approver confirmed that the target org's own changes will be replaced. */
+    public static final String CONFIRM_DRIFT = 'orgDrift';
+
     /**
      * @description Code scan blocked it: an approver accepts the findings, with a reason.
      * @param releaseId the release
@@ -63,9 +66,23 @@ public with sharing class RlyApprovalService {
      * @return the release as saved
      */
     public static RLY_Release__c approveRelease(Id releaseId, String comment) {
+        return approveRelease(releaseId, comment, new Set<String>());
+    }
+
+    /**
+     * @description Approves the release as the current user with what they confirmed on the release page (build 60,
+     * D38: CONFIRM_DRIFT, that the target org's own changes will be replaced, needed while the latest check found any).
+     * @param releaseId the release
+     * @param comment the approver's comment, or null
+     * @param confirmed what the approver ticked
+     * @return the release as saved
+     */
+    public static RLY_Release__c approveRelease(Id releaseId, String comment, Set<String> confirmed) {
         requireApprover();
         RlyApprover.requireSalesforce(RlyReleaseStore.release(releaseId));
-        return approveAs(releaseId, RlyApprover.currentUser(comment));
+        RlyApprover who = RlyApprover.currentUser(comment);
+        who.acknowledgedDrift = confirmed != null && confirmed.contains(CONFIRM_DRIFT);
+        return approveAs(releaseId, who);
     }
 
     /**
@@ -83,6 +100,7 @@ public with sharing class RlyApprovalService {
             throw new RlyReleaseException('Only a release that\'s ready for approval can be approved.');
         }
         RlyProdApproval.require(rel, who); // build 49: production needs the Production Approver add-on when the hub says so
+        RlyOrgDrift.require(rel, who); // build 60: the target's own changes would be replaced: confirmed on the release page
         RLY_Release__c before = RlySlackCardState.snapshot(rel);
         if (RlyManualStepGate.waitsInstead(rel, who)) {
             saveAndNotify(before, rel); // the first of two approvals, or the deploy waits for manual steps: the card says so

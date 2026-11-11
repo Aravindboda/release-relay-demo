@@ -119,6 +119,7 @@ public with sharing class RlyAppendService {
         rel.Checks_Requested__c = System.now();
         rel.Scan_Status__c = RlyScanRule.statusFor(RlyReleaseStore.gitFor(rel), RlyScanRule.targetOf(rel));
         rel.Validation_Status__c = String.isBlank(rel.Target_Environment__c) ? 'Not configured' : 'Pending';
+        rel.Org_Drift__c = null; // build 60: the next check says again what the target org has changed
         rel.Scan_Bypassed_By__c = null;
         rel.Scan_Bypass_Reason__c = null;
         rel.Approval_Status__c = 'Pending';

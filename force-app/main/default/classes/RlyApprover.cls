@@ -24,6 +24,8 @@ public with sharing class RlyApprover {
     public String via;
     /** @description The comment, or null. */
     public String comment;
+    /** @description Build 60 (D38): confirmed on the release page that the target's own changes will be replaced. */
+    public Boolean acknowledgedDrift = false;
 
     /**
      * @description The current user on the release page.
