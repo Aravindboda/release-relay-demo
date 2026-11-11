@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/lwc/ihConfigTransfer/ihConfigTransfer.css","left":null,"right":"@import 'c/ihStyles';\n\n.pick {\n    gap: 12px;\n    padding: 4px 0;\n}\n/* Inside another component's card (How To): that page already has the bottom space. */\n.ih-page_embedded {\n    padding-bottom: 0;\n}"}

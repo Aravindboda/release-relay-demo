@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/lwc/ihCode/ihCode.html","left":null,"right":"<template>\n    <pre class={boxClass} style={boxStyle} tabindex=\"0\"><template for:each={parts} for:item=\"p\"><span key={p.k} class={p.c}>{p.t}</span></template></pre>\n</template>"}

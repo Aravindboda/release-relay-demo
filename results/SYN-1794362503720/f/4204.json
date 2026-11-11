@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/settings/Inventory.settings-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<InventorySettings xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <enableOCIB2CIntegration>false</enableOCIB2CIntegration>\n    <enableOmniChannelInventory>false</enableOmniChannelInventory>\n</InventorySettings>\n"}

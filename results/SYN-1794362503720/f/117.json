@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/classes/RlyDemoDiscount.cls","left":null,"right":"/** Discount rules, for the Release Relay end-to-end run (failing test). */\npublic with sharing class RlyDemoDiscount {\n    public static Decimal apply(Decimal amount) {\n        return amount == null ? 0 : amount * 0.9;\n    }\n}"}

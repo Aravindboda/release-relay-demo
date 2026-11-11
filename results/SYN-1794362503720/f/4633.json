@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/remoteSiteSettings/ApexDevNet.remoteSite-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<RemoteSiteSetting xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <disableProtocolSecurity>false</disableProtocolSecurity>\n    <isActive>true</isActive>\n    <url>http://www.apexdevnet.com</url>\n</RemoteSiteSetting>\n"}

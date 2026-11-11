@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/triggers/IH_TransactionTrigger.trigger","left":null,"right":"/**\n * Integration Hub transaction trigger: one line. The logic is in IntegrationHub.handleTrigger().\n */\ntrigger IH_TransactionTrigger on IH_Transaction__c (after insert, after update) {\n    IntegrationHub.handleTrigger();\n}"}

@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/classes/E2EGateProbe.cls","left":null,"right":"public with sharing class E2EGateProbe { public static Integer twice(Integer n) { return n * 2; } }"}

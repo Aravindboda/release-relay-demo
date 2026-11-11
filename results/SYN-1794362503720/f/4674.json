@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/objects/IH_Transaction__c/sharingReasons/Related_Record_Access__c.sharingReason-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SharingReason xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>Related_Record_Access__c</fullName>\n    <label>Related Record Access</label>\n</SharingReason>\n"}

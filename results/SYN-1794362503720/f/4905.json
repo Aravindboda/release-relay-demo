@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/settings/SubscriptionManagement.settings-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SubscriptionManagementSettings xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <enableSubscriptionManagement>false</enableSubscriptionManagement>\n</SubscriptionManagementSettings>\n"}

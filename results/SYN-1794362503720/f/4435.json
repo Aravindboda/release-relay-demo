@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/lwc/ihTransactionView/ihTransactionView.css","left":null,"right":"@import 'c/ihStyles';\n\n:host {\n    display: block;\n    padding-bottom: 0.75rem;\n}\n.view {\n    display: inline-block;\n}\n.retry {\n    margin: 8px 0;\n}"}
