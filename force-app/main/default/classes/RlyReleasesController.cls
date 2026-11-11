@@ -411,4 +411,13 @@ public with sharing class RlyReleasesController {
         RlyReleaseHistory.fill(d);
         return d;
     }
+
+    /**
+     * @description Whether the current user may raise releases (the New release button): a developer or an admin.
+     * @return true for developers and admins
+     */
+    @AuraEnabled(cacheable=true)
+    public static Boolean canRaise() {
+        return RlyReleaseAccess.isAdmin() || RlyRoles.holdsSet(RlyRoles.DEVELOPER_SET);
+    }
 }

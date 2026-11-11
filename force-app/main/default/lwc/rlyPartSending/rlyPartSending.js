@@ -128,11 +128,23 @@ export const PartSending = (Base) => class extends Base {
             this.setPart(id, { phase: 'ready' });
             this.pumpParts();
         } catch (e) {
-            if (this.retryClash(e, id)) {
+            if (this.retryClash(e, id) || this.retryLostRetrieve(e, id)) {
                 return;
             }
             this.failSending(e, id);
         }
+    }
+
+    // D36 (build 59): the org deletes a retrieve's result after a while (INVALID_LOCATOR), for example when the page
+    // was in the background. The part starts a new retrieve once instead of failing the whole check.
+    retryLostRetrieve(e, id) {
+        const p = this.partOf(id);
+        if (!p || p.restarted || !/INVALID_LOCATOR/.test(errorText(e))) {
+            return false;
+        }
+        this.setPart(id, { restarted: true, retrieveId: undefined });
+        this.sendPart(id);
+        return true;
     }
 
     // D27 (build 57): parts are committed side by side, so the branch may move under one (HTTP 409) even after the
