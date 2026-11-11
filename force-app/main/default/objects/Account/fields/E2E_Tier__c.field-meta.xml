@@ -29,6 +29,11 @@
                 <default>false</default>
                 <label>Bronze</label>
             </value>
+            <value>
+                <fullName>Copper</fullName>
+                <default>false</default>
+                <label>Copper</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>
