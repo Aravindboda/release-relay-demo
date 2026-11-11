@@ -1,0 +1,24 @@
+{
+ "request": "SYN-1794361612280",
+ "step": "routediff",
+ "status": "Succeeded",
+ "message": "",
+ "checkedAt": "2026-11-11T01:47:03.687Z",
+ "pairs": [
+  {
+   "higher": "prod",
+   "lower": "sit",
+   "count": 0,
+   "components": []
+  },
+  {
+   "higher": "sit",
+   "lower": "dev1",
+   "count": 0,
+   "components": []
+  }
+ ],
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42941406110",
+ "finishedAt": "2026-11-11T01:47:03.688Z",
+ "attempt": "4bbe4bb20265db728683c14ac64e73b2"
+}
