@@ -368,6 +368,11 @@
                             </div>
                             <div class="rr-pad rr-stack">
                                 <div class={testRunCls}>{testRunText}</div>
+                                <!-- build 60 (D40, board "D40 · Review: lines DEV1 doesn't have"): lines the branch has that the org lacks -->
+                                <template lwc:if={showKeepLines}>
+                                    <c-rly-keep-lines source-org-id={orgId} source-name={sourceName} target-branch={compareTargetBranch}
+                                        items={keepItems} state={keepState} disabled={raising} onkeepchange={handleKeepChange}></c-rly-keep-lines>
+                                </template>
                                 <template lwc:if={hasApexDeletionNote}><div class="rr-msg rr-msg-info" role="status">{apexDeletionNote}</div></template>
                                 <template for:each={testClassWarnings} for:item="w">
                                     <div key={w.key} class="rr-msg rr-msg-wait" role="status">{w.text}</div>

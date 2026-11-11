@@ -1651,7 +1651,8 @@ const USE_SECTIONS = [
                                     'Urgent fix? With the **Release Relay Hotfix** add-on turn on the **This is a hotfix** chip and answer **Why is this a hotfix?** (see Hotfix).',
                                     'Flows: each shows its version in your org; choose **After deploy** per flow (see Flows).',
                                     'Anything that can\'t be deployed (access, data, setup)? **Add a manual step** (see Manual steps).',
-                                    'A blue box says whether the first stage asks for approval, for example "Approval in QA: Always needs approval in QA." (an example).'
+                                    'A blue box says whether the first stage asks for approval, for example "Approval in QA: Always needs approval in QA." (an example).',
+                                    'Layouts, permission sets, fields (picklist values) and value sets: Review reads your org\'s copy and the target branch\'s copy. An amber box "DEV1 doesn\'t have 3 lines that the sit branch has" lists items that came from other releases and were never put into your org. Each is **Keep** (the default: the release only brings your changes) or **Remove on purpose** (you really took it out). The bar at the bottom says "keeps 3 lines, removes 1 on purpose".'
                                 ],
                                 links: [{ label: 'Compare and changes', to: 'compare' }, { label: 'Flows', to: 'flows' }, { label: 'Manual steps', to: 'manual' }, { label: 'Hotfix', to: 'hotfix' }, { label: 'Work items', to: 'workitems' }],
                                 shot: { name: 'review', cap: 'Example from a demo hub (an earlier layout of the page): what goes in and which tests run.' }
@@ -1795,6 +1796,7 @@ const USE_SECTIONS = [
                                 items: [
                                     'Press **Resolve conflicts**. The window shows your version and the target\'s side by side.',
                                     'For each file choose **Keep mine**, **Keep <target>\'s** (for example Keep QA\'s) or **Edit** (keep the lines you want and remove the conflict markers). **Next file** goes on.',
+                                    'A layout, permission set, picklist field, labels or value set file where each side only added whole items (for example QA added the value Bronze and you added Copper at the same spot) also offers **Both: <target>\'s, then mine**: the result keeps every item, the target\'s first, and shows under the buttons.',
                                     'When every file has a choice, press **Resolve and check again**. The page shows Conflicts · Resolving while the pipeline merges and runs the checks again.',
                                     'Only the developer who raised it, or an approver, resolves; everyone else sees **Review the conflicts** (read only).'
                                 ],
@@ -2003,7 +2005,8 @@ const USE_SECTIONS = [
                                 ],
                                 check: 'The release shows Deploying, then Deployed (or Deploy failed with the reason).',
                                 problems: [
-                                    ['Approve and deploy is grey', 'The checks are still running, or another action is in progress.'],
+                                    ['Approve and deploy is grey', 'The checks are still running, or another action is in progress. With an amber "SIT has changes that aren\'t on the sit branch" card, tick "I know SIT\'s own changes … will be replaced" first.'],
+                                    ['An amber card "SIT has changes that aren\'t on the sit branch"', 'Someone changed these components in SIT by hand, and deploying replaces them. Press **Bring SIT\'s changes into sit** (Sync status opens with them picked), raise that, then **Check again** here. Or tick the box to replace them anyway: History records who did. The Slack card can\'t approve such a release.'],
                                     ['"Only approvers can do this (permission set Release Relay Approver)."', 'Ask an admin for the Release Relay Approver group.'],
                                     ['Deploy failed for a reason that has passed (for example "REQUEST_LIMIT_EXCEEDED": the org used its daily API calls)', 'Press **Deploy again** at the bottom of the release (approvers, the deployment team and admins). It runs the same merge and deploy with the approved head; the approval stays and History shows "Deploy started again".']
                                 ]

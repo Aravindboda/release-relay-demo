@@ -104,6 +104,33 @@
                                         <template lwc:if={s.text}><p class="rr-small rr-weak">{s.text}</p></template>
                                         <template lwc:if={s.reason}><p class={s.reasonCls}>{s.reason}</p></template>
                                         <template lwc:if={s.link}><p class="rr-small"><a href={s.link} target="_blank" rel="noopener">{s.linkLabel}</a></p></template>
+                                        <template lwc:if={s.hint}><p class="rr-small rr-hint-grey">{s.hint}</p></template>
+                                        <!-- build 60 (D40): lines the developer org lacked, kept by the raise -->
+                                        <template lwc:if={s.hasList}>
+                                            <details class="rr-step-list">
+                                                <summary class="rr-small">{s.listLabel}</summary>
+                                                <ul class="rr-small">
+                                                    <template for:each={s.list} for:item="l"><li key={l.key}>{l.text}</li></template>
+                                                </ul>
+                                            </details>
+                                        </template>
+                                        <!-- build 60 (D38, board "D38 · Release page"): the target org's own changes would be replaced -->
+                                        <template lwc:if={s.hasDrift}>
+                                            <div class="rr-drift" role="group" aria-label={s.driftTitle}>
+                                                <p class="rr-drift-title">{s.driftTitle}</p>
+                                                <p class="rr-drift-text">{s.driftText}</p>
+                                                <div class="rr-drift-rows">
+                                                    <template for:each={s.driftRows} for:item="d">
+                                                        <div key={d.key} class="rr-drift-row"><strong class="rr-drift-name">{d.name}</strong><span class="rr-drift-what">{d.text}</span></div>
+                                                    </template>
+                                                </div>
+                                                <div class="rr-drift-actions">
+                                                    <button type="button" class="slds-button slds-button_brand rr-pill-btn" data-mode="bring" onclick={openDriftSync}>{s.bringLabel}</button>
+                                                    <button type="button" class="slds-button slds-button_neutral rr-pill-btn" data-mode="compare" onclick={openDriftSync}>{s.compareLabel}</button>
+                                                </div>
+                                                <p class="rr-small rr-hint-grey">{s.driftHint}</p>
+                                            </div>
+                                        </template>
                                         <template lwc:if={s.hasSync}>
                                             <ul class="rr-sync-list" aria-label={s.syncLabel}>
                                                 <template for:each={s.sync} for:item="b">
@@ -180,6 +207,13 @@
                                         <p class="rr-small"><strong>Code scan blocked this release.</strong> As an approver you can accept the findings with a reason.<template lwc:if={validationBlocks}> The validation failed too, and that can't be bypassed: fix it and raise again.</template></p>
                                         <lightning-textarea label="Why the findings are accepted" value={reason} onchange={handleReason} max-length="2000"></lightning-textarea>
                                         <div><lightning-button label="Bypass code scan" onclick={doBypass} disabled={actBusy}></lightning-button></div>
+                                    </div>
+                                </template>
+                                <template lwc:if={showDriftAck}>
+                                    <div class="rr-col">
+                                        <div class="rr-drift-text rr-drift-box">{driftBoxText}</div>
+                                        <lightning-input type="checkbox" label={driftAckLabel} checked={driftAck} onchange={handleDriftAck}></lightning-input>
+                                        <p class="rr-small rr-hint-grey">Approve stays off until the box is ticked. The tick goes into History with the approver's name.</p>
                                     </div>
                                 </template>
                                 <template lwc:if={canReject}>

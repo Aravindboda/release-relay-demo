@@ -202,7 +202,7 @@ private class RlyPromoteTest {
             RlyHttpMock mock = new RlyFlowScenario().build();
             Test.setMock(HttpCalloutMock.class, mock);
             Test.startTest();
-            RlyReleasesController.approve(promotionId, 'Ship it');
+            RlyReleasesController.approve(promotionId, 'Ship it', null);
             Test.stopTest();
             System.assertEquals(new List<Object>{ 'sit', 'dev1', 'dev2' }, RlyReleaseTestData.dispatchedOptions(mock).get('syncBranches'),
                 'Stage branches in route order, then the developer branches');
