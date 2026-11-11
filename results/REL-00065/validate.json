@@ -1,0 +1,36 @@
+{
+ "request": "REL-00065",
+ "step": "validate",
+ "status": "Conflict",
+ "conflicts": [
+  {
+   "file": "force-app/main/default/objects/Account/fields/E2E_Tier__c.field-meta.xml",
+   "merged": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>E2E_Tier__c</fullName>\n    <label>E2E Tier</label>\n    <required>false</required>\n    <trackFeedHistory>false</trackFeedHistory>\n    <type>Picklist</type>\n    <valueSet>\n        <restricted>true</restricted>\n        <valueSetDefinition>\n            <sorted>false</sorted>\n            <value>\n                <fullName>Gold</fullName>\n                <default>false</default>\n                <label>Gold</label>\n            </value>\n            <value>\n                <fullName>Silver</fullName>\n                <default>false</default>\n                <label>Silver</label>\n            </value>\n            <value>\n                <fullName>Platinum</fullName>\n                <default>false</default>\n                <label>Platinum</label>\n            </value>\n            <value>\n<<<<<<< HEAD\n                <fullName>Bronze</fullName>\n                <default>false</default>\n                <label>Bronze</label>\n=======\n                <fullName>Copper</fullName>\n                <default>false</default>\n                <label>Copper</label>\n>>>>>>> refs/remotes/origin/feature/rel-00065\n            </value>\n        </valueSetDefinition>\n    </valueSet>\n</CustomField>\n",
+   "mine": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>E2E_Tier__c</fullName>\n    <label>E2E Tier</label>\n    <required>false</required>\n    <trackFeedHistory>false</trackFeedHistory>\n    <type>Picklist</type>\n    <valueSet>\n        <restricted>true</restricted>\n        <valueSetDefinition>\n            <sorted>false</sorted>\n            <value>\n                <fullName>Gold</fullName>\n                <default>false</default>\n                <label>Gold</label>\n            </value>\n            <value>\n                <fullName>Silver</fullName>\n                <default>false</default>\n                <label>Silver</label>\n            </value>\n            <value>\n                <fullName>Platinum</fullName>\n                <default>false</default>\n                <label>Platinum</label>\n            </value>\n            <value>\n                <fullName>Copper</fullName>\n                <default>false</default>\n                <label>Copper</label>\n            </value>\n        </valueSetDefinition>\n    </valueSet>\n</CustomField>",
+   "theirs": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>E2E_Tier__c</fullName>\n    <label>E2E Tier</label>\n    <required>false</required>\n    <trackFeedHistory>false</trackFeedHistory>\n    <type>Picklist</type>\n    <valueSet>\n        <restricted>true</restricted>\n        <valueSetDefinition>\n            <sorted>false</sorted>\n            <value>\n                <fullName>Gold</fullName>\n                <default>false</default>\n                <label>Gold</label>\n            </value>\n            <value>\n                <fullName>Silver</fullName>\n                <default>false</default>\n                <label>Silver</label>\n            </value>\n            <value>\n                <fullName>Platinum</fullName>\n                <default>false</default>\n                <label>Platinum</label>\n            </value>\n            <value>\n                <fullName>Bronze</fullName>\n                <default>false</default>\n                <label>Bronze</label>\n            </value>\n        </valueSetDefinition>\n    </valueSet>\n</CustomField>",
+   "truncated": false
+  }
+ ],
+ "conflictCount": 1,
+ "message": "1 file(s) conflict with sit. Choose what to keep in Release Relay, then check again.",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42949638537",
+ "finishedAt": "2026-11-11T02:59:28.192Z",
+ "attempt": "4279419453d574b328e235d4ce1a3515",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "packages": {
+  "kept": {},
+  "leftOut": {},
+  "componentsLeftOut": []
+ }
+}
