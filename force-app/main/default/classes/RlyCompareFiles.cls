@@ -3,7 +3,8 @@
  * (classes/X.cls, lwc/x/x.js, flows/X.flow…) maps to its component (Type:Name) and to its path in source format below the
  * Git connection's source path (flows/X.flow becomes flows/X.flow-meta.xml). Static resources and profiles (build 50: large
  * files) are left out, here and in the pipeline, with a link to the file on the branch; types whose files differ between
- * the two formats (objects, fields, record types…) aren't compared. Also the file and component statuses the page shows.
+ * the two formats (objects, record types…) aren't compared; custom fields are (build 60, RlyCompareFields), and so are
+ * global and standard value sets. Also the file and component statuses the page shows.
  */
 public with sharing class RlyCompareFiles {
 
@@ -33,20 +34,23 @@ public with sharing class RlyCompareFiles {
     private static final Map<String, String> TYPE_IN = new Map<String, String>{
         'classes' => 'ApexClass', 'triggers' => 'ApexTrigger', 'pages' => 'ApexPage', 'components' => 'ApexComponent',
         'flows' => 'Flow', 'layouts' => 'Layout', 'permissionsets' => 'PermissionSet',
-        'lwc' => 'LightningComponentBundle', 'aura' => 'AuraDefinitionBundle'
+        'lwc' => 'LightningComponentBundle', 'aura' => 'AuraDefinitionBundle',
+        'globalValueSets' => 'GlobalValueSet', 'standardValueSets' => 'StandardValueSet'
     };
-    // Type => folder.
+    // Type => folder (custom fields: RlyCompareFields, build 60).
     private static final Map<String, String> FOLDER_OF = new Map<String, String>{
         'ApexClass' => 'classes', 'ApexTrigger' => 'triggers', 'ApexPage' => 'pages', 'ApexComponent' => 'components',
         'Flow' => 'flows', 'Layout' => 'layouts', 'PermissionSet' => 'permissionsets',
-        'LightningComponentBundle' => 'lwc', 'AuraDefinitionBundle' => 'aura'
+        'LightningComponentBundle' => 'lwc', 'AuraDefinitionBundle' => 'aura',
+        'GlobalValueSet' => 'globalValueSets', 'StandardValueSet' => 'standardValueSets', 'CustomField' => 'objects'
     };
     // One-file types => Metadata API suffix. Code files have a -meta.xml beside them; XML types get -meta.xml in source format.
     private static final Map<String, String> SUFFIX = new Map<String, String>{
         'ApexClass' => '.cls', 'ApexTrigger' => '.trigger', 'ApexPage' => '.page', 'ApexComponent' => '.component',
-        'Flow' => '.flow', 'Layout' => '.layout', 'PermissionSet' => '.permissionset'
+        'Flow' => '.flow', 'Layout' => '.layout', 'PermissionSet' => '.permissionset',
+        'GlobalValueSet' => '.globalValueSet', 'StandardValueSet' => '.standardValueSet'
     };
-    private static final Set<String> XML_TYPES = new Set<String>{ 'Flow', 'Layout', 'PermissionSet' };
+    private static final Set<String> XML_TYPES = new Set<String>{ 'Flow', 'Layout', 'PermissionSet', 'GlobalValueSet', 'StandardValueSet' };
     // Types compare leaves out (large files) => their file in source format, {0} the name.
     private static final Map<String, String> LEFT_OUT_FILES = new Map<String, String>{
         'StaticResource' => 'staticresources/{0}.resource-meta.xml', 'Profile' => 'profiles/{0}.profile-meta.xml' };
@@ -128,7 +132,7 @@ public with sharing class RlyCompareFiles {
     /**
      * @description Whether compare can show this type.
      * @param typeName the metadata type
-     * @return true for code, flows, layouts, permission sets, LWC and Aura bundles
+     * @return true for code, flows, layouts, permission sets, custom fields, value sets, LWC and Aura bundles
      */
     public static Boolean isSupported(String typeName) {
         return FOLDER_OF.containsKey(typeName);

@@ -91,3 +91,8 @@ p { margin: 0; }
 .rr-compare-body { min-height: 0; }
 .rr-code-col { min-width: 0; }
 .rr-code { width: max-content; min-width: 100%; box-sizing: border-box; }
+
+/* build 60 (D39): Keep both's result */
+.rr-both { border: 1px solid #e5e5e5; border-radius: 4px; overflow: hidden; }
+.rr-both-head { margin: 0; background: #f3f3f3; padding: 6px 10px; }
+.rr-both-text { margin: 0; padding: 8px 10px; font-family: Menlo, Consolas, monospace; font-size: 12px; line-height: 1.6; max-height: 320px; overflow: auto; white-space: pre; }
