@@ -79,6 +79,10 @@
             </layoutItems>
             <layoutItems>
                 <behavior>Edit</behavior>
+                <field>YearStarted</field>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Edit</behavior>
                 <field>Sic</field>
             </layoutItems>
         </layoutColumns>
