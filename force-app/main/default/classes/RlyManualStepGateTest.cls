@@ -50,7 +50,7 @@ private class RlyManualStepGateTest {
             RlyHttpMock mock = new RlyFlowScenario().build();
             Test.setMock(HttpCalloutMock.class, mock);
             Test.startTest();
-            RlyReleasesController.Detail d = RlyReleasesController.approve(rel.Id, 'Looks good');
+            RlyReleasesController.Detail d = RlyReleasesController.approve(rel.Id, 'Looks good', null);
             Test.stopTest();
             RLY_Release__c saved = RlyReleaseTestData.reload(rel.Id);
             System.assertEquals('Ready for approval', saved.Status__c, 'Keeps waiting');

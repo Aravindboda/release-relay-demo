@@ -60,6 +60,11 @@
                 <label>Deploy started again</label>
             </value>
             <value>
+                <fullName>Drift_Accepted</fullName>
+                <default>false</default>
+                <label>Target changes accepted</label>
+            </value>
+            <value>
                 <fullName>Manual_Step</fullName>
                 <default>false</default>
                 <label>Manual step</label>
