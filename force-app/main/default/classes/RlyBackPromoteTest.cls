@@ -283,7 +283,7 @@ private class RlyBackPromoteTest {
             RlyHttpMock mock = new RlyFlowScenario().build();
             Test.setMock(HttpCalloutMock.class, mock);
             Test.startTest();
-            RlyReleasesController.approve(syncId, null);
+            RlyReleasesController.approve(syncId, null, null);
             Test.stopTest();
             RLY_Release__c saved = syncOf(o);
             System.assertEquals('Deploying', saved.Status__c, 'Syncing');

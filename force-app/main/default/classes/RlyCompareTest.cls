@@ -85,13 +85,13 @@ private class RlyCompareTest {
             RlyHttpMock m = mock('Succeeded');
             Test.setMock(HttpCalloutMock.class, m);
             Test.startTest();
-            String startedId = RlyCompareController.startCompare(dev.Id, new List<String>{ 'ApexClass:AccountService', 'CustomField:Account.Region__c' });
-            String none = RlyCompareController.startCompare(dev.Id, new List<String>{ 'CustomField:Account.Region__c' });
+            String startedId = RlyCompareController.startCompare(dev.Id, new List<String>{ 'ApexClass:AccountService', 'RecordType:Account.Partner' });
+            String none = RlyCompareController.startCompare(dev.Id, new List<String>{ 'RecordType:Account.Partner' });
             Test.stopTest();
             System.assertEquals(RETRIEVE_ID, startedId, 'The retrieve id comes back');
             System.assertEquals(null, none, 'Nothing compare shows: no retrieve');
             String body = m.bodyFor('/services/Soap/m/');
-            System.assert(body.contains('AccountService') && !body.contains('Region__c'), 'Only supported types are retrieved');
+            System.assert(body.contains('AccountService') && !body.contains('Partner'), 'Only supported types are retrieved');
         }
     }
 

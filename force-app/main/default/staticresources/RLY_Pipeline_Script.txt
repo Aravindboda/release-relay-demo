@@ -1,5 +1,10 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 33
+// Release Relay pipeline files: version 34
+// Version 34 (hub build 60): nothing silently lost in metadata XML (layouts, permission sets, picklist values, labels,
+//   value sets). A hub raise keeps items the target branch has that the developer org's file lacks (D40), unless the
+//   hub listed them in .relay-inbox/<REQUEST_ID>-keep.json {"removeOnPurpose":[{component, item}]}; raise.json gets
+//   kept / removedOnPurpose. A validation reads the target org's copies of those components and lists items the
+//   deploy would replace (validate.json orgDrift, D38); it never changes pass or fail.
 // Version 32 (hub build 58): profile access. A new hub raise (mode hub) may carry .relay-inbox/<REQUEST_ID>-access.json,
 //   {"profiles": [{profile, label, rows: [{section, key, values}]}]}: rows of profile files (fieldPermissions,
 //   objectPermissions, classAccesses, pageAccesses, tabVisibilities, recordTypeVisibilities, layoutAssignments,
@@ -3719,6 +3724,301 @@ function trimProfiles(files, copy, base) {
     }
 }
 
+// ---------- version 34: keyed metadata XML items (D38, D40) ----------
+
+/**
+ * Metadata XML files whose items are whole entries with a name: by file suffix, each element and the child (or
+ * children) that names it. An item's id is "<element>:<name>" (layoutItems:Fax, fieldPermissions:Account.Active__c,
+ * value:Bronze, labels:E2E_Label_DEV1). Profiles are read for drift only: their deploys only add (version 32 trims them).
+ */
+const KEYED = {
+    '.layout-meta.xml': [
+        { element: 'layoutItems', key: ['field', 'customLink', 'page', 'scontrol', 'canvas', 'component', 'reportChartComponent'] },
+        { element: 'relatedLists', key: ['relatedList'] },
+        { element: 'quickActionListItems', key: ['quickActionName'] },
+        { element: 'platformActionListItems', key: ['actionName'] }
+    ],
+    '.permissionset-meta.xml': null, // filled below: the same entries as a profile
+    '.profile-meta.xml': [
+        { element: 'fieldPermissions', key: ['field'] },
+        { element: 'objectPermissions', key: ['object'] },
+        { element: 'classAccesses', key: ['apexClass'] },
+        { element: 'pageAccesses', key: ['apexPage'] },
+        { element: 'tabSettings', key: ['tab'] },
+        { element: 'tabVisibilities', key: ['tab'] },
+        { element: 'recordTypeVisibilities', key: ['recordType'] },
+        { element: 'applicationVisibilities', key: ['application'] },
+        { element: 'customPermissions', key: ['name'] },
+        { element: 'userPermissions', key: ['name'] },
+        { element: 'customMetadataTypeAccesses', key: ['name'] },
+        { element: 'customSettingAccesses', key: ['name'] },
+        { element: 'flowAccesses', key: ['flow'] },
+        { element: 'externalDataSourceAccesses', key: ['externalDataSource'] },
+        { element: 'layoutAssignments', key: ['layout'], also: 'recordType' }
+    ],
+    '.field-meta.xml': [{ element: 'value', key: ['fullName'], within: 'valueSetDefinition' }],
+    '.labels-meta.xml': [{ element: 'labels', key: ['fullName'] }],
+    '.globalValueSet-meta.xml': [{ element: 'customValue', key: ['fullName'] }],
+    '.standardValueSet-meta.xml': [{ element: 'standardValue', key: ['fullName'] }]
+};
+KEYED['.permissionset-meta.xml'] = KEYED['.profile-meta.xml'];
+const ADDITIVE_FILES = /\.(profile|labels)-meta\.xml$/;
+
+/** The keyed-item rules for a file, or null. */
+function keyedRules(file) {
+    const name = String(file);
+    const suffix = Object.keys(KEYED).find((s) => name.endsWith(s));
+    return suffix ? KEYED[suffix] : null;
+}
+
+/** [start, end) ranges of each <tag>...</tag> block in text (tags of one name never nest in metadata XML). */
+function tagRanges(text, tag) {
+    const out = [];
+    const open = `<${tag}>`;
+    const close = `</${tag}>`;
+    let at = text.indexOf(open);
+    while (at >= 0) {
+        const end = text.indexOf(close, at + open.length);
+        if (end < 0) {
+            break;
+        }
+        out.push([at, end + close.length]);
+        at = text.indexOf(open, end + close.length);
+    }
+    return out;
+}
+
+/** The text of the first <tag>...</tag> in a block, or null. */
+function itemChild(block, tag) {
+    const m = new RegExp(`<${tag}>([^<]*)</${tag}>`).exec(block);
+    return m ? m[1].trim() : null;
+}
+
+/** Where a layout item sits: "<section label>#<column number>", or '' outside sections. */
+function layoutSlot(text, at) {
+    for (const [s, e] of tagRanges(text, 'layoutSections')) {
+        if (at > s && at < e) {
+            const section = text.slice(s, e);
+            const columns = tagRanges(section, 'layoutColumns');
+            const col = columns.findIndex(([cs, ce]) => at - s > cs && at - s < ce);
+            const label = itemChild(section.replace(/<layoutColumns>[\s\S]*?<\/layoutColumns>/g, ''), 'label') || '';
+            return `${label}#${col}`;
+        }
+    }
+    return '';
+}
+
+/**
+ * The named items of a metadata XML file, in file order: { id, element, slot, start, end, text } where start/end
+ * take in the item's whole lines (its indentation and line break), so text can be put back byte for byte.
+ */
+function keyedItems(text, rules) {
+    const items = [];
+    for (const rule of rules || []) {
+        const scopes = rule.within ? tagRanges(text, rule.within) : [[0, text.length]];
+        for (const [s0, e0] of scopes) {
+            for (const [s, e] of tagRanges(text.slice(s0, e0), rule.element)) {
+                const start = s0 + s;
+                const end = s0 + e;
+                const block = text.slice(start, end);
+                const inner = block.slice(rule.element.length + 2, block.length - rule.element.length - 3);
+                const keyTag = rule.key.find((k) => itemChild(inner, k) !== null);
+                if (!keyTag) {
+                    continue; // a blank space on a layout has no name
+                }
+                const name = itemChild(inner, keyTag) + (rule.also ? '|' + (itemChild(inner, rule.also) || '') : '');
+                const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+                const lead = /^[ \t]*$/.test(text.slice(lineStart, start)) ? lineStart : start;
+                const lineEnd = text[end] === '\n' ? end + 1 : (text.slice(end, end + 2) === '\r\n' ? end + 2 : end);
+                items.push({ id: `${rule.element}:${name}`, element: rule.element, slot: rule.element === 'layoutItems' ? layoutSlot(text, start) : '',
+                    start: lead, end: lineEnd, text: text.slice(lead, lineEnd) });
+            }
+        }
+    }
+    return items.sort((a, b) => a.start - b.start);
+}
+
+/** The ids of items in "from" that "to" doesn't have. */
+function missingItems(from, to, rules) {
+    const have = new Set(keyedItems(to, rules).map((i) => i.id));
+    return keyedItems(from, rules).filter((i) => !have.has(i.id)).map((i) => i.id);
+}
+
+/** Where the closing tag of a column/section/container for an item goes, in text: index to insert before, or -1. */
+function closingFor(text, item) {
+    if (item.element === 'layoutItems' && item.slot) {
+        const [label, col] = item.slot.split('#');
+        for (const [s, e] of tagRanges(text, 'layoutSections')) {
+            const section = text.slice(s, e);
+            const sectionLabel = itemChild(section.replace(/<layoutColumns>[\s\S]*?<\/layoutColumns>/g, ''), 'label') || '';
+            if (sectionLabel === label) {
+                const columns = tagRanges(section, 'layoutColumns');
+                const c = columns[Number(col)];
+                if (c) {
+                    const close = s + c[1] - '</layoutColumns>'.length;
+                    return text.lastIndexOf('\n', close - 1) + 1;
+                }
+            }
+        }
+        return -1;
+    }
+    if (item.element === 'value') {
+        const close = text.lastIndexOf('</valueSetDefinition>');
+        return close < 0 ? -1 : text.lastIndexOf('\n', close - 1) + 1;
+    }
+    const root = /<\/[A-Za-z]+>\s*$/.exec(text);
+    return root ? text.lastIndexOf('\n', root.index - 1) + 1 : -1;
+}
+
+/**
+ * Puts items of the target's version (theirs) back into the developer org's version (mine) when mine lacks them and
+ * they aren't removed on purpose: each goes right after the item that precedes it in theirs (same element, and for a
+ * layout the same section and column), else right before the one that follows it, else at the end of its container.
+ * Everything else stays byte for byte. Returns { text, kept: [ids], removed: [ids] }.
+ */
+function keepItems(mine, theirs, rules, removeOnPurpose) {
+    const purpose = new Set(removeOnPurpose || []);
+    const kept = [];
+    const removed = [];
+    let text = mine;
+    const theirItems = keyedItems(theirs, rules);
+    for (let i = 0; i < theirItems.length; i++) {
+        const item = theirItems[i];
+        const now = keyedItems(text, rules);
+        if (now.some((n) => n.id === item.id)) {
+            continue;
+        }
+        if (purpose.has(item.id)) {
+            removed.push(item.id);
+            continue;
+        }
+        const same = (n) => n.element === item.element && n.slot === item.slot;
+        const before = theirItems.slice(0, i).reverse().filter(same).map((t) => now.find((n) => n.id === t.id)).find(Boolean);
+        const after = theirItems.slice(i + 1).filter(same).map((t) => now.find((n) => n.id === t.id)).find(Boolean);
+        const last = now.filter(same).pop();
+        const at = before ? before.end : (after ? after.start : (last ? last.end : closingFor(text, item)));
+        if (at < 0) {
+            continue; // nowhere sensible: leave it out rather than break the file
+        }
+        text = text.slice(0, at) + item.text + text.slice(at);
+        kept.push(item.id);
+    }
+    return { text, kept, removed };
+}
+
+/** The hub's "remove on purpose" choices (.relay-inbox/<REQUEST_ID>-keep.json), by component key "Type:Name". */
+function readKeepFile(file) {
+    const out = new Map();
+    if (!fs.existsSync(file)) {
+        return out;
+    }
+    let data;
+    try {
+        data = JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch (e) {
+        raiseFailed(`${file} isn't valid JSON (${e.message}). Raise the release again from Release Relay.`);
+    }
+    for (const r of (data && Array.isArray(data.removeOnPurpose) ? data.removeOnPurpose : [])) {
+        if (r && typeof r.component === 'string' && typeof r.item === 'string') {
+            const k = r.component.toLowerCase();
+            out.set(k, (out.get(k) || []).concat(r.item));
+        }
+    }
+    return out;
+}
+
+/**
+ * D40: the developer org's files (copied, relative to SOURCE_PATH) keep the named items TARGET has that the org lacks
+ * (they came from other releases and were never put into the developer org), except those the hub marked "remove on
+ * purpose". Profiles are left as they are. Returns { kept: [{component, items}], removedOnPurpose: [{component, items}] }.
+ */
+function keepTargetItems(copied, keepFile) {
+    const choices = readKeepFile(keepFile);
+    const kept = [];
+    const removedOnPurpose = [];
+    for (const rel of copied) {
+        const file = path.join(sourcePath(), rel);
+        const rules = keyedRules(file);
+        if (!rules || file.endsWith('.profile-meta.xml') || !fs.existsSync(file)) {
+            continue;
+        }
+        const theirs = textAt(`refs/remotes/origin/${target}`, file.split(path.sep).join('/'));
+        if (theirs === null) {
+            continue;
+        }
+        const c = componentFor(file);
+        const key = c ? `${c.type}:${c.name}` : rel;
+        const r = keepItems(fs.readFileSync(file, 'utf8'), theirs, rules, choices.get(key.toLowerCase()));
+        if (r.kept.length) {
+            fs.writeFileSync(file, r.text);
+            kept.push({ component: key, items: r.kept });
+        }
+        if (r.removed.length) {
+            removedOnPurpose.push({ component: key, items: r.removed });
+        }
+    }
+    if (kept.length) {
+        summary(`**Kept:** ${orgLabel()} lacked ${kept.reduce((n, k) => n + k.items.length, 0)} item(s) that ${target} has `
+            + `(from other releases); they stay: ${kept.map((k) => `${k.component} (${k.items.join(', ')})`).join('; ').slice(0, 1500)}`);
+    }
+    if (removedOnPurpose.length) {
+        summary(`**Removed on purpose:** ${removedOnPurpose.map((k) => `${k.component} (${k.items.join(', ')})`).join('; ').slice(0, 1500)}`);
+    }
+    return { kept, removedOnPurpose };
+}
+
+/** The pull request's lines for kept and removed-on-purpose items, or ''. */
+function keptLines(keep) {
+    const fmt = (list) => list.map((k) => `- ${k.component}: ${k.items.map((i) => `\`${i}\``).join(', ')}`).join('\n');
+    return [keep.kept.length ? `### Kept from \`${target}\` (${orgLabel()} didn't have them; they came from other releases)\n${fmt(keep.kept)}` : '',
+        keep.removedOnPurpose.length ? `### Removed on purpose\n${fmt(keep.removedOnPurpose)}` : ''].filter(Boolean).join('\n\n');
+}
+
+/**
+ * D38: items the target org has that the files about to deploy don't (changed in the org by hand, never put on the
+ * branch): they'd be replaced. Reads the org's copies of the plan's keyed components (profiles included) with one
+ * retrieve; any problem only notes that the copies couldn't be read. Never changes pass or fail.
+ */
+function orgDriftFor(plan, alias) {
+    // Labels and profiles deploy only what they carry (nothing missing is taken away), so they can't lose anything.
+    const files = (plan && plan.sources ? plan.sources : []).filter((f) => keyedRules(f) && !ADDITIVE_FILES.test(f)
+        && fs.existsSync(f) && fs.statSync(f).isFile());
+    const comps = files.map((f) => ({ file: f, c: componentFor(f) })).filter((x) => x.c);
+    if (!comps.length) {
+        return { orgDrift: [] };
+    }
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-drift-'));
+    try {
+        const args = ['project', 'retrieve', 'start', '--target-org', alias, '--output-dir', tmp, '--json'];
+        comps.forEach((x) => args.push('--metadata', `${x.c.type}:${x.c.name}`));
+        execFileSync('sf', args, { stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
+        const drift = [];
+        for (const x of comps) {
+            const rel = path.relative(sourcePath(), x.file);
+            const orgCopy = [path.join(tmp, rel), path.join(tmp, 'main', 'default', rel)].find((p) => fs.existsSync(p))
+                || (fs.readdirSync(tmp, { recursive: true }).map(String).filter((p) => p.endsWith(path.basename(x.file)))
+                    .map((p) => path.join(tmp, p))[0]);
+            if (!orgCopy) {
+                continue;
+            }
+            const items = missingItems(fs.readFileSync(orgCopy, 'utf8'), fs.readFileSync(x.file, 'utf8'), keyedRules(x.file));
+            if (items.length) {
+                drift.push({ component: `${x.c.type}:${x.c.name}`, items: items.slice(0, 200) });
+            }
+        }
+        if (drift.length) {
+            summary(`**${targetEnv || 'Target'} has changes not on ${target}:** ${drift.map((d) => `${d.component} (${d.items.join(', ')})`).join('; ').slice(0, 1500)}. `
+                + 'Deploying replaces them.');
+        }
+        return { orgDrift: drift };
+    } catch (e) {
+        console.log(`::warning::Couldn't read the target's copies to compare (${String((e && (e.stderr || e.message)) || e).trim().slice(0, 300)}).`);
+        return { orgDrift: [], orgDriftNote: "Couldn't read the target's copies to compare." };
+    } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+    }
+}
+
 // ---------- version 28: the hub's upload files never reach a target ----------
 
 const INBOX_DIR = '.relay-inbox';
@@ -3840,6 +4140,7 @@ async function raiseFromHub() {
     const zipFile = path.join('.relay-inbox', requestId + '.zip');
     const markerFile = path.join('.relay-inbox', requestId + '.deletions');
     const accessFile = path.join('.relay-inbox', requestId + '-access.json'); // version 32
+    const keepFile = path.join('.relay-inbox', requestId + '-keep.json'); // version 34
     if (!remoteBranchExists(branch)) {
         raiseFailed(`Branch ${branch} doesn't exist. Raise the release again from Release Relay.`);
     }
@@ -3871,6 +4172,7 @@ async function raiseFromHub() {
         raiseFailed(tokens.error, { deleted });
     }
     putBackPackageReferences(copied); // version 29: the branch's references to packages this org lacks stay
+    const keep = keepTargetItems(copied, keepFile); // version 34 (D40): items from other releases stay
     const access = applyProfileAccess(accessFile, deleted); // version 32: only the rows picked in the hub
     const valuesTokenized = tokens.count;
     removeMarker(markerFile);
@@ -3902,12 +4204,13 @@ async function raiseFromHub() {
         deletions.length ? `### Deleted from ${orgLabel()}\n${list(deletions)}\n\nTheir files are removed from this branch; `
             + `validating and deploying delete them from ${targetEnv ? `the ${targetEnv} org` : `${target}'s org`} too (destructiveChangesPost).` : '',
         access.rows ? `### Profile access (only these entries of each profile)\n${access.lines.join('\n')}` : '',
+        keptLines(keep),
         testsLine(),
         rebuilt ? `Starts where \`${target}\` and ${orgLabel()}'s branch meet (${rebuilt.base.slice(0, 7)}), so only the selected `
             + `components are in it${rebuilt.left.length ? `; ${rebuilt.left.length} other file(s) on ${orgLabel()}'s branch are left out` : ''}.` : '',
         'Every item was selected and reviewed in Release Relay. Approve it in Salesforce; Release Relay merges it.'
     ].filter(Boolean).join('\n\n');
-    await openAndRecord(body, { sha, deleted, valuesTokenized, ...(access.rows ? { profileAccess: { profiles: access.profiles, rows: access.rows } } : {}),
+    await openAndRecord(body, { sha, deleted, valuesTokenized, kept: keep.kept, removedOnPurpose: keep.removedOnPurpose, ...(access.rows ? { profileAccess: { profiles: access.profiles, rows: access.rows } } : {}),
         ...(rebuilt ? { startedFrom: rebuilt.base, leftOut: rebuilt.left.slice(0, 1000), leftOutCount: rebuilt.left.length } : {}) });
 }
 
@@ -3980,6 +4283,7 @@ async function appendToRelease() {
         raiseFailed(tokens.error, { appended: true, deleted });
     }
     putBackPackageReferences(copied); // version 29
+    const keep = keepTargetItems(copied, path.join(INBOX_DIR, requestId + '-keep.json')); // version 34 (D40)
     removeMarker(markerFile);
     removeStaleInbox(); // version 28: an earlier failed add's zip
     git(['add', '-A', '--', sourcePath()]);
@@ -4011,7 +4315,7 @@ async function appendToRelease() {
     const pr = found && found.id ? (Number(found.id) || prNumber(url)) : null;
     const message = found ? '' : `No open ${provider.label} from ${branch} into ${target} was found; the branch was updated anyway.`;
     raiseResult('Opened', { sha, pr, url, appended: true, deleted, valuesTokenized: tokens.count, files: copied.length,
-        appendZip: zipFile, message });
+        appendZip: zipFile, message, kept: keep.kept, removedOnPurpose: keep.removedOnPurpose });
     summary(`**Added to ${requestId}:** ${copied.length} files${deletions.length ? `, ${deletions.length - skipped.length} deletion(s)` : ''}`
         + ` from ${orgLabel()} on ${branch}${skipped.length ? ` (already deleted: ${skipped.join(', ')})` : ''}.`
         + (url ? ` The ${provider.label} updates itself: ${url}` : ` ${message}`));
@@ -4294,6 +4598,7 @@ async function stepValidate() {
         writeResult('validate', { status: 'Error', message: e.message.slice(0, 1500), gates: gatesResult(relayGates, []) });
         return;
     }
+    const drift = selfUpdate() ? { orgDrift: [] } : orgDriftFor(plan, 'target-org'); // version 34 (D38)
     const r = deployTo('target-org', plan, true);
     // The coverage gate reads the coverage of a validation that passed and ran tests.
     let coverageCheck = { failures: [], coverage: null };
@@ -4306,7 +4611,7 @@ async function stepValidate() {
     writeResult('validate', { status: passed ? 'Passed' : 'Failed', changed: plan.changed, deleted: plan.deletedList,
         mergedWith, validatedTree, environment: targetEnv, ...r, ok: passed,
         message: r.ok && !gates.passed ? gates.failures.join(' ').slice(0, 1500) : r.message,
-        gates, ...(coverageCheck.coverage ? { coverage: coverageCheck.coverage } : {}) });
+        gates, ...(coverageCheck.coverage ? { coverage: coverageCheck.coverage } : {}), ...drift });
 }
 
 const CONFLICT_TEXT_LIMIT = 15000;
