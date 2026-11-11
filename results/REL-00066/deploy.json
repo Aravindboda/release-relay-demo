@@ -1,0 +1,40 @@
+{
+ "request": "REL-00066",
+ "step": "deploy",
+ "status": "Deployed",
+ "sha": "0c3a1c4fd206a35ba8fa964dac147dd94466eb79",
+ "changed": 2,
+ "deleted": [],
+ "ok": true,
+ "testLevel": "NoTestRun",
+ "deployId": "0AfgL00000dTJvHSAW",
+ "testsRun": 0,
+ "tests": [],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "quick": false,
+ "quickNote": "The validation ran no tests (NoTestRun), and production quick deploys only validations that ran tests, so it was deployed in full.",
+ "snapshot": {
+  "branch": "release-relay-snapshots",
+  "path": "REL-00066/sit/297ffbbb4264371628fdd6197a2390da",
+  "existing": 2,
+  "added": 0
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42950920159",
+ "finishedAt": "2026-11-11T03:11:04.601Z",
+ "attempt": "297ffbbb4264371628fdd6197a2390da",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "packages": {
+  "kept": {},
+  "leftOut": {},
+  "componentsLeftOut": []
+ }
+}
