@@ -1,0 +1,15 @@
+{
+ "request": "REL-00065",
+ "environment": "sit",
+ "takenAt": "2026-11-11T03:03:21.055Z",
+ "sha": "3952cbb7d42ddddbe2af959dccdd1e47fc6dcf04",
+ "existing": [
+  "Layout:Account-Account Layout",
+  "PermissionSet:E2E_XML_Perms"
+ ],
+ "added": [],
+ "deleted": [],
+ "unresolved": [
+  "CustomField:Account.E2E_Tier__c"
+ ]
+}
