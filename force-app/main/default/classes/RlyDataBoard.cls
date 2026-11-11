@@ -53,6 +53,8 @@ public with sharing class RlyDataBoard {
         @AuraEnabled public Boolean refillDue = false;
         /** @description The last load's run into it, for Refill. */
         @AuraEnabled public String lastRunId;
+        /** @description Its place on the route from the top (hub 0; developer orgs share the bottom step). */
+        @AuraEnabled public Integer rank;
     }
 
     /** @description A run. */
@@ -104,8 +106,12 @@ public with sharing class RlyDataBoard {
         for (RLY_Data_Run__c r : runs) {
             b.runs.add(runRow(r));
         }
-        for (RLY_Org__c o : RlyDataStore.orgs()) {
-            b.orgs.add(orgRow(o, runs));
+        List<RLY_Org__c> orgs = RlyDataStore.orgs();
+        Map<Id, Integer> rank = RlyDataRules.ranks(orgs);
+        for (RLY_Org__c o : orgs) {
+            OrgRow r = orgRow(o, runs);
+            r.rank = rank.get(o.Id);
+            b.orgs.add(r);
         }
         return b;
     }

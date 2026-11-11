@@ -13,6 +13,8 @@ public with sharing class RlyProdApproval {
     public static final String PERMISSION = 'RLY_Prod_Approver';
     /** @description What an approver without the add-on is told. */
     public static final String NOTE = 'Approving production needs the Production Approver add-on.';
+    /** @description What the person who raised a production release is told (build 59, D19). */
+    public static final String OWN_NOTE = 'You raised this release, so another approver approves it into production.';
     /** @description The admins' banner while the setting is off. */
     public static final String BANNER_TEXT = 'Turn on once you\'ve assigned the Production Approver add-on.';
     /** @description The state value that turns it on (saveProdApproval). */
@@ -92,6 +94,23 @@ public with sharing class RlyProdApproval {
         if (who != null && who.userId != null && !mayApprove(rel, who.userId)) {
             throw new RlyReleaseException(NOTE);
         }
+        if (who != null && who.userId != null && isOwnProduction(rel, who.userId)) {
+            throw new RlyReleaseException(OWN_NOTE);
+        }
+    }
+
+    /**
+     * @description Whether the user raised this production release: with production approval on (the add-on setting),
+     * nobody approves their own release into production (build 59, D19).
+     * @param rel the release, with CreatedById
+     * @param userId who approves
+     * @return true for the raiser of a release into the hub
+     */
+    public static Boolean isOwnProduction(RLY_Release__c rel, Id userId) {
+        if (rel == null || userId == null || !rel.getPopulatedFieldsAsMap().containsKey('CreatedById')) {
+            return false;
+        }
+        return rel.CreatedById == userId && needsAddon(rel);
     }
 
     /**
@@ -103,7 +122,10 @@ public with sharing class RlyProdApproval {
         if (rel == null || rel.Status__c != 'Ready for approval' || !RlyReleaseAccess.isApprover()) {
             return null;
         }
-        return mayApprove(rel, UserInfo.getUserId()) ? null : NOTE;
+        if (!mayApprove(rel, UserInfo.getUserId())) {
+            return NOTE;
+        }
+        return isOwnProduction(rel, UserInfo.getUserId()) ? OWN_NOTE : null;
     }
 
     /**

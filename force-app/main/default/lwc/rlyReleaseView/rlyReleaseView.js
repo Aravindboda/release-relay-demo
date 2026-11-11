@@ -277,6 +277,24 @@ function pathPosition(r) {
     return { index: 0, failed: s === 'Failed' };
 }
 
+/**
+ * A merge-back message tidied for one sentence (build 59, D35): "N file(s) conflict (a/b/X.cls, …)." becomes
+ * "N files conflict: X.cls, Y.cls and 3 more", with no closing period (the line adds its own).
+ * @param {string} message the pipeline's message
+ * @returns {string} the tidied text
+ */
+export function conflictText(message) {
+    const text = String(message || '').trim();
+    const m = /^(.*?)(\d+) file\(s\) conflict \(([^)]*)\)\.?$/.exec(text);
+    if (!m) {
+        return text.replace(/[.\s]+$/, '');
+    }
+    const count = Number(m[2]);
+    const names = m[3].split(',').map((f) => f.trim().split('/').pop()).filter((f) => f);
+    const rest = count - names.length;
+    return m[1] + count + (count === 1 ? ' file conflicts: ' : ' files conflict: ') + names.join(', ') + (rest > 0 ? ' and ' + rest + ' more' : '');
+}
+
 export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     _releaseId;
     detail;
@@ -693,7 +711,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         }
         return {
             key: 'collect', title: 'Collected from ' + (this.detail ? this.detail.sourceName : ''), state,
-            text: s === 'Retrieving' ? this.retrievingText : (this.rel.Component_Count__c || 0) + ' components' + this.deletionsTail
+            text: s === 'Retrieving' ? this.retrievingText : (this.rel.Component_Count__c || 0) + ((this.rel.Component_Count__c || 0) === 1 ? ' component' : ' components') + this.deletionsTail
         };
     }
 
@@ -771,7 +789,8 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             return r.PR_Number__c ? 'Check-only deploy to ' + this.targetName + ' with ' + this.testLevelText + '…' : '';
         }
         if (r.Validation_Status__c === 'Not configured') {
-            return 'The target has no Git environment: Git only.';
+            return r.Release_Type__c === 'Back_Promote' ? 'No check-only deploy: the deploy itself checks it.'
+                : 'The target has no Git environment: Git only.';
         }
         if (!val.status) {
             return '';
@@ -1187,7 +1206,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             const state = SYNC_STATE[b.status] || { label: b.status || 'Unknown', cls: 'rr-pill rr-pill-none' };
             const text = b.status === 'Synced'
                 ? b.branch + ' updated from ' + target
-                : b.branch + ' couldn\'t be updated from ' + target + (b.message ? ': ' + b.message : '')
+                : b.branch + ' couldn\'t be updated from ' + target + (b.message ? ': ' + conflictText(b.message) : '')
                     + '. Merge it by hand so that ' + b.branch + ' starts from the latest ' + target + '.';
             return { key: 'sync' + i, label: state.label, cls: state.cls, text };
         });
@@ -1231,15 +1250,15 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             const ok = b.status === BRANCH_OK;
             let text = b.branch + ' updated from ' + (this.rel.Target_Branch__c || 'the target');
             if (!ok) {
-                text = b.branch + (b.status === 'Missing' ? ': branch not found' : ': conflicts with work in progress')
-                    + (b.message ? ' (' + b.message + ')' : '') + '. Merge it by hand so it starts from the latest ' + (this.rel.Target_Branch__c || 'target') + '.';
+                const why = b.message ? conflictText(b.message) : (b.status === 'Missing' ? 'branch not found' : 'conflicts with work in progress');
+                text = b.branch + ': ' + why + '. Merge it by hand so it starts from the latest ' + (this.rel.Target_Branch__c || 'target') + '.';
             }
             const state = SYNC_STATE[b.status] || { label: b.status || 'Unknown', cls: 'rr-pill rr-pill-none' };
             return { key: key + i, label: ok ? '✓' : state.label, cls: ok ? 'rr-pill rr-pill-ok' : state.cls, text };
         });
         return {
             key, title, state: 'Done', badge: '✓',
-            label: open.length ? open.length + ' to review' : 'Done',
+            label: open.length ? open.length + ' to merge by hand' : 'Done',
             pill: open.length ? STEP_PILL.Warn : STEP_PILL.Done,
             text: '', sync: lines, hasSync: true, syncLabel: title
         };

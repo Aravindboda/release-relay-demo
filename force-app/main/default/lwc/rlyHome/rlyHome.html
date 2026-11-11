@@ -26,7 +26,9 @@
                     </div>
                     <div class="rr-head-actions">
                         <lightning-button label="Refresh" onclick={reload} disabled={loading} class="rr-hide-narrow"></lightning-button>
-                        <lightning-button variant="brand" label="New release" onclick={openNewRelease} class="rr-new"></lightning-button>
+                        <template lwc:if={mayRaise}>
+                            <lightning-button variant="brand" label="New release" onclick={openNewRelease} class="rr-new"></lightning-button>
+                        </template>
                     </div>
                 </section>
 
@@ -277,7 +279,7 @@
                         </template>
                         <template lwc:else>
                             <div class="rr-pad"><div class="rr-empty"><b>No releases yet.</b><span>Raise the first one from a developer org.</span>
-                                <lightning-button variant="brand" label="New release" onclick={openNewRelease}></lightning-button></div></div>
+                                <template lwc:if={mayRaise}><lightning-button variant="brand" label="New release" onclick={openNewRelease}></lightning-button></template></div></div>
                         </template>
                     </section>
                 </template>
