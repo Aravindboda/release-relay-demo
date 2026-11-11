@@ -92,6 +92,7 @@ public with sharing class RlyProdApproval {
         if (who != null && who.userId != null && !mayApprove(rel, who.userId)) {
             throw new RlyReleaseException(NOTE);
         }
+        RlyOwnRelease.require(rel, who);
     }
 
     /**
@@ -103,7 +104,10 @@ public with sharing class RlyProdApproval {
         if (rel == null || rel.Status__c != 'Ready for approval' || !RlyReleaseAccess.isApprover()) {
             return null;
         }
-        return mayApprove(rel, UserInfo.getUserId()) ? null : NOTE;
+        if (!mayApprove(rel, UserInfo.getUserId())) {
+            return NOTE;
+        }
+        return RlyOwnRelease.noteFor(rel);
     }
 
     /**

@@ -35,6 +35,7 @@ public with sharing class RlyDataRules {
      */
     public static Checked checkStart(RlyDataRuns.Request req) {
         Checked c = load(req.dataSetId, req.sourceOrgId, req.targetOrgId);
+        RlyDataRoute.checkDirection(req.direction, c.source, c.target);
         c.mask = req.direction == RlyDataRuns.UP ? req.mask == true : req.mask != false;
         c.releaseId = releaseOf(req.releaseName);
         return c;

@@ -37,6 +37,17 @@ export function countsText(counts) {
     return bits.join(' · ');
 }
 
+/** A dry run that found nothing to insert or update (build 59, D31). */
+export function nothingToLoad(counts) {
+    let c;
+    try {
+        c = counts ? JSON.parse(counts) : null;
+    } catch {
+        c = null;
+    }
+    return !!c && (Number(c.insert) || 0) + (Number(c.update) || 0) === 0;
+}
+
 /** A definition JSON, or null. */
 export function definitionOf(text) {
     try {

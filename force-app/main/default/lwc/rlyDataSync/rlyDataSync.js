@@ -7,7 +7,7 @@ import exportPart from '@salesforce/apex/RlyDataController.exportPart';
 import runExported from '@salesforce/apex/RlyDataController.runExported';
 import readRun from '@salesforce/apex/RlyDataController.readRun';
 import loadRun from '@salesforce/apex/RlyDataController.loadRun';
-import { definitionOf, editorOf, statusPill, countsText, DIRECTIONS } from './dataHelpers';
+import { definitionOf, editorOf, statusPill, countsText, nothingToLoad, DIRECTIONS } from './dataHelpers';
 import { errorText, oneAfterAnother } from 'c/rlyShared';
 
 /** Parts of a developer org's export sent at once (one object each). */
@@ -164,8 +164,12 @@ export default class RlyDataSync extends LightningElement {
     get sourceOptions() {
         return (this.data ? this.data.orgs : []).map((o) => ({ label: o.name + (o.canLoad ? '' : ' (sent by the hub)'), value: o.id }));
     }
+    /** Loadable orgs on the right side of the source: above it for Send up, below it for Copy down (build 59, D30). */
     get targetOptions() {
-        return (this.data ? this.data.orgs : []).filter((o) => o.canLoad).map((o) => ({ label: o.name, value: o.id }));
+        const orgs = this.data ? this.data.orgs : [];
+        const source = orgs.find((o) => o.id === this.sourceOrgId);
+        return orgs.filter((o) => o.canLoad && o.id !== this.sourceOrgId && (!source || source.rank == null || o.rank == null
+            || (this.isUp ? o.rank < source.rank : o.rank > source.rank))).map((o) => ({ label: o.name, value: o.id }));
     }
     get refills() {
         return (this.data ? this.data.orgs : []).filter((o) => o.refillDue && this.canMoveDown).map((o) => ({ ...o, key: o.id,
@@ -180,8 +184,16 @@ export default class RlyDataSync extends LightningElement {
     handleDirection(event) {
         this.direction = event.currentTarget.dataset.value;
         this.mask = this.direction !== 'Up';
+        if (this.targetOrgId && !this.targetOptions.some((o) => o.value === this.targetOrgId)) {
+            this.targetOrgId = undefined;
+        }
     }
-    handleSource(event) { this.sourceOrgId = event.detail.value; }
+    handleSource(event) {
+        this.sourceOrgId = event.detail.value;
+        if (this.targetOrgId && !this.targetOptions.some((o) => o.value === this.targetOrgId)) {
+            this.targetOrgId = undefined;
+        }
+    }
     handleTarget(event) { this.targetOrgId = event.detail.value; }
     handleMask(event) { this.mask = event.target.checked; }
     handleRelease(event) { this.releaseName = event.detail.value; }
@@ -255,15 +267,17 @@ export default class RlyDataSync extends LightningElement {
     get runs() {
         const me = this.data ? this.data.userId : null;
         return (this.data ? this.data.runs : []).map((r) => {
-            const pill = statusPill(r.status);
-            const canLoad = r.status === 'Ready' && (r.direction === 'Up' ? this.data.isApprover && r.requestedById !== me : this.canMoveDown);
+            const nothing = r.status === 'Ready' && nothingToLoad(r.counts);
+            const pill = nothing ? { label: 'Nothing to load', cls: 'rr-pill rr-pill-none' } : statusPill(r.status);
+            const canLoad = !nothing && r.status === 'Ready' && (r.direction === 'Up' ? this.data.isApprover && r.requestedById !== me : this.canMoveDown);
             const d = this.details[r.runId];
             return { ...r, key: r.runId, detailKey: r.runId + '-detail', pillLabel: pill.label, pillCls: pill.cls, countsText: countsText(r.counts),
                 canLoad, open: this.openRunId === r.runId,
                 loadLabel: r.direction === 'Up' ? 'Approve and load' : 'Load', detailRows: d ? d.objects.map((o) => ({ ...o, key: o.objectName,
                     dupText: o.duplicates.length ? o.duplicates.length + ' keys match twice: ' + o.duplicates.slice(0, 5).join(', ') : '',
                     missingText: o.missingKeys ? o.missingKeys + ' without a key' : '', errText: o.errors.slice(0, 3).join(' · ') })) : [],
-                hint: r.direction === 'Up' && r.status === 'Ready' && r.requestedById === me ? 'An approver (not you) loads it.' : '' };
+                hint: nothing ? 'Nothing to load: no records matched in ' + String(r.route || 'the source').split(' → ')[0] + '.'
+                    : r.direction === 'Up' && r.status === 'Ready' && r.requestedById === me ? 'An approver (not you) loads it.' : '' };
         });
     }
     get hasRuns() { return this.runs.length > 0; }
