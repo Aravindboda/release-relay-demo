@@ -1,0 +1,58 @@
+{
+ "request": "REL-91095",
+ "step": "scan",
+ "status": "Passed",
+ "total": 2,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {
+  "Moderate": 2
+ },
+ "files": [
+  "force-app/main/default/classes/RlyDataBoard.cls",
+  "force-app/main/default/classes/RlyDataRules.cls",
+  "force-app/main/default/classes/RlyProdApproval.cls",
+  "force-app/main/default/classes/RlyProdApprovalTest.cls",
+  "force-app/main/default/classes/RlyReleasesController.cls",
+  "force-app/main/default/lwc/rlyDataSync/dataHelpers.js",
+  "force-app/main/default/lwc/rlyDataSync/rlyDataSync.js",
+  "force-app/main/default/lwc/rlyHome/rlyHome.html",
+  "force-app/main/default/lwc/rlyHome/rlyHome.js",
+  "force-app/main/default/lwc/rlyPartSending/rlyPartSending.js",
+  "force-app/main/default/lwc/rlyReleaseTracker/rlyReleaseTracker.js",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.js"
+ ],
+ "violations": [
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyDataRules.cls",
+   "line": 9,
+   "message": "The class 'RlyDataRules' has a total cyclomatic complexity of 47 (highest 9).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.24.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  },
+  {
+   "severity": 3,
+   "severityLabel": "Moderate",
+   "rule": "CyclomaticComplexity",
+   "engine": "pmd",
+   "file": "force-app/main/default/classes/RlyProdApproval.cls",
+   "line": 10,
+   "message": "The class 'RlyProdApproval' has a total cyclomatic complexity of 41 (highest 9).",
+   "url": "https://docs.pmd-code.org/pmd-doc-7.24.0/pmd_rules_apex_design.html#cyclomaticcomplexity"
+  }
+ ],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42947472543",
+ "finishedAt": "2026-11-11T02:40:16.550Z"
+}
