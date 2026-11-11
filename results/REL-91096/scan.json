@@ -1,0 +1,38 @@
+{
+ "request": "REL-91096",
+ "step": "scan",
+ "status": "Passed",
+ "total": 0,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {},
+ "files": [
+  "force-app/main/default/classes/RlyDataBoard.cls",
+  "force-app/main/default/classes/RlyDataRoute.cls",
+  "force-app/main/default/classes/RlyDataRouteTest.cls",
+  "force-app/main/default/classes/RlyDataRules.cls",
+  "force-app/main/default/classes/RlyOwnRelease.cls",
+  "force-app/main/default/classes/RlyProdApproval.cls",
+  "force-app/main/default/classes/RlyProdApprovalTest.cls",
+  "force-app/main/default/classes/RlyReleasesController.cls",
+  "force-app/main/default/lwc/rlyDataSync/dataHelpers.js",
+  "force-app/main/default/lwc/rlyDataSync/rlyDataSync.js",
+  "force-app/main/default/lwc/rlyHome/rlyHome.html",
+  "force-app/main/default/lwc/rlyHome/rlyHome.js",
+  "force-app/main/default/lwc/rlyPartSending/rlyPartSending.js",
+  "force-app/main/default/lwc/rlyReleaseTracker/rlyReleaseTracker.js",
+  "force-app/main/default/lwc/rlyReleaseView/rlyReleaseView.js"
+ ],
+ "violations": [],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/42948572737",
+ "finishedAt": "2026-11-11T02:50:09.072Z"
+}
