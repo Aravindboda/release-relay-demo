@@ -1,0 +1,49 @@
+<template>
+    <template lwc:if={show}>
+        <template lwc:if={isReading}>
+            <p class="rr-hint" role="status">{readingText}</p>
+            <template for:each={waits} for:item="w"><c-rly-wait key={w.key} ms={w.ms} ondone={handleWaitDone}></c-rly-wait></template>
+        </template>
+        <template lwc:if={isFailed}>
+            <p class="rr-hint" role="status">{failedText}</p>
+        </template>
+        <template lwc:if={hasRows}>
+            <div class="rr-keep" role="group" aria-label={headline}>
+                <div class="rr-keep-warn">
+                    <svg class="rr-keep-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 16H3z"></path><path d="M12 10v4"></path><path d="M12 17h.01"></path></svg>
+                    <div class="rr-keep-text">
+                        <p class="rr-keep-title">{headline}</p>
+                        <p class="rr-keep-explain">{explain}</p>
+                    </div>
+                </div>
+                <div class="rr-keep-scroll">
+                    <table class="rr-keep-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Line on the {branch} branch</th>
+                                <th scope="col">Came from</th>
+                                <th scope="col">This release</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template for:each={lines} for:item="l">
+                                <tr key={l.key}>
+                                    <td><strong>{l.name}</strong> · {l.words}</td>
+                                    <td class="rr-keep-from">{branch}</td>
+                                    <td>
+                                        <div class="rr-tog-row" role="group" aria-label={l.groupLabel}>
+                                            <button type="button" class={l.keepCls} data-key={l.key} data-value="keep" aria-pressed={l.keepPressed} disabled={disabled} onclick={handleChoice}>Keep</button>
+                                            <button type="button" class={l.removeCls} data-key={l.key} data-value="remove" aria-pressed={l.removePressed} disabled={disabled} onclick={handleChoice}>Remove on purpose</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="rr-hint">Lines {source} changed or added are never listed here; they always go in. Only items the release would take away appear, one row per item (layout field, permission, picklist value, value).</p>
+                <template lwc:if={leftOverText}><p class="rr-hint">{leftOverText}</p></template>
+            </div>
+        </template>
+    </template>
+</template>

@@ -43,7 +43,7 @@ private class RlyWindowGateTest {
             Test.setMock(HttpCalloutMock.class, mock);
             RlyWindowGate.nowForTest = OUTSIDE;
             Test.startTest();
-            RlyReleasesController.approve(rel.Id, 'Looks good');
+            RlyReleasesController.approve(rel.Id, 'Looks good', null);
             Test.stopTest();
             RLY_Release__c saved = RlyReleaseTestData.reload(rel.Id);
             System.assertEquals(RlyWindowGate.WAITING, saved.Status__c, 'Waits for the window: ' + saved.Error_Message__c);

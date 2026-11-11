@@ -74,7 +74,7 @@ private class RlyManualOnlyTest {
             System.assertEquals('Ready for approval', d.release.Status__c, 'At the approval point of SIT');
             System.assertEquals(null, saved(relId).Source_Branch__c, 'No Git branch');
 
-            d = RlyReleasesController.approve(relId, 'Fine');
+            d = RlyReleasesController.approve(relId, 'Fine', null);
             System.assertEquals('Deploying', d.release.Status__c, 'Waits for the step after deploy');
             System.assertEquals('Manual steps only: deployed in SIT when the deployment team finishes 1 manual step.', d.notice, 'Notice');
             System.assertEquals(null, saved(relId).Pending_Run__c, 'No pipeline run');
@@ -98,7 +98,7 @@ private class RlyManualOnlyTest {
             Id relId = raiseSteps(new List<RlyManualSteps.StepInput>{ step('Grant Region access', RlyManualSteps.TIMING_BEFORE),
                 step('Load regions', RlyManualSteps.TIMING_AFTER) });
             RlyReleasesController.refreshRelease(relId);
-            RlyReleasesController.approve(relId, null);
+            RlyReleasesController.approve(relId, null, null);
             RLY_Release__c rel = saved(relId);
             System.assertEquals('Ready for approval', rel.Status__c, 'Approved, waits for the step before deploy');
             System.assertEquals('Approved', rel.Approval_Status__c, 'Approval recorded');

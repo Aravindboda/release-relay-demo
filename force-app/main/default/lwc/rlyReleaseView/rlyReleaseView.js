@@ -15,6 +15,7 @@ import resolveConflicts from '@salesforce/apex/RlyReleasesController.resolveConf
 import getHubStatus from '@salesforce/apex/RlyHubGuard.getHubStatus';
 import { highlightParts, matchesSearch, searchTerm } from 'c/rlyListSearch';
 import { errorText, dateTime as when, isGated } from 'c/rlyShared';
+import { itemWords } from 'c/rlyXmlItems';
 
 /** A list shows its search box from this many rows (or while a search is typed). */
 const SEARCH_FROM = 7;
@@ -87,7 +88,24 @@ const NO_GIT_PATH = ['pr', 'checks'];
 const RELEASES_TAB = 'RLY_My_Releases';
 /** New Release: opened in append mode (state c__appendTo) to add changes to an open release. */
 const BUILDER_TAB = 'RLY_New_Release';
+/** Build 60 (D38): Sync status, opened at an org (state c__org) with components picked (c__pick) or one opened (c__open). */
+const SYNC_TAB = 'RLY_Sync_Status';
 const BRANCH_OK = 'Synced';
+/**
+ * Build 60 (D40): raise.json's kept or removedOnPurpose, [{ component, items }], as one line per item:
+ * [{ key, text: "Account-Account Layout · field Fax" }].
+ */
+function linesOf(list) {
+    const out = [];
+    (Array.isArray(list) ? list : []).forEach((c, i) => {
+        const name = c && c.component ? String(c.component).substring(String(c.component).indexOf(':') + 1) : '';
+        (c && Array.isArray(c.items) ? c.items : []).forEach((it, j) => {
+            out.push({ key: i + '-' + j, text: name + ' · ' + itemWords(it) });
+        });
+    });
+    return out;
+}
+
 /** Build 55: {"ns1": 3, "ns2": 2} as { total: 5, names: "ns1 3, ns2 2" } ({ total: 3, names: "ns1" } for one); null when empty. */
 function countText(counts) {
     if (!counts || typeof counts !== 'object') {
@@ -312,6 +330,8 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     checking = false;
     comment = '';
     reason = '';
+    /** Build 60 (D38): the approver ticked that the target org's own changes will be replaced. */
+    driftAck = false;
     /** Build 54: the Cancel release dialog is open, and the reason typed in it. */
     cancelOpen = false;
     cancelReason = '';
@@ -607,10 +627,10 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         } else {
             steps.push({ key: 'scan', title: 'Code scan', state: this.checkState(r.Scan_Status__c, this.scan), text: this.scanText });
             const val = this.validation;
-            steps.push({
+            steps.push(this.withDrift({
                 key: 'validate', title: 'Validation in ' + this.targetName, state: this.checkState(r.Validation_Status__c, val),
                 text: this.validationText, conflict: val.status === 'Conflict'
-            });
+            }));
         }
         const leftOut = this.componentsLeftOutStep();
         if (leftOut) {
@@ -746,7 +766,100 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         } else if (collected && s === 'Failed') {
             state = 'Failed';
         }
-        return { key: 'pr', title: this.crLabel, state, text };
+        const step = { key: 'pr', title: this.crLabel, state, text };
+        return state === 'Done' ? this.withKeptLines(step) : step;
+    }
+
+    /**
+     * Build 60 (D40): lines the target branch had that the developer org lacked, which the raise kept (or took out on
+     * purpose), from raise.json via the validation result: a sentence on the step and the list behind "Show".
+     */
+    withKeptLines(step) {
+        const val = this.validation;
+        const kept = linesOf(val.raiseKept);
+        const removed = linesOf(val.raiseRemoved);
+        if (!kept.length && !removed.length) {
+            return step;
+        }
+        const source = (this.detail && this.detail.sourceName) || 'The developer org';
+        const parts = [];
+        if (kept.length) {
+            parts.push(source + ' lacked ' + kept.length + (kept.length === 1 ? ' line' : ' lines') + ' from other releases: kept');
+        }
+        if (removed.length) {
+            parts.push(removed.length + (removed.length === 1 ? ' line' : ' lines') + ' taken out on purpose');
+        }
+        const list = kept.map((l) => ({ ...l, key: 'k' + l.key, text: l.text + ' (kept)' }))
+            .concat(removed.map((l) => ({ ...l, key: 'r' + l.key, text: l.text + ' (taken out)' })));
+        return { ...step, text: step.text + ' · ' + parts.join(' · '), hasList: true, list, listLabel: 'Show the ' + list.length + (list.length === 1 ? ' line' : ' lines') };
+    }
+
+    /**
+     * Build 60 (D38, board "D38 · Release page"): the target org has its own changes to components this release brings
+     * (orgDrift from validate.json), so deploying replaces them: an amber card on the validation step. orgDriftNote (the
+     * pipeline couldn't read the target's copies) is a grey hint.
+     */
+    withDrift(step) {
+        const val = this.validation;
+        const out = { ...step };
+        if (val.orgDriftNote) {
+            out.hint = String(val.orgDriftNote);
+        }
+        const drift = this.driftEntries;
+        if (drift.length && step.state === 'Done') {
+            out.state = 'Warn';
+            out.label = 'Passed with a warning';
+            out.hasDrift = true;
+            out.driftTitle = this.targetName + ' has changes that aren\'t on the ' + (this.rel.Target_Branch__c || 'target') + ' branch';
+            out.driftText = 'Someone changed these in ' + this.targetName + ' by hand. Deploying this release replaces them with the branch\'s version, so they\'d be lost.';
+            out.driftRows = drift;
+            out.bringLabel = 'Bring ' + this.targetName + '\'s changes into ' + (this.rel.Target_Branch__c || 'the branch');
+            out.compareLabel = 'Compare with ' + this.targetName;
+            out.driftHint = 'Bring into the branch opens Sync status with these picked: check ' + this.targetName
+                + ' there first if they aren\'t listed. Then Check again on this release.';
+        }
+        return out;
+    }
+
+    /** The target org's own changes, from the latest validation: [{ key, component, name, text }]. */
+    get driftEntries() {
+        const list = this.rel.Validation_Status__c === 'Pending' ? [] : this.validation.orgDrift;
+        return (Array.isArray(list) ? list : []).filter((d) => d && d.component).map((d, i) => {
+            const items = Array.isArray(d.items) ? d.items : [];
+            const name = String(d.component).substring(String(d.component).indexOf(':') + 1);
+            return {
+                key: 'd' + i,
+                component: String(d.component),
+                name,
+                text: this.targetName + ' has ' + (items.length ? items.map((it) => itemWords(it)).join(', ') : 'changes') + '; '
+                    + (this.rel.Target_Branch__c || 'the branch') + ' doesn\'t'
+            };
+        });
+    }
+    get hasDrift() { return this.driftEntries.length > 0; }
+    get driftCount() { return this.driftEntries.length; }
+    get driftAckLabel() {
+        const n = this.driftCount;
+        return 'I know ' + this.targetName + '\'s own changes to ' + (n === 1 ? 'this component' : 'these ' + n + ' components') + ' will be replaced';
+    }
+    get showDriftAck() { return this.hasDrift && this.canApprove; }
+    get driftBoxText() {
+        const n = this.driftCount;
+        return n + (n === 1 ? ' component' : ' components') + ' would replace ' + this.targetName + '\'s own changes.';
+    }
+    handleDriftAck(event) { this.driftAck = event.target.checked; }
+
+    /** Sync status at the target org, with the drifted components picked (Bring) or the first one opened (Compare). */
+    openDriftSync(event) {
+        const pick = event.currentTarget.dataset.mode === 'bring';
+        const drift = this.driftEntries;
+        const state = { c__org: this.rel.Target_Org__c };
+        if (pick) {
+            state.c__pick = drift.map((d) => d.component).join(',');
+        } else if (drift.length) {
+            state.c__open = drift[0].component;
+        }
+        this[NavigationMixin.Navigate]({ type: 'standard__navItemPage', attributes: { apiName: SYNC_TAB }, state });
     }
 
     get conflictCountText() {
@@ -1694,7 +1807,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
     get showApprove() { return (this.waitingForChecks && this.isApprover && this.approveHere) || this.canApprove; }
     get checkAgainDisabled() { return this.actBusy || !this.canCheckAgain; }
     get rejectDisabled() { return this.actBusy || !this.canReject; }
-    get approveDisabled() { return this.actBusy || !this.canApprove; }
+    get approveDisabled() { return this.actBusy || !this.canApprove || (this.hasDrift && !this.driftAck); }
     get needsApproverNote() {
         return !this.isApprover && ['Ready for approval', 'Checks failed'].includes(this.rel.Status__c);
     }
@@ -1782,6 +1895,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
             this.detail = await fn({ releaseId: this._releaseId, ...args });
             this.comment = '';
             this.reason = '';
+            this.driftAck = false;
             if (this.detail.running) {
                 this.load();
             } else {
@@ -1795,7 +1909,7 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
         }
     }
 
-    doApprove() { this.act(approve, { comment: this.comment }); }
+    doApprove() { this.act(approve, { comment: this.comment, confirmed: this.hasDrift && this.driftAck ? ['orgDrift'] : [] }); }
     doReject() { this.act(reject, { comment: this.comment }); }
     doBypass() { this.act(bypassScan, { reason: this.reason }); }
     doCheckAgain() { this.act(checkAgain, {}); }
