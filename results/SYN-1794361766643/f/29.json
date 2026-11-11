@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/classes/RelayDemoGreeting.cls","left":null,"right":"/**\n * Release Relay demo: a small class to raise from DEV to SIT.\n */\npublic with sharing class RelayDemoGreeting {\n    public static String greet(String name) {\n        return 'Hello, ' + (String.isBlank(name) ? 'Release Relay' : name) + '!';\n    }\n}"}

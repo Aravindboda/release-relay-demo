@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/settings/EnhancedNotes.settings-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<EnhancedNotesSettings xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <enableEnhancedNotes>true</enableEnhancedNotes>\n    <enableTasksOnEnhancedNotes>true</enableTasksOnEnhancedNotes>\n</EnhancedNotesSettings>\n"}

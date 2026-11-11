@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/email/unfiled$public/SupportCaseAssignmentNotification.email","left":null,"right":"The following case has been auto-assigned to your team.  The case needs to be resolved within our standard service levels.\n\nCompany: {!Account.Name}\nContact: {!Contact.Name}\nSubject: {!Case.Subject}\nDescription: {!Case.Description}"}
