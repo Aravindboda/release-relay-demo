@@ -4,12 +4,12 @@
  "status": "Passed",
  "changed": 1,
  "deleted": [],
- "mergedWith": "0c3a1c4fd206a35ba8fa964dac147dd94466eb79",
- "validatedTree": "9ab1e67b9c50011a57eb6711648cd4b504d07839",
+ "mergedWith": "863cc85ccab8d40782e3eeedf30b2fd35823de84",
+ "validatedTree": "cc7b06f9131ae6aae85ccc9d402e9be82e6f4e2b",
  "environment": "sit",
  "ok": true,
  "testLevel": "NoTestRun",
- "deployId": "0AfgL00000dfipqSAA",
+ "deployId": "0AfgL00000dgKyLSAU",
  "testsRun": 0,
  "tests": [],
  "coverageWarnings": [],
@@ -21,11 +21,18 @@
   "passed": true,
   "failures": []
  },
- "orgDrift": [],
- "orgDriftNote": "Couldn't read the target's copies to compare.",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/43289051601",
- "finishedAt": "2026-11-12T19:20:49.882Z",
- "attempt": "4e7b1c416654b3bc2b8cc9ff24c9353b",
+ "orgDrift": [
+  {
+   "component": "Layout:Account-Account Layout",
+   "items": [
+    "layoutItems:Cliam_ID__c",
+    "layoutItems:SicDesc"
+   ]
+  }
+ ],
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/43294414491",
+ "finishedAt": "2026-11-12T19:51:54.508Z",
+ "attempt": "a280744d0785ac9698159d9cd7b0f3e7",
  "excluded": [],
  "selfUpdate": false,
  "values": {
