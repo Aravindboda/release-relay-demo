@@ -1,0 +1,46 @@
+{
+ "request": "REL-00071",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rel-00071",
+ "target": "sit",
+ "sha": "b5c9b1c15ac4930443e37be18c3f16db1a9b6792",
+ "pr": 291,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/291",
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "appended": false,
+ "message": "",
+ "kept": [
+  {
+   "component": "CustomField:Account.E2E_Tier__c",
+   "items": [
+    "value:Bronze"
+   ]
+  }
+ ],
+ "removedOnPurpose": [],
+ "profileAccess": {
+  "profiles": 1,
+  "rows": 1
+ },
+ "startedFrom": "0c3a1c4fd206a35ba8fa964dac147dd94466eb79",
+ "leftOut": [
+  "force-app/main/default/classes/E2EProbe.cls",
+  "force-app/main/default/classes/E2EProbe.cls-meta.xml",
+  "force-app/main/default/classes/E2EProbeTest.cls",
+  "force-app/main/default/classes/E2EProbeTest.cls-meta.xml"
+ ],
+ "leftOutCount": 4,
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/43289733791",
+ "finishedAt": "2026-11-12T19:24:30.297Z",
+ "attempt": "f398a0815e73192f420bce5041f770f6",
+ "packages": {
+  "kept": {},
+  "leftOut": {},
+  "componentsLeftOut": []
+ }
+}
