@@ -1,0 +1,43 @@
+{
+ "request": "REL-00068",
+ "step": "deploy",
+ "status": "Deployed",
+ "sha": "ca58d35a10118ab6e3943d9022ce7744879bf376",
+ "changed": 0,
+ "deleted": [
+  "ApexClass:RlyDemoHotfix",
+  "ApexClass:RlyDemoHotfixTest"
+ ],
+ "ok": true,
+ "testLevel": "RunLocalTests",
+ "deployId": "0Afg800000LlL4xCAF",
+ "testsRun": 665,
+ "tests": [],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "Quick deploy of validation 0Afg800000LiUO7CAN was refused (Job ID can't be used for quick deployment. Possible reasons include the deployment hasn't been validated, has already been deployed, or the validation expired because you ran it more than 10 days ago.), so the release was deployed in full.",
+ "quick": false,
+ "quickNote": "Quick deploy of validation 0Afg800000LiUO7CAN was refused (Job ID can't be used for quick deployment. Possible reasons include the deployment hasn't been validated, has already been deployed, or the validation expired because you ran it more than 10 days ago.), so the release was deployed in full.",
+ "snapshot": {
+  "branch": "release-relay-snapshots",
+  "path": "REL-00068/prod/381b93f00836b3435a02e16f58f6a0d9",
+  "existing": 0,
+  "added": 0
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/43307919924",
+ "finishedAt": "2026-11-12T21:21:42.752Z",
+ "attempt": "381b93f00836b3435a02e16f58f6a0d9",
+ "excluded": [],
+ "selfUpdate": false,
+ "values": {
+  "replaced": 0,
+  "files": [],
+  "hash": ""
+ },
+ "packages": {
+  "kept": {},
+  "leftOut": {},
+  "componentsLeftOut": []
+ }
+}
