@@ -1,0 +1,12 @@
+{
+ "request": "REL-00071",
+ "environment": "sit",
+ "takenAt": "2026-11-12T19:28:21.925Z",
+ "sha": "ff60483db33ed035513e5e7b230a645a27e21f10",
+ "existing": [
+  "Profile:Standard"
+ ],
+ "added": [],
+ "deleted": [],
+ "unresolved": []
+}
