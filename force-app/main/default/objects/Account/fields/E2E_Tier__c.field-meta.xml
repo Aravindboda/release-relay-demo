@@ -35,6 +35,11 @@
                 <label>Copper</label>
             </value>
             <value>
+                <fullName>Opal</fullName>
+                <default>false</default>
+                <label>Opal</label>
+            </value>
+            <value>
                 <fullName>Diamond</fullName>
                 <default>false</default>
                 <label>Diamond</label>
