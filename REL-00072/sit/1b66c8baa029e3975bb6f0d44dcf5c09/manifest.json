@@ -1,0 +1,12 @@
+{
+ "request": "REL-00072",
+ "environment": "sit",
+ "takenAt": "2026-11-12T19:37:31.446Z",
+ "sha": "863cc85ccab8d40782e3eeedf30b2fd35823de84",
+ "existing": [],
+ "added": [],
+ "deleted": [],
+ "unresolved": [
+  "CustomField:Account.E2E_Tier__c"
+ ]
+}
