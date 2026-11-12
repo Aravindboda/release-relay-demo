@@ -1,21 +1,30 @@
 {
  "request": "REL-00072",
  "step": "validate",
- "status": "Conflict",
- "conflicts": [
-  {
-   "file": "force-app/main/default/objects/Account/fields/E2E_Tier__c.field-meta.xml",
-   "merged": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>E2E_Tier__c</fullName>\n    <label>E2E Tier</label>\n    <required>false</required>\n    <trackFeedHistory>false</trackFeedHistory>\n    <type>Picklist</type>\n    <valueSet>\n        <restricted>true</restricted>\n        <valueSetDefinition>\n            <sorted>false</sorted>\n            <value>\n                <fullName>Gold</fullName>\n                <default>false</default>\n                <label>Gold</label>\n            </value>\n            <value>\n                <fullName>Silver</fullName>\n                <default>false</default>\n                <label>Silver</label>\n            </value>\n            <value>\n                <fullName>Platinum</fullName>\n                <default>false</default>\n                <label>Platinum</label>\n            </value>\n            <value>\n                <fullName>Bronze</fullName>\n                <default>false</default>\n                <label>Bronze</label>\n            </value>\n            <value>\n                <fullName>Copper</fullName>\n                <default>false</default>\n                <label>Copper</label>\n            </value>\n            <value>\n<<<<<<< HEAD\n                <fullName>Opal</fullName>\n                <default>false</default>\n                <label>Opal</label>\n=======\n                <fullName>Diamond</fullName>\n                <default>false</default>\n                <label>Diamond</label>\n>>>>>>> refs/remotes/origin/feature/rel-00072\n            </value>\n        </valueSetDefinition>\n    </valueSet>\n</CustomField>\n",
-   "mine": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>E2E_Tier__c</fullName>\n    <label>E2E Tier</label>\n    <required>false</required>\n    <trackFeedHistory>false</trackFeedHistory>\n    <type>Picklist</type>\n    <valueSet>\n        <restricted>true</restricted>\n        <valueSetDefinition>\n            <sorted>false</sorted>\n            <value>\n                <fullName>Gold</fullName>\n                <default>false</default>\n                <label>Gold</label>\n            </value>\n            <value>\n                <fullName>Silver</fullName>\n                <default>false</default>\n                <label>Silver</label>\n            </value>\n            <value>\n                <fullName>Platinum</fullName>\n                <default>false</default>\n                <label>Platinum</label>\n            </value>\n            <value>\n                <fullName>Bronze</fullName>\n                <default>false</default>\n                <label>Bronze</label>\n            </value>\n            <value>\n                <fullName>Copper</fullName>\n                <default>false</default>\n                <label>Copper</label>\n            </value>\n            <value>\n                <fullName>Diamond</fullName>\n                <default>false</default>\n                <label>Diamond</label>\n            </value>\n        </valueSetDefinition>\n    </valueSet>\n</CustomField>",
-   "theirs": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>E2E_Tier__c</fullName>\n    <label>E2E Tier</label>\n    <required>false</required>\n    <trackFeedHistory>false</trackFeedHistory>\n    <type>Picklist</type>\n    <valueSet>\n        <restricted>true</restricted>\n        <valueSetDefinition>\n            <sorted>false</sorted>\n            <value>\n                <fullName>Gold</fullName>\n                <default>false</default>\n                <label>Gold</label>\n            </value>\n            <value>\n                <fullName>Silver</fullName>\n                <default>false</default>\n                <label>Silver</label>\n            </value>\n            <value>\n                <fullName>Platinum</fullName>\n                <default>false</default>\n                <label>Platinum</label>\n            </value>\n            <value>\n                <fullName>Bronze</fullName>\n                <default>false</default>\n                <label>Bronze</label>\n            </value>\n            <value>\n                <fullName>Copper</fullName>\n                <default>false</default>\n                <label>Copper</label>\n            </value>\n            <value>\n                <fullName>Opal</fullName>\n                <default>false</default>\n                <label>Opal</label>\n            </value>\n        </valueSetDefinition>\n    </valueSet>\n</CustomField>",
-   "truncated": false
-  }
- ],
- "conflictCount": 1,
- "message": "1 file(s) conflict with sit. Choose what to keep in Release Relay, then check again.",
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/43291305056",
- "finishedAt": "2026-11-12T19:33:17.344Z",
- "attempt": "cf875f04583293850e475e02cafe6c62",
+ "status": "Passed",
+ "changed": 1,
+ "deleted": [],
+ "mergedWith": "9e46c5e94ed2477a28ba73808aac7ecab5fedfa6",
+ "validatedTree": "e153b83c70fd0ea5f01ae4e86ca3488d8cb9dab2",
+ "environment": "sit",
+ "ok": true,
+ "testLevel": "NoTestRun",
+ "deployId": "0AfgL00000dfqCISAY",
+ "testsRun": 0,
+ "tests": [],
+ "coverageWarnings": [],
+ "componentErrors": [],
+ "testFailures": [],
+ "message": "",
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "orgDrift": [],
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/43291549060",
+ "finishedAt": "2026-11-12T19:35:34.819Z",
+ "attempt": "8935b9a651c42c7501a0384156e9c1dd",
  "excluded": [],
  "selfUpdate": false,
  "values": {
@@ -23,14 +32,10 @@
   "files": [],
   "hash": ""
  },
- "gates": {
-  "file": ".relay/gates.json",
-  "passed": true,
-  "failures": []
- },
  "packages": {
   "kept": {},
   "leftOut": {},
   "componentsLeftOut": []
- }
+ },
+ "headSha": "dcc033426edba2b8e871091c83da818864fa5e3a"
 }
