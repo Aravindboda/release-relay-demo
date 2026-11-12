@@ -17,6 +17,8 @@ public with sharing class RlyConflictRules {
         public String choice;
         /** @description The full file text, for edit only. */
         public String content;
+        /** @description True when the edit is Keep both (build 60.1): History says so. */
+        public Boolean keptBoth;
     }
 
     /** @description What the page sends: one resolution per conflicting file. */
@@ -103,6 +105,9 @@ public with sharing class RlyConflictRules {
         Map<String, Object> e = new Map<String, Object>{ 'file' => r.file, 'choice' => r.choice };
         if (r.choice == 'edit') {
             e.put('content', r.content);
+            if (r.keptBoth == true) {
+                e.put('keptBoth', true);
+            }
         }
         return e;
     }

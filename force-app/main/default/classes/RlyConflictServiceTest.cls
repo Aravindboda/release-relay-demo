@@ -79,6 +79,29 @@ private class RlyConflictServiceTest {
     }
 
     @IsTest
+    static void keepBothIsCommittedAsAnEditAndNamedInHistory() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = conflicted();
+            RlyHttpMock mock = new RlyFlowScenario().build();
+            Test.setMock(HttpCalloutMock.class, mock);
+            Map<String, Object> both = resolution(SERVICE, 'edit', 'a\nb\n');
+            both.put('keptBoth', true);
+            Test.startTest();
+            RlyReleasesController.resolveConflicts(rel.Id, request(new List<Object>{ both, resolution(SERVICE_TEST, 'mine', null) }));
+            Test.stopTest();
+            String committed = EncodingUtil.base64Decode(String.valueOf(((Map<String, Object>) JSON.deserializeUntyped(
+                mock.bodyFor('.relay-inbox/' + rel.Name + '-resolve.json'))).get('content'))).toString();
+            System.assert(committed.contains('"keptBoth":true') && committed.contains('"choice":"edit"'), 'Keep both goes up as a marked edit: ' + committed);
+            List<RLY_Release_Event__c> events = [SELECT Detail__c FROM RLY_Release_Event__c
+                                                 WHERE Release__c = :rel.Id AND Event_Type__c = :RlyConflictService.EVENT];
+            System.assertEquals(1, events.size(), 'History records the resolution');
+            System.assert(events[0].Detail__c.contains('AccountService.cls kept both: sit\'s items, then the release\'s'),
+                'History names Keep both: ' + events[0].Detail__c);
+            System.assert(events[0].Detail__c.contains('AccountServiceTest.cls kept the release\'s version'), 'Other files unchanged: ' + events[0].Detail__c);
+        }
+    }
+
+    @IsTest
     static void resolveRefusesIncompleteOrBadChoices() {
         System.runAs(RlyTestData.admin()) {
             RLY_Release__c rel = conflicted();
