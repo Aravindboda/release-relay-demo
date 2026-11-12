@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/lwc/rlyWait/rlyWait.html","left":null,"right":"<template>\n    <span class=\"rr-wait\" style={waitStyle} aria-hidden=\"true\" onanimationend={handleEnd}></span>\n</template>"}

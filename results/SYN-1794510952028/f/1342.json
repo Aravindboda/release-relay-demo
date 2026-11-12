@@ -1,0 +1,1 @@
+{"path":"force-app/main/default/objects/Case/fields/AssetId.field-meta.xml","left":null,"right":"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CustomField xmlns=\"http://soap.sforce.com/2006/04/metadata\">\n    <fullName>AssetId</fullName>\n    <trackHistory>true</trackHistory>\n    <trackTrending>false</trackTrending>\n    <type>Lookup</type>\n</CustomField>\n"}
