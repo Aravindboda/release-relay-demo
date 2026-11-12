@@ -110,7 +110,8 @@ public with sharing class RlyReleaseTestData {
                        Validation_Result__c, Deploy_Result__c, Check_Token__c, Slack_Channel_Id__c, Slack_Ts__c, Approved_Via__c,
                        Approved_By__c, Checks_Requested__c, Release_Type__c, Is_Hotfix__c, Hotfix_Reason__c, Promoted_In__c,
                        Carried_Releases__c, Second_Approved_By__c, Second_Approved_On__c, Back_Merge_Result__c, Approved_On__c,
-                       Target_Org__c, Source_Org__c, Target_Branch__c, Target_Environment__c, Source_Environment__c, Component_Count__c
+                       Target_Org__c, Source_Org__c, Target_Branch__c, Target_Environment__c, Source_Environment__c, Component_Count__c,
+                       Org_Drift__c
                 FROM RLY_Release__c WHERE Id = :relId];
     }
 

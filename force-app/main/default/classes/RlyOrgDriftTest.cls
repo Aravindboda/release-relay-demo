@@ -50,6 +50,19 @@ private class RlyOrgDriftTest {
     }
 
     @IsTest
+    static void theStatusCheckSavesTheDrift() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = RlyReleaseStore.release(RlyReleaseTestData.release('Ready for approval', 'hub').Id);
+            rel.Org_Drift__c = DRIFT;
+            RlyReleaseStore.saveAll(new List<RLY_Release__c>{ rel });
+            System.assertEquals(DRIFT, RlyReleaseTestData.reload(rel.Id).Org_Drift__c, 'Saved with the check\'s other results, so approving sees it');
+            rel.Org_Drift__c = null;
+            RlyReleaseStore.saveAll(new List<RLY_Release__c>{ rel });
+            System.assertEquals(null, RlyReleaseTestData.reload(rel.Id).Org_Drift__c, 'A new check clears it');
+        }
+    }
+
+    @IsTest
     static void validationKeepsDriftAndKeptLines() {
         System.runAs(RlyTestData.admin()) {
             RLY_Release__c rel = new RLY_Release__c(Pending_Run__c = 'check',
