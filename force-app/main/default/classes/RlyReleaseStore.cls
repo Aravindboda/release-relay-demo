@@ -380,7 +380,7 @@ public with sharing class RlyReleaseStore {
                 Check_Token__c = rel.Check_Token__c, Slack_Channel_Id__c = rel.Slack_Channel_Id__c, Slack_Ts__c = rel.Slack_Ts__c,
                 Approved_Via__c = rel.Approved_Via__c, Second_Approved_By__c = rel.Second_Approved_By__c,
                 Second_Approved_On__c = rel.Second_Approved_On__c, Back_Merge_Result__c = rel.Back_Merge_Result__c,
-                Flow_Results__c = rel.Flow_Results__c);
+                Flow_Results__c = rel.Flow_Results__c, Org_Drift__c = rel.Org_Drift__c);
         }
 
         /**

@@ -15,7 +15,9 @@ public with sharing class RlyConflictSummary {
         Map<String, Object> root = (Map<String, Object>) JSON.deserializeUntyped(resolveJson);
         for (Object o : (List<Object>) root.get('resolutions')) {
             Map<String, Object> r = (Map<String, Object>) o;
-            parts.add(String.valueOf(r.get('file')).substringAfterLast('/') + ' ' + choiceWords(String.valueOf(r.get('choice')), targetBranch));
+            String words = r.get('keptBoth') == true ? 'kept both: ' + targetBranch + '\'s items, then the release\'s'
+                : choiceWords(String.valueOf(r.get('choice')), targetBranch);
+            parts.add(String.valueOf(r.get('file')).substringAfterLast('/') + ' ' + words);
         }
         return String.join(parts, '; ');
     }

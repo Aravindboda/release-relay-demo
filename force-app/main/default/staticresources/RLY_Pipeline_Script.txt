@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 34
+// Release Relay pipeline files: version 35
 // Version 34 (hub build 60): nothing silently lost in metadata XML (layouts, permission sets, picklist values, labels,
 //   value sets). A hub raise keeps items the target branch has that the developer org's file lacks (D40), unless the
 //   hub listed them in .relay-inbox/<REQUEST_ID>-keep.json {"removeOnPurpose":[{component, item}]}; raise.json gets
@@ -3974,6 +3974,37 @@ function keptLines(keep) {
         keep.removedOnPurpose.length ? `### Removed on purpose\n${fmt(keep.removedOnPurpose)}` : ''].filter(Boolean).join('\n\n');
 }
 
+/** Version 35: the file name a component has in Metadata API format (a field sits in its object's file). */
+function driftFileName(x) {
+    if (x.c.type === 'CustomField') {
+        return `${x.c.name.split('.')[0]}.object`;
+    }
+    return path.basename(x.file).replace(/-meta\.xml$/, '');
+}
+
+/** Version 35: the part of an org copy that is this component (a field's own <fields> block in its object's file). */
+function driftOrgText(x, text) {
+    if (x.c.type !== 'CustomField') {
+        return text;
+    }
+    const field = x.c.name.split('.').slice(1).join('.');
+    const block = tagRanges(text, 'fields').map(([s, e]) => text.slice(s, e)).find((b) => itemChild(b, 'fullName') === field);
+    return block || '';
+}
+
+/** Version 35: the CLI's own message for a failed --json command (it prints it to stdout), else stderr or the error. */
+function sfErrorText(e) {
+    try {
+        const j = JSON.parse(String((e && e.stdout) || ''));
+        if (j && (j.message || j.name)) {
+            return String(j.message || j.name).trim();
+        }
+    } catch {
+        // not JSON
+    }
+    return String((e && (e.stderr || e.message)) || e).trim();
+}
+
 /**
  * D38: items the target org has that the files about to deploy don't (changed in the org by hand, never put on the
  * branch): they'd be replaced. Reads the org's copies of the plan's keyed components (profiles included) with one
@@ -3989,19 +4020,19 @@ function orgDriftFor(plan, alias) {
     }
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-drift-'));
     try {
-        const args = ['project', 'retrieve', 'start', '--target-org', alias, '--output-dir', tmp, '--json'];
+        // Version 35: Metadata API format (no source conversion, so no project folder rules); the files keep their XML.
+        const args = ['project', 'retrieve', 'start', '--target-org', alias, '--target-metadata-dir', tmp, '--unzip', '--json'];
         comps.forEach((x) => args.push('--metadata', `${x.c.type}:${x.c.name}`));
         execFileSync('sf', args, { stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
+        const found = fs.readdirSync(tmp, { recursive: true }).map(String);
         const drift = [];
         for (const x of comps) {
-            const rel = path.relative(sourcePath(), x.file);
-            const orgCopy = [path.join(tmp, rel), path.join(tmp, 'main', 'default', rel)].find((p) => fs.existsSync(p))
-                || (fs.readdirSync(tmp, { recursive: true }).map(String).filter((p) => p.endsWith(path.basename(x.file)))
-                    .map((p) => path.join(tmp, p))[0]);
+            const orgCopy = found.filter((p) => p.endsWith('/' + driftFileName(x)) || p === driftFileName(x))
+                .map((p) => path.join(tmp, p)).find((p) => fs.statSync(p).isFile());
             if (!orgCopy) {
                 continue;
             }
-            const items = missingItems(fs.readFileSync(orgCopy, 'utf8'), fs.readFileSync(x.file, 'utf8'), keyedRules(x.file));
+            const items = missingItems(driftOrgText(x, fs.readFileSync(orgCopy, 'utf8')), fs.readFileSync(x.file, 'utf8'), keyedRules(x.file));
             if (items.length) {
                 drift.push({ component: `${x.c.type}:${x.c.name}`, items: items.slice(0, 200) });
             }
@@ -4012,7 +4043,7 @@ function orgDriftFor(plan, alias) {
         }
         return { orgDrift: drift };
     } catch (e) {
-        console.log(`::warning::Couldn't read the target's copies to compare (${String((e && (e.stderr || e.message)) || e).trim().slice(0, 300)}).`);
+        console.log(`::warning::Couldn't read the target's copies to compare (${sfErrorText(e).slice(0, 300)}).`);
         return { orgDrift: [], orgDriftNote: "Couldn't read the target's copies to compare." };
     } finally {
         fs.rmSync(tmp, { recursive: true, force: true });

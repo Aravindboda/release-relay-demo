@@ -253,8 +253,11 @@ export default class RlyMergeConflicts extends LightningElement {
     handleResolve() {
         const resolutions = this.conflicts.map((c) => {
             const chosen = this.choices[c.file];
-            // Keep both goes up as an edit: the merged text (build 60, D39).
-            return chosen.choice === 'edit' || chosen.choice === 'both' ? { file: c.file, choice: 'edit', content: chosen.content } : { file: c.file, choice: chosen.choice };
+            // Keep both goes up as an edit: the merged text (build 60, D39), marked so History says Kept both.
+            if (chosen.choice === 'both') {
+                return { file: c.file, choice: 'edit', content: chosen.content, keptBoth: true };
+            }
+            return chosen.choice === 'edit' ? { file: c.file, choice: 'edit', content: chosen.content } : { file: c.file, choice: chosen.choice };
         });
         this.isOpen = false;
         this.dispatchEvent(new CustomEvent('resolve', { detail: { resolutions } }));
