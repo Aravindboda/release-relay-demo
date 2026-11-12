@@ -1,0 +1,12 @@
+{
+ "request": "REL-00070",
+ "environment": "sit",
+ "takenAt": "2026-11-12T20:02:35.252Z",
+ "sha": "b739d61fadb732cc950178ebf781a5a956d13595",
+ "existing": [
+  "Layout:Account-Account Layout"
+ ],
+ "added": [],
+ "deleted": [],
+ "unresolved": []
+}
