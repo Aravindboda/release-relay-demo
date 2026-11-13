@@ -1,0 +1,26 @@
+{
+ "request": "REL-91108",
+ "step": "scan",
+ "status": "Passed",
+ "total": 0,
+ "blocking": 0,
+ "threshold": 2,
+ "thresholdLabel": "High",
+ "rules": "Recommended",
+ "counts": {},
+ "files": [
+  "force-app/main/default/classes/RlyFileEditTest.cls",
+  "force-app/main/default/classes/RlyGitLab.cls",
+  "force-app/main/default/classes/RlyGitLabTest.cls"
+ ],
+ "violations": [],
+ "message": "",
+ "gate": null,
+ "gates": {
+  "file": ".relay/gates.json",
+  "passed": true,
+  "failures": []
+ },
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/43342303084",
+ "finishedAt": "2026-11-13T01:07:15.733Z"
+}
