@@ -113,12 +113,13 @@ public with sharing class RlyGitLab extends RlyGit {
 
     /**
      * @description Creates or replaces a file on a branch in one commit (POST /repository/commits, content base64):
-     * HEAD /repository/files says whether it's there (update) or not (create), without reading it.
+     * GET /repository/files says whether it's there (update) or not (create). Build 61 (D45): not HEAD, whose answer for a
+     * file that is there (a length but no body) makes the platform's callout throw.
      * @param file the file and its commit
      * @return link to the commit (web_url), or null
      */
     public override String putFile(RlyGitFile file) {
-        HttpResponse existing = send('HEAD', p('/repository/files/' + enc(file.path) + '?ref=' + enc(file.branch)), null);
+        HttpResponse existing = send('GET', p('/repository/files/' + enc(file.path) + '?ref=' + enc(file.branch)), null);
         String action = existing.getStatusCode() == 404 ? 'create' : 'update';
         if (action == 'update') {
             assertOk(existing, 'File lookup');

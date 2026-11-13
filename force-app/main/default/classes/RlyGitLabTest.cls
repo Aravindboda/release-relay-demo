@@ -41,8 +41,8 @@ private class RlyGitLabTest {
     static void filesAreCommittedReadAndListed() {
         System.runAs(RlyTestData.admin()) {
             RlyHttpMock mock = new RlyHttpMock()
-                .match('HEAD', '/repository/files/scripts/new.js').reply(404, '')
-                .match('HEAD', '/repository/files/').reply(200, '')
+                .match('GET', '/repository/files/scripts%2Fnew.js?ref=main').reply(404, '')
+                .match('GET', '/repository/files/.gitlab-ci.yml?ref=main').reply(200, '{"file_name":".gitlab-ci.yml"}')
                 .match('POST', '/projects/acme/salesforce/repository/commits').reply(201, '{"id":"c1","web_url":"' + WEB + '/-/commit/c1"}')
                 .match('GET', '/repository/files/.relay/values.json/raw?ref=main').reply(200, '{"values":{}}')
                 .match('GET', 'tree?ref=sit&path=force-app&recursive=true&per_page=100&page=1').reply(200, blobs('force-app/classes', 100))
