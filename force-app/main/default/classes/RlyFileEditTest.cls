@@ -92,7 +92,7 @@ private class RlyFileEditTest {
             RlyReleaseStore.forgetGit();
             RlyHttpMock mock = new RlyHttpMock()
                 .match('GET', '/repository/files/force-app/main/default/' + CLASS_PATH + '/raw?ref=feature/').reply(200, 'old text')
-                .match('HEAD', '/repository/files/').reply(200, '')
+                .match('GET', 'AccountService.cls?ref=').reply(200, '{"file_name":"AccountService.cls"}')
                 .match('POST', '/repository/commits').reply(201, '{"web_url":"https://gitlab.com/acme/release/-/commit/1"}')
                 .match('POST', '/pipeline').reply(201, '{"id":7}');
             Test.setMock(HttpCalloutMock.class, mock);

@@ -8,6 +8,7 @@ public abstract with sharing class RlyGitCore {
 
     private static final Integer TIMEOUT_MS = 30000;
     private static final Integer CONFLICT_ATTEMPTS = 3;
+    private static final String MOVED_TEXT = 'reference does not point to expected object';
     /** @description Where each provider's repositories are on the web (Azure DevOps builds its own address). */
     private static final Map<String, String> WEB_HOSTS = new Map<String, String>{
         'GitHub' => 'https://github.com/', 'GitLab' => 'https://gitlab.com/', 'Bitbucket' => 'https://bitbucket.org/'
@@ -154,13 +155,24 @@ public abstract with sharing class RlyGitCore {
     }
 
     // A 409 answer when another commit moved the branch meanwhile (parts are sent side by side): the same call is sent
-    // again, at most three times in all (build 53).
+    // again, at most three times in all (build 53). GitLab says it with a 400 (build 61, D46).
     protected HttpResponse sendRetryingConflicts(String method, String path, String body) {
         HttpResponse res = send(method, path, body);
-        for (Integer attempt = 1; attempt < CONFLICT_ATTEMPTS && res.getStatusCode() == 409; attempt++) {
+        for (Integer attempt = 1; attempt < CONFLICT_ATTEMPTS && branchMoved(res); attempt++) {
             res = send(method, path, body);
         }
         return res;
+    }
+
+    /**
+     * @description Whether an answer says the branch moved under the commit: HTTP 409, or GitLab's 400 "reference does
+     * not point to expected object" (build 61, D46).
+     * @param res the answer
+     * @return true when sending the same commit again can work
+     */
+    public static Boolean branchMoved(HttpResponse res) {
+        return res != null && (res.getStatusCode() == 409 || (res.getStatusCode() == 400
+            && String.valueOf(res.getBody()).containsIgnoreCase(MOVED_TEXT)));
     }
 
     protected HttpResponse send(RlyGitRequest r) {

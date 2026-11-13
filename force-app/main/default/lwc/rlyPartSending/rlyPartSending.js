@@ -147,11 +147,12 @@ export const PartSending = (Base) => class extends Base {
         return true;
     }
 
-    // D27 (build 57): parts are committed side by side, so the branch may move under one (HTTP 409) even after the
+    // D27 (build 57): parts are committed side by side, so the branch may move under one (HTTP 409, GitLab 400) even after the
     // server's own retries. The part is staged again a moment later (same retrieve) instead of failing the whole check.
     retryClash(e, id) {
         const p = this.partOf(id);
-        const clash = /HTTP 409/.test(errorText(e));
+        // GitLab answers a moved branch with HTTP 400 "reference does not point to expected object" (build 61, D46).
+        const clash = /HTTP 409|reference does not point to expected object/i.test(errorText(e));
         if (!p || !clash || (p.clashes || 0) >= CLASH_RETRIES) {
             return false;
         }
