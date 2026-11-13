@@ -1,4 +1,5 @@
-# Release Relay pipeline files: version 35
+# Release Relay pipeline files: version 36
+# Version 36 (hub build 62): no workflow change; results saves back off (D48), keytool's own error is shown.
 # Version 35 (hub build 60): no workflow change; the D38 check reads the target's copies in Metadata API format.
 # Version 34 (hub build 60): no workflow change; the script keeps items from other releases on a hub raise and reports target-org drift on validation.
 # Version 33 (hub build 59): no workflow change; the script re-includes a release's profile files that .forceignore hides, for that run.

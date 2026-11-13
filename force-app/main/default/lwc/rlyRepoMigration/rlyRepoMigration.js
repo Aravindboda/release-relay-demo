@@ -90,7 +90,9 @@ export default class RlyRepoMigration extends PartSending(LightningElement) {
             this.wait('run', 'run', 5);
         }
         (v.orgs || []).forEach((o) => {
-            if (o.status === 'Running' && o.mode === 'drift') {
+            // Build 62 (D47): a developer org's compare runs in the pipeline after its parts, so it's read again too,
+            // unless this page is still sending its parts.
+            if (o.status === 'Running' && !(this.sending && this.sending.orgId === o.id)) {
                 this.wait('org:' + o.id, 'org', 5);
             }
         });
@@ -338,7 +340,9 @@ export default class RlyRepoMigration extends PartSending(LightningElement) {
         return ((this.view && this.view.orgs) || []).map((o) => {
             const sending = this.sending && this.sending.orgId === o.id;
             return { ...o, pill: pillOf(o.status), statusText: sending ? this.sendingText : o.status,
-                buttonLabel: o.status === 'Not checked' ? 'Check' : 'Try again', off: this.busy || !this.isOpen || o.status === 'Running' || !!this.sending };
+                buttonLabel: o.status === 'Not checked' ? 'Check' : 'Try again', off: this.busy || !this.isOpen || !!this.sending
+                    // Build 62 (D47): a developer org's check that no page is sending can be started again.
+                    || (o.status === 'Running' && o.mode !== 'parts') };
         });
     }
     get cantCheckAll() { return this.busy || !this.isOpen || !!this.sending || this.checkingAll; }
