@@ -185,9 +185,18 @@ export default class RlyReleaseChanges extends LightningElement {
         return '−' + (this.data ? this.data.deletions : 0).toLocaleString();
     }
 
+    /** Build 63.3 (D51): GitLab calls it merge request !N. */
+    get isGitLab() {
+        return /\/merge_requests\//.test(this.prUrl || '');
+    }
+
+    get requestText() {
+        return (this.isGitLab ? 'merge request !' : 'pull request #') + this.data.prNumber;
+    }
+
     get intoText() {
         const d = this.data;
-        return 'pull request #' + d.prNumber + (d.targetBranch ? ' into ' + d.targetBranch : '');
+        return this.requestText + (d.targetBranch ? ' into ' + d.targetBranch : '');
     }
 
     get truncatedText() {
@@ -274,7 +283,8 @@ export default class RlyReleaseChanges extends LightningElement {
     }
 
     get modalTitle() {
-        return 'Changes · Pull request #' + this.data.prNumber;
+        const r = this.requestText;
+        return 'Changes · ' + r.charAt(0).toUpperCase() + r.slice(1);
     }
 
     get modalSub() {

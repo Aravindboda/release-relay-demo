@@ -109,6 +109,27 @@ private class RlyEvidenceTest {
     }
 
     @IsTest
+    static void aGitLabMergeRequestIsNamedSo() {
+        System.runAs(RlyTestData.admin()) {
+            RLY_Release__c rel = RlyReleaseTestData.release('Validating', 'hub');
+            RLY_Release__c old = new RLY_Release__c(Id = rel.Id, Status__c = 'Validating');
+            RLY_Release__c gitLab = new RLY_Release__c(Id = rel.Id, Status__c = 'Validating', Target_Branch__c = 'sit', PR_Number__c = 7,
+                PR_URL__c = 'https://gitlab.com/group/project/-/merge_requests/7');
+            RLY_Release__c gitHub = new RLY_Release__c(Id = rel.Id, Status__c = 'Validating', Target_Branch__c = 'sit', PR_Number__c = 8,
+                PR_URL__c = 'https://github.com/acme/release/pull/8');
+            RlyReleaseTransitions.record(new Map<Id, RLY_Release__c>{ rel.Id => old }, new List<RLY_Release__c>{ gitLab });
+            RlyReleaseTransitions.record(new Map<Id, RLY_Release__c>{ rel.Id => old }, new List<RLY_Release__c>{ gitHub });
+            RlyReleaseLog.flush();
+            Set<String> details = new Set<String>();
+            for (RLY_Release_Event__c e : RlyReleaseLog.eventsOf(new Set<Id>{ rel.Id })) {
+                details.add(e.Detail__c);
+            }
+            System.assert(details.contains('Merge request !7 opened into sit'), 'GitLab says merge request !N (D51): ' + details);
+            System.assert(details.contains('Pull request #8 opened into sit'), 'GitHub keeps pull request #N: ' + details);
+        }
+    }
+
+    @IsTest
     static void transitionsBecomeEvents() {
         System.runAs(RlyTestData.admin()) {
             RLY_Release__c rel = RlyReleaseTestData.release('Validating', 'hub');
