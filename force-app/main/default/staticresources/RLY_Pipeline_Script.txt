@@ -4424,7 +4424,9 @@ async function raisePromotion() {
         return;
     }
 
-    git(['fetch', '--no-tags', 'origin']); // the commits live on the previous stage's branch
+    // The commits live on the previous stage's branch. Version 37 (D50): every branch by an explicit refspec; a GitLab
+    // runner's clone only fetches the pipeline's own branch with a bare "git fetch origin".
+    git(['fetch', '--no-tags', 'origin', '+refs/heads/*:refs/remotes/origin/*']);
     fetchBranch(target);
     if (stageBranch) {
         await promoteFromStage(shas, stageBranch, lines);
