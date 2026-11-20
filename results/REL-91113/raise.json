@@ -1,0 +1,21 @@
+{
+ "request": "REL-91113",
+ "step": "raise",
+ "status": "Opened",
+ "mode": "hub",
+ "branch": "feature/rly-b62-sit",
+ "target": "rly-sit-install",
+ "sha": "9871f9a4402f2c8fb6e3d310990247110768f980",
+ "pr": 302,
+ "url": "https://github.com/Aravindboda/release-relay-demo/pull/302",
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "appended": false,
+ "message": "",
+ "kept": [],
+ "removedOnPurpose": [],
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/44766395268",
+ "finishedAt": "2026-11-20T15:45:30.178Z"
+}
