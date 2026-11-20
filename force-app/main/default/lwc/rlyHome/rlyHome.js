@@ -138,8 +138,9 @@ function eventView(e) {
     if (e.eventType === 'Merged_Back' && /conflict|to review/i.test(e.detail || '')) {
         tone = 'A';
     }
+    const gitLabRequest = e.eventType === 'Pull_Request' && /^Merge request/.test(e.detail || ''); // build 63.3 (D51)
     return {
-        label: failed ? look.failLabel : look.label,
+        label: gitLabRequest ? 'Merge request opened' : failed ? look.failLabel : look.label,
         icon: failed ? 'utility:close' : look.icon,
         tone,
         chips: {
