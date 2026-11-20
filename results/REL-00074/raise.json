@@ -1,0 +1,26 @@
+{
+ "request": "REL-00074",
+ "step": "raise",
+ "status": "Failed",
+ "mode": "promote",
+ "branch": "promote/rel-00074",
+ "target": "prod",
+ "sha": null,
+ "pr": null,
+ "url": null,
+ "commits": [],
+ "conflicts": [],
+ "deleted": [],
+ "valuesTokenized": 0,
+ "appended": false,
+ "message": "Commit f1bcd6e isn't in the repository. Was its branch rewritten?",
+ "fromStage": "sit",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/44773673949",
+ "finishedAt": "2026-11-20T16:28:15.171Z",
+ "attempt": "d22b5123746adb7f141a677f29dbaf9e",
+ "packages": {
+  "kept": {},
+  "leftOut": {},
+  "componentsLeftOut": []
+ }
+}
