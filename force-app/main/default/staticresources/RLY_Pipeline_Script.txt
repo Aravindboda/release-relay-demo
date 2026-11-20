@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 35
+// Release Relay pipeline files: version 36
 // Version 34 (hub build 60): nothing silently lost in metadata XML (layouts, permission sets, picklist values, labels,
 //   value sets). A hub raise keeps items the target branch has that the developer org's file lacks (D40), unless the
 //   hub listed them in .relay-inbox/<REQUEST_ID>-keep.json {"removeOnPurpose":[{component, item}]}; raise.json gets
@@ -579,10 +579,17 @@ function writePrivateKey(keyFile) {
         fs.writeFileSync(jks, Buffer.from(v('SF_JKS'), 'base64'), { mode: 0o600 });
         const childEnv = { ...process.env, RELAY_PW: v('SF_JKS_PASSWORD') };
         try {
-            run('keytool', ['-importkeystore', '-noprompt', '-srckeystore', jks, '-srcstoretype', 'JKS',
+            // Version 36: keytool writes its own error ("keystore password was incorrect", "Alias ... does not exist")
+            // to stdout, so it's kept for the message.
+            const imported = childProcess.spawnSync('keytool', ['-importkeystore', '-noprompt', '-srckeystore', jks, '-srcstoretype', 'JKS',
                 '-srcstorepass:env', 'RELAY_PW', '-srckeypass:env', 'RELAY_PW', '-srcalias', v('SF_JKS_ALIAS'),
                 '-destkeystore', p12, '-deststoretype', 'PKCS12', '-deststorepass:env', 'RELAY_PW',
-                '-destkeypass:env', 'RELAY_PW'], { env: childEnv, stdio: ['ignore', 'ignore', 'inherit'] });
+                '-destkeypass:env', 'RELAY_PW'], { env: childEnv, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+            if (imported.error || imported.status !== 0) {
+                const said = String(imported.stdout || (imported.error && imported.error.message) || '').split('\n')
+                    .map((l) => l.trim()).filter((l) => /error|exist|incorrect|tampered|ENOENT/i.test(l)).join(' ').slice(0, 200);
+                fail('Couldn\'t read the key from SF_JKS' + (said ? ` (${said})` : '') + '. Check SF_JKS_PASSWORD, and that SF_JKS_ALIAS is the certificate\'s Unique Name.');
+            }
             run('openssl', ['pkcs12', '-in', p12, '-nocerts', '-nodes', '-passin', 'env:RELAY_PW', '-out', keyFile],
                 { env: childEnv, stdio: ['ignore', 'ignore', 'inherit'] });
             fs.chmodSync(keyFile, 0o600);
@@ -603,6 +610,12 @@ function writePrivateKey(keyFile) {
 // ---------- inputs and per-org values ----------
 
 const RESULTS_BRANCH = 'release-relay-results';
+const RESULTS_ATTEMPTS = 6;
+
+/** Version 36: waits without a busy loop (Atomics.wait on a throwaway buffer). */
+function pauseSeconds(seconds) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.max(0, seconds) * 1000);
+}
 const SNAPSHOT_BRANCH = 'release-relay-snapshots';
 const SHA_RE = /^[0-9a-f]{40}$/;
 const SCAN_EXT = ['.cls', '.trigger', '.page', '.component', '.cmp', '.js', '.html', '.flow-meta.xml'];
@@ -1069,7 +1082,7 @@ function writeResult(name, data) {
         return;
     }
     const file = path.join('results', requestId, name + '.json');
-    for (let attempt = 1; attempt <= 4; attempt++) {
+    for (let attempt = 1; attempt <= RESULTS_ATTEMPTS; attempt++) {
         const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'relay-results-'));
         try {
             if (remoteBranchExists(RESULTS_BRANCH)) {
@@ -6185,8 +6198,11 @@ function writeCompareResults(data, files, fileName = 'compare.json', stepName = 
             gitQuiet(['worktree', 'remove', '--force', dir]);
             fs.rmSync(dir, { recursive: true, force: true });
         }
+        // Version 36 (D48): other runs and the hub's parts commit to the results branch too; waiting a little longer each
+        // time (with a random part) lets a push that lost the race find the branch still.
+        pauseSeconds(attempt * 5 + Math.floor(Math.random() * 6));
     }
-    fail(`Couldn't save the ${stepName} result to the ${RESULTS_BRANCH} branch. The pipeline needs permission to push to it, and it must not be protected.`);
+    fail(`Couldn't save the ${stepName} result to the ${RESULTS_BRANCH} branch after ${RESULTS_ATTEMPTS} tries. Other runs may be saving at the same time (run it again), or the pipeline can't push to it (permission, or the branch is protected).`);
 }
 
 // ---------- version 23: Sync status (drift, full compare, routediff) ----------
