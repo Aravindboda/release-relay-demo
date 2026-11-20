@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Release Relay pipeline files: version 36
+// Release Relay pipeline files: version 37
 // Version 34 (hub build 60): nothing silently lost in metadata XML (layouts, permission sets, picklist values, labels,
 //   value sets). A hub raise keeps items the target branch has that the developer org's file lacks (D40), unless the
 //   hub listed them in .relay-inbox/<REQUEST_ID>-keep.json {"removeOnPurpose":[{component, item}]}; raise.json gets
@@ -611,6 +611,7 @@ function writePrivateKey(keyFile) {
 
 const RESULTS_BRANCH = 'release-relay-results';
 const RESULTS_ATTEMPTS = 6;
+const GITLAB_SETTLE_TRIES = 24;
 
 /** Version 36: waits without a busy loop (Atomics.wait on a throwaway buffer). */
 function pauseSeconds(seconds) {
@@ -3041,8 +3042,23 @@ const providers = {
             const rows = await this.list(head, base, state === 'open' ? 'opened' : 'merged');
             return rows.length ? { id: rows[0].iid, raw: rows[0] } : null;
         },
-        async head(pr) {
-            return (pr.raw && pr.raw.sha) || '';
+        async head(pr, expectHead) {
+            // Version 37 (D49): GitLab updates a merge request's head and merge status in the background after a push,
+            // a minute or two late. Read the merge request itself (asking for a recheck) until it shows the approved
+            // head and has finished checking, for up to two minutes; then answer what it shows.
+            const settling = ['checking', 'unchecked', 'preparing', 'approvals_syncing'];
+            let mr = pr.raw || {};
+            for (let i = 0; i < GITLAB_SETTLE_TRIES; i++) {
+                const res = await http('GET', `${this.base()}/merge_requests/${pr.id}?with_merge_status_recheck=true`, this.headers());
+                mr = (res.ok && res.json) || mr;
+                const headOk = !expectHead || sameHead(String(mr.sha || ''), expectHead);
+                if (headOk && !settling.includes(String(mr.detailed_merge_status || ''))) {
+                    break;
+                }
+                pauseSeconds(5);
+            }
+            pr.raw = mr;
+            return mr.sha || '';
         },
         async merge(pr, method, expectHead) {
             // Version 27: sha makes GitLab refuse the merge when the merge request's head isn't the approved one.
@@ -4900,7 +4916,7 @@ async function stepMerge() {
         // Contract B: merge exactly what was approved.
         let head = '';
         try {
-            head = String((await provider.head(pr)) || '');
+            head = String((await provider.head(pr, expectHead)) || '');
         } catch {
             head = '';
         }
