@@ -41,7 +41,19 @@ public with sharing class RlyPromoteStore {
      * @param carriedIds the releases it carries
      */
     public static void insertPromotion(RLY_Release__c promotion, List<RLY_Release_Item__c> items, Set<Id> carriedIds) {
+        stampConnection(new List<RLY_Release__c>{ promotion });
         new SystemAccess().writePromotion(promotion, items, carriedIds);
+    }
+
+    // Build 63.1 (D50): a promotion or back promote starts in the active connection, like a release (build 46). Left
+    // blank it counted as the oldest connection's, so after a provider switch it ran in the old repository.
+    private static void stampConnection(List<RLY_Release__c> rows) {
+        Id active = RlyGitConnections.activeId();
+        for (RLY_Release__c r : rows) {
+            if (r.Git_Connection__c == null) {
+                r.Git_Connection__c = active;
+            }
+        }
     }
 
     /**
@@ -106,6 +118,7 @@ public with sharing class RlyPromoteStore {
      */
     public static void insertSyncs(List<RLY_Release__c> syncs) {
         if (!syncs.isEmpty()) {
+            stampConnection(syncs);
             new SystemAccess().insertRows(syncs);
         }
     }

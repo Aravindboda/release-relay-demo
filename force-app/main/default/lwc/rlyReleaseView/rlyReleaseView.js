@@ -1586,6 +1586,9 @@ export default class RlyReleaseView extends NavigationMixin(LightningElement) {
 
     /** "Code scan passed", "Check-only deploy failed", "Flow activation failed": the event's line says which. */
     eventTitle(e, look, failed) {
+        if (e.eventType === 'Pull_Request' && /^Merge request/.test(e.detail || '')) {
+            return 'Merge request opened'; // build 63.3 (D51): GitLab's word
+        }
         if (e.eventType === 'Flow_Activated') {
             return failed ? 'Flow activation failed' : look.title;
         }

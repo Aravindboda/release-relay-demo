@@ -34,8 +34,10 @@ public with sharing class RlyReleaseTransitions {
     // The pull request, the code scan and the validation.
     private static void checks(RLY_Release__c old, RLY_Release__c rel) {
         if (String.isBlank(old.PR_URL__c) && String.isNotBlank(rel.PR_URL__c)) {
-            String num = rel.PR_Number__c == null ? '' : ' #' + rel.PR_Number__c.intValue();
-            RlyReleaseLog.add(rel, 'Pull_Request', 'Pull request' + num + ' opened into ' + rel.Target_Branch__c)
+            // Build 63.3 (D51): GitLab's word and numbering (merge request !1).
+            Boolean gitLab = rel.PR_URL__c.containsIgnoreCase('/merge_requests/');
+            String num = rel.PR_Number__c == null ? '' : (gitLab ? ' !' : ' #') + rel.PR_Number__c.intValue();
+            RlyReleaseLog.add(rel, 'Pull_Request', (gitLab ? 'Merge request' : 'Pull request') + num + ' opened into ' + rel.Target_Branch__c)
                 .byActor(null, RlyReleaseLog.VIA_GIT).withReference(rel.PR_URL__c);
         }
         if (old.Scan_Status__c != rel.Scan_Status__c) {
