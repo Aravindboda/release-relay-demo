@@ -1,14 +1,14 @@
 {
  "request": "REL-91118",
  "step": "deploy",
- "status": "Failed",
+ "status": "Deployed",
  "sha": "bb8b6b6fa82a2eb050dd4963e758d0dc335ed12d",
  "changed": 11,
  "deleted": [],
- "ok": false,
+ "ok": true,
  "testLevel": "RunSpecifiedTests",
- "deployId": null,
- "testsRun": 0,
+ "deployId": "0AfgL00000evWVZSA2",
+ "testsRun": 652,
  "tests": [
   "RlyAppendTest",
   "RlyApprovalRulesTest",
@@ -106,14 +106,14 @@
  "coverageWarnings": [],
  "componentErrors": [],
  "testFailures": [],
- "message": "Metadata API request failed: REQUEST_LIMIT_EXCEEDED: TotalRequests Limit exceeded.",
+ "message": "",
  "quick": false,
  "quickNote": "The validation result isn't from the check this release was approved on, so it was deployed in full.",
  "snapshot": {
   "skipped": "The hub updating itself (selfUpdate) takes no snapshot."
  },
- "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/44780514927",
- "finishedAt": "2026-11-20T17:13:13.606Z",
+ "runUrl": "https://github.com/Aravindboda/release-relay-demo/actions/runs/44936057479",
+ "finishedAt": "2026-11-21T18:43:40.912Z",
  "excluded": [],
  "selfUpdate": true,
  "values": {
